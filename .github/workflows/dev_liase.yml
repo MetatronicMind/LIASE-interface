@@ -28,9 +28,31 @@ jobs:
           npm install
           npm run build --if-present
           npm run test --if-present
+        env:
+          NODE_ENV: production
 
+      - name: Create deployment package
+        run: |
+          mkdir deploy-package
+          cp -r .next deploy-package/
+          cp -r public deploy-package/
+          cp -r pages deploy-package/
+          cp -r components deploy-package/
+          cp -r redux deploy-package/
+          cp -r styles deploy-package/
+          cp package*.json deploy-package/
+          cp server.js deploy-package/
+          cp startup.js deploy-package/
+          cp web.config deploy-package/
+          cp next.config.js deploy-package/
+          cp postcss.config.js deploy-package/
+          cp tailwind.config.js deploy-package/
+          cp .env.production deploy-package/
+          
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: |
+          cd deploy-package
+          zip -r ../release.zip . -x "node_modules/*"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -53,6 +75,9 @@ jobs:
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
+        
+      - name: Install production dependencies
+        run: npm install --production
       
       - name: Login to Azure
         uses: azure/login@v2

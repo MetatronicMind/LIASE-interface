@@ -1,6 +1,7 @@
 {
   "name": "nextjs-auth-boilerplate",
   "version": "1.0.0",
+  "main": "startup.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
