@@ -54,8 +54,8 @@ jobs:
           cp package.json deploy-package/
           cp package-lock.json deploy-package/ || true
           cp server.js deploy-package/
-          cp startup.js deploy-package/
           cp web.config deploy-package/
+          cp iisnode.yml deploy-package/
           cp .deployment deploy-package/
           cp next.config.js deploy-package/
           cp postcss.config.js deploy-package/ || true

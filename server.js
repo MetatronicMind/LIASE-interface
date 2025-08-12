@@ -1,55 +1,56 @@
-const { createServer } = require('http')
-const { parse } = require('url')
+const express = require('express')
 const next = require('next')
 const path = require('path')
 
 const dev = process.env.NODE_ENV !== 'production'
-const hostname = process.env.WEBSITE_HOSTNAME || 'localhost'
 const port = process.env.PORT || 3000
 
-console.log(`Starting Next.js server in ${dev ? 'development' : 'production'} mode`)
-console.log(`Server will listen on ${hostname}:${port}`)
+console.log(`Starting Next.js server...`)
+console.log(`Environment: ${dev ? 'development' : 'production'}`)
+console.log(`Port: ${port}`)
+console.log(`Current directory: ${process.cwd()}`)
 
-// When using middleware `hostname` and `port` must be provided below
-const app = next({ dev, hostname, port, dir: path.join(__dirname) })
+// Initialize Next.js
+const app = next({ 
+  dev, 
+  dir: path.join(__dirname),
+  quiet: false 
+})
+
 const handle = app.getRequestHandler()
 
-console.log('Preparing Next.js application...')
+// Create Express server
+const server = express()
 
+// Health check endpoint
+server.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV 
+  })
+})
+
+// Prepare Next.js and start server
 app.prepare()
   .then(() => {
-    console.log('Next.js application prepared successfully')
+    console.log('Next.js prepared successfully')
     
-    const server = createServer(async (req, res) => {
-      try {
-        console.log(`Incoming request: ${req.method} ${req.url}`)
-        
-        // Parse the request URL
-        const parsedUrl = parse(req.url, true)
-        
-        // Let Next.js handle the request
-        await handle(req, res, parsedUrl)
-      } catch (err) {
-        console.error('Error occurred handling', req.url, err)
-        res.statusCode = 500
-        res.end('Internal server error')
-      }
+    // Handle all requests with Next.js
+    server.all('*', (req, res) => {
+      return handle(req, res)
     })
-
-    server.once('error', (err) => {
-      console.error('Server error:', err)
-      process.exit(1)
-    })
-
+    
+    // Start the server
     server.listen(port, (err) => {
       if (err) {
-        console.error('Failed to start server:', err)
+        console.error('Server failed to start:', err)
         process.exit(1)
       }
-      console.log(`> Ready on http://${hostname}:${port}`)
+      console.log(`> Server ready on port ${port}`)
     })
   })
   .catch((ex) => {
-    console.error('Failed to prepare Next.js application:', ex)
+    console.error('Failed to prepare Next.js:', ex)
     process.exit(1)
   })
