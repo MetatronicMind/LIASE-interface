@@ -31,34 +31,56 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Create deployment package
+      - name: Clean build artifacts
         run: |
-          mkdir deploy-package
-          cp -r .next deploy-package/
-          cp -r public deploy-package/
+          # Remove problematic trace files
+          rm -rf .next/trace || true
+          rm -rf .next/cache || true
+          
+      - name: Create minimal deployment package
+        run: |
+          # Create deployment directory
+          mkdir -p deploy-package
+          
+          # Copy essential application files
+          cp -r .next deploy-package/ || true
+          cp -r public deploy-package/ || true
           cp -r pages deploy-package/
           cp -r components deploy-package/
           cp -r redux deploy-package/
           cp -r styles deploy-package/
-          cp package*.json deploy-package/
+          
+          # Copy configuration files
+          cp package.json deploy-package/
+          cp package-lock.json deploy-package/ || true
           cp server.js deploy-package/
           cp startup.js deploy-package/
           cp web.config deploy-package/
+          cp .deployment deploy-package/
           cp next.config.js deploy-package/
-          cp postcss.config.js deploy-package/
-          cp tailwind.config.js deploy-package/
-          cp .env.production deploy-package/
+          cp postcss.config.js deploy-package/ || true
+          cp tailwind.config.js deploy-package/ || true
+          cp .env.production deploy-package/ || true
           
-      - name: Zip artifact for deployment
+          # Clean up any problematic files in the deployment package
+          rm -rf deploy-package/.next/trace || true
+          rm -rf deploy-package/.next/cache || true
+          
+          echo "Deployment package contents:"
+          ls -la deploy-package/
+          
+      - name: Create deployment archive
         run: |
           cd deploy-package
-          zip -r ../release.zip . -x "node_modules/*"
+          tar -czf ../deployment.tar.gz .
+          cd ..
+          ls -la deployment.tar.gz
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: release.zip
+          path: deployment.tar.gz
 
   deploy:
     runs-on: ubuntu-latest
@@ -73,11 +95,19 @@ jobs:
         with:
           name: node-app
 
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
+      - name: Extract deployment package
+        run: |
+          tar -xzf deployment.tar.gz
+          ls -la
         
       - name: Install production dependencies
-        run: npm install --production
+        run: |
+          npm ci --production --no-audit --no-fund
+          
+      - name: Verify deployment structure
+        run: |
+          echo "Deployment structure:"
+          find . -maxdepth 3 -type f | head -20
       
       - name: Login to Azure
         uses: azure/login@v2
