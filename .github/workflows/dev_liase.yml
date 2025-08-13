@@ -21,18 +21,23 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '18.20.4'
+          node-version: '20.x'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Clear npm cache and install dependencies
+        run: |
+          npm cache clean --force
+          rm -rf node_modules package-lock.json
+          # Temporarily downgrade Vite for build compatibility
+          npm install
+          npm install vite@^5.4.0 --save-dev
 
       - name: Build React app
         run: |
           # Clear any existing build artifacts
           rm -rf dist/
-          # Build with environment variables
-          NODE_ENV=production npm run build
+          # Build with stable Vite version
+          npm run build
         env:
           NODE_ENV: production
           GENERATE_SOURCEMAP: false
