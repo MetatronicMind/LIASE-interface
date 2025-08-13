@@ -39,6 +39,10 @@ jobs:
           cp -r dist/* deployment/
           # Copy web.config for IIS URL rewriting
           cp web.config deployment/ 2>/dev/null || true
+          # Copy deployment configuration
+          cp .deployment deployment/ 2>/dev/null || true
+          # Create a package.json that tells Azure this is a static site
+          echo '{"scripts":{"build":"echo \"Static site - no build needed\"","start":"echo \"Static site - no server needed\""}}' > deployment/package.json
           tar -czf deployment.tar.gz -C deployment .
 
       - name: Upload artifact for deployment job
