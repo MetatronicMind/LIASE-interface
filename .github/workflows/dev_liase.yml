@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy React.js app to Azure Web App - LIASE
+name: Build and deploy Node.js app to Azure Web App - LIASE
 
 on:
   push:
@@ -27,72 +27,230 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build React application
-        run: |
-          npm run build
+      - name: Run tests
+        run: npm test
         env:
-          NODE_ENV: production
+          NODE_ENV: test
 
       - name: Create deployment package
         run: |
-          mkdir deployment
-          # Copy built static files from Vite build output
-          cp -r dist/* deployment/
-          # Copy web.config for IIS URL rewriting
-          cp web.config deployment/ 2>/dev/null || true
-          # Copy deployment configuration
-          cp .deployment deployment/ 2>/dev/null || true
+          # Create deployment directory
+          mkdir -p deploy-package
           
-          # Create a Node.js server to serve the React app
-          cat > deployment/server.js << 'EOF'
-          const express = require('express');
-          const path = require('path');
-          const app = express();
-          const port = process.env.PORT || 3000;
-
-          // Serve static files from the current directory
-          app.use(express.static(__dirname));
-
-          // Handle React Router (return `index.html` for non-API routes)
-          app.get('*', (req, res) => {
-            res.sendFile(path.join(__dirname, 'index.html'));
-          });
-
-          app.listen(port, () => {
-            console.log(`Server is running on port ${port}`);
-          });
+          # Copy application files
+          cp -r src/ deploy-package/
+          cp server.js deploy-package/
+          cp loadEnv.js deploy-package/
+          cp package*.json deploy-package/
+          cp jest.config.js deploy-package/
+          
+          # Copy environment files if they exist
+          if [ -f ".env.prod" ]; then
+            cp .env.prod deploy-package/.env
+          elif [ -f ".env.production" ]; then
+            cp .env.production deploy-package/.env
+          fi
+          
+          # Copy storage directory if exists
+          if [ -d "storage" ]; then
+            cp -r storage/ deploy-package/
+          fi
+          
+          # Create web.config for Azure if it doesn't exist
+          if [ ! -f "web.config" ]; then
+            cat > deploy-package/web.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <handlers>
+                <add name="iisnode" path="server.js" verb="*" modules="iisnode"/>
+              </handlers>
+              <rewrite>
+                <rules>
+                  <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
+                    <match url="^server.js\/debug[\/]?" />
+                  </rule>
+                  <rule name="StaticContent">
+                    <action type="Rewrite" url="public{REQUEST_URI}"/>
+                  </rule>
+                  <rule name="DynamicContent">
+                    <conditions>
+                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True"/>
+                    </conditions>
+                    <action type="Rewrite" url="server.js"/>
+                  </rule>
+                </rules>
+              </rewrite>
+              <security>
+                <requestFiltering>
+                  <hiddenSegments>
+                    <remove segment="bin"/>
+                  </hiddenSegments>
+                </requestFiltering>
+              </security>
+              <httpErrors existingResponse="PassThrough" />
+              <iisnode watchedFiles="web.config;*.js"/>
+            </system.webServer>
+          </configuration>
+          EOF
+          else
+            cp web.config deploy-package/
+          fi
+          
+          # Create .deployment file for Azure
+          cat > deploy-package/.deployment << 'EOF'
+          [config]
+          command = deploy.cmd
           EOF
           
-          # Create package.json with Express dependency for deployment
-          cat > deployment/package.json << 'EOF'
-          {
-            "name": "liase-frontend-server",
-            "version": "1.0.0",
-            "description": "Node.js server for React SPA",
-            "main": "server.js",
-            "scripts": {
-              "start": "node server.js"
-            },
-            "dependencies": {
-              "express": "^4.18.2"
-            },
-            "engines": {
-              "node": ">=18.0.0"
-            }
-          }
+          # Create deploy.cmd for custom deployment
+          cat > deploy-package/deploy.cmd << 'EOF'
+          @if "%SCM_TRACE_LEVEL%" NEQ "4" @echo off
+          
+          :: ----------------------
+          :: KUDU Deployment Script
+          :: ----------------------
+          
+          :: Prerequisites
+          :: -------------
+          
+          :: Verify node.js installed
+          where node 2>nul >nul
+          IF %ERRORLEVEL% NEQ 0 (
+            echo Missing node.js executable, please install node.js, if already installed make sure it can be reached from current environment.
+            goto error
+          )
+          
+          :: Setup
+          :: -----
+          
+          setlocal enabledelayedexpansion
+          
+          SET ARTIFACTS=%~dp0%..\artifacts
+          
+          IF NOT DEFINED DEPLOYMENT_SOURCE (
+            SET DEPLOYMENT_SOURCE=%~dp0%.
+          )
+          
+          IF NOT DEFINED DEPLOYMENT_TARGET (
+            SET DEPLOYMENT_TARGET=%ARTIFACTS%\wwwroot
+          )
+          
+          IF NOT DEFINED NEXT_MANIFEST_PATH (
+            SET NEXT_MANIFEST_PATH=%ARTIFACTS%\manifest
+          
+            IF NOT DEFINED PREVIOUS_MANIFEST_PATH (
+              SET PREVIOUS_MANIFEST_PATH=%ARTIFACTS%\manifest
+            )
+          )
+          
+          IF NOT DEFINED KUDU_SYNC_CMD (
+            :: Install kudu sync
+            echo Installing Kudu Sync
+            call npm install kudusync -g --silent
+            IF !ERRORLEVEL! NEQ 0 goto error
+          
+            :: Locally just running "kudu sync"
+            SET KUDU_SYNC_CMD=%appdata%\npm\kudu-sync.cmd
+          )
+          
+          ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+          :: Deployment
+          :: ----------
+          
+          echo Handling node.js deployment.
+          
+          :: 1. KuduSync
+          IF /I "%IN_PLACE_DEPLOYMENT%" NEQ "1" (
+            call :ExecuteCmd "%KUDU_SYNC_CMD%" -v 50 -f "%DEPLOYMENT_SOURCE%" -t "%DEPLOYMENT_TARGET%" -n "%NEXT_MANIFEST_PATH%" -p "%PREVIOUS_MANIFEST_PATH%" -i ".git;.hg;.deployment;deploy.cmd"
+            IF !ERRORLEVEL! NEQ 0 goto error
+          )
+          
+          :: 2. Select node version
+          call :SelectNodeVersion
+          
+          :: 3. Install npm packages
+          IF EXIST "%DEPLOYMENT_TARGET%\package.json" (
+            pushd "%DEPLOYMENT_TARGET%"
+            call :ExecuteCmd !NPM_CMD! install --production
+            IF !ERRORLEVEL! NEQ 0 goto error
+            popd
+          )
+          
+          ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+          goto end
+          
+          :: Execute command routine that will echo out when error
+          :ExecuteCmd
+          setlocal
+          set _CMD_=%*
+          call %_CMD_%
+          if "%ERRORLEVEL%" NEQ "0" echo Failed exitCode=%ERRORLEVEL%, command=%_CMD_%
+          exit /b %ERRORLEVEL%
+          
+          :error
+          endlocal
+          echo An error has occurred during web site deployment.
+          call :exitSetErrorLevel
+          call :exitFromFunction 2>nul
+          
+          :exitSetErrorLevel
+          exit /b 1
+          
+          :exitFromFunction
+          ()
+          
+          :end
+          endlocal
+          echo Finished successfully.
+          
+          :SelectNodeVersion
+          
+          IF DEFINED KUDU_SELECT_NODE_VERSION_CMD (
+            call %KUDU_SELECT_NODE_VERSION_CMD% "%DEPLOYMENT_TARGET%" "%DEPLOYMENT_TARGET%"
+            IF !ERRORLEVEL! NEQ 0 goto error
+          
+            IF EXIST "%DEPLOYMENT_TARGET%\bin\node.exe" (
+              SET NODE_EXE="%DEPLOYMENT_TARGET%\bin\node.exe"
+            ) ELSE (
+              SET NODE_EXE=node
+            )
+          
+            IF EXIST "%DEPLOYMENT_TARGET%\bin\npm.cmd" (
+              SET NPM_CMD="%DEPLOYMENT_TARGET%\bin\npm.cmd"
+            ) ELSE (
+              SET NPM_CMD=npm
+            )
+          ) ELSE (
+            SET NODE_EXE=node
+            SET NPM_CMD=npm
+          )
+          
+          goto :EOF
           EOF
           
-          tar -czf deployment.tar.gz -C deployment .
+          echo "Deployment package contents:"
+          ls -la deploy-package/
+          
+      - name: Create deployment archive
+        run: |
+          cd deploy-package
+          zip -r ../deployment.zip .
+          cd ..
+          ls -la deployment.zip
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: deployment.tar.gz
+          path: deployment.zip
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
       id-token: write #This is required for requesting the JWT
       contents: read #This is required for actions/checkout
@@ -105,9 +263,18 @@ jobs:
 
       - name: Extract deployment package
         run: |
-          tar -xzf deployment.tar.gz
+          unzip deployment.zip
           ls -la
-
+        
+      - name: Install production dependencies
+        run: |
+          npm ci --omit=dev --no-audit --no-fund
+          
+      - name: Verify deployment structure
+        run: |
+          echo "Deployment structure:"
+          find . -maxdepth 3 -type f | head -20
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -122,3 +289,53 @@ jobs:
           app-name: 'LIASE'
           slot-name: 'Production'
           package: .
+          startup-command: 'node server.js'
+          
+      - name: Configure App Settings
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Set Node.js version
+            az webapp config appsettings set --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_NAME || 'LIASE-rg' }} --name LIASE --settings WEBSITE_NODE_DEFAULT_VERSION=~22
+            
+            # Set startup command
+            az webapp config set --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_NAME || 'LIASE-rg' }} --name LIASE --startup-file "node server.js"
+            
+            # Enable logging
+            az webapp log config --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_NAME || 'LIASE-rg' }} --name LIASE --application-logging filesystem --level verbose
+            
+            echo "App settings configured successfully"
+            
+      - name: Health Check
+        run: |
+          # Wait for deployment to be ready
+          sleep 30
+          
+          # Get the webapp URL
+          webapp_url="https://liase.azurewebsites.net"
+          
+          # Perform health check
+          echo "Checking application health at $webapp_url"
+          
+          max_attempts=5
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Health check attempt $attempt/$max_attempts"
+            
+            if curl -f -s -o /dev/null "$webapp_url" || curl -f -s -o /dev/null "$webapp_url/health"; then
+              echo "✅ Application is responding successfully"
+              break
+            else
+              if [ $attempt -eq $max_attempts ]; then
+                echo "❌ Health check failed after $max_attempts attempts"
+                echo "Please check the Azure portal for deployment logs"
+                exit 1
+              else
+                echo "⏳ Application not ready yet, waiting 30 seconds..."
+                sleep 30
+                attempt=$((attempt + 1))
+              fi
+            fi
+          done
+          
