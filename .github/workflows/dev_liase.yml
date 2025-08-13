@@ -31,51 +31,6 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Clean build artifacts
-        run: |
-          # Remove problematic trace files
-          rm -rf .next/trace || true
-          rm -rf .next/cache || true
-          
-      - name: Create minimal deployment package
-        run: |
-          # Create deployment directory
-          mkdir -p deploy-package
-          
-          # Copy essential application files
-          cp -r .next deploy-package/ || true
-          cp -r public deploy-package/ || true
-          cp -r pages deploy-package/
-          cp -r components deploy-package/
-          cp -r redux deploy-package/
-          cp -r styles deploy-package/
-          
-          # Copy configuration files
-          cp package.json deploy-package/
-          cp package-lock.json deploy-package/ || true
-          cp server.js deploy-package/
-          cp web.config deploy-package/
-          cp iisnode.yml deploy-package/
-          cp .deployment deploy-package/
-          cp next.config.js deploy-package/
-          cp postcss.config.js deploy-package/ || true
-          cp tailwind.config.js deploy-package/ || true
-          cp .env.production deploy-package/ || true
-          
-          # Clean up any problematic files in the deployment package
-          rm -rf deploy-package/.next/trace || true
-          rm -rf deploy-package/.next/cache || true
-          
-          echo "Deployment package contents:"
-          ls -la deploy-package/
-          
-      - name: Create deployment archive
-        run: |
-          cd deploy-package
-          tar -czf ../deployment.tar.gz .
-          cd ..
-          ls -la deployment.tar.gz
-
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
