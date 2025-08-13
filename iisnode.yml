@@ -1,5 +1,0 @@
-# Node.js configuration for Azure App Service
-node_env: production
-loggingEnabled: true
-devErrorsEnabled: true
-debuggingEnabled: false
