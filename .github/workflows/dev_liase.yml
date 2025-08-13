@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - LIASE
+name: Build and deploy React app to Azure Web App - LIASE
 
 on:
   push:
@@ -24,101 +24,29 @@ jobs:
           node-version: '18.x'
           cache: 'npm'
 
-      - name: Prepare test application
-        run: |
-          # Use the test package.json for this deployment
-          cp test-package.json package.json
-          echo "Using test application configuration"
-
       - name: Install dependencies
-        run: |
-          # Since we're using a different package.json, we need to generate a new lock file
-          rm -f package-lock.json
-          npm install
+        run: npm install
+
+      - name: Build React app
+        run: npm run build --if-present
 
       - name: Run tests
-        run: |
-          # Run tests for the test server
-          npm test -- test-server.test.js
+        run: npm run test --if-present
         env:
-          NODE_ENV: test
-
-      - name: Create deployment package
-        run: |
-          # Create deployment directory
-          mkdir -p deploy-package
-          
-          # Copy test application files (using our boilerplate)
-          cp test-server.js deploy-package/server.js
-          cp package.json deploy-package/package.json
-          cp package-lock.json deploy-package/package-lock.json
-          
-          # Copy environment files if they exist
-          if [ -f "test.env" ]; then
-            cp test.env deploy-package/.env
-          fi
-          
-          # Copy test web.config
-          if [ -f "test-web.config" ]; then
-            cp test-web.config deploy-package/web.config
-          else
-            # Create web.config for Azure if it doesn't exist
-            cat > deploy-package/web.config << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <system.webServer>
-              <handlers>
-                <add name="iisnode" path="server.js" verb="*" modules="iisnode"/>
-              </handlers>
-              <rewrite>
-                <rules>
-                  <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
-                    <match url="^server.js\/debug[\/]?" />
-                  </rule>
-                  <rule name="StaticContent">
-                    <action type="Rewrite" url="public{REQUEST_URI}"/>
-                  </rule>
-                  <rule name="DynamicContent">
-                    <conditions>
-                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True"/>
-                    </conditions>
-                    <action type="Rewrite" url="server.js"/>
-                  </rule>
-                </rules>
-              </rewrite>
-              <security>
-                <requestFiltering>
-                  <hiddenSegments>
-                    <remove segment="bin"/>
-                  </hiddenSegments>
-                </requestFiltering>
-              </security>
-              <httpErrors existingResponse="PassThrough" />
-              <iisnode watchedFiles="web.config;*.js"/>
-            </system.webServer>
-          </configuration>
-          EOF
-          fi
-          
-          echo "Deployment package contents:"
-          ls -la deploy-package/
-          
-      - name: Create deployment archive
-        run: |
-          cd deploy-package
-          zip -r ../deployment.zip .
-          cd ..
-          ls -la deployment.zip
+          CI: true
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: deployment.zip
+          path: dist/
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
       id-token: write #This is required for requesting the JWT
       contents: read #This is required for actions/checkout
@@ -129,20 +57,6 @@ jobs:
         with:
           name: node-app
 
-      - name: Extract deployment package
-        run: |
-          unzip deployment.zip
-          ls -la
-        
-      - name: Install production dependencies
-        run: |
-          npm ci --omit=dev --no-audit --no-fund
-          
-      - name: Verify deployment structure
-        run: |
-          echo "Deployment structure:"
-          find . -maxdepth 3 -type f | head -20
-      
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -157,26 +71,7 @@ jobs:
           app-name: 'LIASE'
           slot-name: 'Production'
           package: .
-          startup-command: 'node server.js'
           
-      - name: Configure App Settings (Optional)
-        uses: azure/CLI@v1
-        continue-on-error: true
-        with:
-          inlineScript: |
-            echo "Attempting to configure app settings..."
-            
-            # Set Node.js version (using 18.x for the test app)
-            az webapp config appsettings set --resource-group LIASE-rg --name LIASE --settings WEBSITE_NODE_DEFAULT_VERSION=~18 || echo "Could not set Node.js version - may need additional permissions"
-            
-            # Set startup command for our test server
-            az webapp config set --resource-group LIASE-rg --name LIASE --startup-file "node server.js" || echo "Could not set startup command - may need additional permissions"
-            
-            # Enable logging
-            az webapp log config --resource-group LIASE-rg --name LIASE --application-logging filesystem --level verbose || echo "Could not configure logging - may need additional permissions"
-            
-            echo "App configuration completed (some settings may require additional Azure permissions)"
-            
       - name: Health Check
         run: |
           # Wait for deployment to be ready
@@ -185,8 +80,8 @@ jobs:
           # Get the webapp URL
           webapp_url="https://liase.azurewebsites.net"
           
-          # Perform health check on our test endpoints
-          echo "Checking test application health at $webapp_url"
+          # Perform health check
+          echo "Checking React application health at $webapp_url"
           
           max_attempts=5
           attempt=1
@@ -194,33 +89,15 @@ jobs:
           while [ $attempt -le $max_attempts ]; do
             echo "Health check attempt $attempt/$max_attempts"
             
-            # Test health endpoint first
-            if curl -f -s "$webapp_url/health" | grep -q "healthy"; then
-              echo "✅ Health endpoint is responding successfully"
-              
-              # Test main endpoint
-              if curl -f -s "$webapp_url/" | grep -q "Welcome to LIASE Test Application"; then
-                echo "✅ Main endpoint is working correctly"
-                
-                # Test API info endpoint
-                if curl -f -s "$webapp_url/api/info" | grep -q "LIASE Test API"; then
-                  echo "✅ API info endpoint is working"
-                  echo "🎉 All test endpoints are working successfully!"
-                  break
-                else
-                  echo "⚠️ API info endpoint not responding correctly"
-                fi
-              else
-                echo "⚠️ Main endpoint not responding correctly"
-              fi
+            # Test main endpoint
+            if curl -f -s -I "$webapp_url/" | grep -q "200 OK"; then
+              echo "✅ React application is responding successfully"
+              echo "🎉 Deployment completed successfully!"
+              break
             else
               if [ $attempt -eq $max_attempts ]; then
                 echo "❌ Health check failed after $max_attempts attempts"
                 echo "Please check the Azure portal for deployment logs"
-                echo "Expected endpoints:"
-                echo "  - $webapp_url/ (main page)"
-                echo "  - $webapp_url/health (health check)"
-                echo "  - $webapp_url/api/info (API info)"
                 exit 1
               else
                 echo "⏳ Application not ready yet, waiting 30 seconds..."
