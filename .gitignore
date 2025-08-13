@@ -1,24 +1,10 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+node_modules/
+coverage/
+.gitlab-ci.yml
+src/logs
+src/controllers/common/payment.php
+.grok/contents.grok.json
+.grok/dcc0d3dd-410a-45cc-91e1-0e949d3e7d02.grok.json
+AGENT.md
+src/storage
+.env

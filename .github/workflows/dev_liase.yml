@@ -41,8 +41,47 @@ jobs:
           cp web.config deployment/ 2>/dev/null || true
           # Copy deployment configuration
           cp .deployment deployment/ 2>/dev/null || true
-          # Create a package.json that tells Azure this is a static site
-          echo '{"scripts":{"build":"echo \"Static site - no build needed\"","start":"echo \"Static site - no server needed\""}}' > deployment/package.json
+          
+          # Create a Node.js server to serve the React app
+          cat > deployment/server.js << 'EOF'
+          const express = require('express');
+          const path = require('path');
+          const app = express();
+          const port = process.env.PORT || 3000;
+
+          // Serve static files from the current directory
+          app.use(express.static(__dirname));
+
+          // Handle React Router (return `index.html` for non-API routes)
+          app.get('*', (req, res) => {
+            res.sendFile(path.join(__dirname, 'index.html'));
+          });
+
+          app.listen(port, () => {
+            console.log(`Server is running on port ${port}`);
+          });
+          EOF
+          
+          # Create package.json with Express dependency
+          cat > deployment/package.json << 'EOF'
+          {
+            "name": "liase-frontend-server",
+            "version": "1.0.0",
+            "description": "Node.js server for React SPA",
+            "main": "server.js",
+            "scripts": {
+              "start": "node server.js",
+              "build": "echo 'Build completed during CI'"
+            },
+            "dependencies": {
+              "express": "^4.18.2"
+            },
+            "engines": {
+              "node": ">=18.0.0"
+            }
+          }
+          EOF
+          
           tar -czf deployment.tar.gz -C deployment .
 
       - name: Upload artifact for deployment job
