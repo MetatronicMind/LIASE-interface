@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Next.js app to Azure Web App - LIASE
+name: Build and deploy React.js app to Azure Web App - LIASE
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Next.js application
+      - name: Build React application
         run: npm run build
         env:
           NODE_ENV: production
@@ -35,30 +35,9 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir deployment
-          if [ -d ".next/standalone" ]; then
-            echo "Using standalone build"
-            # Copy the standalone server files
-            cp -r .next/standalone/* deployment/
-            # Copy static assets
-            mkdir -p deployment/.next/static
-            cp -r .next/static/* deployment/.next/static/
-            # Copy public directory if it exists
-            if [ -d "public" ]; then
-              cp -r public/* deployment/public/
-            fi
-            # Rename the standalone server file to server.js if it exists
-            if [ -f "deployment/server.js" ]; then
-              echo "server.js already exists"
-            elif [ -f "deployment/index.js" ]; then
-              mv deployment/index.js deployment/server.js
-            fi
-          else
-            echo "Using regular build - this may not work with Azure"
-            cp -r .next deployment/
-            cp -r public deployment/ 2>/dev/null || true
-            cp package*.json deployment/
-            cp next.config.js deployment/ 2>/dev/null || true
-          fi
+          # Copy built static files from Vite build output
+          cp -r dist/* deployment/
+          # Copy web.config for IIS URL rewriting
           cp web.config deployment/ 2>/dev/null || true
           tar -czf deployment.tar.gz -C deployment .
 
