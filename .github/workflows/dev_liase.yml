@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - LIASE
+name: Build and deploy Next.js app to Azure Web App - LIASE
 
 on:
   push:
@@ -22,14 +22,33 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '22.x'
+          cache: 'npm'
 
-      - name: npm install, build, and test
-        run: |
-          npm install
-          npm run build --if-present
-          npm run test --if-present
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js application
+        run: npm run build
         env:
           NODE_ENV: production
+
+      - name: Create deployment package
+        run: |
+          mkdir deployment
+          if [ -d ".next/standalone" ]; then
+            echo "Using standalone build"
+            cp -r .next/standalone/* deployment/
+            cp -r .next/static deployment/.next/static
+            cp -r public deployment/public
+          else
+            echo "Using regular build"
+            cp -r .next deployment/
+            cp -r public deployment/
+            cp package*.json deployment/
+            cp next.config.js deployment/ 2>/dev/null || true
+          fi
+          cp web.config deployment/ 2>/dev/null || true
+          tar -czf deployment.tar.gz -C deployment .
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -54,16 +73,7 @@ jobs:
         run: |
           tar -xzf deployment.tar.gz
           ls -la
-        
-      - name: Install production dependencies
-        run: |
-          npm ci --production --no-audit --no-fund
-          
-      - name: Verify deployment structure
-        run: |
-          echo "Deployment structure:"
-          find . -maxdepth 3 -type f | head -20
-      
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -78,4 +88,3 @@ jobs:
           app-name: 'LIASE'
           slot-name: 'Production'
           package: .
-          
