@@ -31,7 +31,10 @@ jobs:
           echo "Using test application configuration"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          # Since we're using a different package.json, we need to generate a new lock file
+          rm -f package-lock.json
+          npm install
 
       - name: Run tests
         run: |
@@ -47,7 +50,8 @@ jobs:
           
           # Copy test application files (using our boilerplate)
           cp test-server.js deploy-package/server.js
-          cp test-package.json deploy-package/package.json
+          cp package.json deploy-package/package.json
+          cp package-lock.json deploy-package/package-lock.json
           
           # Copy environment files if they exist
           if [ -f "test.env" ]; then
