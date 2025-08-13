@@ -37,18 +37,25 @@ jobs:
           mkdir deployment
           if [ -d ".next/standalone" ]; then
             echo "Using standalone build"
+            # Copy the standalone server files
             cp -r .next/standalone/* deployment/
-            # Create .next directory in deployment if it doesn't exist
-            mkdir -p deployment/.next
-            cp -r .next/static deployment/.next/static
+            # Copy static assets
+            mkdir -p deployment/.next/static
+            cp -r .next/static/* deployment/.next/static/
             # Copy public directory if it exists
             if [ -d "public" ]; then
-              cp -r public deployment/public
+              cp -r public/* deployment/public/
+            fi
+            # Rename the standalone server file to server.js if it exists
+            if [ -f "deployment/server.js" ]; then
+              echo "server.js already exists"
+            elif [ -f "deployment/index.js" ]; then
+              mv deployment/index.js deployment/server.js
             fi
           else
-            echo "Using regular build"
+            echo "Using regular build - this may not work with Azure"
             cp -r .next deployment/
-            cp -r public deployment/
+            cp -r public deployment/ 2>/dev/null || true
             cp package*.json deployment/
             cp next.config.js deployment/ 2>/dev/null || true
           fi
