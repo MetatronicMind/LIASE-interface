@@ -47,6 +47,41 @@ jobs:
         env:
           CI: true
 
+      - name: Create server.js for Azure deployment
+        run: |
+          cat > dist/server.js << 'EOF'
+          const express = require('express');
+          const path = require('path');
+          const app = express();
+          
+          app.use(express.static(__dirname));
+          
+          app.get('*', (req, res) => {
+            res.sendFile(path.join(__dirname, 'index.html'));
+          });
+          
+          const port = process.env.PORT || 8080;
+          app.listen(port, () => {
+            console.log(`React app serving on port ${port}`);
+          });
+          EOF
+
+      - name: Create package.json for Azure deployment
+        run: |
+          cat > dist/package.json << 'EOF'
+          {
+            "name": "liase-frontend-deploy",
+            "version": "1.0.0",
+            "main": "server.js",
+            "scripts": {
+              "start": "node server.js"
+            },
+            "dependencies": {
+              "express": "^4.18.2"
+            }
+          }
+          EOF
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -66,6 +101,9 @@ jobs:
         with:
           name: node-app
 
+      - name: Install production dependencies
+        run: npm install --production
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -80,6 +118,7 @@ jobs:
           app-name: 'LIASE'
           slot-name: 'Production'
           package: .
+          startup-command: 'node server.js'
           
       - name: Health Check
         run: |
