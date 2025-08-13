@@ -38,8 +38,13 @@ jobs:
           if [ -d ".next/standalone" ]; then
             echo "Using standalone build"
             cp -r .next/standalone/* deployment/
+            # Create .next directory in deployment if it doesn't exist
+            mkdir -p deployment/.next
             cp -r .next/static deployment/.next/static
-            cp -r public deployment/public
+            # Copy public directory if it exists
+            if [ -d "public" ]; then
+              cp -r public deployment/public
+            fi
           else
             echo "Using regular build"
             cp -r .next deployment/
