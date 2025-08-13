@@ -28,7 +28,8 @@ jobs:
         run: npm ci
 
       - name: Build React application
-        run: npm run build
+        run: |
+          npm run build
         env:
           NODE_ENV: production
 
@@ -62,7 +63,7 @@ jobs:
           });
           EOF
           
-          # Create package.json with Express dependency
+          # Create package.json with Express dependency for deployment
           cat > deployment/package.json << 'EOF'
           {
             "name": "liase-frontend-server",
@@ -70,8 +71,7 @@ jobs:
             "description": "Node.js server for React SPA",
             "main": "server.js",
             "scripts": {
-              "start": "node server.js",
-              "build": "echo 'Build completed during CI'"
+              "start": "node server.js"
             },
             "dependencies": {
               "express": "^4.18.2"
