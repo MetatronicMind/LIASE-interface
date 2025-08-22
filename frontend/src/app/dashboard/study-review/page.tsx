@@ -916,7 +916,7 @@ useEffect(() => {
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             placeholder="Add your review comments here..."
-                            className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none bg-white transition-colors"
+                            className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-700 transition-colors"
                             rows={4}
                           />
                         </div>
