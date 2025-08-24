@@ -196,23 +196,23 @@ export default function AuditTrailPage() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-white min-h-screen p-4 sm:p-8">
+    <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-white dark:from-[#101624] dark:via-[#18213a] dark:to-[#232b3e] min-h-screen p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-4xl font-black text-blue-900 mb-1 tracking-wider drop-shadow-sm">Audit Trail</h1>
-            <div className="text-blue-700 text-base font-medium">Complete log of all user activities and system events</div>
+            <h1 className="text-4xl font-black text-blue-900 dark:text-blue-100 mb-1 tracking-wider drop-shadow-sm">Audit Trail</h1>
+            <div className="text-blue-700 dark:text-blue-300 text-base font-medium">Complete log of all user activities and system events</div>
           </div>
           <button
-            className="bg-green-100 hover:bg-green-200 text-green-800 font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2 self-start sm:self-auto"
+            className="bg-green-100 dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800 text-green-800 dark:text-green-200 font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2 self-start sm:self-auto"
             onClick={exportCSV}
           >
-            <ArrowDownTrayIcon className="w-5 h-5 text-green-700" /> Export CSV
+            <ArrowDownTrayIcon className="w-5 h-5 text-green-700 dark:text-green-200" /> Export CSV
           </button>
         </div>
         {/* Filters - Study Review style */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-8">
-          <h2 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+        <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow-sm border border-gray-200 dark:border-blue-900 p-4 sm:p-6 mb-8">
+          <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4 flex items-center">
             <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
             </svg>
@@ -220,7 +220,7 @@ export default function AuditTrailPage() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">User</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-blue-100">User</label>
               <SearchableSelect
                 options={[{ value: "", label: "All Users" }, ...mockUsers.map(u => ({ value: String(u.id), label: u.name }))]}
                 value={user}
@@ -229,39 +229,39 @@ export default function AuditTrailPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Action</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-blue-100">Action</label>
               <select
                 value={action}
                 onChange={e => { setAction(e.target.value); setPage(1); }}
-                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                className="w-full px-4 py-3 border border-blue-400 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#101624] transition-colors text-gray-900 dark:text-blue-100"
               >
                 <option value="">All Actions</option>
                 {mockActions.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">From Date</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-blue-100">From Date</label>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={e => { setDateFrom(e.target.value); setPage(1); }}
-                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                className="w-full px-4 py-3 border border-blue-400 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#101624] transition-colors text-gray-900 dark:text-blue-100"
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">To Date</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-blue-100">To Date</label>
               <input
                 type="date"
                 value={dateTo}
                 onChange={e => { setDateTo(e.target.value); setPage(1); }}
-                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                className="w-full px-4 py-3 border border-blue-400 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#101624] transition-colors text-gray-900 dark:text-blue-100"
               />
             </div>
           </div>
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <button
               type="button"
-              className="flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 text-sm font-medium transition-colors"
+            className="flex items-center justify-center px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg border border-gray-200 dark:border-blue-900 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors"
               onClick={clearFilters}
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -269,22 +269,22 @@ export default function AuditTrailPage() {
               </svg>
               Clear All Filters
             </button>
-            <div className="flex items-center text-sm text-gray-600">
+            <div className="flex items-center text-sm text-gray-600 dark:text-blue-200">
               <span className="font-medium">{filteredLogs.length}</span> records found
             </div>
           </div>
         </div>
         {/* Activity Log Table */}
-        <div className="bg-white rounded-xl shadow border border-blue-100 p-0 mb-8">
+        <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow border border-blue-100 dark:border-blue-900 p-0 mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-6 pt-6 pb-2 gap-4">
-            <div className="text-lg font-bold text-blue-900">Activity Log</div>
+            <div className="text-lg font-bold text-blue-900 dark:text-blue-100">Activity Log</div>
             <div className="flex items-center gap-2">
-              <label htmlFor="pageSize" className="text-sm font-medium text-blue-900">Show</label>
+              <label htmlFor="pageSize" className="text-sm font-medium text-blue-900 dark:text-blue-100">Show</label>
               <select
                 id="pageSize"
                 value={pageSize}
                 onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-                className="border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white text-blue-900"
+                className="border border-blue-200 dark:border-blue-900 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100"
               >
                 <option value={10}>10</option>
                 <option value={50}>50</option>
@@ -293,37 +293,37 @@ export default function AuditTrailPage() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm border border-blue-200 rounded-lg">
+            <table className="min-w-full text-sm border border-blue-200 dark:border-blue-900 rounded-lg">
               <thead>
-                <tr className="bg-blue-50 text-blue-900">
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-200">Timestamp</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-200">User</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-200">Action</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-200">Details</th>
+                <tr className="bg-blue-50 dark:bg-[#18213a] text-blue-900 dark:text-blue-100">
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-200 dark:border-blue-900">Timestamp</th>
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-200 dark:border-blue-900">User</th>
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-200 dark:border-blue-900">Action</th>
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-200 dark:border-blue-900">Details</th>
                 </tr>
               </thead>
               <tbody>
                 {pagedLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-6 text-gray-400 border-b border-blue-100">No records found.</td>
+                    <td colSpan={4} className="text-center py-6 text-gray-400 dark:text-gray-500 border-b border-blue-100 dark:border-blue-900">No records found.</td>
                   </tr>
                 ) : (
                   pagedLogs.map((log, idx) => (
-                    <tr key={idx} className="border-b border-blue-50 last:border-b-0">
-                      <td className="py-3 px-4 align-top text-blue-900">
+                    <tr key={idx} className="border-b border-blue-50 dark:border-blue-900 last:border-b-0">
+                      <td className="py-3 px-4 align-top text-blue-900 dark:text-blue-100">
                         {new Date(log.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                       </td>
-                      <td className="py-3 px-4 align-top text-blue-900 font-bold">
+                      <td className="py-3 px-4 align-top text-blue-900 dark:text-blue-100 font-bold">
                         {log.user.name}
-                        <div className="text-xs text-gray-600 font-normal">ID: {log.user.id}</div>
+                        <div className="text-xs text-gray-600 dark:text-blue-200 font-normal">ID: {log.user.id}</div>
                       </td>
                       <td className="py-3 px-4 align-top">
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded bg-gray-100 text-gray-800 font-semibold text-xs">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-blue-100 font-semibold text-xs">
                           {getActionMeta(log.action).icon}
                           {getActionMeta(log.action).label}
                         </span>
                       </td>
-                      <td className="py-3 px-4 align-top text-blue-900">{log.details}</td>
+                      <td className="py-3 px-4 align-top text-blue-900 dark:text-blue-100">{log.details}</td>
                     </tr>
                   ))
                 )}
@@ -331,33 +331,33 @@ export default function AuditTrailPage() {
             </table>
           </div>
           {/* Pagination Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-6 py-4 border-t border-blue-100 bg-blue-50 rounded-b-xl">
-            <div className="text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-6 py-4 border-t border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-[#18213a] rounded-b-xl">
+            <div className="text-sm text-gray-600 dark:text-blue-200">
               Showing {filteredLogs.length === 0 ? 0 : (page - 1) * pageSize + 1}
               -{Math.min(page * pageSize, filteredLogs.length)} of {filteredLogs.length}
             </div>
             <div className="flex gap-1 items-center">
               <button
-                className="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 border border-gray-300"
+                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-blue-100 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-blue-900"
                 onClick={() => setPage(1)}
                 disabled={page === 1}
                 title="First page"
               >&#171;</button>
               <button
-                className="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 border border-gray-300"
+                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-blue-100 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-blue-900"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 title="Previous page"
               >&#8249;</button>
-              <span className="px-2 text-gray-700 font-semibold">Page {page} of {pageCount || 1}</span>
+              <span className="px-2 text-gray-700 dark:text-blue-100 font-semibold">Page {page} of {pageCount || 1}</span>
               <button
-                className="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 border border-gray-300"
+                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-blue-100 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-blue-900"
                 onClick={() => setPage(p => Math.min(pageCount, p + 1))}
                 disabled={page === pageCount || pageCount === 0}
                 title="Next page"
               >&#8250;</button>
               <button
-                className="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 border border-gray-300"
+                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-blue-100 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-blue-900"
                 onClick={() => setPage(pageCount)}
                 disabled={page === pageCount || pageCount === 0}
                 title="Last page"
@@ -366,14 +366,14 @@ export default function AuditTrailPage() {
           </div>
         </div>
         {/* Activity Summary */}
-        <div className="bg-white rounded-xl shadow border border-blue-100 p-6">
-          <div className="font-bold text-lg text-blue-900 mb-4">Activity Summary</div>
+        <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow border border-blue-100 dark:border-blue-900 p-6">
+          <div className="font-bold text-lg text-blue-900 dark:text-blue-100 mb-4">Activity Summary</div>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             {summary.map((a, idx) => (
-              <div key={a.value} className="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-3 text-base font-semibold text-blue-900">
+              <div key={a.value} className="flex items-center gap-2 bg-gray-50 dark:bg-[#18213a] rounded-lg px-4 py-3 text-base font-semibold text-blue-900 dark:text-blue-100">
                 <span className="text-xl">{a.icon}</span>
                 <span>{a.label}</span>
-                <span className="ml-auto text-blue-700 font-black text-lg">{a.count}</span>
+                <span className="ml-auto text-blue-700 dark:text-blue-300 font-black text-lg">{a.count}</span>
               </div>
             ))}
           </div>

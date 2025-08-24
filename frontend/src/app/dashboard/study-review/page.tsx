@@ -511,19 +511,19 @@ useEffect(() => {
   }, [selectedStudy]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-[#101624] dark:to-[#232b3e]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+      <div className="bg-white dark:bg-[#232b3e] border-b border-gray-200 dark:border-blue-900 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Study Review</h1>
-          <p className="mt-1 text-sm text-gray-600">Review and manage literature studies for pharmacovigilance</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-blue-100">Study Review</h1>
+          <p className="mt-1 text-sm text-gray-600 dark:text-blue-300">Review and manage literature studies for pharmacovigilance</p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow-sm border border-gray-200 dark:border-blue-900 p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-blue-100 mb-4 flex items-center">
             <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
             </svg>
@@ -531,7 +531,7 @@ useEffect(() => {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Search Studies</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-blue-100">Search Studies</label>
               <div className="relative">
                 <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
@@ -539,17 +539,17 @@ useEffect(() => {
                   placeholder="Search by drug name or title..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  className="w-full pl-10 pr-4 py-3 border border-blue-400 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#101624] transition-colors text-gray-900 dark:text-blue-100"
                 />
               </div>
             </div>
             
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Status</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-blue-100">Status</label>
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value)}
-                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                className="w-full px-4 py-3 border border-blue-400 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#101624] transition-colors text-gray-900 dark:text-blue-100"
               >
                 <option value="">All Statuses</option>
                 <option value="Pending Review">Pending Review</option>
@@ -559,22 +559,22 @@ useEffect(() => {
             </div>
             
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">From Date</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-blue-100">From Date</label>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={e => setDateFrom(e.target.value)}
-                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                className="w-full px-4 py-3 border border-blue-400 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#101624] transition-colors text-gray-900 dark:text-blue-100"
               />
             </div>
             
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">To Date</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-blue-100">To Date</label>
               <input
                 type="date"
                 value={dateTo}
                 onChange={e => setDateTo(e.target.value)}
-                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                className="w-full px-4 py-3 border border-blue-400 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#101624] transition-colors text-gray-900 dark:text-blue-100"
               />
             </div>
           </div>
@@ -582,7 +582,7 @@ useEffect(() => {
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <button
               type="button"
-              className="flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 text-sm font-medium transition-colors"
+            className="flex items-center justify-center px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg border border-gray-200 dark:border-blue-900 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors"
               onClick={() => {
                 setSearch("");
                 setStatus("");
@@ -596,7 +596,7 @@ useEffect(() => {
               </svg>
               Clear All Filters
             </button>
-            <div className="flex items-center text-sm text-gray-600">
+            <div className="flex items-center text-sm text-gray-600 dark:text-blue-200">
               <span className="font-medium">{filteredStudies.length}</span> studies found
             </div>
           </div>
@@ -605,11 +605,11 @@ useEffect(() => {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Studies List */}
           <div className="xl:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-full flex flex-col">
+            <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow-sm border border-gray-200 dark:border-blue-900 h-full flex flex-col">
               {/* Header */}
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-blue-900">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-blue-100 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
@@ -617,14 +617,14 @@ useEffect(() => {
                   </h3>
                   {filteredStudies.length > 10 && (
                     <div className="flex items-center space-x-2">
-                      <label className="text-sm font-medium text-gray-700">Show:</label>
+                      <label className="text-sm font-medium text-gray-700 dark:text-blue-100">Show:</label>
                       <select
                         value={pageSize}
                         onChange={(e) => {
                           setPageSize(Number(e.target.value));
                           setPage(1);
                         }}
-                        className="border border-blue-400 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-gray-900"
+                        className="border border-blue-400 dark:border-blue-900 rounded-lg px-3 py-2 text-sm bg-white dark:bg-[#101624] focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors text-gray-900 dark:text-blue-100"
                       >
                         <option value={5}>5</option>
                         <option value={10}>10</option>
@@ -640,7 +640,7 @@ useEffect(() => {
               {/* Studies List */}
               <div className="flex-1 overflow-y-auto">
                 {filteredStudies.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-500 dark:text-gray-400">
                     <svg className="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
@@ -655,14 +655,14 @@ useEffect(() => {
                         onClick={() => setSelectedStudy(study)}
                         className={`group relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
                           selectedStudy && selectedStudy.pmid === study.pmid
-                            ? "border-blue-500 bg-blue-50 shadow-md"
-                            : "border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50"
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-md"
+                            : "border-gray-200 dark:border-blue-900 bg-white dark:bg-[#101624] hover:border-blue-300 dark:hover:border-blue-400 hover:bg-gray-50 dark:hover:bg-[#18213a]"
                         }`}
                       >
                         {/* Study Card Content */}
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200">
                               PMID: {study.pmid}
                             </span>
                             <span
@@ -672,14 +672,14 @@ useEffect(() => {
                             </span>
                           </div>
                           
-                          <h4 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">
+                          <h4 className="font-semibold text-gray-900 dark:text-blue-100 text-sm leading-tight line-clamp-2">
                             {study.title}
                           </h4>
                           
-                          <div className="space-y-1 text-xs text-gray-600">
+                          <div className="space-y-1 text-xs text-gray-600 dark:text-blue-200">
                             <div className="flex items-center">
                               <span className="font-medium w-16">Drug:</span>
-                              <span className="text-blue-700 font-medium">{study.drug}</span>
+                              <span className="text-blue-700 dark:text-blue-300 font-medium">{study.drug}</span>
                             </div>
                             <div className="flex items-center">
                               <span className="font-medium w-16">Retrieved:</span>
@@ -711,9 +711,9 @@ useEffect(() => {
 
               {/* Pagination */}
               {pageCount > 1 && (
-                <div className="border-t border-gray-200 px-2 sm:px-6 py-4">
+                <div className="border-t border-gray-200 dark:border-blue-900 px-2 sm:px-6 py-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex-1 flex items-center justify-center sm:justify-start text-xs sm:text-sm text-gray-700">
+                    <div className="flex-1 flex items-center justify-center sm:justify-start text-xs sm:text-sm text-gray-700 dark:text-blue-200">
                       <span>
                         Showing <span className="font-semibold">{((page - 1) * pageSize) + 1}</span> to <span className="font-semibold">{Math.min(page * pageSize, filteredStudies.length)}</span> of <span className="font-semibold">{filteredStudies.length}</span> results
                       </span>
@@ -722,7 +722,7 @@ useEffect(() => {
                       <button
                         onClick={() => setPage(Math.max(1, page - 1))}
                         disabled={page === 1}
-                        className="flex items-center px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-400 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center px-3 py-2 rounded-lg border border-gray-300 dark:border-blue-900 bg-white dark:bg-[#101624] text-gray-700 dark:text-blue-100 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-400 dark:hover:border-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
                         aria-label="Previous Page"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -735,7 +735,7 @@ useEffect(() => {
                       <button
                         onClick={() => setPage(Math.min(pageCount, page + 1))}
                         disabled={page === pageCount}
-                        className="flex items-center px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-400 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center px-3 py-2 rounded-lg border border-gray-300 dark:border-blue-900 bg-white dark:bg-[#101624] text-gray-700 dark:text-blue-100 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-400 dark:hover:border-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
                         aria-label="Next Page"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -751,20 +751,20 @@ useEffect(() => {
 
           {/* Study Details */}
           <div className="xl:col-span-2" ref={detailsRef}>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-full flex flex-col">
+            <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow-sm border border-gray-200 dark:border-blue-900 h-full flex flex-col">
               {selectedStudy ? (
                 <>
                   {/* Header */}
-                  <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                  <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-blue-900">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-blue-100 flex items-center">
                         <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         Study Details
                       </h3>
                       <div className="flex items-center space-x-2">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusStyles[selectedStudy.status]}`}>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusStyles[selectedStudy.status]}`}> 
                           {selectedStudy.status}
                         </span>
                       </div>
@@ -774,35 +774,35 @@ useEffect(() => {
                   {/* Content */}
                   <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                     {/* Basic Information */}
-                    <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                      <h4 className="font-semibold text-gray-900 mb-3">Study Information</h4>
+                    <div className="bg-gray-50 dark:bg-[#18213a] rounded-lg p-4 space-y-3">
+                      <h4 className="font-semibold text-gray-900 dark:text-blue-100 mb-3">Study Information</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="font-medium text-gray-700">PMID:</span>
-                          <span className="ml-2 text-blue-700 font-mono">{selectedStudy.pmid}</span>
+                          <span className="font-medium text-gray-700 dark:text-blue-200">PMID:</span>
+                          <span className="ml-2 text-blue-700 dark:text-blue-300 font-mono">{selectedStudy.pmid}</span>
                         </div>
                         <div>
-                          <span className="font-medium text-gray-700">Drug:</span>
-                          <span className="ml-2 text-gray-900 font-medium">{selectedStudy.drug}</span>
+                          <span className="font-medium text-gray-700 dark:text-blue-200">Drug:</span>
+                          <span className="ml-2 text-gray-900 dark:text-blue-100 font-medium">{selectedStudy.drug}</span>
                         </div>
                         <div>
-                          <span className="font-medium text-gray-700">Retrieved:</span>
-                          <span className="ml-2 text-gray-900">{new Date(selectedStudy.retrieved).toLocaleDateString('en-CA')}</span>
+                          <span className="font-medium text-gray-700 dark:text-blue-200">Retrieved:</span>
+                          <span className="ml-2 text-gray-900 dark:text-blue-100">{new Date(selectedStudy.retrieved).toLocaleDateString('en-CA')}</span>
                         </div>
                         <div>
-                          <span className="font-medium text-gray-700">Processed:</span>
-                          <span className="ml-2 text-gray-900">{new Date(selectedStudy.processed).toLocaleDateString('en-CA')}</span>
+                          <span className="font-medium text-gray-700 dark:text-blue-200">Processed:</span>
+                          <span className="ml-2 text-gray-900 dark:text-blue-100">{new Date(selectedStudy.processed).toLocaleDateString('en-CA')}</span>
                         </div>
                       </div>
                       <div>
-                        <span className="font-medium text-gray-700">Title:</span>
-                        <p className="mt-1 text-gray-900 leading-relaxed">{selectedStudy.title}</p>
+                        <span className="font-medium text-gray-700 dark:text-blue-200">Title:</span>
+                        <p className="mt-1 text-gray-900 dark:text-blue-100 leading-relaxed">{selectedStudy.title}</p>
                       </div>
                     </div>
 
                     {/* AI Classification */}
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                      <h4 className="font-semibold text-blue-900 mb-4 flex items-center">
+                    <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4 border border-blue-200 dark:border-blue-900">
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-4 flex items-center">
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                         </svg>
@@ -812,8 +812,8 @@ useEffect(() => {
                         <div className="flex items-center space-x-2">
                           <UserGroupIcon className="w-5 h-5 text-blue-600" />
                           <div>
-                            <p className="text-sm font-medium text-blue-900">Human Subjects</p>
-                            <p className={`text-sm font-semibold ${selectedStudy.classification.human ? 'text-green-700' : 'text-red-700'}`}>
+                            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Human Subjects</p>
+                            <p className={`text-sm font-semibold ${selectedStudy.classification.human ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}> 
                               {selectedStudy.classification.human ? 'Yes' : 'No'}
                             </p>
                           </div>
@@ -821,8 +821,8 @@ useEffect(() => {
                         <div className="flex items-center space-x-2">
                           <ExclamationTriangleIcon className="w-5 h-5 text-amber-600" />
                           <div>
-                            <p className="text-sm font-medium text-blue-900">Adverse Events</p>
-                            <p className={`text-sm font-semibold ${selectedStudy.classification.adverse ? 'text-red-700' : 'text-green-700'}`}>
+                            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Adverse Events</p>
+                            <p className={`text-sm font-semibold ${selectedStudy.classification.adverse ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}`}> 
                               {selectedStudy.classification.adverse ? 'Yes' : 'No'}
                             </p>
                           </div>
@@ -830,8 +830,8 @@ useEffect(() => {
                         <div className="flex items-center space-x-2">
                           <ChartBarIcon className="w-5 h-5 text-green-600" />
                           <div>
-                            <p className="text-sm font-medium text-blue-900">Confidence</p>
-                            <p className="text-sm font-semibold text-blue-700">{selectedStudy.classification.confidence}</p>
+                            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Confidence</p>
+                            <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">{selectedStudy.classification.confidence}</p>
                           </div>
                         </div>
                       </div>
@@ -839,31 +839,31 @@ useEffect(() => {
 
                     {/* Summary */}
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <h4 className="font-semibold text-gray-900 dark:text-blue-100 mb-3 flex items-center">
                         <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                         Summary
                       </h4>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-gray-800 leading-relaxed">{selectedStudy.summary}</p>
+                      <div className="bg-gray-50 dark:bg-[#18213a] rounded-lg p-4">
+                        <p className="text-gray-800 dark:text-blue-100 leading-relaxed">{selectedStudy.summary}</p>
                       </div>
                     </div>
 
                     {/* Key Points */}
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <h4 className="font-semibold text-gray-900 dark:text-blue-100 mb-3 flex items-center">
                         <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                         Key Points
                       </h4>
-                      <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="bg-gray-50 dark:bg-[#18213a] rounded-lg p-4">
                         <ul className="space-y-2">
                           {selectedStudy.keyPoints.map((point, idx) => (
                             <li key={idx} className="flex items-start space-x-2">
-                              <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
-                              <span className="text-gray-800 leading-relaxed">{point}</span>
+                              <div className="w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
+                              <span className="text-gray-800 dark:text-blue-100 leading-relaxed">{point}</span>
                             </li>
                           ))}
                         </ul>
@@ -871,12 +871,12 @@ useEffect(() => {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-900 mb-4">Actions</h4>
+                    <div className="bg-gray-50 dark:bg-[#18213a] rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-900 dark:text-blue-100 mb-4">Actions</h4>
                       <div className="flex flex-col sm:flex-row gap-3">
                         <button
                           onClick={() => handleAction("Approve")}
-                          className="flex items-center justify-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                          className="flex items-center justify-center px-6 py-3 bg-green-600 dark:bg-green-900 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-800 font-medium transition-colors"
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -885,7 +885,7 @@ useEffect(() => {
                         </button>
                         <button
                           onClick={() => handleAction("Reject")}
-                          className="flex items-center justify-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+                          className="flex items-center justify-center px-6 py-3 bg-red-600 dark:bg-red-900 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-800 font-medium transition-colors"
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -894,7 +894,7 @@ useEffect(() => {
                         </button>
                         <button
                           onClick={() => handleAction("Forward")}
-                          className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                          className="flex items-center justify-center px-6 py-3 bg-blue-600 dark:bg-blue-900 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-800 font-medium transition-colors"
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -906,8 +906,8 @@ useEffect(() => {
 
                     {/* Comments */}
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                        <ChatBubbleLeftEllipsisIcon className="w-5 h-5 mr-2 text-gray-600" />
+                      <h4 className="font-semibold text-gray-900 dark:text-blue-100 mb-3 flex items-center">
+                        <ChatBubbleLeftEllipsisIcon className="w-5 h-5 mr-2 text-gray-600 dark:text-blue-200" />
                         Add Comment
                       </h4>
                       <div className="space-y-4">
@@ -916,14 +916,14 @@ useEffect(() => {
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             placeholder="Add your review comments here..."
-                            className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-700 transition-colors"
+                            className="w-full px-4 py-3 border border-blue-400 dark:border-blue-900 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 resize-none text-gray-700 dark:text-blue-100 dark:bg-[#101624] transition-colors"
                             rows={4}
                           />
                         </div>
                         <button
                           onClick={handleCommentSubmit}
                           disabled={!comment.trim()}
-                          className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium transition-colors"
+                          className="flex items-center justify-center px-6 py-3 bg-blue-600 dark:bg-blue-900 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-800 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:cursor-not-allowed font-medium transition-colors"
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -935,12 +935,12 @@ useEffect(() => {
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8">
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 p-8">
                   <svg className="w-16 h-16 mb-4 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <h3 className="text-xl font-medium text-gray-900 mb-2">No Study Selected</h3>
-                  <p className="text-gray-600 text-center max-w-sm">
+                  <h3 className="text-xl font-medium text-gray-900 dark:text-blue-100 mb-2">No Study Selected</h3>
+                  <p className="text-gray-600 dark:text-blue-200 text-center max-w-sm">
                     {filteredStudies.length === 0
                       ? 'No studies match your filters. Try adjusting your search criteria.'
                       : 'Select a study from the list on the left to view its details and start your review process.'}

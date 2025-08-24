@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "../providers";
 import {
   HomeIcon,
   TableCellsIcon,
@@ -23,6 +24,7 @@ const navItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { theme, toggleTheme } = useTheme();
   // Sidebar open by default on desktop, closed on mobile
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -60,15 +62,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
   }, [userMenuOpen]);
   return (
-  <div className="min-h-screen flex bg-[#f5f8fb]">
+    <div className={`min-h-screen flex bg-[#f5f8fb] dark:bg-[#101624]`}>
       {/* Sidebar */}
       <aside
-        className={`fixed z-40 top-0 left-0 h-full w-64 flex flex-col py-8 px-4 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} bg-[#1856a5] shadow-2xl`}
-        style={{ minWidth: '16rem', boxShadow: '0 8px 32px 0 rgba(37,99,235,0.18), 0 1.5px 8px 0 rgba(0,0,0,0.08)' }}
+        className={`fixed z-40 top-0 left-0 h-full w-64 flex flex-col py-8 px-4 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} bg-[#1856a5] dark:bg-[#1a233a] shadow-2xl`}
+        style={{ minWidth: '16rem', boxShadow: theme === 'dark' ? '0 8px 32px 0 rgba(16,22,36,0.28), 0 1.5px 8px 0 rgba(0,0,0,0.18)' : '0 8px 32px 0 rgba(37,99,235,0.18), 0 1.5px 8px 0 rgba(0,0,0,0.08)' }}
       >
         <div className="mb-10 text-center">
           <span
-            className="inline-block px-6 py-3 text-2xl font-black tracking-widest text-white drop-shadow shadow rounded-xl"
+            className="inline-block px-6 py-3 text-2xl font-black tracking-widest text-white dark:text-blue-100 drop-shadow shadow rounded-xl bg-gradient-to-r from-white/20 to-white/10 dark:from-blue-900/30 dark:to-blue-900/10"
             style={{
               background: 'linear-gradient(120deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)',
               boxShadow: '0 4px 24px 0 rgba(255,255,255,0.10), 0 1.5px 8px 0 rgba(0,0,0,0.08)',
@@ -89,8 +91,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href={item.href}
                   className={`flex items-center px-4 py-3 rounded-lg font-semibold text-base transition-all duration-200 ease-out hover:scale-105 hover:-translate-y-1 active:scale-95 gap-2
                     ${pathname === item.href
-                      ? 'bg-gradient-to-r from-blue-100/80 to-blue-300/60 text-blue-900 font-bold shadow-inner'
-                      : 'text-blue-100 hover:bg-gradient-to-r hover:from-blue-200/60 hover:to-blue-400/40 hover:text-blue-900'}
+                      ? 'bg-gradient-to-r from-blue-100/80 to-blue-300/60 text-blue-900 font-bold shadow-inner dark:bg-gradient-to-r dark:from-blue-900/60 dark:to-blue-700/40 dark:text-blue-100 dark:shadow-inner'
+                      : 'text-blue-100 hover:bg-gradient-to-r hover:from-blue-200/60 hover:to-blue-400/40 hover:text-blue-900 dark:text-blue-200 dark:hover:bg-gradient-to-r dark:hover:from-blue-800/40 dark:hover:to-blue-700/30 dark:hover:text-blue-100'}
                   `}
                   style={{ willChange: 'transform' }}
                   onClick={() => {
@@ -104,15 +106,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </ul>
         </nav>
-  <div className="mt-10 text-center text-xs text-blue-100">© {new Date().getFullYear()} LIASE</div>
+  <div className="mt-10 text-center text-xs text-blue-100 dark:text-blue-300">© {new Date().getFullYear()} LIASE</div>
       </aside>
       {/* Overlay for mobile */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-20 bg-black bg-opacity-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 z-20 bg-black bg-opacity-30 dark:bg-opacity-60 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-64' : ''} w-full max-w-full`}>
-        <header className="bg-[#2563eb] shadow-xl px-6 py-4 flex items-center justify-between sticky top-0 z-30" style={{boxShadow:'0 4px 24px 0 rgba(37,99,235,0.10), 0 1.5px 8px 0 rgba(0,0,0,0.08)'}}>
+      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-64' : ''} w-full max-w-full bg-transparent dark:bg-[#101624]`}>
+        <header className={`shadow-xl px-6 py-4 flex items-center justify-between sticky top-0 z-30 bg-[#2563eb] text-white dark:bg-[#18213a] dark:text-white`}
+          style={{boxShadow: theme === 'dark' ? '0 4px 24px 0 rgba(16,22,36,0.18), 0 1.5px 8px 0 rgba(0,0,0,0.18)' : '0 4px 24px 0 rgba(37,99,235,0.10), 0 1.5px 8px 0 rgba(0,0,0,0.08)'}}>
           <div className="flex items-center gap-4">
             <button
               className="text-white focus:outline-none"
@@ -124,7 +127,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </svg>
             </button>
             {!sidebarOpen && (
-              <div className="flex items-center justify-center text-white font-black text-xl tracking-widest">
+              <div className="flex items-center justify-center text-white dark:text-blue-100 font-black text-xl tracking-widest">
                 LIASE
               </div>
             )}
@@ -134,6 +137,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
+            </button>
+            {/* Theme toggle button */}
+            <button
+              className="bg-blue-700/40 rounded-full p-2 text-white hover:bg-blue-800/60 transition flex items-center justify-center"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={toggleTheme}
+            >
+              {theme === 'dark' ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 5.66l-.71-.71M4.05 4.05l-.71-.71M12 7a5 5 0 100 10 5 5 0 000-10z" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" />
+                </svg>
+              )}
             </button>
             <div className="relative" ref={userMenuRef}>
               <button
@@ -169,7 +188,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         </header>
-        <section className="flex-1 bg-transparent">{children}</section>
+        <section className="flex-1 bg-transparent dark:bg-[#101624]">{children}</section>
       </main>
     </div>
   );

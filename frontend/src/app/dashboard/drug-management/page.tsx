@@ -191,15 +191,15 @@ export default function DrugManagementPage() {
   const pagedDrugs = filteredDrugs.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-white min-h-screen p-4 sm:p-8">
+    <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-white dark:from-[#101624] dark:via-[#18213a] dark:to-[#232b3e] min-h-screen p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-4xl font-black text-blue-900 mb-1">Drug Management</h1>
-            <div className="text-blue-700 text-base font-medium">Manage drug database including queries, sponsors, and RSI information</div>
+            <h1 className="text-4xl font-black text-blue-900 dark:text-blue-100 mb-1">Drug Management</h1>
+            <div className="text-blue-700 dark:text-blue-300 text-base font-medium">Manage drug database including queries, sponsors, and RSI information</div>
           </div>
           <button
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2 self-start sm:self-auto"
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-900 dark:hover:bg-blue-800 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2 self-start sm:self-auto"
             onClick={openAddModal}
           >
             <span className="text-lg">+</span> Add New Drug
@@ -208,18 +208,18 @@ export default function DrugManagementPage() {
         {/* Table Controls: Page size left, search right */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
           <div className="flex items-center gap-2">
-            <label htmlFor="pageSize" className="text-sm font-medium text-blue-900">Show</label>
+            <label htmlFor="pageSize" className="text-sm font-medium text-blue-900 dark:text-blue-100">Show</label>
             <select
               id="pageSize"
               value={pageSize}
               onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-              className="border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white text-blue-900"
+              className="border border-blue-200 dark:border-blue-900 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#232b3e] text-blue-900 dark:text-blue-100"
             >
               <option value={10}>10</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
             </select>
-            <span className="text-sm text-blue-900">entries</span>
+            <span className="text-sm text-blue-900 dark:text-blue-100">entries</span>
           </div>
           <div className="flex gap-2 items-center w-full sm:w-auto justify-end">
             <input
@@ -227,52 +227,52 @@ export default function DrugManagementPage() {
               placeholder="Search by name, manufacturer, or RSI..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
-              className="w-full sm:w-72 border-2 border-blue-200 rounded-lg px-4 py-2 text-base focus:outline-none focus:border-blue-500 bg-white text-blue-900"
+              className="w-full sm:w-72 border-2 border-blue-200 dark:border-blue-900 rounded-lg px-4 py-2 text-base focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#232b3e] text-blue-900 dark:text-blue-100"
             />
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow border border-blue-100 p-0 overflow-x-auto">
-          <div className="px-6 pt-6 pb-2 text-lg font-bold text-blue-900">Drugs Database ({filteredDrugs.length})</div>
+        <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow border border-blue-100 dark:border-blue-900 p-0 overflow-x-auto">
+          <div className="px-6 pt-6 pb-2 text-lg font-bold text-blue-900 dark:text-blue-100">Drugs Database ({filteredDrugs.length})</div>
           {/* Desktop Table */}
           <div className="hidden sm:block">
-            <table className="min-w-full text-sm border border-blue-300 rounded-lg">
+            <table className="min-w-full text-sm border border-blue-300 dark:border-blue-900 rounded-lg">
               <thead>
-                <tr className="bg-blue-50 text-blue-900">
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300">Drug Name</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300">Manufacturer</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300">RSI</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300">Next Search</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300">Status</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300">Actions</th>
+                <tr className="bg-blue-50 dark:bg-[#18213a] text-blue-900 dark:text-blue-100">
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Drug Name</th>
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Manufacturer</th>
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">RSI</th>
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Next Search</th>
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Status</th>
+                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pagedDrugs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-6 text-gray-400 border-b border-blue-200">No drugs found.</td>
+                    <td colSpan={6} className="text-center py-6 text-gray-400 border-b border-blue-200 dark:border-blue-900">No drugs found.</td>
                   </tr>
                 ) : (
                   pagedDrugs.map((drug, idx) => (
-                    <tr key={drug.name + idx} className="border-b border-blue-200 last:border-b-0">
-                      <td className="py-3 px-4 font-bold text-blue-900 align-top border-r border-blue-100">
+                    <tr key={drug.name + idx} className="border-b border-blue-200 dark:border-blue-900 last:border-b-0">
+                      <td className="py-3 px-4 font-bold text-blue-900 dark:text-blue-100 align-top border-r border-blue-100 dark:border-blue-900">
                         {drug.name}
-                        <div className="text-xs font-mono text-gray-700 bg-gray-50 rounded px-1 py-0.5 mt-1 w-fit">{drug.query}</div>
+                        <div className="text-xs font-mono text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-[#232b3e] rounded px-1 py-0.5 mt-1 w-fit">{drug.query}</div>
                       </td>
-                      <td className="py-3 px-4 align-top text-blue-900 border-r border-blue-100">{drug.manufacturer}</td>
-                      <td className="py-3 px-4 align-top border-r border-blue-100">
-                        <span className="bg-blue-100 text-blue-700 font-mono font-semibold px-2 py-1 rounded text-xs">{drug.rsi}</span>
+                      <td className="py-3 px-4 align-top text-blue-900 dark:text-blue-100 border-r border-blue-100 dark:border-blue-900">{drug.manufacturer}</td>
+                      <td className="py-3 px-4 align-top border-r border-blue-100 dark:border-blue-900">
+                        <span className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 font-mono font-semibold px-2 py-1 rounded text-xs">{drug.rsi}</span>
                       </td>
-                      <td className="py-3 px-4 align-top text-blue-900 border-r border-blue-100">{drug.nextSearch ? new Date(drug.nextSearch).toLocaleDateString() : ""}</td>
-                      <td className="py-3 px-4 align-top border-r border-blue-100">
-                        <span className="bg-green-100 text-green-700 font-semibold px-3 py-1 rounded-full text-xs">{drug.status}</span>
+                      <td className="py-3 px-4 align-top text-blue-900 dark:text-blue-100 border-r border-blue-100 dark:border-blue-900">{drug.nextSearch ? new Date(drug.nextSearch).toLocaleDateString() : ""}</td>
+                      <td className="py-3 px-4 align-top border-r border-blue-100 dark:border-blue-900">
+                        <span className={`font-semibold px-3 py-1 rounded-full text-xs ${drug.status === 'Active' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-200'}`}>{drug.status}</span>
                       </td>
                       <td className="py-3 px-4 align-top">
                         <div className="flex gap-2">
-                          <button className="bg-gray-100 hover:bg-blue-100 text-blue-700 p-2 rounded transition" title="Edit" onClick={() => openEditModal(drugs.indexOf(drug))}>
+                          <button className="bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-200 p-2 rounded transition" title="Edit" onClick={() => openEditModal(drugs.indexOf(drug))}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4.243 1.414 1.414-4.243a4 4 0 01.828-1.414z" /></svg>
                           </button>
                           <button
-                            className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded transition"
+                            className="bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-600 dark:text-red-200 p-2 rounded transition"
                             title="Delete"
                             onClick={() => handleDelete(drugs.indexOf(drug))}
                           >
@@ -287,38 +287,38 @@ export default function DrugManagementPage() {
             </table>
           </div>
           {/* Mobile Accordion */}
-          <div className="sm:hidden divide-y divide-blue-100">
+          <div className="sm:hidden divide-y divide-blue-100 dark:divide-blue-900">
             {pagedDrugs.length === 0 ? (
               <div className="text-center py-6 text-gray-400">No drugs found.</div>
             ) : (
               pagedDrugs.map((drug, idx) => (
-                <details key={drug.name + idx} className="py-3 px-3 group bg-blue-50/30 rounded-lg mb-3 shadow-sm border border-blue-100">
-                  <summary className="flex justify-between items-center cursor-pointer font-bold text-blue-900 text-base gap-2">
+                <details key={drug.name + idx} className="py-3 px-3 group bg-blue-50/30 dark:bg-[#18213a] rounded-lg mb-3 shadow-sm border border-blue-100 dark:border-blue-900">
+                  <summary className="flex justify-between items-center cursor-pointer font-bold text-blue-900 dark:text-blue-100 text-base gap-2">
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="truncate text-base font-bold text-blue-900">{drug.name}</span>
-                      <span className="text-xs font-normal text-blue-700 truncate">{drug.manufacturer}</span>
-                      <span className="text-xs font-mono text-indigo-700 truncate">{drug.rsi}</span>
+                      <span className="truncate text-base font-bold text-blue-900 dark:text-blue-100">{drug.name}</span>
+                      <span className="text-xs font-normal text-blue-700 dark:text-blue-300 truncate">{drug.manufacturer}</span>
+                      <span className="text-xs font-mono text-indigo-700 dark:text-indigo-300 truncate">{drug.rsi}</span>
                     </div>
-                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${drug.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>{drug.status}</span>
-                    <span className="ml-3 text-xl text-blue-700 group-open:hidden">+</span>
-                    <span className="ml-3 text-xl text-blue-700 hidden group-open:inline">-</span>
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${drug.status === 'Active' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-200'}`}>{drug.status}</span>
+                    <span className="ml-3 text-xl text-blue-700 dark:text-blue-200 group-open:hidden">+</span>
+                    <span className="ml-3 text-xl text-blue-700 dark:text-blue-200 hidden group-open:inline">-</span>
                   </summary>
-                  <div className="mt-3 text-sm text-blue-900 space-y-2">
+                  <div className="mt-3 text-sm text-blue-900 dark:text-blue-100 space-y-2">
                     <div className="flex flex-col gap-1">
-                      <span className="font-semibold text-indigo-700">Query:</span>
-                      <span className="font-mono break-all text-xs bg-gray-50 rounded px-2 py-1">{drug.query}</span>
+                      <span className="font-semibold text-indigo-700 dark:text-indigo-300">Query:</span>
+                      <span className="font-mono break-all text-xs bg-gray-50 dark:bg-[#232b3e] rounded px-2 py-1">{drug.query}</span>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="font-semibold text-indigo-700">Next Search:</span>
+                      <span className="font-semibold text-indigo-700 dark:text-indigo-300">Next Search:</span>
                       <span>{drug.nextSearch ? new Date(drug.nextSearch).toLocaleDateString() : ""}</span>
                     </div>
                     <div className="flex gap-3 mt-2">
-                      <button className="flex items-center gap-1 bg-gray-100 hover:bg-blue-100 text-blue-700 px-3 py-1 rounded transition text-xs font-semibold" title="Edit" onClick={() => openEditModal(drugs.indexOf(drug))}>
+                      <button className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-200 px-3 py-1 rounded transition text-xs font-semibold" title="Edit" onClick={() => openEditModal(drugs.indexOf(drug))}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4.243 1.414 1.414-4.243a4 4 0 01.828-1.414z" /></svg>
                         Edit
                       </button>
                       <button
-                        className="flex items-center gap-1 bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1 rounded transition text-xs font-semibold"
+                        className="flex items-center gap-1 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-600 dark:text-red-200 px-3 py-1 rounded transition text-xs font-semibold"
                         title="Delete"
                         onClick={() => handleDelete(drugs.indexOf(drug))}
                       >
@@ -332,33 +332,33 @@ export default function DrugManagementPage() {
             )}
           </div>
           {/* Pagination Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-6 py-4 border-t border-blue-100 bg-blue-50 rounded-b-xl">
-            <div className="text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-6 py-4 border-t border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-[#18213a] rounded-b-xl">
+            <div className="text-sm text-gray-600 dark:text-gray-300">
               Showing {filteredDrugs.length === 0 ? 0 : (page - 1) * pageSize + 1}
               -{Math.min(page * pageSize, filteredDrugs.length)} of {filteredDrugs.length}
             </div>
             <div className="flex gap-1 items-center">
               <button
-                className="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 border border-gray-300"
+                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-gray-700"
                 onClick={() => setPage(1)}
                 disabled={page === 1}
                 title="First page"
               >&#171;</button>
               <button
-                className="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 border border-gray-300"
+                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-gray-700"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 title="Previous page"
               >&#8249;</button>
-              <span className="px-2 text-gray-700 font-semibold">Page {page} of {pageCount || 1}</span>
+              <span className="px-2 text-gray-700 dark:text-gray-200 font-semibold">Page {page} of {pageCount || 1}</span>
               <button
-                className="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 border border-gray-300"
+                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-gray-700"
                 onClick={() => setPage(p => Math.min(pageCount, p + 1))}
                 disabled={page === pageCount || pageCount === 0}
                 title="Next page"
               >&#8250;</button>
               <button
-                className="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 border border-gray-300"
+                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-gray-700"
                 onClick={() => setPage(pageCount)}
                 disabled={page === pageCount || pageCount === 0}
                 title="Last page"
@@ -369,11 +369,11 @@ export default function DrugManagementPage() {
 
   {/* Modal for Add/Edit Drug */}
         {modalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-            <div className="bg-white rounded-xl shadow-2xl border border-blue-100 w-full max-w-lg relative animate-fade-in flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/70">
+            <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow-2xl border border-blue-100 dark:border-blue-900 w-full max-w-lg relative animate-fade-in flex flex-col max-h-[90vh]">
               <div className="flex items-center justify-between px-6 pt-5 pb-2 border-b border-blue-100">
-                <h2 className="text-lg font-black text-blue-900 tracking-wide">{editIndex === null ? 'Add New Drug' : 'Edit Drug'}</h2>
-                <button className="text-gray-400 hover:text-blue-600 text-2xl" onClick={closeModal}>&times;</button>
+                <h2 className="text-lg font-black text-blue-900 dark:text-blue-100 tracking-wide">{editIndex === null ? 'Add New Drug' : 'Edit Drug'}</h2>
+                <button className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-300 text-2xl" onClick={closeModal}>&times;</button>
               </div>
               <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-y-auto px-6 py-4 space-y-4">
                 <div>
@@ -383,7 +383,7 @@ export default function DrugManagementPage() {
                     value={form.name}
                     onChange={handleChange}
                     placeholder="e.g. Aspirin"
-                    className={`w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none transition ${errors.name ? 'border-red-500' : 'border-blue-600 focus:border-blue-800'} bg-white text-blue-900 font-semibold`}
+                    className={`w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none transition ${errors.name ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100 font-semibold`}
                   />
                   {errors.name && <div className="text-red-500 text-sm mt-1">{errors.name}</div>}
                 </div>
@@ -394,7 +394,7 @@ export default function DrugManagementPage() {
                     value={form.query}
                     onChange={handleChange}
                     placeholder='e.g. aspirin[tiab] AND ("adverse event"[tiab] OR "side effect"[tiab])'
-                    className={`w-full border-2 rounded-lg px-4 py-2 text-base font-mono focus:outline-none transition ${errors.query ? 'border-red-500' : 'border-blue-600 focus:border-blue-800'} bg-white text-blue-900`}
+                    className={`w-full border-2 rounded-lg px-4 py-2 text-base font-mono focus:outline-none transition ${errors.query ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100`}
                   />
                   {errors.query && <div className="text-red-500 text-sm mt-1">{errors.query}</div>}
                 </div>
@@ -405,7 +405,7 @@ export default function DrugManagementPage() {
                     value={form.manufacturer}
                     onChange={handleChange}
                     placeholder="e.g. Bayer AG"
-                    className={`w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none transition ${errors.manufacturer ? 'border-red-500' : 'border-blue-600 focus:border-blue-800'} bg-white text-blue-900`}
+                    className={`w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none transition ${errors.manufacturer ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100`}
                   />
                   {errors.manufacturer && <div className="text-red-500 text-sm mt-1">{errors.manufacturer}</div>}
                 </div>
@@ -417,7 +417,7 @@ export default function DrugManagementPage() {
                       value={form.rsi}
                       onChange={handleChange}
                       placeholder="e.g. RSI-ASP-001"
-                      className={`w-full border-2 rounded-lg px-4 py-2 text-base font-mono focus:outline-none transition ${errors.rsi ? 'border-red-500' : 'border-blue-600 focus:border-blue-800'} bg-white text-blue-900`}
+                      className={`w-full border-2 rounded-lg px-4 py-2 text-base font-mono focus:outline-none transition ${errors.rsi ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100`}
                     />
                     {errors.rsi && <div className="text-red-500 text-sm mt-1">{errors.rsi}</div>}
                   </div>
@@ -429,7 +429,7 @@ export default function DrugManagementPage() {
                       value={form.nextSearch}
                       onChange={handleChange}
                       placeholder="YYYY-MM-DD"
-                      className={`w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none transition ${errors.nextSearch ? 'border-red-500' : 'border-blue-600 focus:border-blue-800'} bg-white text-blue-900`}
+                      className={`w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none transition ${errors.nextSearch ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100`}
                     />
                     {errors.nextSearch && <div className="text-red-500 text-sm mt-1">{errors.nextSearch}</div>}
                   </div>
@@ -440,15 +440,15 @@ export default function DrugManagementPage() {
                     name="status"
                     value={form.status}
                     onChange={handleChange}
-                    className="w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none border-blue-600 focus:border-blue-800 bg-white text-blue-900"
+                  className="w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400 bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100"
                   >
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
                 </div>
-                <div className="flex justify-end gap-2 pt-2 border-t border-blue-100 bg-blue-50 rounded-b-xl mt-4">
-                  <button type="button" className="px-5 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 font-semibold text-base" onClick={closeModal}>Cancel</button>
-                  <button type="submit" className="px-5 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 text-base">{editIndex === null ? 'Add' : 'Save'}</button>
+                <div className="flex justify-end gap-2 pt-2 border-t border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-[#18213a] rounded-b-xl mt-4">
+                  <button type="button" className="px-5 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 font-semibold text-base" onClick={closeModal}>Cancel</button>
+                  <button type="submit" className="px-5 py-2 rounded-lg bg-blue-600 dark:bg-blue-900 text-white font-bold hover:bg-blue-700 dark:hover:bg-blue-800 text-base">{editIndex === null ? 'Add' : 'Save'}</button>
                 </div>
               </form>
             </div>
@@ -456,24 +456,24 @@ export default function DrugManagementPage() {
         )}
         {/* Modal for Delete Confirmation */}
         {deleteIndex !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-            <div className="bg-white rounded-xl shadow-2xl border border-blue-100 w-full max-w-sm relative animate-fade-in flex flex-col">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/70">
+            <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow-2xl border border-blue-100 dark:border-blue-900 w-full max-w-sm relative animate-fade-in flex flex-col">
               <div className="flex items-center justify-between px-6 pt-5 pb-2 border-b border-blue-100">
-                <h2 className="text-lg font-black text-red-700 tracking-wide">Confirm Delete</h2>
-                <button className="text-gray-400 hover:text-blue-600 text-2xl" onClick={cancelDelete}>&times;</button>
+                <h2 className="text-lg font-black text-red-700 dark:text-red-300 tracking-wide">Confirm Delete</h2>
+                <button className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-300 text-2xl" onClick={cancelDelete}>&times;</button>
               </div>
-              <div className="px-6 py-6 text-blue-900 text-base">
+              <div className="px-6 py-6 text-blue-900 dark:text-blue-100 text-base">
                 Are you sure you want to remove <span className="font-bold">{drugs[deleteIndex]?.name}</span> from the database?
               </div>
               <div className="flex justify-end gap-2 px-6 pb-5">
                 <button
-                  className="px-5 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 font-semibold text-base"
+                  className="px-5 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 font-semibold text-base"
                   onClick={cancelDelete}
                 >
                   Cancel
                 </button>
                 <button
-                  className="px-5 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 text-base"
+                  className="px-5 py-2 rounded-lg bg-red-600 dark:bg-red-900 text-white font-bold hover:bg-red-700 dark:hover:bg-red-800 text-base"
                   onClick={confirmDelete}
                 >
                   Delete

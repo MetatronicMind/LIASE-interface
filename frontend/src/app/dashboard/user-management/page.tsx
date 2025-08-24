@@ -207,9 +207,9 @@ export default function UserManagementPage() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen text-blue-900">
+    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen text-blue-900 dark:text-blue-100">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-semibold text-blue-900">User Management</h1>
+        <h1 className="text-2xl font-semibold text-blue-900 dark:text-blue-100">User Management</h1>
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center w-full sm:w-auto">
           <input
             type="text"
@@ -219,11 +219,11 @@ export default function UserManagementPage() {
               setPage(1);
             }}
             placeholder="Search by username, name, or role"
-            className="border border-blue-400 rounded px-3 py-2 text-blue-900 placeholder-blue-400 bg-blue-50 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 transition w-full sm:w-64"
+            className="border border-blue-400 dark:border-blue-700 rounded px-3 py-2 text-blue-900 dark:text-blue-100 placeholder-blue-400 dark:placeholder-blue-300 bg-blue-50 dark:bg-gray-800 focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 transition w-full sm:w-64"
           />
           <button
             onClick={openAddModal}
-            className="bg-blue-700 text-white px-4 py-2 rounded-md hover:bg-blue-800 whitespace-nowrap"
+            className="bg-blue-700 dark:bg-blue-900 text-white px-4 py-2 rounded-md hover:bg-blue-800 dark:hover:bg-blue-800 whitespace-nowrap"
           >
             <span className="text-lg">+</span> Add User
           </button>
@@ -231,9 +231,9 @@ export default function UserManagementPage() {
       </div>
 
       {/* Users table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-blue-100 text-blue-800 uppercase text-xs font-semibold">
+          <thead className="bg-blue-100 dark:bg-gray-700 text-blue-800 dark:text-blue-200 uppercase text-xs font-semibold">
             <tr>
               <th className="px-4 py-2 text-left">Username</th>
               <th className="px-4 py-2 text-left">Name</th>
@@ -242,15 +242,15 @@ export default function UserManagementPage() {
               <th className="px-4 py-2 text-center">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-blue-100 dark:divide-gray-700">
             {paginatedUsers.map((user) => (
-              <tr key={user.id} className="hover:bg-blue-50">
+              <tr key={user.id} className="hover:bg-blue-50 dark:hover:bg-gray-700">
                 <td className="px-4 py-2">{user.username}</td>
                 <td className="px-4 py-2">{user.name}</td>
                 <td className="px-4 py-2">
                   <span
                     className={`px-2 py-1 text-xs rounded-full ${
-                      roleColors[user.role] || "bg-blue-50 text-blue-800"
+                      roleColors[user.role] || "bg-blue-50 text-blue-800 dark:bg-gray-700 dark:text-blue-200"
                     }`}
                   >
                     {user.role}
@@ -260,7 +260,7 @@ export default function UserManagementPage() {
                 <td className="px-4 py-2 flex justify-center space-x-2">
                   <button
                     onClick={() => openEditModal(user)}
-                    className="text-blue-700 hover:text-blue-900"
+                    className="text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100"
                   >
                     <PencilIcon className="h-5 w-5" />
                   </button>
@@ -268,7 +268,7 @@ export default function UserManagementPage() {
                     onClick={() =>
                       setUsers((prev) => prev.filter((u) => u.id !== user.id))
                     }
-                    className="text-red-700 hover:text-red-900"
+                    className="text-red-700 dark:text-red-400 hover:text-red-900 dark:hover:text-red-200"
                   >
                     <TrashIcon className="h-5 w-5" />
                   </button>
@@ -279,18 +279,18 @@ export default function UserManagementPage() {
         </table>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 bg-blue-50">
+        <div className="flex items-center justify-between px-4 py-3 bg-blue-50 dark:bg-gray-900">
           <div className="flex items-center space-x-4">
-            <span className="text-sm text-blue-800 font-semibold">Total Users: {filteredUsers.length}</span>
+            <span className="text-sm text-blue-800 dark:text-blue-200 font-semibold">Total Users: {filteredUsers.length}</span>
             <div className="flex items-center space-x-2">
-              <label className="text-sm text-blue-800">Page size:</label>
+              <label className="text-sm text-blue-800 dark:text-blue-200">Page size:</label>
               <select
                 value={pageSize}
                 onChange={(e) => {
                   setPageSize(Number(e.target.value));
                   setPage(1);
                 }}
-                className="border border-blue-400 rounded px-2 py-1 text-sm text-blue-900 focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                className="border border-blue-400 dark:border-blue-700 rounded px-2 py-1 text-sm text-blue-900 dark:text-blue-100 bg-white dark:bg-gray-800 focus:border-blue-600 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-600 dark:focus:ring-blue-900"
               >
                 {[10, 25, 50, 100].map((opt) => (
                   <option key={opt} value={opt}>
@@ -300,11 +300,11 @@ export default function UserManagementPage() {
               </select>
             </div>
           </div>
-          <div className="flex items-center space-x-2 text-blue-800">
+          <div className="flex items-center space-x-2 text-blue-800 dark:text-blue-200">
             <button
               disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}
-              className="px-2 py-1 border border-blue-600 text-blue-700 rounded disabled:opacity-50 hover:bg-blue-50"
+              className="px-2 py-1 border border-blue-600 dark:border-blue-400 text-blue-700 dark:text-blue-200 rounded disabled:opacity-50 hover:bg-blue-50 dark:hover:bg-gray-700"
             >
               Prev
             </button>
@@ -314,7 +314,7 @@ export default function UserManagementPage() {
             <button
               disabled={page === totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="px-2 py-1 border border-blue-600 text-blue-700 rounded disabled:opacity-50 hover:bg-blue-50"
+              className="px-2 py-1 border border-blue-600 dark:border-blue-400 text-blue-700 dark:text-blue-200 rounded disabled:opacity-50 hover:bg-blue-50 dark:hover:bg-gray-700"
             >
               Next
             </button>
@@ -325,48 +325,48 @@ export default function UserManagementPage() {
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl relative">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-2xl relative">
             <button
               onClick={closeModal}
-              className="absolute top-2 right-2 text-blue-600 hover:text-blue-800"
+              className="absolute top-2 right-2 text-blue-600 dark:text-blue-200 hover:text-blue-800 dark:hover:text-blue-100"
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
-            <div className="p-6 text-blue-900">
+            <div className="p-6 text-blue-900 dark:text-blue-100">
               <h2 className="text-lg font-semibold mb-4">
                 {editUser ? "Edit User" : "Add User"}
               </h2>
               <form onSubmit={handleFormSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-blue-800 font-medium mb-1">Username</label>
+                    <label className="block text-sm text-blue-800 dark:text-blue-200 font-medium mb-1">Username</label>
                     <input
                       name="username"
                       value={form.username}
                       onChange={handleFormChange}
                       required
                       placeholder="Enter username"
-                      className="w-full border border-blue-400 rounded px-2 py-2 text-blue-900 placeholder-blue-400 bg-blue-50 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 transition"
+                      className="w-full border border-blue-400 dark:border-blue-700 rounded px-2 py-2 text-blue-900 dark:text-blue-100 placeholder-blue-400 dark:placeholder-blue-300 bg-blue-50 dark:bg-gray-800 focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-blue-800 font-medium mb-1">Full Name</label>
+                    <label className="block text-sm text-blue-800 dark:text-blue-200 font-medium mb-1">Full Name</label>
                     <input
                       name="name"
                       value={form.name}
                       onChange={handleFormChange}
                       required
                       placeholder="Enter full name"
-                      className="w-full border border-blue-400 rounded px-2 py-2 text-blue-900 placeholder-blue-400 bg-blue-50 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 transition"
+                      className="w-full border border-blue-400 dark:border-blue-700 rounded px-2 py-2 text-blue-900 dark:text-blue-100 placeholder-blue-400 dark:placeholder-blue-300 bg-blue-50 dark:bg-gray-800 focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-blue-800 font-medium mb-1">Role</label>
+                    <label className="block text-sm text-blue-800 dark:text-blue-200 font-medium mb-1">Role</label>
                     <select
                       name="role"
                       value={form.role}
                       onChange={handleFormChange}
-                      className="w-full border border-blue-400 rounded px-2 py-2 text-blue-900 bg-blue-50 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 transition"
+                      className="w-full border border-blue-400 dark:border-blue-700 rounded px-2 py-2 text-blue-900 dark:text-blue-100 bg-blue-50 dark:bg-gray-800 focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 transition"
                     >
                       <option value="" disabled>Select role</option>
                       {roles.map((r) => (
@@ -385,11 +385,11 @@ export default function UserManagementPage() {
                     placeholder="Add new role (e.g. Reviewer)"
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value)}
-                    className="border border-blue-400 rounded px-2 py-2 flex-1 text-blue-900 placeholder-blue-400 bg-blue-50 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 transition"
+                    className="border border-blue-400 dark:border-blue-700 rounded px-2 py-2 flex-1 text-blue-900 dark:text-blue-100 placeholder-blue-400 dark:placeholder-blue-300 bg-blue-50 dark:bg-gray-800 focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 transition"
                   />
                   <button
                     onClick={handleAddRole}
-                    className="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-4 py-2 rounded shadow hover:from-blue-700 hover:to-blue-900 font-semibold transition"
+                    className="bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-800 dark:to-blue-900 text-white px-4 py-2 rounded shadow hover:from-blue-700 hover:to-blue-900 dark:hover:from-blue-900 dark:hover:to-blue-950 font-semibold transition"
                   >
                     Add
                   </button>
@@ -397,16 +397,16 @@ export default function UserManagementPage() {
 
                 {/* Permissions */}
                 <div className="mt-6">
-                  <h3 className="text-sm font-semibold mb-2 text-blue-800">Permissions</h3>
-                  <div className="space-y-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold mb-2 text-blue-800 dark:text-blue-200">Permissions</h3>
+                  <div className="space-y-4 bg-blue-50 dark:bg-gray-800 border border-blue-200 dark:border-gray-700 rounded-lg p-4">
                     {sections.map((section, idx) => (
                       <div key={section.key} className="mb-2">
-                        <label className="flex items-center space-x-2 font-medium text-blue-900">
+                        <label className="flex items-center space-x-2 font-medium text-blue-900 dark:text-blue-100">
                           <input
                             type="checkbox"
                             checked={form.permissions[section.key] || false}
                             onChange={() => handlePermissionChange(section.key)}
-                            className="text-blue-600 focus:ring-blue-600 accent-blue-700"
+                            className="text-blue-600 dark:text-blue-400 focus:ring-blue-600 dark:focus:ring-blue-400 accent-blue-700 dark:accent-blue-400"
                           />
                           <span>{section.label}</span>
                         </label>
@@ -415,36 +415,36 @@ export default function UserManagementPage() {
                             {section.children.map((child) => (
                               <label
                                 key={child.key}
-                                className="flex items-center space-x-2 text-blue-800"
+                                className="flex items-center space-x-2 text-blue-800 dark:text-blue-200"
                               >
                                 <input
                                   type="checkbox"
                                   checked={form.permissions[child.key] || false}
                                   onChange={() => handlePermissionChange(child.key, section.key)}
-                                  className="text-blue-600 focus:ring-blue-600 accent-blue-700"
+                                  className="text-blue-600 dark:text-blue-400 focus:ring-blue-600 dark:focus:ring-blue-400 accent-blue-700 dark:accent-blue-400"
                                 />
                                 <span className="text-sm">{child.label}</span>
                               </label>
                             ))}
                           </div>
                         )}
-                        {idx !== sections.length - 1 && <div className="border-t border-blue-200 mt-4 pt-2" />}
+                        {idx !== sections.length - 1 && <div className="border-t border-blue-200 dark:border-gray-700 mt-4 pt-2" />}
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-2 mt-6 border-t border-blue-200 pt-4">
+                <div className="flex justify-end space-x-2 mt-6 border-t border-blue-200 dark:border-gray-700 pt-4">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-4 py-2 border border-blue-600 text-blue-700 rounded hover:bg-blue-50 font-semibold transition"
+                    className="px-4 py-2 border border-blue-600 dark:border-blue-400 text-blue-700 dark:text-blue-200 rounded hover:bg-blue-50 dark:hover:bg-gray-700 font-semibold transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-2 rounded shadow hover:from-blue-700 hover:to-blue-900 font-bold transition"
+                    className="bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-800 dark:to-blue-900 text-white px-6 py-2 rounded shadow hover:from-blue-700 hover:to-blue-900 dark:hover:from-blue-900 dark:hover:to-blue-950 font-bold transition"
                   >
                     {editUser ? "Update" : "Add"}
                   </button>
