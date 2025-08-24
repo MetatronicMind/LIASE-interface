@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import SearchableSelect from "./SearchableSelect";
 import {
   ArrowPathIcon,
   ChatBubbleLeftEllipsisIcon,
@@ -209,59 +210,68 @@ export default function AuditTrailPage() {
             <ArrowDownTrayIcon className="w-5 h-5 text-green-700" /> Export CSV
           </button>
         </div>
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow border border-blue-100 p-6 mb-8">
-          <div className="font-bold text-lg text-blue-900 mb-4">Filters</div>
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-blue-900 mb-1">User</label>
-              <select
+        {/* Filters - Study Review style */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-8">
+          <h2 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+            </svg>
+            Filter Activity Log
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">User</label>
+              <SearchableSelect
+                options={[{ value: "", label: "All Users" }, ...mockUsers.map(u => ({ value: String(u.id), label: u.name }))]}
                 value={user}
-                onChange={e => { setUser(e.target.value); setPage(1); }}
-                className="w-full border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white text-blue-900"
-              >
-                <option value="">All Users</option>
-                {mockUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
+                onChange={val => { setUser(val); setPage(1); }}
+                placeholder="Select user..."
+              />
             </div>
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-blue-900 mb-1">Action</label>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Action</label>
               <select
                 value={action}
                 onChange={e => { setAction(e.target.value); setPage(1); }}
-                className="w-full border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white text-blue-900"
+                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
               >
                 <option value="">All Actions</option>
                 {mockActions.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
               </select>
             </div>
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-blue-900 mb-1">Date From</label>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">From Date</label>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={e => { setDateFrom(e.target.value); setPage(1); }}
-                className="w-full border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white text-blue-900"
+                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
               />
             </div>
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-blue-900 mb-1">Date To</label>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">To Date</label>
               <input
                 type="date"
                 value={dateTo}
                 onChange={e => { setDateTo(e.target.value); setPage(1); }}
-                className="w-full border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white text-blue-900"
+                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
               />
             </div>
           </div>
-          <div className="flex items-center justify-between border-t border-blue-100 pt-4 mt-2">
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <button
-              className="px-5 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 font-semibold text-base"
+              type="button"
+              className="flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 text-sm font-medium transition-colors"
               onClick={clearFilters}
             >
-              Clear Filters
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Clear All Filters
             </button>
-            <div className="text-sm text-gray-600">{filteredLogs.length} records found</div>
+            <div className="flex items-center text-sm text-gray-600">
+              <span className="font-medium">{filteredLogs.length}</span> records found
+            </div>
           </div>
         </div>
         {/* Activity Log Table */}
