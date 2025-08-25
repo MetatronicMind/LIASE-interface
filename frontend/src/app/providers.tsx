@@ -4,8 +4,9 @@ import { Provider } from "react-redux";
 import { store } from "@/redux/store";
 import React, { createContext, useContext, useState, useEffect } from "react";
 
+
 // Theme context for dark/light mode
-const ThemeContext = createContext({
+export const ThemeContext = createContext({
   theme: 'light',
   toggleTheme: () => {},
 });
