@@ -38,7 +38,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: backend
+          path: backend/
 
   deploy:
     runs-on: ubuntu-latest
@@ -53,11 +53,21 @@ jobs:
         with:
           name: node-app
 
-      - name: List files (debug)
+      - name: Prepare deployment files
         run: |
           pwd
           ls -la
           echo "Contents:"
+          find . -name "package.json" -type f
+          echo "Moving backend contents to root for deployment..."
+          if [ -d "backend" ]; then
+            mv backend/* .
+            mv backend/.[^.]* . 2>/dev/null || true
+            rmdir backend
+          fi
+          echo "After move:"
+          ls -la
+          echo "package.json location:"
           find . -name "package.json" -type f
 
       - name: Login to Azure
