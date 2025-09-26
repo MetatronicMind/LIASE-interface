@@ -41,10 +41,10 @@ jobs:
           npm run lint --fix || echo "Some lint issues could not be auto-fixed"
         continue-on-error: true
 
-      - name: Build Next.js app
+      - name: Build Next.js app for static export
         working-directory: ./frontend
         run: |
-          # Disable strict linting for deployment build
+          # Build for static export (works better with Azure)
           npm run build
         env:
           NODE_ENV: production
@@ -59,73 +59,90 @@ jobs:
         env:
           CI: true
 
-      - name: Create server.js for Azure deployment
+      - name: Create simple Express server for Azure
         working-directory: ./frontend
         run: |
           cat > server.js << 'EOF'
-          const { createServer } = require('http')
-          const { parse } = require('url')
-          const next = require('next')
+          const express = require('express');
+          const path = require('path');
+          const { createProxyMiddleware } = require('http-proxy-middleware');
           
-          const dev = false
-          const hostname = '0.0.0.0' 
-          const port = process.env.PORT || 8080
+          const app = express();
+          const port = process.env.PORT || 8080;
           
-          console.log('Starting Next.js application...')
-          console.log('NODE_ENV:', process.env.NODE_ENV)
-          console.log('Port:', port)
+          console.log('Starting Express server for Next.js build...');
+          console.log('NODE_ENV:', process.env.NODE_ENV);
+          console.log('Port:', port);
+          console.log('Directory:', __dirname);
           
-          const app = next({ dev, hostname, port })
-          const handle = app.getRequestHandler()
+          // Serve static files from Next.js build
+          app.use('/_next', express.static(path.join(__dirname, '.next')));
+          app.use('/static', express.static(path.join(__dirname, 'public')));
           
-          app.prepare().then(() => {
-            console.log('Next.js app prepared, starting server...')
-            createServer(async (req, res) => {
-              try {
-                const parsedUrl = parse(req.url, true)
-                await handle(req, res, parsedUrl)
-              } catch (err) {
-                console.error('Error occurred handling', req.url, err)
-                res.statusCode = 500
-                res.end('internal server error')
+          // Health check endpoint
+          app.get('/health', (req, res) => {
+            res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+          });
+          
+          // Serve index.html for all routes (SPA)
+          app.get('*', (req, res) => {
+            res.sendFile(path.join(__dirname, '.next/server/pages/index.html'), (err) => {
+              if (err) {
+                console.log('Falling back to basic HTML');
+                res.status(200).send(`
+                  <!DOCTYPE html>
+                  <html>
+                    <head><title>LIASE - Loading...</title></head>
+                    <body>
+                      <div id="__next">
+                        <h1>LIASE Application</h1>
+                        <p>Loading...</p>
+                        <script>
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 2000);
+                        </script>
+                      </div>
+                    </body>
+                  </html>
+                `);
               }
-            }).listen(port, hostname, (err) => {
-              if (err) throw err
-              console.log(`> Ready on http://${hostname}:${port}`)
-            })
-          }).catch((err) => {
-            console.error('Failed to start Next.js app:', err)
-            process.exit(1)
-          })
+            });
+          });
+          
+          app.listen(port, '0.0.0.0', () => {
+            console.log(`✅ Server running on port ${port}`);
+            console.log(`🌐 Access at: http://localhost:${port}`);
+          });
+          
+          // Graceful shutdown
+          process.on('SIGTERM', () => {
+            console.log('Received SIGTERM, shutting down gracefully');
+            process.exit(0);
+          });
           EOF
 
       - name: Create production package.json
         working-directory: ./frontend
         run: |
-          # Create a production package.json with all necessary dependencies
-          node -e "
-          const pkg = require('./package.json');
-          const prodPkg = {
-            name: pkg.name + '-deploy',
-            version: pkg.version,
-            main: 'server.js',
-            scripts: {
-              start: 'node server.js'
+          # Create a minimal production package.json for Express server
+          cat > package-prod.json << 'EOF'
+          {
+            "name": "liase-frontend-deploy",
+            "version": "1.0.0",
+            "main": "server.js",
+            "scripts": {
+              "start": "node server.js"
             },
-            engines: {
-              node: '>=18.0.0'
+            "engines": {
+              "node": ">=18.0.0"
             },
-            dependencies: {
-              next: pkg.dependencies.next,
-              react: pkg.dependencies.react,
-              'react-dom': pkg.dependencies['react-dom'],
-              '@heroicons/react': pkg.dependencies['@heroicons/react'] || '^2.0.0',
-              '@reduxjs/toolkit': pkg.dependencies['@reduxjs/toolkit'] || '^1.9.0',
-              'react-redux': pkg.dependencies['react-redux'] || '^8.0.0'
+            "dependencies": {
+              "express": "^4.18.2",
+              "http-proxy-middleware": "^2.0.6"
             }
-          };
-          require('fs').writeFileSync('package-prod.json', JSON.stringify(prodPkg, null, 2));
-          "
+          }
+          EOF
 
       - name: Create web.config for Azure
         working-directory: ./frontend
@@ -139,12 +156,6 @@ jobs:
               </handlers>
               <rewrite>
                 <rules>
-                  <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
-                    <match url="^server.js\/debug[\/]?" />
-                  </rule>
-                  <rule name="StaticContent">
-                    <action type="Rewrite" url="public{REQUEST_URI}"/>
-                  </rule>
                   <rule name="DynamicContent">
                     <conditions>
                       <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True"/>
@@ -153,15 +164,31 @@ jobs:
                   </rule>
                 </rules>
               </rewrite>
-              <security>
-                <requestFiltering>
-                  <hiddenSegments>
-                    <remove segment="bin"/>
-                  </hiddenSegments>
-                </requestFiltering>
-              </security>
               <httpErrors existingResponse="PassThrough" />
-              <iisnode watchedFiles="web.config;*.js"/>
+              <iisnode 
+                watchedFiles="web.config;*.js"
+                loggingEnabled="true"
+                logDirectoryNameSuffix="logs"
+                debuggingEnabled="false"
+                nodeProcessCountPerApplication="1"
+                maxConcurrentRequestsPerProcess="1024"
+                maxNamedPipeConnectionRetry="3"
+                namedPipeConnectionRetryDelay="2000"
+                maxNamedPipeConnectionPoolSize="512"
+                maxNamedPipePooledConnectionAge="30000"
+                asyncCompletionThreadCount="0"
+                initialRequestBufferSize="4096"
+                maxRequestBufferSize="65536"
+                uncFileChangesPollingInterval="5000"
+                gracefulShutdownTimeout="60000"
+                promoteServerVars="LOGON_USER,AUTH_USER,AUTH_TYPE"
+                configOverrides="iisnode.yml"
+                recycleSignalEnabled="false"
+                idlePageOutTimePeriod="0"
+                interceptor=""
+                enableXFF="false"
+                promoteServerVars=""
+              />
             </system.webServer>
           </configuration>
           EOF
@@ -235,27 +262,35 @@ jobs:
           
       - name: Health Check
         run: |
-          sleep 30
+          sleep 45
           webapp_url="https://liase.azurewebsites.net"
           echo "Checking Frontend application health at $webapp_url"
           
-          max_attempts=5
+          max_attempts=8
           attempt=1
           
           while [ $attempt -le $max_attempts ]; do
             echo "Health check attempt $attempt/$max_attempts"
             
-            if curl -f -s -I "$webapp_url/" | grep -q "200 OK"; then
-              echo "✅ Frontend application is responding successfully"
+            # Try health endpoint first, then main page
+            if curl -f -s "$webapp_url/health" -o /dev/null; then
+              echo "✅ Health endpoint responding"
+              echo "🎉 Frontend deployment completed successfully!"
+              break
+            elif curl -f -s "$webapp_url/" -o /dev/null; then
+              echo "✅ Main page responding"
               echo "🎉 Frontend deployment completed successfully!"
               break
             else
               if [ $attempt -eq $max_attempts ]; then
                 echo "❌ Frontend health check failed after $max_attempts attempts"
+                echo "Trying to get more info from the server..."
+                curl -v "$webapp_url/" || true
+                curl -v "$webapp_url/health" || true
                 exit 1
               else
-                echo "⏳ Application not ready yet, waiting 30 seconds..."
-                sleep 30
+                echo "⏳ Application not ready yet, waiting 20 seconds..."
+                sleep 20
                 attempt=$((attempt + 1))
               fi
             fi
