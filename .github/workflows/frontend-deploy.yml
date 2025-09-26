@@ -62,58 +62,6 @@ jobs:
       - name: Create simple static file server for Azure
         working-directory: ./frontend
         run: |
-          cat > server.js << 'EOF'
-          const express = require('express');
-          const path = require('path');
-          const fs = require('fs');
-          
-          const app = express();
-          const port = process.env.PORT || 8080;
-          
-          console.log('Starting static file server...');
-          
-          // Check for different Next.js build outputs
-          if (fs.existsSync('.next/standalone')) {
-            console.log('✅ Serving from .next/standalone directory');
-            app.use(express.static('.next/standalone', { index: 'index.html' }));
-          } else if (fs.existsSync('out')) {
-            console.log('✅ Serving from out/ directory');
-            app.use(express.static('out', { index: 'index.html' }));
-          } else if (fs.existsSync('.next/static')) {
-            console.log('✅ Serving from .next/static directory');
-            app.use('/_next/static', express.static('.next/static'));
-            app.use(express.static('public'));
-          } else {
-            console.log('❌ No build directory found, serving basic page');
-          }
-          
-          // Health check
-          app.get('/health', (req, res) => {
-            res.json({ status: 'OK', time: new Date().toISOString() });
-          });
-          
-          // Catch-all for SPA routing
-          app.get('*', (req, res) => {
-            const possibleIndexPaths = [
-              '.next/standalone/index.html',
-              'out/index.html',
-              'public/index.html',
-              '.next/server/pages/index.html'
-            ];
-            
-            for (const indexPath of possibleIndexPaths) {
-              if (fs.existsSync(indexPath)) {
-                return res.sendFile(path.join(__dirname, indexPath));
-              }
-            }
-            
-            res.send('<h1>LIASE App Running</h1><p>Server is working! Build type: standalone</p>');
-          });
-          
-          app.listen(port, '0.0.0.0', () => {
-            console.log('✅ Server running on port', port);
-          });
-          EOF
           const express = require('express');
           const path = require('path');
           const fs = require('fs');
@@ -228,52 +176,52 @@ jobs:
               path.join(__dirname, 'public/index.html')
             ];
             
-            console.log(`Request for: ${req.url}`);
+            console.log('Request for: ' + req.url);
             
             // Try each possible path
             for (const filePath of possiblePaths) {
               if (fs.existsSync(filePath)) {
-                console.log(`Serving: ${filePath}`);
+                console.log('Serving: ' + filePath);
                 return res.sendFile(filePath);
               }
             }
             
             // If no Next.js files found, create a basic working page
             console.log('No Next.js files found, serving basic page');
-            res.status(200).send(`
-              <!DOCTYPE html>
-              <html>
-                <head>
-                  <title>LIASE Application</title>
-                  <meta charset="utf-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1">
-                  <style>
-                    body { font-family: Arial, sans-serif; margin: 40px; text-align: center; }
-                    .container { max-width: 600px; margin: 0 auto; }
-                    .status { background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0; }
-                  </style>
-                </head>
-                <body>
-                  <div class="container">
-                    <h1>🚀 LIASE Application</h1>
-                    <div class="status">
-                      <h3>Application Status: Running</h3>
-                      <p>Server is running successfully on Azure!</p>
-                      <p>Build files are being served from Express.</p>
-                      <p><strong>Time:</strong> ${new Date().toISOString()}</p>
-                    </div>
-                    <div>
-                      <a href="/health" style="color: #0070f3; text-decoration: none;">Check Health Status</a>
-                    </div>
-                  </div>
-                </body>
-              </html>
-            `);
+            res.status(200).send(
+              '<!DOCTYPE html>' +
+              '<html>' +
+                '<head>' +
+                  '<title>LIASE Application</title>' +
+                  '<meta charset="utf-8">' +
+                  '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+                  '<style>' +
+                    'body { font-family: Arial, sans-serif; margin: 40px; text-align: center; }' +
+                    '.container { max-width: 600px; margin: 0 auto; }' +
+                    '.status { background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0; }' +
+                  '</style>' +
+                '</head>' +
+                '<body>' +
+                  '<div class="container">' +
+                    '<h1>🚀 LIASE Application</h1>' +
+                    '<div class="status">' +
+                      '<h3>Application Status: Running</h3>' +
+                      '<p>Server is running successfully on Azure!</p>' +
+                      '<p>Build files are being served from Express.</p>' +
+                      '<p><strong>Time:</strong> ' + new Date().toISOString() + '</p>' +
+                    '</div>' +
+                    '<div>' +
+                      '<a href="/health" style="color: #0070f3; text-decoration: none;">Check Health Status</a>' +
+                    '</div>' +
+                  '</div>' +
+                '</body>' +
+              '</html>'
+            );
           });
           
           app.listen(port, '0.0.0.0', () => {
-            console.log(`✅ Server running on port ${port}`);
-            console.log(`🌐 Access at: http://localhost:${port}`);
+            console.log('✅ Server running on port ' + port);
+            console.log('🌐 Access at: http://localhost:' + port);
           });
           
           // Graceful shutdown
