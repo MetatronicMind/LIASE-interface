@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import { getApiBaseUrl } from '@/config/api';
 
 export default function AdminUtilsPage() {
   const [loading, setLoading] = useState(false);
@@ -13,7 +14,7 @@ export default function AdminUtilsPage() {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8000/api/migrate/migrate-admin-permissions', {
+      const response = await fetch(`${getApiBaseUrl()}/migrate/migrate-admin-permissions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -38,7 +39,7 @@ export default function AdminUtilsPage() {
   const testPermissions = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8000/api/roles', {
+      const response = await fetch(`${getApiBaseUrl()}/roles`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

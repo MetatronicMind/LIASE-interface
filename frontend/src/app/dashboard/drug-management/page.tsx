@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import StudyProgressTracker from "../../../components/StudyProgressTracker";
+import { getApiBaseUrl } from "@/config/api";
 
 interface Drug {
   id: string;
@@ -76,7 +77,7 @@ export default function DrugManagementPage() {
   const [manualSponsor, setManualSponsor] = useState('');
   const [isManualSearchRunning, setIsManualSearchRunning] = useState(false);
 
-  const API_BASE = 'http://localhost:8000/api/drugs';
+  const API_BASE = `${getApiBaseUrl()}/drugs`;
 
   // Helper functions to persist job tracking state with timestamps
   const setActiveJobIdWithPersistence = (jobId: string | null) => {

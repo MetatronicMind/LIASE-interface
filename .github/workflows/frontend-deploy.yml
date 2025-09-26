@@ -52,6 +52,8 @@ jobs:
           # Skip linting during build for deployment
           ESLINT_NO_DEV_ERRORS: true
           TYPESCRIPT_NO_TYPECHECK: true
+          # Backend API URL
+          NEXT_PUBLIC_API_URL: https://liase-backend.azurewebsites.net/api
 
       - name: Run tests
         working-directory: ./frontend

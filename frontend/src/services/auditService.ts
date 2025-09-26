@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+import { getApiBaseUrl } from '../config/api';
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface AuditLog {
   id: string;
@@ -102,7 +104,7 @@ class AuditService {
       return data;
     } catch (error) {
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        throw new Error('Cannot connect to server. Please ensure the backend is running on http://localhost:8000');
+        throw new Error('Cannot connect to server. Please ensure the backend is running and accessible');
       }
       throw error;
     }

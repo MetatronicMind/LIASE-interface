@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNotifications } from '../components/NotificationManager';
+import { getApiBaseUrl } from '../config/api';
 
 interface JobProgress {
   jobId: string;
@@ -36,7 +37,7 @@ export const useStudyCreationNotifications = () => {
     const poll = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`http://localhost:8000/api/studies/jobs/${jobId}/status`, {
+        const response = await fetch(`${getApiBaseUrl()}/studies/jobs/${jobId}/status`, {
           headers: {
             ...(token && { 'Authorization': `Bearer ${token}` })
           }

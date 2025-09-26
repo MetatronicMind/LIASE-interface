@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { MagnifyingGlassIcon, UserGroupIcon, ExclamationTriangleIcon, ChartBarIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
+import { getApiBaseUrl } from "@/config/api";
 
 interface Study {
   id: string;
@@ -91,7 +92,7 @@ export default function StudyReviewPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
 
-  const API_BASE = 'http://localhost:8000/api';
+  const API_BASE = getApiBaseUrl();
 
   // Normalize API studies to ensure proper data types
   const normalizeApiStudies = (apiStudies: any[]): Study[] => {

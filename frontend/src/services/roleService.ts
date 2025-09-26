@@ -20,7 +20,13 @@ interface PermissionStructure {
 }
 
 class RoleService {
-  private API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+  private API_BASE_URL = this.getApiBaseUrl();
+
+  private getApiBaseUrl() {
+    return typeof window !== 'undefined' 
+      ? (window as any).ENV?.NEXT_PUBLIC_API_URL || 'https://liase-backend.azurewebsites.net/api'
+      : 'https://liase-backend.azurewebsites.net/api';
+  }
 
   private getAuthHeaders() {
     const token = localStorage.getItem('auth_token'); // Fixed token key

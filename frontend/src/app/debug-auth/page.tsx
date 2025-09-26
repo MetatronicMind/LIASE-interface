@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
+import { getApiBaseUrl } from '@/config/api';
 
 export default function AuthDebugPage() {
   const [debugInfo, setDebugInfo] = useState<any>({});
@@ -31,7 +32,7 @@ export default function AuthDebugPage() {
   const handleTestAPI = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8000/api/users', {
+      const response = await fetch(`${getApiBaseUrl()}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

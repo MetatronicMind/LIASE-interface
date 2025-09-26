@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { usePermissions } from '@/components/PermissionProvider';
+import { getApiBaseUrl } from '@/config/api';
 
 export default function PermissionsDebugPage() {
   const [debugInfo, setDebugInfo] = useState<any>({});
@@ -45,7 +46,7 @@ export default function PermissionsDebugPage() {
   const handleTestAPI = async (endpoint: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8000/api${endpoint}`, {
+      const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

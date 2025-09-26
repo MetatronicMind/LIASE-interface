@@ -1,6 +1,8 @@
 import { authService } from './authService';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+import { getApiBaseUrl } from '../config/api';
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface User {
   id: string;

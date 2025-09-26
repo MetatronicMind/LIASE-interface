@@ -1,5 +1,7 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { getApiBaseUrl } from '../config/api';
 
 interface StudyCreationJob {
   id: string;
@@ -41,7 +43,7 @@ export default function StudyProgressTracker({ jobId, onComplete }: StudyProgres
 
       try {
         const token = localStorage.getItem('auth_token');
-        const url = `http://localhost:8000/api/drugs/jobs/${jobId}`;
+        const url = `${getApiBaseUrl()}/drugs/jobs/${jobId}`;
         
         // Create timeout controller for fetch request
         const controller = new AbortController();
