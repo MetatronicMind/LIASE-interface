@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const pubmedService = require('./src/services/pubmedService');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -17,6 +18,32 @@ app.get('/', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     port: port
   });
+});
+
+// Test drug discovery route
+app.get('/test-discover', async (req, res) => {
+    console.log('Test discover route called');
+    
+    try {
+        const results = await pubmedService.getDrugArticles('aspirin', 3);
+        console.log('Results from PubMed:', results.length);
+        
+        res.json({
+            success: true,
+            totalFound: results.length,
+            drugs: results.map(article => ({
+                drugName: article.DrugName,
+                pmid: article.PMID,
+                sponsor: article.Sponsor,
+                title: article.Title,
+                journal: article.Journal,
+                publicationDate: article.PublicationDate
+            }))
+        });
+    } catch (error) {
+        console.error('Error in test discover:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.get('/health', (req, res) => {

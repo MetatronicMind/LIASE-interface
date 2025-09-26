@@ -1,0 +1,184 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Frontend to Azure Web App - LIASE-Frontend
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js version
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: |
+          npm ci
+
+      - name: Build Next.js app
+        working-directory: ./frontend
+        run: |
+          npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Run tests
+        working-directory: ./frontend
+        run: npm run test --if-present
+        env:
+          CI: true
+
+      - name: Create server.js for Azure deployment
+        working-directory: ./frontend
+        run: |
+          cat > server.js << 'EOF'
+          const { createServer } = require('http')
+          const { parse } = require('url')
+          const next = require('next')
+          
+          const dev = false
+          const hostname = '0.0.0.0'
+          const port = process.env.PORT || 8080
+          
+          const app = next({ dev, hostname, port })
+          const handle = app.getRequestHandler()
+          
+          app.prepare().then(() => {
+            createServer(async (req, res) => {
+              try {
+                const parsedUrl = parse(req.url, true)
+                await handle(req, res, parsedUrl)
+              } catch (err) {
+                console.error('Error occurred handling', req.url, err)
+                res.statusCode = 500
+                res.end('internal server error')
+              }
+            }).listen(port, (err) => {
+              if (err) throw err
+              console.log(`> Ready on http://${hostname}:${port}`)
+            })
+          })
+          EOF
+
+      - name: Create production package.json
+        working-directory: ./frontend
+        run: |
+          # Create a minimal package.json for production deployment
+          node -e "
+          const pkg = require('./package.json');
+          const prodPkg = {
+            name: pkg.name + '-deploy',
+            version: pkg.version,
+            main: 'server.js',
+            scripts: {
+              start: 'node server.js'
+            },
+            dependencies: {
+              next: pkg.dependencies.next,
+              react: pkg.dependencies.react,
+              'react-dom': pkg.dependencies['react-dom'],
+              ...Object.fromEntries(
+                Object.entries(pkg.dependencies || {}).filter(([key]) => 
+                  !key.startsWith('@types/') && 
+                  !['eslint', 'typescript', 'tailwindcss', 'postcss', 'autoprefixer'].includes(key)
+                )
+              )
+            }
+          };
+          require('fs').writeFileSync('package-prod.json', JSON.stringify(prodPkg, null, 2));
+          "
+
+      - name: Prepare deployment package
+        working-directory: ./frontend
+        run: |
+          mkdir -p deploy-package
+          cp -r .next deploy-package/
+          cp -r public deploy-package/
+          cp server.js deploy-package/
+          cp package-prod.json deploy-package/package.json
+          cp next.config.* deploy-package/ 2>/dev/null || true
+          
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-app
+          path: frontend/deploy-package/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-app
+
+      - name: Install production dependencies
+        run: npm install --production
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BE9D826A0AAE4F8EBC51279088E9A87E }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_536334C5D8054125A2A2D05454C586FE }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_4090DB0E369A41E485ABAC5D7E6467B6 }}
+
+      - name: 'Deploy to Azure Web App'
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'LIASE'
+          slot-name: 'Production'
+          package: .
+          startup-command: 'node server.js'
+          
+      - name: Health Check
+        run: |
+          sleep 30
+          webapp_url="https://liase.azurewebsites.net"
+          echo "Checking Frontend application health at $webapp_url"
+          
+          max_attempts=5
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Health check attempt $attempt/$max_attempts"
+            
+            if curl -f -s -I "$webapp_url/" | grep -q "200 OK"; then
+              echo "✅ Frontend application is responding successfully"
+              echo "🎉 Frontend deployment completed successfully!"
+              break
+            else
+              if [ $attempt -eq $max_attempts ]; then
+                echo "❌ Frontend health check failed after $max_attempts attempts"
+                exit 1
+              else
+                echo "⏳ Application not ready yet, waiting 30 seconds..."
+                sleep 30
+                attempt=$((attempt + 1))
+              fi
+            fi
+          done

@@ -1,496 +1,835 @@
 "use client";
-import React, { useState, ChangeEvent, FormEvent } from "react";
+import React, { useState, useEffect } from "react";
+import StudyProgressTracker from "../../../components/StudyProgressTracker";
 
 interface Drug {
+  id: string;
   name: string;
   query: string;
   manufacturer: string;
-  rsi: string;
-  nextSearch: string;
   status: string;
+  nextSearchDate: string;
 }
 
-interface DrugFormErrors {
-  name?: string;
-  query?: string;
-  manufacturer?: string;
-  rsi?: string;
-  nextSearch?: string;
+interface DrugSearchConfig {
+  id: string;
+  name: string;
+  query: string;
+  sponsor: string;
+  frequency: string;
+  isActive: boolean;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  totalRuns: number;
+  lastResultCount: number;
 }
 
 export default function DrugManagementPage() {
-  // Pagination and search state
-  const [pageSize, setPageSize] = useState(10);
-  const [drugs, setDrugs] = useState<Drug[]>([
-    {
-      name: "Aspirin",
-      query: 'aspirin[tiab] AND ("adverse event"[tiab] OR "side effect"[tiab])',
-      manufacturer: "Bayer AG",
-      rsi: "RSI-ASP-001",
-      nextSearch: "2024-12-15",
-      status: "Active"
-    },
-    {
-      name: "Metformin",
-      query: 'metformin[tiab] AND ("adverse event"[tiab] OR "safety"[tiab])',
-      manufacturer: "Merck KGaA",
-      rsi: "RSI-MET-001",
-      nextSearch: "2024-12-16",
-      status: "Active"
-    },
-    {
-      name: "Lisinopril",
-      query: 'lisinopril[tiab] AND ("adverse event"[tiab] OR "toxicity"[tiab])',
-      manufacturer: "AstraZeneca",
-      rsi: "RSI-LIS-001",
-      nextSearch: "2024-12-17",
-      status: "Active"
-    },
-    // Dummy data for pagination testing
-    {
-      name: "Ibuprofen",
-      query: 'ibuprofen[tiab] AND ("adverse event"[tiab] OR "pain"[tiab])',
-      manufacturer: "Pfizer",
-      rsi: "RSI-IBU-001",
-      nextSearch: "2024-12-18",
-      status: "Active"
-    },
-    {
-      name: "Paracetamol",
-      query: 'paracetamol[tiab] AND ("adverse event"[tiab] OR "fever"[tiab])',
-      manufacturer: "Johnson & Johnson",
-      rsi: "RSI-PARA-001",
-      nextSearch: "2024-12-19",
-      status: "Inactive"
-    },
-    {
-      name: "Atorvastatin",
-      query: 'atorvastatin[tiab] AND ("adverse event"[tiab] OR "cholesterol"[tiab])',
-      manufacturer: "Pfizer",
-      rsi: "RSI-ATOR-001",
-      nextSearch: "2024-12-20",
-      status: "Active"
-    },
-    {
-      name: "Amlodipine",
-      query: 'amlodipine[tiab] AND ("adverse event"[tiab] OR "hypertension"[tiab])',
-      manufacturer: "Sun Pharma",
-      rsi: "RSI-AMLO-001",
-      nextSearch: "2024-12-21",
-      status: "Inactive"
-    },
-    {
-      name: "Simvastatin",
-      query: 'simvastatin[tiab] AND ("adverse event"[tiab] OR "lipid"[tiab])',
-      manufacturer: "Merck & Co.",
-      rsi: "RSI-SIM-001",
-      nextSearch: "2024-12-22",
-      status: "Active"
-    },
-    {
-      name: "Omeprazole",
-      query: 'omeprazole[tiab] AND ("adverse event"[tiab] OR "acid"[tiab])',
-      manufacturer: "AstraZeneca",
-      rsi: "RSI-OME-001",
-      nextSearch: "2024-12-23",
-      status: "Active"
-    },
-    {
-      name: "Losartan",
-      query: 'losartan[tiab] AND ("adverse event"[tiab] OR "blood pressure"[tiab])',
-      manufacturer: "Merck KGaA",
-      rsi: "RSI-LOS-001",
-      nextSearch: "2024-12-24",
-      status: "Inactive"
-    },
-    {
-      name: "Levothyroxine",
-      query: 'levothyroxine[tiab] AND ("adverse event"[tiab] OR "thyroid"[tiab])',
-      manufacturer: "AbbVie",
-      rsi: "RSI-LEVO-001",
-      nextSearch: "2024-12-25",
-      status: "Active"
-    }
-  ]);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<Drug>({
-    name: "",
-    query: "",
-    manufacturer: "",
-    rsi: "",
-    nextSearch: "",
-    status: "Active"
-  });
-  const [errors, setErrors] = useState<DrugFormErrors>({});
-  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+  const [drugs, setDrugs] = useState<Drug[]>([]);
+  const [searchConfigs, setSearchConfigs] = useState<DrugSearchConfig[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'existing' | 'searches' | 'manual' | 'debug'>('existing');
+  const [userInfo, setUserInfo] = useState<any>(null);
+  
+  // Form fields
+  const [configName, setConfigName] = useState('');
+  const [query, setQuery] = useState('');
+  const [sponsor, setSponsor] = useState('');
+  const [frequency, setFrequency] = useState('custom');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [runningConfigs, setRunningConfigs] = useState<Set<string>>(new Set());
+  
+  // Job tracking state with persistence and validation
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [showProgressTracker, setShowProgressTracker] = useState(false);
 
-  function openAddModal() {
-    setForm({ name: "", query: "", manufacturer: "", rsi: "", nextSearch: "", status: "Active" });
-    setEditIndex(null);
-    setErrors({});
-    setModalOpen(true);
-  }
-  function openEditModal(idx: number) {
-    setForm(drugs[idx]);
-    setEditIndex(idx);
-    setErrors({});
-    setModalOpen(true);
-  }
-  function closeModal() {
-    setModalOpen(false);
-    setErrors({});
-  }
-  function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  }
-  function validate(form: Drug): DrugFormErrors {
-    const errs: DrugFormErrors = {};
-    if (!form.name.trim()) errs.name = "Drug name is required.";
-    if (!form.query.trim()) errs.query = "Query is required.";
-    if (!form.manufacturer.trim()) errs.manufacturer = "Manufacturer is required.";
-    if (!form.rsi.trim()) errs.rsi = "RSI is required.";
-    if (!form.nextSearch.trim()) errs.nextSearch = "Next search date is required.";
-    return errs;
-  }
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const errs = validate(form);
-    setErrors(errs);
-    if (Object.keys(errs).length > 0) return;
-    if (editIndex === null) {
-      setDrugs(prev => [...prev, form]);
-      setForm({ name: "", query: "", manufacturer: "", rsi: "", nextSearch: "", status: "Active" });
-    } else {
-      setDrugs(drugs.map((d, i) => (i === editIndex ? form : d)));
+  // Initialize job tracking state from localStorage with validation
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedJobId = localStorage.getItem('activeJobId');
+      const storedShowTracker = localStorage.getItem('showProgressTracker') === 'true';
+      
+      // Only restore job tracking if both values are present and recent
+      if (storedJobId && storedShowTracker) {
+        // Check if the stored job is recent (within last hour)
+        const jobTimestamp = localStorage.getItem('jobTimestamp');
+        const now = Date.now();
+        const oneHour = 60 * 60 * 1000;
+        
+        if (jobTimestamp && (now - parseInt(jobTimestamp)) < oneHour) {
+          setActiveJobId(storedJobId);
+          setShowProgressTracker(true);
+        } else {
+          // Clear stale job data
+          localStorage.removeItem('activeJobId');
+          localStorage.removeItem('showProgressTracker');
+          localStorage.removeItem('jobTimestamp');
+        }
+      }
     }
-    setModalOpen(false);
-  }
-  function handleDelete(idx: number) {
-    setDeleteIndex(idx);
-  }
-  function confirmDelete() {
-    if (deleteIndex !== null) {
-      setDrugs(drugs.filter((_, i) => i !== deleteIndex));
-      setDeleteIndex(null);
-    }
-  }
-  function cancelDelete() {
-    setDeleteIndex(null);
-  }
+  }, []);
+  
+  // Manual discovery state
+  const [manualQuery, setManualQuery] = useState('');
+  const [manualSponsor, setManualSponsor] = useState('');
+  const [isManualSearchRunning, setIsManualSearchRunning] = useState(false);
 
-  // Filter and paginate drugs
-  const filteredDrugs = drugs.filter(d =>
-    d.name.toLowerCase().includes(search.toLowerCase()) ||
-    d.manufacturer.toLowerCase().includes(search.toLowerCase()) ||
-    d.rsi.toLowerCase().includes(search.toLowerCase())
-  );
-  const pageCount = Math.ceil(filteredDrugs.length / pageSize);
-  const pagedDrugs = filteredDrugs.slice((page - 1) * pageSize, page * pageSize);
+  const API_BASE = 'http://localhost:8000/api/drugs';
+
+  // Helper functions to persist job tracking state with timestamps
+  const setActiveJobIdWithPersistence = (jobId: string | null) => {
+    setActiveJobId(jobId);
+    if (typeof window !== 'undefined') {
+      if (jobId) {
+        localStorage.setItem('activeJobId', jobId);
+        localStorage.setItem('jobTimestamp', Date.now().toString());
+      } else {
+        localStorage.removeItem('activeJobId');
+        localStorage.removeItem('jobTimestamp');
+      }
+    }
+  };
+
+  const setShowProgressTrackerWithPersistence = (show: boolean) => {
+    setShowProgressTracker(show);
+    if (typeof window !== 'undefined') {
+      if (show) {
+        localStorage.setItem('showProgressTracker', 'true');
+      } else {
+        localStorage.removeItem('showProgressTracker');
+        // Don't remove jobTimestamp here as the job might still be valid
+      }
+    }
+  };
+
+  // Utility function to clear all job-related localStorage entries
+  const clearJobData = () => {
+    setActiveJobId(null);
+    setShowProgressTracker(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('activeJobId');
+      localStorage.removeItem('showProgressTracker');
+      localStorage.removeItem('jobTimestamp');
+    }
+  };
+
+  useEffect(() => {
+    fetchDrugs();
+    fetchSearchConfigs();
+    fetchUserInfo();
+  }, []);
+
+  const fetchUserInfo = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_BASE}/user-info`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserInfo(data.user);
+      }
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+    }
+  };
+
+  const fetchDrugs = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(API_BASE, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDrugs(data.drugs || []);
+      }
+    } catch (error) {
+      console.error('Error fetching drugs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSearchConfigs = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_BASE}/search-configs`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSearchConfigs(data.configs || []);
+      }
+    } catch (error) {
+      console.error('Error fetching search configs:', error);
+    }
+  };
+
+  const runManualDiscovery = async () => {
+    if (!manualQuery.trim()) {
+      alert('Please enter a search query.');
+      return;
+    }
+
+    setIsManualSearchRunning(true);
+    
+    try {
+      const token = localStorage.getItem('auth_token');
+      const params = new URLSearchParams({
+        query: manualQuery.trim(),
+        sponsor: manualSponsor.trim() || '',
+        maxResults: '1000',
+        includeAdverseEvents: 'true',
+        includeSafety: 'true'
+      });
+
+      const response = await fetch(`${API_BASE}/discover?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // If we got a jobId, show the progress tracker
+        if (data.jobId) {
+          setActiveJobIdWithPersistence(data.jobId);
+          setShowProgressTrackerWithPersistence(true);
+        } else {
+          // Legacy response without job tracking
+          const resultCount = data.totalFound || 0;
+          const studiesCreated = data.studiesCreated || 0;
+          
+          let message = `Discovery completed!\nFound ${resultCount} results`;
+          if (studiesCreated > 0) {
+            message += `\nCreated ${studiesCreated} studies with AI analysis`;
+          }
+          
+          alert(message);
+        }
+        
+        // Refresh data
+        fetchDrugs();
+        fetchSearchConfigs();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error running manual discovery:', errorData);
+        alert(`Error running discovery: ${errorData.error || 'Unknown error occurred'}`);
+      }
+    } catch (error) {
+      console.error('Error running manual discovery:', error);
+      alert('Network error. Please check your connection and try again.');
+    } finally {
+      setIsManualSearchRunning(false);
+    }
+  };
+
+  const handleJobComplete = (result: any) => {
+    setShowProgressTrackerWithPersistence(false);
+    setActiveJobIdWithPersistence(null);
+    
+    // Show completion message
+    const message = result?.message || 'Job completed successfully!';
+    const studiesCreated = result?.results?.studiesCreated || 0;
+    const totalFound = result?.results?.totalFound || 0;
+    
+    let alertMessage = message;
+    if (totalFound > 0) {
+      alertMessage = `Discovery completed!\nFound ${totalFound} studies`;
+      if (studiesCreated > 0) {
+        alertMessage += `\nCreated ${studiesCreated} study records with AI analysis`;
+      }
+    }
+    
+    alert(alertMessage);
+    
+    // Refresh data
+    fetchDrugs();
+    fetchSearchConfigs();
+  };
+
+  const handleJobError = (error: string) => {
+    setShowProgressTracker(false);
+    setActiveJobId(null);
+    alert(`Job failed: ${error}`);
+  };
+
+  const runSearchConfig = async (configId: string, configName: string) => {
+    setRunningConfigs(prev => new Set(prev).add(configId));
+    
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_BASE}/search-configs/${configId}/run`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+
+      if (response.ok || response.status === 202) {
+        const data = await response.json();
+        
+        // If we got a jobId (async response), show the progress tracker
+        if (data.jobId) {
+          setActiveJobIdWithPersistence(data.jobId);
+          setShowProgressTrackerWithPersistence(true);
+          
+          // Remove the config from running state since we're now tracking via job
+          setRunningConfigs(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(configId);
+            return newSet;
+          });
+        } else {
+          // Legacy response without job tracking
+          const resultCount = data.results?.totalFound || 0;
+          const studiesCreated = data.studiesCreated || 0;
+          const aiInferenceStatus = data.aiInferenceCompleted === true ? ' (AI analysis completed)' : 
+                                   data.aiInferenceCompleted === false ? ' (AI analysis failed)' : '';
+          
+          let message = `Search "${configName}" completed successfully!\nFound ${resultCount} results`;
+          if (studiesCreated > 0) {
+            message += `\nCreated ${studiesCreated} studies with detailed AI analysis`;
+          }
+          message += aiInferenceStatus;
+          
+          alert(message);
+          
+          // Refresh the configurations to show updated stats
+          fetchSearchConfigs();
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error running configuration:', errorData);
+        
+        if (response.status === 403) {
+          alert(`Permission Error: ${errorData.error || 'You do not have permission to run this configuration.'}`);
+        } else if (response.status === 404) {
+          alert('Configuration not found. It may have been deleted.');
+        } else {
+          alert(`Error running search: ${errorData.error || 'Unknown error occurred'}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error running search config:', error);
+      alert('Network error. Please check your connection and try again.');
+    } finally {
+      setRunningConfigs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(configId);
+        return newSet;
+      });
+    }
+  };
+
+  const createSearchConfig = async () => {
+    if (!configName.trim() || !query.trim()) {
+      alert('Please enter both name and query.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_BASE}/search-configs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({
+          name: configName.trim(),
+          query: query.trim(),
+          sponsor: sponsor.trim() || '',
+          frequency: frequency,
+          maxResults: 1000,
+          includeAdverseEvents: true,
+          includeSafety: true,
+          sendToExternalApi: true,
+          dateFrom: dateFrom && dateFrom.trim() ? dateFrom.trim() : null,
+          dateTo: dateTo && dateTo.trim() ? dateTo.trim() : null
+        })
+      });
+
+      if (response.ok) {
+        alert('Search configuration saved successfully!');
+        setConfigName('');
+        setQuery('');
+        setSponsor('');
+        setFrequency('custom');
+        setDateFrom('');
+        setDateTo('');
+        fetchSearchConfigs();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Full error response:', response.status, response.statusText, errorData);
+        
+        if (response.status === 403) {
+          alert(`Permission Error: ${errorData.error || 'You do not have permission to create drug search configurations. Please contact your administrator.'}`);
+        } else if (response.status === 401) {
+          alert('Authentication Error: Please log in again.');
+        } else if (response.status === 400 && errorData.details) {
+          // Show specific validation errors
+          const validationErrors = errorData.details.map((detail: any) => detail.msg).join('\n');
+          alert(`Validation Error:\n${validationErrors}\n\nData sent: ${JSON.stringify(errorData.receivedData, null, 2)}`);
+        } else {
+          alert(`Error: ${errorData.error || 'Failed to save configuration'}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating search config:', error);
+      alert('Failed to save configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-white dark:from-[#101624] dark:via-[#18213a] dark:to-[#232b3e] min-h-screen p-4 sm:p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
-          <div>
-            <h1 className="text-4xl font-black text-blue-900 dark:text-blue-100 mb-1">Drug Management</h1>
-            <div className="text-blue-700 dark:text-blue-300 text-base font-medium">Manage drug database including queries, sponsors, and RSI information</div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto py-6 px-4">
+        <div className="bg-white shadow rounded-lg">
+          {/* Tab Navigation */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8 px-6">
+              <button
+                onClick={() => setActiveTab('existing')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'existing'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Existing Drugs ({drugs.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('searches')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'searches'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Search Configurations ({searchConfigs.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('manual')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'manual'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Manual Discovery
+              </button>
+              <button
+                onClick={() => setActiveTab('debug')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'debug'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Debug Info
+              </button>
+            </nav>
           </div>
-          <button
-            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-900 dark:hover:bg-blue-800 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2 self-start sm:self-auto"
-            onClick={openAddModal}
-          >
-            <span className="text-lg">+</span> Add New Drug
-          </button>
-        </div>
-        {/* Table Controls: Page size left, search right */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
-          <div className="flex items-center gap-2">
-            <label htmlFor="pageSize" className="text-sm font-medium text-blue-900 dark:text-blue-100">Show</label>
-            <select
-              id="pageSize"
-              value={pageSize}
-              onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-              className="border border-blue-200 dark:border-blue-900 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#232b3e] text-blue-900 dark:text-blue-100"
-            >
-              <option value={10}>10</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span className="text-sm text-blue-900 dark:text-blue-100">entries</span>
-          </div>
-          <div className="flex gap-2 items-center w-full sm:w-auto justify-end">
-            <input
-              type="text"
-              placeholder="Search by name, manufacturer, or RSI..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-              className="w-full sm:w-72 border-2 border-blue-200 dark:border-blue-900 rounded-lg px-4 py-2 text-base focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#232b3e] text-blue-900 dark:text-blue-100"
-            />
-          </div>
-        </div>
-        <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow border border-blue-100 dark:border-blue-900 p-0 overflow-x-auto">
-          <div className="px-6 pt-6 pb-2 text-lg font-bold text-blue-900 dark:text-blue-100">Drugs Database ({filteredDrugs.length})</div>
-          {/* Desktop Table */}
-          <div className="hidden sm:block">
-            <table className="min-w-full text-sm border border-blue-300 dark:border-blue-900 rounded-lg">
-              <thead>
-                <tr className="bg-blue-50 dark:bg-[#18213a] text-blue-900 dark:text-blue-100">
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Drug Name</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Manufacturer</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">RSI</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Next Search</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Status</th>
-                  <th className="py-3 px-4 text-left font-semibold whitespace-nowrap border-b border-blue-300 dark:border-blue-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedDrugs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-6 text-gray-400 border-b border-blue-200 dark:border-blue-900">No drugs found.</td>
-                  </tr>
+
+          {/* Progress Tracker - Always visible regardless of active tab */}
+          {showProgressTracker && activeJobId && (
+            <div className="p-6 border-b border-gray-100">
+              <StudyProgressTracker
+                jobId={activeJobId}
+                onComplete={handleJobComplete}
+              />
+            </div>
+          )}
+
+          <div className="p-6">
+            {activeTab === 'existing' && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Existing Drugs</h2>
+                {loading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Loading drugs...</p>
+                  </div>
                 ) : (
-                  pagedDrugs.map((drug, idx) => (
-                    <tr key={drug.name + idx} className="border-b border-blue-200 dark:border-blue-900 last:border-b-0">
-                      <td className="py-3 px-4 font-bold text-blue-900 dark:text-blue-100 align-top border-r border-blue-100 dark:border-blue-900">
-                        {drug.name}
-                        <div className="text-xs font-mono text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-[#232b3e] rounded px-1 py-0.5 mt-1 w-fit">{drug.query}</div>
-                      </td>
-                      <td className="py-3 px-4 align-top text-blue-900 dark:text-blue-100 border-r border-blue-100 dark:border-blue-900">{drug.manufacturer}</td>
-                      <td className="py-3 px-4 align-top border-r border-blue-100 dark:border-blue-900">
-                        <span className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 font-mono font-semibold px-2 py-1 rounded text-xs">{drug.rsi}</span>
-                      </td>
-                      <td className="py-3 px-4 align-top text-blue-900 dark:text-blue-100 border-r border-blue-100 dark:border-blue-900">{drug.nextSearch ? new Date(drug.nextSearch).toLocaleDateString() : ""}</td>
-                      <td className="py-3 px-4 align-top border-r border-blue-100 dark:border-blue-900">
-                        <span className={`font-semibold px-3 py-1 rounded-full text-xs ${drug.status === 'Active' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-200'}`}>{drug.status}</span>
-                      </td>
-                      <td className="py-3 px-4 align-top">
-                        <div className="flex gap-2">
-                          <button className="bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-200 p-2 rounded transition" title="Edit" onClick={() => openEditModal(drugs.indexOf(drug))}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4.243 1.414 1.414-4.243a4 4 0 01.828-1.414z" /></svg>
-                          </button>
-                          <button
-                            className="bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-600 dark:text-red-200 p-2 rounded transition"
-                            title="Delete"
-                            onClick={() => handleDelete(drugs.indexOf(drug))}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  <div className="text-center py-8 text-gray-500">
+                    {drugs.length === 0 ? 'No drugs found.' : `${drugs.length} drugs loaded.`}
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
-          {/* Mobile Accordion */}
-          <div className="sm:hidden divide-y divide-blue-100 dark:divide-blue-900">
-            {pagedDrugs.length === 0 ? (
-              <div className="text-center py-6 text-gray-400">No drugs found.</div>
-            ) : (
-              pagedDrugs.map((drug, idx) => (
-                <details key={drug.name + idx} className="py-3 px-3 group bg-blue-50/30 dark:bg-[#18213a] rounded-lg mb-3 shadow-sm border border-blue-100 dark:border-blue-900">
-                  <summary className="flex justify-between items-center cursor-pointer font-bold text-blue-900 dark:text-blue-100 text-base gap-2">
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <span className="truncate text-base font-bold text-blue-900 dark:text-blue-100">{drug.name}</span>
-                      <span className="text-xs font-normal text-blue-700 dark:text-blue-300 truncate">{drug.manufacturer}</span>
-                      <span className="text-xs font-mono text-indigo-700 dark:text-indigo-300 truncate">{drug.rsi}</span>
+              </div>
+            )}
+
+            {activeTab === 'searches' && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Search Configurations</h2>
+                
+                {/* Create Form */}
+                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                  <h3 className="text-lg font-medium mb-4">Create New Search Configuration</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      type="text"
+                      value={configName}
+                      onChange={(e) => setConfigName(e.target.value)}
+                      placeholder="Configuration Name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Query (Drug Name)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                    <input
+                      type="text"
+                      value={sponsor}
+                      onChange={(e) => setSponsor(e.target.value)}
+                      placeholder="Sponsor (Optional)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                    <select
+                      value={frequency}
+                      onChange={(e) => setFrequency(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="custom">Custom (Manual/Date Range)</option>
+                      <option value="daily">Daily (Last 24 hours)</option>
+                      <option value="weekly">Weekly (Last 7 days)</option>
+                      <option value="monthly">Monthly (Last 30 days)</option>
+                    </select>
+                    {frequency === 'custom' && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Date From (Optional)</label>
+                          <input
+                            type="date"
+                            onChange={(e) => {
+                              const dateValue = e.target.value;
+                              if (dateValue) {
+                                setDateFrom(dateValue.replace(/-/g, '/'));
+                              } else {
+                                setDateFrom('');
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Date To (Optional)</label>
+                          <input
+                            type="date"
+                            onChange={(e) => {
+                              const dateValue = e.target.value;
+                              if (dateValue) {
+                                setDateTo(dateValue.replace(/-/g, '/'));
+                              } else {
+                                setDateTo('');
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          />
+                        </div>
+                      </>
+                    )}
+                    {frequency !== 'custom' && (
+                      <div className="md:col-span-2">
+                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                          <p className="text-sm text-blue-800">
+                            <strong>{frequency.charAt(0).toUpperCase() + frequency.slice(1)} Search:</strong> 
+                            {frequency === 'daily' && ' Will search articles from the last 24 hours'}
+                            {frequency === 'weekly' && ' Will search articles from the last 7 days'}
+                            {frequency === 'monthly' && ' Will search articles from the last 30 days'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={createSearchConfig}
+                      disabled={saving || !configName.trim() || !query.trim()}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {saving ? 'Saving...' : 'Save Configuration'}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const token = localStorage.getItem('auth_token');
+                        const response = await fetch(`${API_BASE}/search-configs/debug`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            ...(token && { 'Authorization': `Bearer ${token}` })
+                          },
+                          body: JSON.stringify({
+                            name: configName.trim(),
+                            query: query.trim(),
+                            sponsor: sponsor.trim() || '',
+                            frequency: frequency,
+                            maxResults: 1000,
+                            includeAdverseEvents: true,
+                            includeSafety: true,
+                            sendToExternalApi: true,
+                            dateFrom: dateFrom && dateFrom.trim() ? dateFrom.trim() : null,
+                            dateTo: dateTo && dateTo.trim() ? dateTo.trim() : null
+                          })
+                        });
+                        const result = await response.json();
+                        console.log('Debug result:', result);
+                        alert(`Debug result: ${JSON.stringify(result, null, 2)}`);
+                      }}
+                      className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+                    >
+                      Debug
+                    </button>
+                  </div>
+                </div>
+
+                {/* Existing Configurations */}
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Your Search Configurations</h3>
+                  {searchConfigs.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                      <p className="text-gray-600">
+                        No search configurations yet. Create one above to start automatic drug discovery.
+                      </p>
                     </div>
-                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${drug.status === 'Active' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-200'}`}>{drug.status}</span>
-                    <span className="ml-3 text-xl text-blue-700 dark:text-blue-200 group-open:hidden">+</span>
-                    <span className="ml-3 text-xl text-blue-700 dark:text-blue-200 hidden group-open:inline">-</span>
-                  </summary>
-                  <div className="mt-3 text-sm text-blue-900 dark:text-blue-100 space-y-2">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-semibold text-indigo-700 dark:text-indigo-300">Query:</span>
-                      <span className="font-mono break-all text-xs bg-gray-50 dark:bg-[#232b3e] rounded px-2 py-1">{drug.query}</span>
+                  ) : (
+                    <div className="space-y-4">
+                      {searchConfigs.map((config) => (
+                        <div key={config.id} className="border rounded-lg p-4 bg-white">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{config.name}</h4>
+                              <p className="text-sm text-gray-600">Query: {config.query}</p>
+                              <p className="text-sm text-gray-600">Frequency: {config.frequency}</p>
+                              {config.sponsor && (
+                                <p className="text-sm text-gray-600">Sponsor: {config.sponsor}</p>
+                              )}
+                              <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-500">
+                                <span>Total Runs: {config.totalRuns}</span>
+                                <span>Last Result: {config.lastResultCount} items</span>
+                                {config.lastRunAt && (
+                                  <span>Last Run: {new Date(config.lastRunAt).toLocaleDateString()}</span>
+                                )}
+                                {config.nextRunAt && config.frequency !== 'manual' && (
+                                  <span>Next Run: {new Date(config.nextRunAt).toLocaleDateString()}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <button
+                                onClick={() => runSearchConfig(config.id, config.name)}
+                                disabled={runningConfigs.has(config.id)}
+                                className={`px-4 py-2 text-sm font-medium rounded-md ${
+                                  runningConfigs.has(config.id)
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                                }`}
+                              >
+                                {runningConfigs.has(config.id) ? (
+                                  <div className="flex items-center">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Running...
+                                  </div>
+                                ) : (
+                                  'Run Now'
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="font-semibold text-indigo-700 dark:text-indigo-300">Next Search:</span>
-                      <span>{drug.nextSearch ? new Date(drug.nextSearch).toLocaleDateString() : ""}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'manual' && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Manual Drug Discovery</h2>
+                
+                {/* Manual Discovery Form */}
+                <div className="bg-gray-50 p-6 rounded-lg mb-6">
+                  <h3 className="text-lg font-medium mb-4">Run One-Time Discovery</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Perform a one-time drug discovery search with AI analysis and study creation.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Search Query *
+                      </label>
+                      <input
+                        type="text"
+                        value={manualQuery}
+                        onChange={(e) => setManualQuery(e.target.value)}
+                        placeholder="e.g., aspirin, hypertension, drug name..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isManualSearchRunning}
+                      />
                     </div>
-                    <div className="flex gap-3 mt-2">
-                      <button className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-200 px-3 py-1 rounded transition text-xs font-semibold" title="Edit" onClick={() => openEditModal(drugs.indexOf(drug))}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4.243 1.414 1.414-4.243a4 4 0 01.828-1.414z" /></svg>
-                        Edit
-                      </button>
-                      <button
-                        className="flex items-center gap-1 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-600 dark:text-red-200 px-3 py-1 rounded transition text-xs font-semibold"
-                        title="Delete"
-                        onClick={() => handleDelete(drugs.indexOf(drug))}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                        Delete
-                      </button>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Sponsor (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={manualSponsor}
+                        onChange={(e) => setManualSponsor(e.target.value)}
+                        placeholder="e.g., Pfizer, GSK, Bristol Myers..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isManualSearchRunning}
+                      />
                     </div>
                   </div>
-                </details>
-              ))
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      <p>• Searches PubMed for relevant studies</p>
+                      <p>• Processes results with AI inference</p>
+                      <p>• Creates detailed study records</p>
+                      <p>• Includes progress tracking with failover</p>
+                    </div>
+                    
+                    <button
+                      onClick={runManualDiscovery}
+                      disabled={isManualSearchRunning || !manualQuery.trim()}
+                      className={`px-6 py-3 font-medium rounded-md ${
+                        isManualSearchRunning || !manualQuery.trim()
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      }`}
+                    >
+                      {isManualSearchRunning ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Starting Discovery...
+                        </div>
+                      ) : (
+                        'Start Discovery'
+                      )}
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Instructions */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-2">How Manual Discovery Works</h4>
+                  <div className="text-sm text-blue-800">
+                    <p className="mb-2">
+                      Manual discovery allows you to run a one-time search without creating a saved configuration:
+                    </p>
+                    <ol className="list-decimal list-inside space-y-1 ml-4">
+                      <li>Enter your search query (drug name, condition, etc.)</li>
+                      <li>Optionally specify a sponsor to filter results</li>
+                      <li>Click "Start Discovery" to begin the process</li>
+                      <li>Watch real-time progress as studies are found and processed</li>
+                      <li>AI analysis creates detailed study records automatically</li>
+                    </ol>
+                    <p className="mt-2 font-medium">
+                      The system includes automatic failover to ensure reliable AI processing even if some endpoints are down.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'debug' && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Debug Information</h2>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium mb-4">User Authentication & Permissions</h3>
+                  
+                  {userInfo ? (
+                    <div className="space-y-2">
+                      <p><strong>User ID:</strong> {userInfo.id}</p>
+                      <p><strong>Username:</strong> {userInfo.username}</p>
+                      <p><strong>Role:</strong> {userInfo.role}</p>
+                      <p><strong>Has Write Permission:</strong> {userInfo.hasWritePermission ? '✅ Yes' : '❌ No'}</p>
+                      <p><strong>Has Create Permission:</strong> {userInfo.hasCreatePermission ? '✅ Yes' : '❌ No'}</p>
+                      
+                      <div className="mt-4">
+                        <strong>All Permissions:</strong>
+                        <pre className="mt-2 p-2 bg-white border rounded text-xs overflow-auto">
+                          {JSON.stringify(userInfo.permissions, null, 2)}
+                        </pre>
+                      </div>
+                      
+                      <div className="mt-4">
+                        <strong>Auth Token Preview:</strong>
+                        <p className="text-xs text-gray-600">
+                          {localStorage.getItem('auth_token') ? 
+                            `${localStorage.getItem('auth_token')?.substring(0, 20)}...` : 
+                            'No token found'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600">Loading user information...</p>
+                  )}
+                </div>
+
+                <div className="bg-yellow-50 p-4 rounded-lg mt-6">
+                  <h3 className="text-lg font-medium mb-4">Job Tracking Debug</h3>
+                  
+                  <div className="space-y-2">
+                    <p><strong>Active Job ID:</strong> {activeJobId || 'None'}</p>
+                    <p><strong>Show Progress Tracker:</strong> {showProgressTracker ? '✅ Yes' : '❌ No'}</p>
+                    <p><strong>Stored Job ID:</strong> {typeof window !== 'undefined' ? localStorage.getItem('activeJobId') || 'None' : 'N/A'}</p>
+                    <p><strong>Stored Show Tracker:</strong> {typeof window !== 'undefined' ? localStorage.getItem('showProgressTracker') || 'None' : 'N/A'}</p>
+                    <p><strong>Job Timestamp:</strong> {typeof window !== 'undefined' ? (localStorage.getItem('jobTimestamp') ? new Date(parseInt(localStorage.getItem('jobTimestamp') || '0')).toLocaleString() : 'None') : 'N/A'}</p>
+                    
+                    <div className="mt-4 pt-4 border-t border-yellow-200">
+                      <button
+                        onClick={() => {
+                          clearJobData();
+                          alert('Cleared all job tracking data from localStorage');
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                      >
+                        Clear Stale Job Data
+                      </button>
+                      <p className="text-xs text-gray-600 mt-2">
+                        Use this button if you're experiencing issues with stuck progress trackers or old job IDs
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
-          {/* Pagination Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-6 py-4 border-t border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-[#18213a] rounded-b-xl">
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              Showing {filteredDrugs.length === 0 ? 0 : (page - 1) * pageSize + 1}
-              -{Math.min(page * pageSize, filteredDrugs.length)} of {filteredDrugs.length}
-            </div>
-            <div className="flex gap-1 items-center">
-              <button
-                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-gray-700"
-                onClick={() => setPage(1)}
-                disabled={page === 1}
-                title="First page"
-              >&#171;</button>
-              <button
-                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-gray-700"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                title="Previous page"
-              >&#8249;</button>
-              <span className="px-2 text-gray-700 dark:text-gray-200 font-semibold">Page {page} of {pageCount || 1}</span>
-              <button
-                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-gray-700"
-                onClick={() => setPage(p => Math.min(pageCount, p + 1))}
-                disabled={page === pageCount || pageCount === 0}
-                title="Next page"
-              >&#8250;</button>
-              <button
-                className="px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 border border-gray-300 dark:border-gray-700"
-                onClick={() => setPage(pageCount)}
-                disabled={page === pageCount || pageCount === 0}
-                title="Last page"
-              >&#187;</button>
-            </div>
-          </div>
         </div>
-
-  {/* Modal for Add/Edit Drug */}
-        {modalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/70">
-            <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow-2xl border border-blue-100 dark:border-blue-900 w-full max-w-lg relative animate-fade-in flex flex-col max-h-[90vh]">
-              <div className="flex items-center justify-between px-6 pt-5 pb-2 border-b border-blue-100">
-                <h2 className="text-lg font-black text-blue-900 dark:text-blue-100 tracking-wide">{editIndex === null ? 'Add New Drug' : 'Edit Drug'}</h2>
-                <button className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-300 text-2xl" onClick={closeModal}>&times;</button>
-              </div>
-              <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-y-auto px-6 py-4 space-y-4">
-                <div>
-                  <label className="block text-base font-bold text-indigo-700 mb-2">Drug Name</label>
-                  <input
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    placeholder="e.g. Aspirin"
-                    className={`w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none transition ${errors.name ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100 font-semibold`}
-                  />
-                  {errors.name && <div className="text-red-500 text-sm mt-1">{errors.name}</div>}
-                </div>
-                <div>
-                  <label className="block text-base font-bold text-indigo-700 mb-2">Query</label>
-                  <input
-                    name="query"
-                    value={form.query}
-                    onChange={handleChange}
-                    placeholder='e.g. aspirin[tiab] AND ("adverse event"[tiab] OR "side effect"[tiab])'
-                    className={`w-full border-2 rounded-lg px-4 py-2 text-base font-mono focus:outline-none transition ${errors.query ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100`}
-                  />
-                  {errors.query && <div className="text-red-500 text-sm mt-1">{errors.query}</div>}
-                </div>
-                <div>
-                  <label className="block text-base font-bold text-indigo-700 mb-2">Manufacturer</label>
-                  <input
-                    name="manufacturer"
-                    value={form.manufacturer}
-                    onChange={handleChange}
-                    placeholder="e.g. Bayer AG"
-                    className={`w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none transition ${errors.manufacturer ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100`}
-                  />
-                  {errors.manufacturer && <div className="text-red-500 text-sm mt-1">{errors.manufacturer}</div>}
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-base font-bold text-indigo-700 mb-2">RSI</label>
-                    <input
-                      name="rsi"
-                      value={form.rsi}
-                      onChange={handleChange}
-                      placeholder="e.g. RSI-ASP-001"
-                      className={`w-full border-2 rounded-lg px-4 py-2 text-base font-mono focus:outline-none transition ${errors.rsi ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100`}
-                    />
-                    {errors.rsi && <div className="text-red-500 text-sm mt-1">{errors.rsi}</div>}
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-base font-bold text-indigo-700 mb-2">Next Search</label>
-                    <input
-                      name="nextSearch"
-                      type="date"
-                      value={form.nextSearch}
-                      onChange={handleChange}
-                      placeholder="YYYY-MM-DD"
-                      className={`w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none transition ${errors.nextSearch ? 'border-red-500 dark:border-red-700' : 'border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400'} bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100`}
-                    />
-                    {errors.nextSearch && <div className="text-red-500 text-sm mt-1">{errors.nextSearch}</div>}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-base font-bold text-indigo-700 mb-2">Status</label>
-                  <select
-                    name="status"
-                    value={form.status}
-                    onChange={handleChange}
-                  className="w-full border-2 rounded-lg px-4 py-2 text-base focus:outline-none border-blue-600 dark:border-blue-900 focus:border-blue-800 dark:focus:border-blue-400 bg-white dark:bg-[#101624] text-blue-900 dark:text-blue-100"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-                <div className="flex justify-end gap-2 pt-2 border-t border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-[#18213a] rounded-b-xl mt-4">
-                  <button type="button" className="px-5 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 font-semibold text-base" onClick={closeModal}>Cancel</button>
-                  <button type="submit" className="px-5 py-2 rounded-lg bg-blue-600 dark:bg-blue-900 text-white font-bold hover:bg-blue-700 dark:hover:bg-blue-800 text-base">{editIndex === null ? 'Add' : 'Save'}</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-        {/* Modal for Delete Confirmation */}
-        {deleteIndex !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/70">
-            <div className="bg-white dark:bg-[#232b3e] rounded-xl shadow-2xl border border-blue-100 dark:border-blue-900 w-full max-w-sm relative animate-fade-in flex flex-col">
-              <div className="flex items-center justify-between px-6 pt-5 pb-2 border-b border-blue-100">
-                <h2 className="text-lg font-black text-red-700 dark:text-red-300 tracking-wide">Confirm Delete</h2>
-                <button className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-300 text-2xl" onClick={cancelDelete}>&times;</button>
-              </div>
-              <div className="px-6 py-6 text-blue-900 dark:text-blue-100 text-base">
-                Are you sure you want to remove <span className="font-bold">{drugs[deleteIndex]?.name}</span> from the database?
-              </div>
-              <div className="flex justify-end gap-2 px-6 pb-5">
-                <button
-                  className="px-5 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 font-semibold text-base"
-                  onClick={cancelDelete}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-5 py-2 rounded-lg bg-red-600 dark:bg-red-900 text-white font-bold hover:bg-red-700 dark:hover:bg-red-800 text-base"
-                  onClick={confirmDelete}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 }
-// Responsive table styles
-// Add this to your global CSS if not already present:
-// @media (max-width: 640px) {
-//   table, thead, tbody, th, td, tr { display: block; width: 100%; }
-//   thead tr { display: none; }
-//   td { border: none; position: relative; padding-left: 50%; min-height: 40px; }
-//   td:before { position: absolute; left: 0; width: 45%; white-space: nowrap; font-weight: bold; color: #6366f1; }
-// }
