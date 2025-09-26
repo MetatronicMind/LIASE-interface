@@ -12,16 +12,12 @@ const nextConfig: NextConfig = {
     // your project has TypeScript errors.
     ignoreBuildErrors: true,
   },
-  // Disable telemetry
-  telemetry: {
-    disabled: true,
-  },
-  // Enable static export for better Azure compatibility
-  output: 'export',
-  trailingSlash: true,
+  // Optimize for Azure deployment
   images: {
     unoptimized: true,
   },
+  // Enable standalone output for better deployment
+  output: 'standalone',
 };
 
 export default nextConfig;

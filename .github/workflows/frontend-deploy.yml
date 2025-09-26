@@ -59,7 +59,7 @@ jobs:
         env:
           CI: true
 
-      - name: Create simple Express server for Azure
+      - name: Create simple static file server for Azure
         working-directory: ./frontend
         run: |
           cat > server.js << 'EOF'
@@ -70,7 +70,58 @@ jobs:
           const app = express();
           const port = process.env.PORT || 8080;
           
-          console.log('Starting Express server for Next.js build...');
+          console.log('Starting static file server...');
+          
+          // Check for different Next.js build outputs
+          if (fs.existsSync('.next/standalone')) {
+            console.log('✅ Serving from .next/standalone directory');
+            app.use(express.static('.next/standalone', { index: 'index.html' }));
+          } else if (fs.existsSync('out')) {
+            console.log('✅ Serving from out/ directory');
+            app.use(express.static('out', { index: 'index.html' }));
+          } else if (fs.existsSync('.next/static')) {
+            console.log('✅ Serving from .next/static directory');
+            app.use('/_next/static', express.static('.next/static'));
+            app.use(express.static('public'));
+          } else {
+            console.log('❌ No build directory found, serving basic page');
+          }
+          
+          // Health check
+          app.get('/health', (req, res) => {
+            res.json({ status: 'OK', time: new Date().toISOString() });
+          });
+          
+          // Catch-all for SPA routing
+          app.get('*', (req, res) => {
+            const possibleIndexPaths = [
+              '.next/standalone/index.html',
+              'out/index.html',
+              'public/index.html',
+              '.next/server/pages/index.html'
+            ];
+            
+            for (const indexPath of possibleIndexPaths) {
+              if (fs.existsSync(indexPath)) {
+                return res.sendFile(path.join(__dirname, indexPath));
+              }
+            }
+            
+            res.send('<h1>LIASE App Running</h1><p>Server is working! Build type: standalone</p>');
+          });
+          
+          app.listen(port, '0.0.0.0', () => {
+            console.log('✅ Server running on port', port);
+          });
+          EOF
+          const express = require('express');
+          const path = require('path');
+          const fs = require('fs');
+          
+          const app = express();
+          const port = process.env.PORT || 8080;
+          
+          console.log('Starting static file server for Next.js export...');
           console.log('NODE_ENV:', process.env.NODE_ENV);
           console.log('Port:', port);
           console.log('Directory:', __dirname);
@@ -98,10 +149,39 @@ jobs:
             console.log('out contents:', fs.readdirSync('out'));
           }
           
-          // Serve static files from Next.js build
-          app.use('/_next/static', express.static(path.join(__dirname, '.next/static')));
+          // Serve static files from Next.js build - ORDER MATTERS!
+          
+          // First, serve Next.js static assets
+          app.use('/_next/static', express.static(path.join(__dirname, '.next/static'), {
+            setHeaders: (res, path) => {
+              if (path.endsWith('.js')) {
+                res.set('Content-Type', 'application/javascript');
+              }
+            }
+          }));
+          
+          // Serve Next.js chunks and other build assets
+          app.use('/_next', express.static(path.join(__dirname, '.next'), {
+            setHeaders: (res, path) => {
+              if (path.endsWith('.js')) {
+                res.set('Content-Type', 'application/javascript');
+              }
+            }
+          }));
+          
+          // Serve public assets
           app.use('/static', express.static(path.join(__dirname, 'public')));
-          app.use('/', express.static(path.join(__dirname, 'public')));
+          
+          // Serve static export files if they exist
+          if (fs.existsSync('out')) {
+            app.use('/', express.static(path.join(__dirname, 'out'), {
+              setHeaders: (res, path) => {
+                if (path.endsWith('.js')) {
+                  res.set('Content-Type', 'application/javascript');
+                }
+              }
+            }));
+          }
           
           // Health check endpoint
           app.get('/health', (req, res) => {
@@ -110,13 +190,36 @@ jobs:
               timestamp: new Date().toISOString(),
               files: {
                 nextExists: fs.existsSync('.next'),
+                nextStaticExists: fs.existsSync('.next/static'),
                 outExists: fs.existsSync('out'),
                 publicExists: fs.existsSync('public')
               }
             });
           });
           
-          // Try to serve Next.js pages
+          // Handle JavaScript files specifically
+          app.get('*.js', (req, res) => {
+            console.log('JS file request:', req.url);
+            const possiblePaths = [
+              path.join(__dirname, 'out', req.url),
+              path.join(__dirname, '.next', req.url),
+              path.join(__dirname, '.next/static', req.url.replace('/_next/static/', '')),
+              path.join(__dirname, 'public', req.url)
+            ];
+            
+            for (const filePath of possiblePaths) {
+              if (fs.existsSync(filePath)) {
+                console.log('Serving JS file:', filePath);
+                res.set('Content-Type', 'application/javascript');
+                return res.sendFile(filePath);
+              }
+            }
+            
+            console.log('JS file not found:', req.url);
+            res.status(404).send('File not found');
+          });
+          
+          // Try to serve Next.js pages (only for non-JS requests)
           app.get('*', (req, res) => {
             const possiblePaths = [
               path.join(__dirname, 'out', 'index.html'),
@@ -183,7 +286,7 @@ jobs:
       - name: Create production package.json
         working-directory: ./frontend
         run: |
-          # Create a minimal production package.json for Express server
+          # Create a minimal production package.json for static file server
           cat > package-prod.json << 'EOF'
           {
             "name": "liase-frontend-deploy",
@@ -196,8 +299,7 @@ jobs:
               "node": ">=18.0.0"
             },
             "dependencies": {
-              "express": "^4.18.2",
-              "http-proxy-middleware": "^2.0.6"
+              "express": "^4.18.2"
             }
           }
           EOF
