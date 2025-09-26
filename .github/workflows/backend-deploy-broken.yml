@@ -1,5 +1,25 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
+# More       - name: Prepare deployment files
+        run: |
+          pwd
+          ls -la
+          echo "Contents:"
+          find . -name "package.json" -type f
+          echo "Current structure after artifact download:"
+          find . -type f | head -20
+          
+          # The artifact should already contain the backend files at root level
+          # since we uploaded the backend/ directory contents
+          echo "Verifying package.json exists:"
+          if [ ! -f "package.json" ]; then
+            echo "ERROR: package.json not found at root level"
+            echo "Available files:"
+            ls -la
+            echo "Searching for package.json in subdirectories:"
+            find . -name "package.json" -type f
+            exit 1
+          fi
+          echo "✅ package.json found at root level"or Azure: https://github.com/Azure/actions
 
 name: Build and deploy Node.js app to Azure Web App - LIASE-backend
 
@@ -97,21 +117,16 @@ jobs:
           ls -la
           echo "Contents:"
           find . -name "package.json" -type f
-          echo "Current structure after artifact download:"
-          find . -type f | head -20
-          
-          # The artifact contains the backend/ directory contents
-          # We need to verify package.json is at the root level now
-          echo "Verifying package.json exists at root:"
-          if [ ! -f "package.json" ]; then
-            echo "ERROR: package.json not found at root level"
-            echo "Available files:"
-            ls -la
-            echo "Searching for package.json in subdirectories:"
-            find . -name "package.json" -type f
-            exit 1
+          echo "Moving backend contents to root for deployment..."
+          if [ -d "backend" ]; then
+            mv backend/* .
+            mv backend/.[^.]* . 2>/dev/null || true
+            rmdir backend
           fi
-          echo "✅ package.json found at root level"
+          echo "After move:"
+          ls -la
+          echo "package.json location:"
+          find . -name "package.json" -type f
 
       - name: Login to Azure
         uses: azure/login@v2
