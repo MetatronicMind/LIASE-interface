@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from '../config/api';
+
 interface Role {
   id: string;
   name: string;
@@ -20,13 +22,7 @@ interface PermissionStructure {
 }
 
 class RoleService {
-  private API_BASE_URL = this.getApiBaseUrl();
-
-  private getApiBaseUrl() {
-    return typeof window !== 'undefined' 
-      ? (window as any).ENV?.NEXT_PUBLIC_API_URL || 'https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api'
-      : 'https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api';
-  }
+  private API_BASE_URL = getApiBaseUrl();
 
   private getAuthHeaders() {
     const token = localStorage.getItem('auth_token'); // Fixed token key
