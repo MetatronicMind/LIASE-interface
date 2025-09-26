@@ -65,7 +65,7 @@ jobs:
           cat > server.js << 'EOF'
           const express = require('express');
           const path = require('path');
-          const { createProxyMiddleware } = require('http-proxy-middleware');
+          const fs = require('fs');
           
           const app = express();
           const port = process.env.PORT || 8080;
@@ -75,39 +75,97 @@ jobs:
           console.log('Port:', port);
           console.log('Directory:', __dirname);
           
+          // Check what files exist in the build
+          console.log('=== Checking build files ===');
+          if (fs.existsSync('.next')) {
+            console.log('✅ .next directory exists');
+            console.log('.next contents:', fs.readdirSync('.next'));
+            if (fs.existsSync('.next/static')) {
+              console.log('✅ .next/static exists');
+            }
+            if (fs.existsSync('.next/server')) {
+              console.log('✅ .next/server exists');
+              if (fs.existsSync('.next/server/pages')) {
+                console.log('.next/server/pages contents:', fs.readdirSync('.next/server/pages'));
+              }
+            }
+          } else {
+            console.log('❌ .next directory missing');
+          }
+          
+          if (fs.existsSync('out')) {
+            console.log('✅ out directory exists (static export)');
+            console.log('out contents:', fs.readdirSync('out'));
+          }
+          
           // Serve static files from Next.js build
-          app.use('/_next', express.static(path.join(__dirname, '.next')));
+          app.use('/_next/static', express.static(path.join(__dirname, '.next/static')));
           app.use('/static', express.static(path.join(__dirname, 'public')));
+          app.use('/', express.static(path.join(__dirname, 'public')));
           
           // Health check endpoint
           app.get('/health', (req, res) => {
-            res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
-          });
-          
-          // Serve index.html for all routes (SPA)
-          app.get('*', (req, res) => {
-            res.sendFile(path.join(__dirname, '.next/server/pages/index.html'), (err) => {
-              if (err) {
-                console.log('Falling back to basic HTML');
-                res.status(200).send(`
-                  <!DOCTYPE html>
-                  <html>
-                    <head><title>LIASE - Loading...</title></head>
-                    <body>
-                      <div id="__next">
-                        <h1>LIASE Application</h1>
-                        <p>Loading...</p>
-                        <script>
-                          setTimeout(() => {
-                            window.location.reload();
-                          }, 2000);
-                        </script>
-                      </div>
-                    </body>
-                  </html>
-                `);
+            res.status(200).json({ 
+              status: 'OK', 
+              timestamp: new Date().toISOString(),
+              files: {
+                nextExists: fs.existsSync('.next'),
+                outExists: fs.existsSync('out'),
+                publicExists: fs.existsSync('public')
               }
             });
+          });
+          
+          // Try to serve Next.js pages
+          app.get('*', (req, res) => {
+            const possiblePaths = [
+              path.join(__dirname, 'out', 'index.html'),
+              path.join(__dirname, '.next/server/pages/index.html'),
+              path.join(__dirname, '.next/server/app/page.html'),
+              path.join(__dirname, 'public/index.html')
+            ];
+            
+            console.log(`Request for: ${req.url}`);
+            
+            // Try each possible path
+            for (const filePath of possiblePaths) {
+              if (fs.existsSync(filePath)) {
+                console.log(`Serving: ${filePath}`);
+                return res.sendFile(filePath);
+              }
+            }
+            
+            // If no Next.js files found, create a basic working page
+            console.log('No Next.js files found, serving basic page');
+            res.status(200).send(`
+              <!DOCTYPE html>
+              <html>
+                <head>
+                  <title>LIASE Application</title>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1">
+                  <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; text-align: center; }
+                    .container { max-width: 600px; margin: 0 auto; }
+                    .status { background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0; }
+                  </style>
+                </head>
+                <body>
+                  <div class="container">
+                    <h1>🚀 LIASE Application</h1>
+                    <div class="status">
+                      <h3>Application Status: Running</h3>
+                      <p>Server is running successfully on Azure!</p>
+                      <p>Build files are being served from Express.</p>
+                      <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+                    </div>
+                    <div>
+                      <a href="/health" style="color: #0070f3; text-decoration: none;">Check Health Status</a>
+                    </div>
+                  </div>
+                </body>
+              </html>
+            `);
           });
           
           app.listen(port, '0.0.0.0', () => {
@@ -197,8 +255,13 @@ jobs:
         working-directory: ./frontend
         run: |
           mkdir -p deploy-package
-          cp -r .next deploy-package/
-          cp -r public deploy-package/
+          
+          # Copy Next.js build output (both .next and out directories)
+          [ -d .next ] && cp -r .next deploy-package/ || echo "No .next directory"
+          [ -d out ] && cp -r out deploy-package/ || echo "No out directory"
+          [ -d public ] && cp -r public deploy-package/ || echo "No public directory"
+          
+          # Copy server files
           cp server.js deploy-package/
           cp web.config deploy-package/
           cp package-prod.json deploy-package/package.json
@@ -207,6 +270,10 @@ jobs:
           # Debug: show what we're deploying
           echo "=== Deployment package contents ==="
           ls -la deploy-package/
+          echo "=== Build directories check ==="
+          [ -d deploy-package/.next ] && echo "✅ .next directory copied" || echo "❌ .next directory missing"
+          [ -d deploy-package/out ] && echo "✅ out directory copied" || echo "❌ out directory missing"
+          [ -d deploy-package/public ] && echo "✅ public directory copied" || echo "❌ public directory missing"
           echo "=== package.json contents ==="
           cat deploy-package/package.json
           

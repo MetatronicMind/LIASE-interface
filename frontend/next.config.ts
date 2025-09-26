@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
   telemetry: {
     disabled: true,
   },
+  // Enable static export for better Azure compatibility
+  output: 'export',
+  trailingSlash: true,
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
