@@ -68,13 +68,18 @@ jobs:
           const next = require('next')
           
           const dev = false
-          const hostname = '0.0.0.0'
+          const hostname = '0.0.0.0' 
           const port = process.env.PORT || 8080
+          
+          console.log('Starting Next.js application...')
+          console.log('NODE_ENV:', process.env.NODE_ENV)
+          console.log('Port:', port)
           
           const app = next({ dev, hostname, port })
           const handle = app.getRequestHandler()
           
           app.prepare().then(() => {
+            console.log('Next.js app prepared, starting server...')
             createServer(async (req, res) => {
               try {
                 const parsedUrl = parse(req.url, true)
@@ -84,17 +89,20 @@ jobs:
                 res.statusCode = 500
                 res.end('internal server error')
               }
-            }).listen(port, (err) => {
+            }).listen(port, hostname, (err) => {
               if (err) throw err
               console.log(`> Ready on http://${hostname}:${port}`)
             })
+          }).catch((err) => {
+            console.error('Failed to start Next.js app:', err)
+            process.exit(1)
           })
           EOF
 
       - name: Create production package.json
         working-directory: ./frontend
         run: |
-          # Create a minimal package.json for production deployment
+          # Create a production package.json with all necessary dependencies
           node -e "
           const pkg = require('./package.json');
           const prodPkg = {
@@ -104,20 +112,59 @@ jobs:
             scripts: {
               start: 'node server.js'
             },
+            engines: {
+              node: '>=18.0.0'
+            },
             dependencies: {
               next: pkg.dependencies.next,
               react: pkg.dependencies.react,
               'react-dom': pkg.dependencies['react-dom'],
-              ...Object.fromEntries(
-                Object.entries(pkg.dependencies || {}).filter(([key]) => 
-                  !key.startsWith('@types/') && 
-                  !['eslint', 'typescript', 'tailwindcss', 'postcss', 'autoprefixer'].includes(key)
-                )
-              )
+              '@heroicons/react': pkg.dependencies['@heroicons/react'] || '^2.0.0',
+              '@reduxjs/toolkit': pkg.dependencies['@reduxjs/toolkit'] || '^1.9.0',
+              'react-redux': pkg.dependencies['react-redux'] || '^8.0.0'
             }
           };
           require('fs').writeFileSync('package-prod.json', JSON.stringify(prodPkg, null, 2));
           "
+
+      - name: Create web.config for Azure
+        working-directory: ./frontend
+        run: |
+          cat > web.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <handlers>
+                <add name="iisnode" path="server.js" verb="*" modules="iisnode"/>
+              </handlers>
+              <rewrite>
+                <rules>
+                  <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
+                    <match url="^server.js\/debug[\/]?" />
+                  </rule>
+                  <rule name="StaticContent">
+                    <action type="Rewrite" url="public{REQUEST_URI}"/>
+                  </rule>
+                  <rule name="DynamicContent">
+                    <conditions>
+                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True"/>
+                    </conditions>
+                    <action type="Rewrite" url="server.js"/>
+                  </rule>
+                </rules>
+              </rewrite>
+              <security>
+                <requestFiltering>
+                  <hiddenSegments>
+                    <remove segment="bin"/>
+                  </hiddenSegments>
+                </requestFiltering>
+              </security>
+              <httpErrors existingResponse="PassThrough" />
+              <iisnode watchedFiles="web.config;*.js"/>
+            </system.webServer>
+          </configuration>
+          EOF
 
       - name: Prepare deployment package
         working-directory: ./frontend
@@ -126,8 +173,15 @@ jobs:
           cp -r .next deploy-package/
           cp -r public deploy-package/
           cp server.js deploy-package/
+          cp web.config deploy-package/
           cp package-prod.json deploy-package/package.json
           cp next.config.* deploy-package/ 2>/dev/null || true
+          
+          # Debug: show what we're deploying
+          echo "=== Deployment package contents ==="
+          ls -la deploy-package/
+          echo "=== package.json contents ==="
+          cat deploy-package/package.json
           
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -148,8 +202,17 @@ jobs:
         with:
           name: frontend-app
 
+      - name: Debug deployment files
+        run: |
+          echo "=== Files in deployment directory ==="
+          ls -la
+          echo "=== package.json exists? ==="
+          [ -f package.json ] && echo "✅ package.json found" || echo "❌ package.json missing"
+          echo "=== server.js exists? ==="
+          [ -f server.js ] && echo "✅ server.js found" || echo "❌ server.js missing"
+
       - name: Install production dependencies
-        run: npm install --production
+        run: npm install --prod --unsafe-perm
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -166,6 +229,9 @@ jobs:
           slot-name: 'Production'
           package: .
           startup-command: 'node server.js'
+        env:
+          NODE_ENV: production
+          PORT: 8080
           
       - name: Health Check
         run: |
