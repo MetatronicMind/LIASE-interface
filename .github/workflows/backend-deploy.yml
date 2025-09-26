@@ -40,9 +40,16 @@ jobs:
           node-version: '20.x'
           
       - name: Install dependencies, build, and test
-        working-directory: ./backend
         run: |
           echo "Current working directory:"
+          pwd
+          echo ""
+          echo "Repository contents:"
+          ls -la
+          echo ""
+          echo "Changing to backend directory..."
+          cd backend
+          echo "Now in backend directory:"
           pwd
           echo ""
           echo "Backend directory contents:"
@@ -63,7 +70,7 @@ jobs:
           echo "Running build if available..."
           npm run build --if-present
           echo ""
-          echo "Skipping tests for deployment..."
+          echo "Build completed successfully"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
