@@ -134,31 +134,56 @@ jobs:
 
       - name: Health Check
         run: |
-          sleep 30
+          sleep 60  # Give more time for Azure to start the app
           webapp_url="${{ steps.deploy-to-webapp.outputs.webapp-url }}"
           
-          echo "Checking Backend API health at $webapp_url"
+          echo "🔍 Checking Backend API health at $webapp_url"
+          echo "⏰ Started health check at $(date)"
           
-          max_attempts=5
+          max_attempts=8  # Increased attempts
           attempt=1
           
           while [ $attempt -le $max_attempts ]; do
-            echo "Health check attempt $attempt/$max_attempts"
+            echo ""
+            echo "🩺 Health check attempt $attempt/$max_attempts at $(date)"
             
-            # Test health endpoint (adjust the endpoint as needed)
-            if curl -f -s "$webapp_url/health" -o /dev/null || curl -f -s "$webapp_url/api/health" -o /dev/null || curl -f -s "$webapp_url/" -o /dev/null; then
-              echo "✅ Backend API is responding successfully at $webapp_url"
+            # Test each endpoint individually with more details
+            echo "Testing root endpoint: $webapp_url/"
+            if curl -f -s -w "HTTP %{http_code} in %{time_total}s\n" "$webapp_url/" -o /tmp/root_response.json; then
+              echo "✅ Root endpoint responded successfully"
+              cat /tmp/root_response.json
+              echo ""
               echo "🎉 Backend deployment completed successfully!"
+              echo "📍 Backend URL: $webapp_url"
+              echo "🔗 API Health: $webapp_url/api/health"
               break
+            fi
+            
+            echo "Testing API health endpoint: $webapp_url/api/health"
+            if curl -f -s -w "HTTP %{http_code} in %{time_total}s\n" "$webapp_url/api/health" -o /tmp/health_response.json; then
+              echo "✅ API health endpoint responded successfully"
+              cat /tmp/health_response.json
+              echo ""
+              echo "🎉 Backend deployment completed successfully!"
+              echo "📍 Backend URL: $webapp_url"
+              break
+            fi
+            
+            if [ $attempt -eq $max_attempts ]; then
+              echo ""
+              echo "❌ Backend health check failed after $max_attempts attempts"
+              echo "🔍 Final diagnostics:"
+              echo "- Testing basic connectivity:"
+              curl -v "$webapp_url/" || echo "Connection failed"
+              echo "- Testing with different timeout:"
+              curl --max-time 30 "$webapp_url/api/health" || echo "Health endpoint failed"
+              echo ""
+              echo "📝 Please check the Azure portal for detailed deployment logs"
+              echo "🌐 Manual check: $webapp_url"
+              exit 1
             else
-              if [ $attempt -eq $max_attempts ]; then
-                echo "❌ Backend health check failed after $max_attempts attempts"
-                echo "Please check the Azure portal for deployment logs"
-                exit 1
-              else
-                echo "⏳ API not ready yet, waiting 30 seconds..."
-                sleep 30
-                attempt=$((attempt + 1))
-              fi
+              echo "⏳ API not ready yet, waiting 45 seconds..."
+              sleep 45
+              attempt=$((attempt + 1))
             fi
           done
