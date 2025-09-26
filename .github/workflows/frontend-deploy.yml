@@ -53,7 +53,7 @@ jobs:
           ESLINT_NO_DEV_ERRORS: true
           TYPESCRIPT_NO_TYPECHECK: true
           # Backend API URL
-          NEXT_PUBLIC_API_URL: https://liase-backend.azurewebsites.net/api
+          NEXT_PUBLIC_API_URL: https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api
 
       - name: Run tests
         working-directory: ./frontend
