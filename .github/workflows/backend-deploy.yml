@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - liase-backend-fpc8gsbrghgacdgx
+name: Build and deploy Node.js app to Azure Web App - LIASE-backend
 
 on:
   push:
@@ -147,11 +147,11 @@ jobs:
           echo "🔧 Configuring Azure Web App environment variables..."
           
           # First, let's find the resource group
-          echo "🔍 Finding resource group for liase-backend-fpc8gsbrghgacdgx..."
-          RESOURCE_GROUP=$(az webapp list --query "[?name=='liase-backend-fpc8gsbrghgacdgx'].resourceGroup | [0]" -o tsv)
+          echo "🔍 Finding resource group for LIASE-backend..."
+          RESOURCE_GROUP=$(az webapp list --query "[?name=='LIASE-backend'].resourceGroup | [0]" -o tsv)
           
           if [ -z "$RESOURCE_GROUP" ]; then
-            echo "❌ Could not find resource group for liase-backend-fpc8gsbrghgacdgx"
+            echo "❌ Could not find resource group for LIASE-backend"
             echo "Available web apps:"
             az webapp list --query "[].{name:name, resourceGroup:resourceGroup}" -o table
             exit 1
@@ -162,7 +162,7 @@ jobs:
           # Configure the app settings
           az webapp config appsettings set \
             --resource-group "$RESOURCE_GROUP" \
-            --name liase-backend-fpc8gsbrghgacdgx \
+            --name LIASE-backend \
             --settings \
               COSMOS_DB_ENDPOINT="${{ secrets.COSMOS_DB_ENDPOINT }}" \
               COSMOS_DB_KEY="${{ secrets.COSMOS_DB_KEY }}" \
@@ -180,7 +180,7 @@ jobs:
           echo "🚀 Setting startup command..."
           az webapp config set \
             --resource-group "$RESOURCE_GROUP" \
-            --name liase-backend-fpc8gsbrghgacdgx \
+            --name LIASE-backend \
             --startup-file "node src/app.js"
           
           echo "✅ Startup command configured successfully"
@@ -189,7 +189,7 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'liase-backend-fpc8gsbrghgacdgx'
+          app-name: 'LIASE-backend'
           slot-name: 'Production'
           package: .
 
