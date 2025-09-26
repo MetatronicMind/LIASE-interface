@@ -93,25 +93,47 @@ jobs:
 
       - name: Prepare deployment files
         run: |
+          echo "=== Deployment Preparation Debug ==="
           pwd
+          echo "Current directory contents after artifact download:"
           ls -la
-          echo "Contents:"
+          echo ""
+          echo "Looking for package.json files:"
           find . -name "package.json" -type f
-          echo "Current structure after artifact download:"
-          find . -type f | head -20
+          echo ""
           
-          # The artifact contains the backend/ directory contents
-          # We need to verify package.json is at the root level now
-          echo "Verifying package.json exists at root:"
-          if [ ! -f "package.json" ]; then
-            echo "ERROR: package.json not found at root level"
-            echo "Available files:"
-            ls -la
-            echo "Searching for package.json in subdirectories:"
-            find . -name "package.json" -type f
-            exit 1
+          # Check if files are in current directory or need to be moved
+          if [ -f "package.json" ]; then
+            echo "✅ package.json found at root level - ready for deployment"
+          else
+            echo "❌ package.json not found at root - checking structure"
+            echo ""
+            echo "Directory structure:"
+            find . -type f | head -20
+            echo ""
+            
+            # If there's a subdirectory with the files, move them up
+            if [ -d "backend" ]; then
+              echo "Found backend subdirectory, moving contents to root..."
+              mv backend/* . 2>/dev/null || true
+              mv backend/.[^.]* . 2>/dev/null || true
+              rmdir backend 2>/dev/null || true
+            fi
+            
+            # Final verification
+            if [ -f "package.json" ]; then
+              echo "✅ package.json now found at root level"
+            else
+              echo "❌ FATAL: Still cannot find package.json"
+              echo "Final directory contents:"
+              ls -la
+              exit 1
+            fi
           fi
-          echo "✅ package.json found at root level"
+          
+          echo "=== Final deployment structure ==="
+          ls -la
+          echo "✅ Ready for Azure deployment"
 
       - name: Login to Azure
         uses: azure/login@v2
