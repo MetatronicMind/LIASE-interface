@@ -145,8 +145,23 @@ jobs:
       - name: Configure Azure Web App Settings
         run: |
           echo "🔧 Configuring Azure Web App environment variables..."
+          
+          # First, let's find the resource group
+          echo "🔍 Finding resource group for LIASE-backend..."
+          RESOURCE_GROUP=$(az webapp list --query "[?name=='LIASE-backend'].resourceGroup | [0]" -o tsv)
+          
+          if [ -z "$RESOURCE_GROUP" ]; then
+            echo "❌ Could not find resource group for LIASE-backend"
+            echo "Available web apps:"
+            az webapp list --query "[].{name:name, resourceGroup:resourceGroup}" -o table
+            exit 1
+          fi
+          
+          echo "✅ Found resource group: $RESOURCE_GROUP"
+          
+          # Configure the app settings
           az webapp config appsettings set \
-            --resource-group $(az webapp show --name LIASE-backend --query resourceGroup -o tsv) \
+            --resource-group "$RESOURCE_GROUP" \
             --name LIASE-backend \
             --settings \
               COSMOS_DB_ENDPOINT="${{ secrets.COSMOS_DB_ENDPOINT }}" \
@@ -158,7 +173,8 @@ jobs:
               WEBSITE_NODE_DEFAULT_VERSION="~20" \
               SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
               ENABLE_ORYX_BUILD="false"
-          echo "✅ Environment variables configured"
+          
+          echo "✅ Environment variables configured successfully"
 
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
