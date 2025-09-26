@@ -142,6 +142,24 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9FC45B7FDE2F490D91697B10ACD1CDCE }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B19280752E554AA892F23221EC6AB45E }}
 
+      - name: Configure Azure Web App Settings
+        run: |
+          echo "🔧 Configuring Azure Web App environment variables..."
+          az webapp config appsettings set \
+            --resource-group $(az webapp show --name LIASE-backend --query resourceGroup -o tsv) \
+            --name LIASE-backend \
+            --settings \
+              COSMOS_DB_ENDPOINT="${{ secrets.COSMOS_DB_ENDPOINT }}" \
+              COSMOS_DB_KEY="${{ secrets.COSMOS_DB_KEY }}" \
+              COSMOS_DB_DATABASE_ID="${{ secrets.COSMOS_DB_DATABASE_ID }}" \
+              NODE_ENV="production" \
+              JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+              JWT_EXPIRES_IN="${{ secrets.JWT_EXPIRES_IN }}" \
+              WEBSITE_NODE_DEFAULT_VERSION="~20" \
+              SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
+              ENABLE_ORYX_BUILD="false"
+          echo "✅ Environment variables configured"
+
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
@@ -149,15 +167,6 @@ jobs:
           app-name: 'LIASE-backend'
           slot-name: 'Production'
           package: .
-        env:
-          # Cosmos DB Configuration
-          COSMOS_DB_ENDPOINT: ${{ secrets.COSMOS_DB_ENDPOINT }}
-          COSMOS_DB_KEY: ${{ secrets.COSMOS_DB_KEY }}
-          COSMOS_DB_DATABASE_ID: ${{ secrets.COSMOS_DB_DATABASE_ID }}
-          # Application Configuration
-          NODE_ENV: production
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
 
       - name: Health Check
         run: |

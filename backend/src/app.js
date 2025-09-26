@@ -185,33 +185,48 @@ const PORT = process.env.PORT || 8000;
 
 // Initialize Cosmos DB and start server
 async function startServer() {
+  console.log('🚀 Starting LIASE SaaS API Server...');
+  console.log('📊 Environment variables check:');
+  console.log(`- NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
+  console.log(`- PORT: ${process.env.PORT || 'not set (will use 8000)'}`);
+  console.log(`- COSMOS_DB_ENDPOINT: ${process.env.COSMOS_DB_ENDPOINT ? 'SET' : 'NOT SET'}`);
+  console.log(`- COSMOS_DB_KEY: ${process.env.COSMOS_DB_KEY ? 'SET' : 'NOT SET'}`);
+  console.log(`- COSMOS_DB_DATABASE_ID: ${process.env.COSMOS_DB_DATABASE_ID || 'NOT SET'}`);
+  console.log(`- JWT_SECRET: ${process.env.JWT_SECRET ? 'SET' : 'NOT SET'}`);
+  
+  // Start the HTTP server first to ensure we respond to health checks
+  server = app.listen(PORT, () => {
+    console.log(`🚀 LIASE SaaS API Server running on port ${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`💾 Memory monitoring active`);
+  });
+  
+  // Track connections for graceful shutdown
+  server.on('connection', (connection) => {
+    connections.push(connection);
+    connection.on('close', () => {
+      connections = connections.filter(c => c !== connection);
+    });
+  });
+  
+  // Initialize services after server is running (non-blocking)
   try {
+    console.log('🔄 Initializing Cosmos DB...');
     await cosmosService.initializeDatabase();
     console.log('✅ Cosmos DB initialized successfully');
     
     // Start the drug search scheduler
+    console.log('🔄 Starting drug search scheduler...');
     drugSearchScheduler.start();
     console.log('✅ Drug search scheduler started');
+    console.log(`⏰ Drug search scheduler: Running every 12 hours`);
+    console.log(`🔍 Queue status: http://localhost:${PORT}/api/drugs/queue-status`);
     
-    server = app.listen(PORT, () => {
-      console.log(`🚀 LIASE SaaS API Server running on port ${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`⏰ Drug search scheduler: Running every 12 hours`);
-      console.log(`🔍 Queue status: http://localhost:${PORT}/api/drugs/queue-status`);
-      console.log(`💾 Memory monitoring active`);
-    });
-    
-    // Track connections for graceful shutdown
-    server.on('connection', (connection) => {
-      connections.push(connection);
-      connection.on('close', () => {
-        connections = connections.filter(c => c !== connection);
-      });
-    });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    console.error('⚠️  Warning: Some services failed to initialize:', error);
+    console.error('📝 Server will continue running but some features may not work');
+    console.error('🔧 Please check your environment variables and database connection');
   }
 }
 
