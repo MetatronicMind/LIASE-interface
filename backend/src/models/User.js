@@ -194,8 +194,8 @@ class User {
     }
 
     if (!isUpdate || data.role) {
-      if (!['Admin', 'Pharmacovigilance', 'Sponsor/Auditor'].includes(data.role)) {
-        errors.push('Role must be Admin, Pharmacovigilance, or Sponsor/Auditor');
+      if (!['Admin', 'Pharmacovigilance', 'Sponsor/Auditor', 'superadmin', 'admin', 'pharmacovigilance', 'sponsor_auditor'].includes(data.role)) {
+        errors.push('Role must be Admin, Pharmacovigilance, Sponsor/Auditor, superadmin, admin, pharmacovigilance, or sponsor_auditor');
       }
     }
 
