@@ -263,6 +263,7 @@ jobs:
         with:
           name: frontend-app
           path: frontend/deploy-package/
+          include-hidden-files: true
 
   deploy:
     runs-on: ubuntu-latest
