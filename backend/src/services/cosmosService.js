@@ -1,6 +1,5 @@
 const { CosmosClient } = require('@azure/cosmos');
 const { DefaultAzureCredential } = require('@azure/identity');
-const https = require('https');
 const { loadSecret } = require('../config/secretLoader');
 
 class CosmosService {
@@ -52,8 +51,16 @@ class CosmosService {
           });
 
       // Initialize Cosmos client
-      if (process.env.NODE_ENV === 'production') {
-        // Use Azure Managed Identity in production
+      const isProduction = process.env.NODE_ENV === 'production';
+
+      if (isProduction && key) {
+        // Prefer key-based auth when explicitly provided via settings/secrets
+        this.client = new CosmosClient({
+          endpoint,
+          key
+        });
+      } else if (isProduction) {
+        // Fall back to Managed Identity when no key is configured
         const credential = new DefaultAzureCredential();
         this.client = new CosmosClient({
           endpoint,
