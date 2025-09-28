@@ -25,7 +25,9 @@ router.post('/login', [
       });
     }
 
-    const { email, username, password } = req.body;
+    const { email, username, password, organizationId } = req.body;
+    
+    console.log('Login attempt:', { email, username, organizationId, hasPassword: !!password });
     
     // Check that either email or username is provided
     if (!email && !username) {
@@ -36,11 +38,18 @@ router.post('/login', [
 
     // Find user by email or username
     let user;
-    if (email) {
-      user = await cosmosService.getUserByEmail(email);
-    } else if (username) {
-      user = await cosmosService.getUserByUsernameGlobal(username);
+    const loginIdentifier = email || username;
+    
+    // Try email lookup first (handles cases where username field contains email)
+    if (loginIdentifier.includes('@')) {
+      console.log('Looking up user by email:', loginIdentifier);
+      user = await cosmosService.getUserByEmail(loginIdentifier);
+    } else {
+      console.log('Looking up user by username:', loginIdentifier);
+      user = await cosmosService.getUserByUsernameGlobal(loginIdentifier);
     }
+    
+    console.log('User found:', user ? 'Yes' : 'No', user ? `ID: ${user.id}` : '');
     
     if (!user || !user.isActive) {
       // Get location information
@@ -69,7 +78,9 @@ router.post('/login', [
 
     // Validate password
     const userInstance = new User(user);
+    console.log('Validating password for user:', user.id);
     const isValidPassword = await userInstance.validatePassword(password);
+    console.log('Password validation result:', isValidPassword);
     
     if (!isValidPassword) {
       // Get location information
