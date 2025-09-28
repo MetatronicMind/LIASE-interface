@@ -119,25 +119,42 @@ jobs:
           # Backend API URL - FORCE CORRECT VALUE
           NEXT_PUBLIC_API_URL: https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api
 
-      - name: Verify build contains correct API URL
+      - name: Debug and verify build contents
         working-directory: ./frontend
         run: |
-          echo "Verifying built JavaScript contains correct API URL..."
+          echo "🔍 DEBUGGING BUILD CONTENTS..."
           
-          # Check if localhost:8000 exists in any JS files (should NOT exist)
-          if find .next -name "*.js" -exec grep -l "localhost:8000" {} \; 2>/dev/null | head -1; then
-            echo "❌ ERROR: Found localhost:8000 in built JavaScript files!"
-            echo "Files containing localhost:8000:"
-            find .next -name "*.js" -exec grep -l "localhost:8000" {} \; 2>/dev/null || true
-            echo "This indicates the build is still using cached artifacts."
+          # Show all JavaScript files in the build
+          echo "=== All JavaScript files in .next ==="
+          find .next -name "*.js" | head -20
+          
+          # Find files containing localhost:8000 and show their content
+          echo "=== Searching for localhost:8000 references ==="
+          localhost_files=$(find .next -name "*.js" -exec grep -l "localhost:8000" {} \; 2>/dev/null || true)
+          
+          if [ -n "$localhost_files" ]; then
+            echo "❌ ERROR: Found localhost:8000 in these files:"
+            echo "$localhost_files"
+            
+            echo "=== SHOWING CONTENT OF PROBLEMATIC FILES ==="
+            for file in $localhost_files; do
+              echo "--- Content of $file (first 50 lines with localhost) ---"
+              grep -n "localhost:8000" "$file" | head -5 || true
+              echo "--- Full context around localhost reference ---"
+              grep -B 5 -A 5 "localhost:8000" "$file" | head -20 || true
+              echo ""
+            done
+            
+            echo "This indicates build is using cached/wrong source."
             exit 1
           else
             echo "✅ No localhost:8000 references found in built JavaScript"
           fi
           
-          # Check if the correct Azure URL exists
-          if find .next -name "*.js" -exec grep -l "liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net" {} \; 2>/dev/null | head -1; then
-            echo "✅ Correct Azure backend URL found in built JavaScript"
+          # Check for Azure URL
+          azure_files=$(find .next -name "*.js" -exec grep -l "liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net" {} \; 2>/dev/null || true)
+          if [ -n "$azure_files" ]; then
+            echo "✅ Correct Azure backend URL found in: $azure_files"
           else
             echo "⚠️ Warning: Azure backend URL not found in built JavaScript files"
           fi

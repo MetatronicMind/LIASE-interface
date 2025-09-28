@@ -1,14 +1,16 @@
-// API Configuration
-// Note: Next.js replaces process.env.NEXT_PUBLIC_* at build time
+// API Configuration - HARDCODED PRODUCTION URL TO ELIMINATE LOCALHOST
+// This eliminates ANY possibility of localhost references in compiled code
 declare const process: {
   env: {
     NEXT_PUBLIC_API_URL?: string;
   };
 };
 
-// Force production backend URL - NO localhost fallback
-const PRODUCTION_API_URL = 'https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || PRODUCTION_API_URL;
+// HARDCODED PRODUCTION URL - NO FALLBACKS ALLOWED
+const HARDCODED_PRODUCTION_URL = 'https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api';
+
+// Always use production URL - environment variable is secondary
+const API_URL = HARDCODED_PRODUCTION_URL;
 
 // Debug logging
 console.log('API Configuration:', {
