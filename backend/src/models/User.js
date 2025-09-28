@@ -111,10 +111,18 @@ class User {
 
   async validatePassword(password) {
     if (!password || !this.password) {
+      console.log('Password validation failed: missing password or hash');
       return false;
     }
     try {
-      return await bcrypt.compare(password, this.password);
+      console.log('Comparing password with hash:', {
+        inputPassword: password.substring(0, 3) + '***',
+        storedHash: this.password.substring(0, 10) + '***',
+        hashLooksValid: this.password.startsWith('$2')
+      });
+      const result = await bcrypt.compare(password, this.password);
+      console.log('bcrypt.compare result:', result);
+      return result;
     } catch (error) {
       console.error('Password validation error:', error.message);
       return false;

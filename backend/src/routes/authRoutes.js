@@ -235,7 +235,9 @@ router.post('/register', [
       });
     }
 
+    console.log('Password before hashing:', adminPassword.substring(0, 3) + '***');
     await adminUser.hashPassword();
+    console.log('Password after hashing:', adminUser.password.substring(0, 10) + '***');
     const createdUser = await cosmosService.createItem('users', adminUser.toJSON());
 
     // Create initial audit log
