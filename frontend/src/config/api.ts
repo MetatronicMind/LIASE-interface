@@ -20,6 +20,10 @@ export const API_CONFIG = {
 
 // Helper function to get API base URL
 export const getApiBaseUrl = () => {
-  console.log('getApiBaseUrl called, returning:', API_CONFIG.BASE_URL);
+  console.log('=== API BASE URL DEBUG ===');
+  console.log('Environment Variable NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
+  console.log('Fallback URL:', 'https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api');
+  console.log('Final API_CONFIG.BASE_URL:', API_CONFIG.BASE_URL);
+  console.log('=========================');
   return API_CONFIG.BASE_URL;
 };

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { PencilIcon, TrashIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import { getApiBaseUrl } from '@/config/api';
 
 interface Permission {
   read: boolean;
@@ -49,7 +50,7 @@ export default function RoleManagementPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/roles/${roleId}`, {
+      const response = await fetch(`${getApiBaseUrl()}/roles/${roleId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
