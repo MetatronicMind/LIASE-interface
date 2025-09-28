@@ -30,56 +30,47 @@ class CosmosService {
 
   async _doInitialize() {
     try {
-      // Resolve endpoint & key (supports direct env or Key Vault secret names)
-      const endpoint = await loadSecret({
-        directEnv: 'COSMOS_DB_ENDPOINT',
-        secretNameEnv: 'COSMOS_DB_ENDPOINT_SECRET_NAME',
-        required: true
-      });
+      // Use environment variables directly (Azure App Service app settings)
+      const endpoint = process.env.COSMOS_DB_ENDPOINT;
+      const key = process.env.COSMOS_DB_KEY;
+      const dbId = process.env.COSMOS_DB_DATABASE_ID || 'liase-saas';
 
-      const key = process.env.NODE_ENV === 'production'
-        ? await loadSecret({
-            directEnv: 'COSMOS_DB_KEY',
-            secretNameEnv: 'COSMOS_DB_KEY_SECRET_NAME',
-            // In production we might use Managed Identity (no key). So not strictly required
-            required: false
-          })
-        : await loadSecret({
-            directEnv: 'COSMOS_DB_KEY',
-            secretNameEnv: 'COSMOS_DB_KEY_SECRET_NAME',
-            required: true
-          });
+      if (!endpoint) {
+        throw new Error('COSMOS_DB_ENDPOINT environment variable is required');
+      }
+
+      if (!dbId) {
+        throw new Error('COSMOS_DB_DATABASE_ID environment variable is required');
+      }
+
+      console.log('Cosmos initialization - endpoint available:', !!endpoint);
+      console.log('Cosmos initialization - key available:', !!key);
+      console.log('Cosmos initialization - NODE_ENV:', process.env.NODE_ENV);
 
       // Initialize Cosmos client
       const isProduction = process.env.NODE_ENV === 'production';
 
-      if (isProduction && key) {
-        // Prefer key-based auth when explicitly provided via settings/secrets
+      if (key) {
+        // Use key-based auth when available (preferred for Azure App Service)
+        console.log('Using key-based authentication for Cosmos DB');
         this.client = new CosmosClient({
           endpoint,
           key
         });
       } else if (isProduction) {
         // Fall back to Managed Identity when no key is configured
+        console.log('Using managed identity for Cosmos DB');
         const credential = new DefaultAzureCredential();
         this.client = new CosmosClient({
           endpoint,
           aadCredentials: credential
         });
       } else {
-        // Use connection string for development with SSL verification disabled
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-        this.client = new CosmosClient({
-          endpoint,
-          key,
-          agent: process.env.NODE_ENV === 'development' ? new (require('https').Agent)({
-            rejectUnauthorized: false
-          }) : undefined
-        });
+        // Development mode fallback
+        throw new Error('COSMOS_DB_KEY is required in development mode');
       }
 
       // Create database if it doesn't exist
-      const dbId = process.env.COSMOS_DB_DATABASE_ID || 'liase-saas';
       const { database } = await this.client.databases.createIfNotExists({ id: dbId });
       this.database = database;
 
