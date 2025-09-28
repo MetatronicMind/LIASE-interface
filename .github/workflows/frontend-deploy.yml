@@ -23,24 +23,62 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js version
+      - name: Set up Node.js version (no cache)
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          # Explicitly disable caching to ensure fresh build
+          cache: ''
 
-      - name: Install dependencies
+      - name: Nuclear cache clearing
         working-directory: ./frontend
         run: |
-          npm ci
+          echo "🧹 NUCLEAR CACHE CLEARING - Removing ALL cached artifacts..."
+          
+          # Remove ALL possible build/cache directories
+          rm -rf .next out dist build node_modules/.cache
+          rm -rf node_modules/.next node_modules/.cache
+          rm -rf ~/.npm ~/.cache /tmp/.next*
+          
+          # Clear npm cache completely
+          npm cache clean --force
+          
+          # Remove and reinstall node_modules to ensure no cached modules
+          rm -rf node_modules package-lock.json
+          
+          echo "✅ All caches and node_modules removed"
 
-      - name: Clear build cache completely
+      - name: Fresh dependency installation
         working-directory: ./frontend
         run: |
-          echo "Clearing all build artifacts and cache..."
-          rm -rf .next node_modules/.cache
-          echo "Build cache cleared"
+          echo "📦 Installing dependencies from scratch..."
+          # Generate new package-lock.json and install fresh
+          npm install
+          echo "✅ Fresh dependencies installed"
+
+      - name: Verify source code is correct
+        working-directory: ./frontend
+        run: |
+          echo "🔍 Verifying source code contains correct configuration..."
+          
+          # Check api.ts file
+          echo "Checking src/config/api.ts:"
+          cat src/config/api.ts
+          
+          # Verify no localhost:8000 in source
+          if grep -r "localhost:8000" src/ 2>/dev/null; then
+            echo "❌ ERROR: Found localhost:8000 in source code!"
+            exit 1
+          else
+            echo "✅ No localhost:8000 found in source code"
+          fi
+          
+          # Verify Azure URL is in source
+          if grep -r "liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net" src/ 2>/dev/null; then
+            echo "✅ Azure backend URL found in source code"
+          else
+            echo "⚠️ Warning: Azure URL not found in source - checking fallback..."
+          fi
 
       - name: Create production environment file
         working-directory: ./frontend
