@@ -6,7 +6,9 @@ declare const process: {
   };
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api';
+// Force production backend URL - NO localhost fallback
+const PRODUCTION_API_URL = 'https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || PRODUCTION_API_URL;
 
 // Debug logging
 console.log('API Configuration:', {

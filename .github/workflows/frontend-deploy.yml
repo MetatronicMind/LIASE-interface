@@ -35,6 +35,13 @@ jobs:
         run: |
           npm ci
 
+      - name: Clear build cache completely
+        working-directory: ./frontend
+        run: |
+          echo "Clearing all build artifacts and cache..."
+          rm -rf .next node_modules/.cache
+          echo "Build cache cleared"
+
       - name: Create production environment file
         working-directory: ./frontend
         run: |
