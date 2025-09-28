@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # Deployment restart: 2025-09-28 - Force redeploy to ensure both services restart
-
+# Restart Command
 name: Build and deploy Node.js app to Azure Web App - LIASE-backend
 
 on:
@@ -144,8 +144,20 @@ jobs:
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B19280752E554AA892F23221EC6AB45E }}
 
       - name: Configure Azure Web App Settings
+        env:
+          COSMOS_DB_ENDPOINT: ${{ secrets.COSMOS_DB_ENDPOINT }}
+          COSMOS_DB_KEY: ${{ secrets.COSMOS_DB_KEY }}
+          COSMOS_DB_DATABASE_ID: ${{ secrets.COSMOS_DB_DATABASE_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
         run: |
           echo "🔧 Configuring Azure Web App environment variables..."
+
+          if [ -z "$COSMOS_DB_ENDPOINT" ]; then
+            echo "❌ COSMOS_DB_ENDPOINT secret is NOT available in this job."
+          else
+            echo "✅ COSMOS_DB_ENDPOINT detected (length: ${#COSMOS_DB_ENDPOINT})"
+          fi
           
           # First, let's find the resource group
           echo "🔍 Finding resource group for LIASE-backend..."
@@ -159,18 +171,20 @@ jobs:
           fi
           
           echo "✅ Found resource group: $RESOURCE_GROUP"
+
+          COSMOS_DB_DATABASE_ID=${COSMOS_DB_DATABASE_ID:-liase-saas}
           
           # Configure the app settings
           az webapp config appsettings set \
             --resource-group "$RESOURCE_GROUP" \
             --name LIASE-backend \
             --settings \
-              COSMOS_DB_ENDPOINT="${{ secrets.COSMOS_DB_ENDPOINT }}" \
-              COSMOS_DB_KEY="${{ secrets.COSMOS_DB_KEY }}" \
-              COSMOS_DB_DATABASE_ID="${{ secrets.COSMOS_DB_DATABASE_ID }}" \
+              COSMOS_DB_ENDPOINT="$COSMOS_DB_ENDPOINT" \
+              COSMOS_DB_KEY="$COSMOS_DB_KEY" \
+              COSMOS_DB_DATABASE_ID="$COSMOS_DB_DATABASE_ID" \
               NODE_ENV="production" \
-              JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-              JWT_EXPIRES_IN="${{ secrets.JWT_EXPIRES_IN }}" \
+              JWT_SECRET="$JWT_SECRET" \
+              JWT_EXPIRES_IN="$JWT_EXPIRES_IN" \
               WEBSITE_NODE_DEFAULT_VERSION="~20" \
               SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
               ENABLE_ORYX_BUILD="false"
