@@ -57,10 +57,20 @@ jobs:
           npm run lint --fix || echo "Some lint issues could not be auto-fixed"
         continue-on-error: true
 
-      - name: Build Next.js app for static export
+      - name: Force cache invalidation and build
         working-directory: ./frontend
         run: |
-          # Build for static export (works better with Azure)
+          # Add cache-busting timestamp
+          export BUILD_ID=$(date +%s)
+          echo "Cache-busting build ID: $BUILD_ID"
+          
+          # Completely remove any cached build artifacts
+          rm -rf .next out dist build
+          
+          # Verify environment variable is set correctly
+          echo "NEXT_PUBLIC_API_URL is set to: $NEXT_PUBLIC_API_URL"
+          
+          # Build with cache-busting
           npm run build
         env:
           NODE_ENV: production
@@ -68,8 +78,31 @@ jobs:
           # Skip linting during build for deployment
           ESLINT_NO_DEV_ERRORS: true
           TYPESCRIPT_NO_TYPECHECK: true
-          # Backend API URL
+          # Backend API URL - FORCE CORRECT VALUE
           NEXT_PUBLIC_API_URL: https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api
+
+      - name: Verify build contains correct API URL
+        working-directory: ./frontend
+        run: |
+          echo "Verifying built JavaScript contains correct API URL..."
+          
+          # Check if localhost:8000 exists in any JS files (should NOT exist)
+          if find .next -name "*.js" -exec grep -l "localhost:8000" {} \; 2>/dev/null | head -1; then
+            echo "❌ ERROR: Found localhost:8000 in built JavaScript files!"
+            echo "Files containing localhost:8000:"
+            find .next -name "*.js" -exec grep -l "localhost:8000" {} \; 2>/dev/null || true
+            echo "This indicates the build is still using cached artifacts."
+            exit 1
+          else
+            echo "✅ No localhost:8000 references found in built JavaScript"
+          fi
+          
+          # Check if the correct Azure URL exists
+          if find .next -name "*.js" -exec grep -l "liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net" {} \; 2>/dev/null | head -1; then
+            echo "✅ Correct Azure backend URL found in built JavaScript"
+          else
+            echo "⚠️ Warning: Azure backend URL not found in built JavaScript files"
+          fi
 
       - name: Run tests
         working-directory: ./frontend
