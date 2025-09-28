@@ -280,9 +280,9 @@ jobs:
       - name: Flatten artifact contents
         run: |
           if [ -d frontend-app ]; then
-            shopt -s dotglob
-            mv frontend-app/* .
-            rmdir frontend-app
+            echo "Flattening artifact (including hidden files)..."
+            cp -a frontend-app/. .
+            rm -rf frontend-app
           fi
 
       - name: Debug deployment files
@@ -293,6 +293,11 @@ jobs:
           [ -f package.json ] && echo "✅ package.json found" || echo "❌ package.json missing"
           echo "=== server.js exists? ==="
           [ -f server.js ] && echo "✅ server.js found" || echo "❌ server.js missing"
+          echo "=== .next directory exists? ==="
+          [ -d .next ] && echo "✅ .next directory found" || echo "❌ .next directory missing"
+          if [ -d .next ]; then
+            ls -la .next | head -20
+          fi
 
       - name: Install production dependencies
         run: npm install --prod --unsafe-perm
