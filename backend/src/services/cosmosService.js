@@ -33,7 +33,7 @@ class CosmosService {
       // Use environment variables directly (Azure App Service app settings)
       const endpoint = process.env.COSMOS_DB_ENDPOINT;
       const key = process.env.COSMOS_DB_KEY;
-      const dbId = process.env.COSMOS_DB_DATABASE_ID || 'liase-saas';
+      const dbId = process.env.COSMOS_DB_DATABASE_ID || 'LIASE-Database';
 
       if (!endpoint) {
         throw new Error('COSMOS_DB_ENDPOINT environment variable is required');
@@ -84,6 +84,12 @@ class CosmosService {
     } catch (error) {
       this.initPromise = null; // Clear the promise on error so it can be retried
       console.error('Error initializing Cosmos DB:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        statusCode: error.statusCode,
+        stack: error.stack
+      });
       // Classify error for upstream error handler / health checks
       error.code = error.code || 'COSMOS_INIT_FAILED';
       error.status = 503;
