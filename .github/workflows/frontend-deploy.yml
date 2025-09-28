@@ -209,6 +209,7 @@ jobs:
           // First, serve Next.js static assets
           app.use('/_next/static', express.static(path.join(__dirname, '.next/static'), {
             setHeaders: (res, path) => {
+              res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
               if (path.endsWith('.js')) {
                 res.set('Content-Type', 'application/javascript');
               }
@@ -218,6 +219,7 @@ jobs:
           // Serve Next.js chunks and other build assets
           app.use('/_next', express.static(path.join(__dirname, '.next'), {
             setHeaders: (res, path) => {
+              res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
               if (path.endsWith('.js')) {
                 res.set('Content-Type', 'application/javascript');
               }
@@ -231,6 +233,7 @@ jobs:
           if (fs.existsSync('out')) {
             app.use('/', express.static(path.join(__dirname, 'out'), {
               setHeaders: (res, path) => {
+                res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
                 if (path.endsWith('.js')) {
                   res.set('Content-Type', 'application/javascript');
                 }
@@ -265,6 +268,7 @@ jobs:
             for (const filePath of possiblePaths) {
               if (fs.existsSync(filePath)) {
                 console.log('Serving JS file:', filePath);
+                res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
                 res.set('Content-Type', 'application/javascript');
                 return res.sendFile(filePath);
               }
@@ -289,6 +293,7 @@ jobs:
             for (const filePath of possiblePaths) {
               if (fs.existsSync(filePath)) {
                 console.log('Serving: ' + filePath);
+                res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
                 return res.sendFile(filePath);
               }
             }
@@ -479,6 +484,7 @@ jobs:
           app-name: 'LIASE'
           slot-name: 'Production'
           package: .
+          clean: true
           startup-command: 'node server.js'
         env:
           NODE_ENV: production
