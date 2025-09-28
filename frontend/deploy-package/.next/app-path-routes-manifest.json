@@ -1,0 +1,20 @@
+{
+  "/favicon.ico/route": "/favicon.ico",
+  "/_not-found/page": "/_not-found",
+  "/admin-utils/page": "/admin-utils",
+  "/debug-auth/page": "/debug-auth",
+  "/debug-permissions/page": "/debug-permissions",
+  "/login/page": "/login",
+  "/page": "/",
+  "/register/page": "/register",
+  "/dashboard/audit-trail/page": "/dashboard/audit-trail",
+  "/dashboard/drug-management/page": "/dashboard/drug-management",
+  "/dashboard/overview/page": "/dashboard/overview",
+  "/dashboard/settings/page": "/dashboard/settings",
+  "/dashboard/role-management/page": "/dashboard/role-management",
+  "/dashboard/user-management/page": "/dashboard/user-management",
+  "/dashboard/user-management/add-user/page": "/dashboard/user-management/add-user",
+  "/dashboard/page": "/dashboard",
+  "/dashboard/user-management/role-management/page": "/dashboard/user-management/role-management",
+  "/dashboard/study-review/page": "/dashboard/study-review"
+}

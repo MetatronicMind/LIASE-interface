@@ -165,205 +165,6 @@ jobs:
         env:
           CI: true
 
-      - name: Create simple static file server for Azure
-        working-directory: ./frontend
-        run: |
-          cat > server.js << 'EOF'
-          const express = require('express');
-          const path = require('path');
-          const fs = require('fs');
-          
-          const app = express();
-          const port = process.env.PORT || 8080;
-          
-          console.log('Starting static file server for Next.js export...');
-          console.log('NODE_ENV:', process.env.NODE_ENV);
-          console.log('Port:', port);
-          console.log('Directory:', __dirname);
-          
-          // Check what files exist in the build
-          console.log('=== Checking build files ===');
-          if (fs.existsSync('.next')) {
-            console.log('✅ .next directory exists');
-            console.log('.next contents:', fs.readdirSync('.next'));
-            if (fs.existsSync('.next/static')) {
-              console.log('✅ .next/static exists');
-            }
-            if (fs.existsSync('.next/server')) {
-              console.log('✅ .next/server exists');
-              if (fs.existsSync('.next/server/pages')) {
-                console.log('.next/server/pages contents:', fs.readdirSync('.next/server/pages'));
-              }
-            }
-          } else {
-            console.log('❌ .next directory missing');
-          }
-          
-          if (fs.existsSync('out')) {
-            console.log('✅ out directory exists (static export)');
-            console.log('out contents:', fs.readdirSync('out'));
-          }
-          
-          // Serve static files from Next.js build - ORDER MATTERS!
-          
-          // First, serve Next.js static assets
-          app.use('/_next/static', express.static(path.join(__dirname, '.next/static'), {
-            setHeaders: (res, path) => {
-              res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-              if (path.endsWith('.js')) {
-                res.set('Content-Type', 'application/javascript');
-              }
-            }
-          }));
-          
-          // Serve Next.js chunks and other build assets
-          app.use('/_next', express.static(path.join(__dirname, '.next'), {
-            setHeaders: (res, path) => {
-              res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-              if (path.endsWith('.js')) {
-                res.set('Content-Type', 'application/javascript');
-              }
-            }
-          }));
-          
-          // Serve public assets
-          app.use('/static', express.static(path.join(__dirname, 'public')));
-          
-          // Serve static export files if they exist
-          if (fs.existsSync('out')) {
-            app.use('/', express.static(path.join(__dirname, 'out'), {
-              setHeaders: (res, path) => {
-                res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-                if (path.endsWith('.js')) {
-                  res.set('Content-Type', 'application/javascript');
-                }
-              }
-            }));
-          }
-          
-          // Health check endpoint
-          app.get('/health', (req, res) => {
-            res.status(200).json({ 
-              status: 'OK', 
-              timestamp: new Date().toISOString(),
-              files: {
-                nextExists: fs.existsSync('.next'),
-                nextStaticExists: fs.existsSync('.next/static'),
-                outExists: fs.existsSync('out'),
-                publicExists: fs.existsSync('public')
-              }
-            });
-          });
-          
-          // Handle JavaScript files specifically
-          app.get('*.js', (req, res) => {
-            console.log('JS file request:', req.url);
-            const possiblePaths = [
-              path.join(__dirname, 'out', req.url),
-              path.join(__dirname, '.next', req.url),
-              path.join(__dirname, '.next/static', req.url.replace('/_next/static/', '')),
-              path.join(__dirname, 'public', req.url)
-            ];
-            
-            for (const filePath of possiblePaths) {
-              if (fs.existsSync(filePath)) {
-                console.log('Serving JS file:', filePath);
-                res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-                res.set('Content-Type', 'application/javascript');
-                return res.sendFile(filePath);
-              }
-            }
-            
-            console.log('JS file not found:', req.url);
-            res.status(404).send('File not found');
-          });
-          
-          // Try to serve Next.js pages (only for non-JS requests)
-          app.get('*', (req, res) => {
-            const possiblePaths = [
-              path.join(__dirname, 'out', 'index.html'),
-              path.join(__dirname, '.next/server/pages/index.html'),
-              path.join(__dirname, '.next/server/app/page.html'),
-              path.join(__dirname, 'public/index.html')
-            ];
-            
-            console.log('Request for: ' + req.url);
-            
-            // Try each possible path
-            for (const filePath of possiblePaths) {
-              if (fs.existsSync(filePath)) {
-                console.log('Serving: ' + filePath);
-                res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-                return res.sendFile(filePath);
-              }
-            }
-            
-            // If no Next.js files found, create a basic working page
-            console.log('No Next.js files found, serving basic page');
-            res.status(200).send(
-              '<!DOCTYPE html>' +
-              '<html>' +
-                '<head>' +
-                  '<title>LIASE Application</title>' +
-                  '<meta charset="utf-8">' +
-                  '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-                  '<style>' +
-                    'body { font-family: Arial, sans-serif; margin: 40px; text-align: center; }' +
-                    '.container { max-width: 600px; margin: 0 auto; }' +
-                    '.status { background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0; }' +
-                  '</style>' +
-                '</head>' +
-                '<body>' +
-                  '<div class="container">' +
-                    '<h1>🚀 LIASE Application</h1>' +
-                    '<div class="status">' +
-                      '<h3>Application Status: Running</h3>' +
-                      '<p>Server is running successfully on Azure!</p>' +
-                      '<p>Build files are being served from Express.</p>' +
-                      '<p><strong>Time:</strong> ' + new Date().toISOString() + '</p>' +
-                    '</div>' +
-                    '<div>' +
-                      '<a href="/health" style="color: #0070f3; text-decoration: none;">Check Health Status</a>' +
-                    '</div>' +
-                  '</div>' +
-                '</body>' +
-              '</html>'
-            );
-          });
-          
-          app.listen(port, '0.0.0.0', () => {
-            console.log('✅ Server running on port ' + port);
-            console.log('🌐 Access at: http://localhost:' + port);
-          });
-          
-          // Graceful shutdown
-          process.on('SIGTERM', () => {
-            console.log('Received SIGTERM, shutting down gracefully');
-            process.exit(0);
-          });
-          EOF
-
-      - name: Create production package.json
-        working-directory: ./frontend
-        run: |
-          # Create a minimal production package.json for static file server
-          cat > package-prod.json << 'EOF'
-          {
-            "name": "liase-frontend-deploy",
-            "version": "1.0.0",
-            "main": "server.js",
-            "scripts": {
-              "start": "node server.js"
-            },
-            "engines": {
-              "node": ">=18.0.0"
-            },
-            "dependencies": {
-              "express": "^4.18.2"
-            }
-          }
-          EOF
-
       - name: Create web.config for Azure
         working-directory: ./frontend
         run: |
@@ -416,28 +217,46 @@ jobs:
       - name: Prepare deployment package
         working-directory: ./frontend
         run: |
+          rm -rf deploy-package
           mkdir -p deploy-package
-          
-          # Copy Next.js build output (both .next and out directories)
-          [ -d .next ] && cp -r .next deploy-package/ || echo "No .next directory"
-          [ -d out ] && cp -r out deploy-package/ || echo "No out directory"
-          [ -d public ] && cp -r public deploy-package/ || echo "No public directory"
-          
-          # Copy server files
-          cp server.js deploy-package/
-          cp web.config deploy-package/
-          cp package-prod.json deploy-package/package.json
-          cp next.config.* deploy-package/ 2>/dev/null || true
-          
-          # Debug: show what we're deploying
+
+          echo "Copying Next.js standalone output..."
+          if [ -d .next/standalone ]; then
+            cp -r .next/standalone/. deploy-package/
+            echo "✅ Copied .next/standalone"
+          else
+            echo "❌ Missing .next/standalone directory"
+            exit 1
+          fi
+
+          echo "Copying Next.js static assets..."
+          mkdir -p deploy-package/.next
+          if [ -d .next/static ]; then
+            cp -r .next/static deploy-package/.next/
+            echo "✅ Copied .next/static"
+          else
+            echo "❌ Missing .next/static directory"
+            exit 1
+          fi
+
+          if [ -d public ]; then
+            cp -r public deploy-package/public
+            echo "✅ Copied public directory"
+          else
+            echo "ℹ️ No public directory to copy"
+          fi
+
+          # Copy runtime config files if present
+          [ -f .env.production ] && cp .env.production deploy-package/.env.production
+          cp web.config deploy-package/ 2>/dev/null || echo "ℹ️ No web.config generated"
+
           echo "=== Deployment package contents ==="
           ls -la deploy-package/
-          echo "=== Build directories check ==="
-          [ -d deploy-package/.next ] && echo "✅ .next directory copied" || echo "❌ .next directory missing"
-          [ -d deploy-package/out ] && echo "✅ out directory copied" || echo "❌ out directory missing"
-          [ -d deploy-package/public ] && echo "✅ public directory copied" || echo "❌ public directory missing"
-          echo "=== package.json contents ==="
-          cat deploy-package/package.json
+          echo "=== Verifying critical files ==="
+          [ -f deploy-package/server.js ] && echo "✅ server.js present" || echo "❌ server.js missing"
+          [ -d deploy-package/node_modules ] && echo "✅ node_modules present" || echo "❌ node_modules missing"
+          [ -f deploy-package/package.json ] && echo "✅ package.json present" || echo "❌ package.json missing"
+          [ -d deploy-package/.next/static ] && echo "✅ .next/static present" || echo "❌ .next/static missing"
           
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -457,6 +276,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-app
+
+      - name: Flatten artifact contents
+        run: |
+          if [ -d frontend-app ]; then
+            shopt -s dotglob
+            mv frontend-app/* .
+            rmdir frontend-app
+          fi
 
       - name: Debug deployment files
         run: |

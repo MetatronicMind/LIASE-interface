@@ -1,0 +1,149 @@
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/admin-utils",
+      "regex": "^/admin\\-utils(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin\\-utils(?:/)?$"
+    },
+    {
+      "page": "/dashboard",
+      "regex": "^/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/dashboard/audit-trail",
+      "regex": "^/dashboard/audit\\-trail(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/audit\\-trail(?:/)?$"
+    },
+    {
+      "page": "/dashboard/drug-management",
+      "regex": "^/dashboard/drug\\-management(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/drug\\-management(?:/)?$"
+    },
+    {
+      "page": "/dashboard/overview",
+      "regex": "^/dashboard/overview(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/overview(?:/)?$"
+    },
+    {
+      "page": "/dashboard/role-management",
+      "regex": "^/dashboard/role\\-management(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/role\\-management(?:/)?$"
+    },
+    {
+      "page": "/dashboard/settings",
+      "regex": "^/dashboard/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/settings(?:/)?$"
+    },
+    {
+      "page": "/dashboard/study-review",
+      "regex": "^/dashboard/study\\-review(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/study\\-review(?:/)?$"
+    },
+    {
+      "page": "/dashboard/user-management",
+      "regex": "^/dashboard/user\\-management(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/user\\-management(?:/)?$"
+    },
+    {
+      "page": "/dashboard/user-management/add-user",
+      "regex": "^/dashboard/user\\-management/add\\-user(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/user\\-management/add\\-user(?:/)?$"
+    },
+    {
+      "page": "/dashboard/user-management/role-management",
+      "regex": "^/dashboard/user\\-management/role\\-management(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/user\\-management/role\\-management(?:/)?$"
+    },
+    {
+      "page": "/debug-auth",
+      "regex": "^/debug\\-auth(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/debug\\-auth(?:/)?$"
+    },
+    {
+      "page": "/debug-permissions",
+      "regex": "^/debug\\-permissions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/debug\\-permissions(?:/)?$"
+    },
+    {
+      "page": "/favicon.ico",
+      "regex": "^/favicon\\.ico(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/favicon\\.ico(?:/)?$"
+    },
+    {
+      "page": "/login",
+      "regex": "^/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/login(?:/)?$"
+    },
+    {
+      "page": "/register",
+      "regex": "^/register(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "RSC",
+    "varyHeader": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch",
+    "prefetchHeader": "Next-Router-Prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "Next-Router-Segment-Prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}
