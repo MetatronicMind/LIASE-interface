@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 
 const cosmosService = require('../services/cosmosService');
 const User = require('../models/User');
+const Role = require('../models/Role');
 const AuditLog = require('../models/AuditLog');
 const authenticateToken = require('../middleware/auth');
 const geolocationService = require('../services/geolocationService');
@@ -212,7 +213,11 @@ router.post('/register', [
 
     const createdOrg = await cosmosService.createItem('organizations', organization.toJSON());
 
-    // Create admin user
+    // Create superadmin role for this organization
+    const superadminRole = Role.createFromSystemRole('superadmin', createdOrg.id, 'system');
+    const createdRole = await cosmosService.createItem('users', superadminRole.toJSON());
+
+    // Create superadmin user
     const username = `${adminEmail.split('@')[0]}_${createdOrg.id.substring(0, 6)}`;
     const adminUser = new User({
       organizationId: createdOrg.id,
@@ -221,7 +226,9 @@ router.post('/register', [
       password: adminPassword,
       firstName: adminFirstName,
       lastName: adminLastName,
-      role: 'Admin',
+      role: 'superadmin',
+      roleId: createdRole.id,
+      permissions: superadminRole.permissions,
       createdBy: 'system'
     });
 
@@ -248,7 +255,7 @@ router.post('/register', [
       action: 'create',
       resource: 'organization',
       resourceId: createdOrg.id,
-      details: `Organization ${organizationName} registered with admin user`,
+      details: `Organization ${organizationName} registered with superadmin user`,
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       metadata: { plan }
@@ -257,7 +264,7 @@ router.post('/register', [
     await cosmosService.createItem('audit-logs', auditLog.toJSON());
 
     res.status(201).json({
-      message: 'Organization and admin user created successfully',
+      message: 'Organization and superadmin user created successfully',
       organization: {
         id: createdOrg.id,
         name: createdOrg.name,
