@@ -436,4 +436,246 @@ router.get('/export/organization-data',
   }
 );
 
+// Create admin user with full permissions
+router.post('/create-admin-user', async (req, res) => {
+  try {
+    const { username, email, password, firstName, lastName, roleType = 'admin' } = req.body;
+
+    // Validate input
+    if (!username || !email || !password || !firstName || !lastName) {
+      return res.status(400).json({
+        error: 'All fields are required',
+        required: ['username', 'email', 'password', 'firstName', 'lastName']
+      });
+    }
+
+    // Use requesting user's organization or allow override for superadmin
+    const organizationId = req.user ? req.user.organizationId : req.body.organizationId;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        error: 'Organization ID is required'
+      });
+    }
+
+    console.log(`Creating ${roleType} user: ${email} in org: ${organizationId}`);
+
+    // Check if user already exists
+    const existingUserQuery = `
+      SELECT * FROM c 
+      WHERE c.type = 'user' 
+      AND (c.email = @email OR c.username = @username)
+    `;
+    const existingUsers = await cosmosService.queryItems('users', existingUserQuery, [
+      { name: '@email', value: email.toLowerCase() },
+      { name: '@username', value: username.toLowerCase() }
+    ]);
+
+    if (existingUsers.length > 0) {
+      return res.status(409).json({
+        error: 'User with this email or username already exists'
+      });
+    }
+
+    // Ensure the role exists
+    const roleQuery = `
+      SELECT * FROM c 
+      WHERE c.type = 'role' 
+      AND c.name = @roleName 
+      AND c.organizationId = @organizationId
+    `;
+    const roleParams = [
+      { name: '@roleName', value: roleType },
+      { name: '@organizationId', value: organizationId }
+    ];
+    
+    let existingRoles = await cosmosService.queryItems('users', roleQuery, roleParams);
+    let role;
+
+    if (existingRoles.length === 0) {
+      // Create the role
+      console.log(`Creating ${roleType} role...`);
+      
+      const rolePermissions = roleType === 'superadmin' ? {
+        dashboard: { read: true, write: true },
+        users: { read: true, write: true, delete: true },
+        roles: { read: true, write: true, delete: true },
+        drugs: { read: true, write: true, delete: true },
+        studies: { read: true, write: true, delete: true },
+        audit: { read: true, write: true, delete: false },
+        settings: { read: true, write: true },
+        organizations: { read: true, write: true, delete: true }
+      } : {
+        dashboard: { read: true, write: true },
+        users: { read: true, write: true, delete: true },
+        roles: { read: true, write: true, delete: true },
+        drugs: { read: true, write: true, delete: true },
+        studies: { read: true, write: true, delete: true },
+        audit: { read: true, write: false, delete: false },
+        settings: { read: true, write: true },
+        organizations: { read: true, write: true, delete: false }
+      };
+
+      role = {
+        id: uuidv4(),
+        type: 'role',
+        organizationId: organizationId,
+        name: roleType,
+        displayName: roleType === 'superadmin' ? 'Super Administrator' : 'Administrator',
+        description: `${roleType === 'superadmin' ? 'Full system' : 'Organization'} administrator with ${roleType === 'superadmin' ? 'all' : 'most'} permissions`,
+        isSystemRole: true,
+        isActive: true,
+        permissions: rolePermissions,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: req.user ? req.user.id : 'system'
+      };
+      
+      await cosmosService.createItem('users', role);
+      console.log(`${roleType} role created with ID:`, role.id);
+    } else {
+      role = existingRoles[0];
+      console.log(`Using existing ${roleType} role with ID:`, role.id);
+    }
+
+    // Create the user
+    const User = require('../models/User');
+    const newUser = new User({
+      organizationId: organizationId,
+      username: username.toLowerCase(),
+      email: email.toLowerCase(),
+      password: password,
+      firstName: firstName,
+      lastName: lastName,
+      roleId: role.id,
+      role: roleType,
+      permissions: role.permissions,
+      createdBy: req.user ? req.user.id : 'system'
+    });
+
+    // Hash password
+    await newUser.hashPassword();
+
+    // Save user
+    const savedUser = await cosmosService.createItem('users', newUser.toJSON());
+
+    // Return safe user data
+    const safeUser = newUser.toSafeJSON();
+
+    res.status(201).json({
+      message: `${roleType} user created successfully`,
+      user: safeUser,
+      role: {
+        id: role.id,
+        name: role.name,
+        displayName: role.displayName,
+        permissions: role.permissions
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating admin user:', error);
+    res.status(500).json({
+      error: 'Failed to create admin user',
+      message: error.message
+    });
+  }
+});
+
+// TEMPORARY: Fix superadmin permissions for a specific user
+router.post('/fix-superadmin-permissions', async (req, res) => {
+  try {
+    const { userId, organizationId } = req.body;
+
+    if (!userId || !organizationId) {
+      return res.status(400).json({
+        error: 'userId and organizationId are required'
+      });
+    }
+
+    console.log(`Fixing superadmin permissions for user ${userId} in org ${organizationId}`);
+
+    // Get the user
+    const user = await cosmosService.getItem('users', userId, organizationId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if superadmin role exists
+    const roleQuery = `
+      SELECT * FROM c 
+      WHERE c.type = 'role' 
+      AND c.name = 'superadmin' 
+      AND c.organizationId = @organizationId
+    `;
+    const roleParams = [{ name: '@organizationId', value: organizationId }];
+    const existingRoles = await cosmosService.queryItems('users', roleQuery, roleParams);
+
+    let superadminRole;
+    
+    if (existingRoles.length === 0) {
+      // Create superadmin role
+      console.log('Creating superadmin role...');
+      superadminRole = {
+        id: uuidv4(),
+        type: 'role',
+        organizationId: organizationId,
+        name: 'superadmin',
+        displayName: 'Super Administrator',
+        description: 'Full system access with all permissions',
+        isSystemRole: true,
+        isActive: true,
+        permissions: {
+          dashboard: { read: true, write: true },
+          users: { read: true, write: true, delete: true },
+          roles: { read: true, write: true, delete: true },
+          drugs: { read: true, write: true, delete: true },
+          studies: { read: true, write: true, delete: true },
+          audit: { read: true, write: true, delete: false },
+          settings: { read: true, write: true },
+          organizations: { read: true, write: true, delete: true }
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'system'
+      };
+      
+      await cosmosService.createItem('users', superadminRole);
+      console.log('Superadmin role created with ID:', superadminRole.id);
+    } else {
+      superadminRole = existingRoles[0];
+      console.log('Using existing superadmin role with ID:', superadminRole.id);
+    }
+
+    // Update the user
+    const updatedUser = {
+      ...user,
+      roleId: superadminRole.id,
+      role: 'superadmin',
+      permissions: superadminRole.permissions,
+      updatedAt: new Date().toISOString()
+    };
+
+    await cosmosService.updateItem('users', userId, organizationId, updatedUser);
+
+    res.json({
+      message: 'Superadmin permissions fixed successfully',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        roleId: updatedUser.roleId,
+        permissions: updatedUser.permissions
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fixing superadmin permissions:', error);
+    res.status(500).json({
+      error: 'Failed to fix superadmin permissions',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
