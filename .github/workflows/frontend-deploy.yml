@@ -35,6 +35,14 @@ jobs:
         run: |
           npm ci
 
+      - name: Create production environment file
+        working-directory: ./frontend
+        run: |
+          echo "Creating .env.production with correct API URL..."
+          echo "NEXT_PUBLIC_API_URL=https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api" > .env.production
+          echo "Environment file created:"
+          cat .env.production
+
       - name: Apply lint fixes
         working-directory: ./frontend
         run: |
