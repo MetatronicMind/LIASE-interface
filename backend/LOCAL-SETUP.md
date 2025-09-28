@@ -29,6 +29,27 @@ npm install
 
 1. Update `.env.local` with your Azure Cosmos DB credentials
 2. Get credentials from Azure Portal
+3. (Windows PowerShell) You can export credentials for the current session instead of storing in file:
+
+```powershell
+setx COSMOS_DB_ENDPOINT "https://<your-account>.documents.azure.com:443/"
+setx COSMOS_DB_KEY "<your-primary-key>"
+setx COSMOS_DB_DATABASE_ID "liase-saas"
+# Restart your shell or VS Code terminal after setx
+```
+
+Or temporary for current PowerShell session only:
+
+```powershell
+$env:COSMOS_DB_ENDPOINT="https://<your-account>.documents.azure.com:443/"
+$env:COSMOS_DB_KEY="<your-primary-key>"
+$env:COSMOS_DB_DATABASE_ID="liase-saas"
+```
+
+4. Ensure your local IP is allowed in the Cosmos DB networking/firewall settings (or use Private Endpoint / VNet if configured)
+5. Run the connection test (see below) before starting the server
+
+> IMPORTANT: Never commit real keys. `.env.local` is git-ignored. Rotate the key in Azure if it is ever exposed.
 
 ### 3. Initialize Database
 
@@ -130,6 +151,28 @@ curl -k https://localhost:8081/_explorer/index.html
 
 # Restart the emulator if needed
 ```
+
+#### Test direct connection to Azure Cosmos (Node REPL)
+
+```bash
+node - <<'EOF'
+const { CosmosClient } = require('@azure/cosmos');
+const endpoint = process.env.COSMOS_DB_ENDPOINT;
+const key = process.env.COSMOS_DB_KEY;
+console.log('Testing Cosmos connection to', endpoint);
+const client = new CosmosClient({ endpoint, key });
+client.databases.readAll().fetchAll()
+  .then(r => { console.log('Databases:', r.resources.map(d=>d.id)); process.exit(0); })
+  .catch(e => { console.error('Connection failed:', e.code, e.message); process.exit(1); });
+EOF
+```
+
+If you see `COSMOS_INIT_FAILED` responses (HTTP 503) from the API:
+
+1. Verify env vars: `echo $env:COSMOS_DB_ENDPOINT` (PowerShell) or `echo $COSMOS_DB_ENDPOINT` (bash)
+2. Confirm firewall/network access
+3. Check key validity (try regenerating primary key in Azure Portal)
+4. Inspect server logs for `Error initializing Cosmos DB:` details
 
 ### Port Already in Use
 

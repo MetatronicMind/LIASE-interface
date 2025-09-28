@@ -1,6 +1,7 @@
 const { CosmosClient } = require('@azure/cosmos');
 const { DefaultAzureCredential } = require('@azure/identity');
 const https = require('https');
+const { loadSecret } = require('../config/secretLoader');
 
 class CosmosService {
   constructor() {
@@ -9,6 +10,7 @@ class CosmosService {
     this.containers = {};
     this.initialized = false;
     this.initPromise = null;
+    this.lastInitError = null; // Store last initialization error for diagnostics
   }
 
   async initializeDatabase() {
@@ -29,20 +31,40 @@ class CosmosService {
 
   async _doInitialize() {
     try {
+      // Resolve endpoint & key (supports direct env or Key Vault secret names)
+      const endpoint = await loadSecret({
+        directEnv: 'COSMOS_DB_ENDPOINT',
+        secretNameEnv: 'COSMOS_DB_ENDPOINT_SECRET_NAME',
+        required: true
+      });
+
+      const key = process.env.NODE_ENV === 'production'
+        ? await loadSecret({
+            directEnv: 'COSMOS_DB_KEY',
+            secretNameEnv: 'COSMOS_DB_KEY_SECRET_NAME',
+            // In production we might use Managed Identity (no key). So not strictly required
+            required: false
+          })
+        : await loadSecret({
+            directEnv: 'COSMOS_DB_KEY',
+            secretNameEnv: 'COSMOS_DB_KEY_SECRET_NAME',
+            required: true
+          });
+
       // Initialize Cosmos client
       if (process.env.NODE_ENV === 'production') {
         // Use Azure Managed Identity in production
         const credential = new DefaultAzureCredential();
         this.client = new CosmosClient({
-          endpoint: process.env.COSMOS_DB_ENDPOINT,
+          endpoint,
           aadCredentials: credential
         });
       } else {
         // Use connection string for development with SSL verification disabled
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         this.client = new CosmosClient({
-          endpoint: process.env.COSMOS_DB_ENDPOINT,
-          key: process.env.COSMOS_DB_KEY,
+          endpoint,
+          key,
           agent: process.env.NODE_ENV === 'development' ? new (require('https').Agent)({
             rejectUnauthorized: false
           }) : undefined
@@ -50,9 +72,8 @@ class CosmosService {
       }
 
       // Create database if it doesn't exist
-      const { database } = await this.client.databases.createIfNotExists({
-        id: process.env.COSMOS_DB_DATABASE_ID || 'liase-saas'
-      });
+      const dbId = process.env.COSMOS_DB_DATABASE_ID || 'liase-saas';
+      const { database } = await this.client.databases.createIfNotExists({ id: dbId });
       this.database = database;
 
       // Create containers
@@ -60,10 +81,19 @@ class CosmosService {
       
       this.initialized = true;
       this.initPromise = null; // Clear the promise
+      this.lastInitError = null; // Clear any previous error
       console.log('Cosmos DB initialized successfully');
     } catch (error) {
       this.initPromise = null; // Clear the promise on error so it can be retried
       console.error('Error initializing Cosmos DB:', error);
+      // Classify error for upstream error handler / health checks
+      error.code = error.code || 'COSMOS_INIT_FAILED';
+      error.status = 503;
+      this.lastInitError = {
+        message: error.message,
+        code: error.code,
+        time: new Date().toISOString()
+      };
       throw error;
     }
   }
@@ -125,6 +155,15 @@ class CosmosService {
 
   getContainer(containerName) {
     return this.containers[containerName];
+  }
+
+  // Expose a quick status snapshot (used by middleware / health endpoint)
+  getStatus() {
+    return {
+      initialized: this.initialized,
+      containers: Object.keys(this.containers),
+      lastInitError: this.lastInitError
+    };
   }
 
   // Helper method to determine partition key based on container and item data

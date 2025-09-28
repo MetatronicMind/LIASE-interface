@@ -49,6 +49,19 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Cosmos DB errors
+  if (err.code === 'COSMOS_INIT_FAILED') {
+    error = {
+      message: 'Cosmos DB initialization failed. Service temporarily unavailable.',
+      status: 503,
+      code: 'COSMOS_INIT_FAILED',
+      details: {
+        original: err.message,
+        suggestion: 'Verify COSMOS_DB_ENDPOINT, COSMOS_DB_KEY, and firewall/network access.'
+      },
+      retryAfter: 30
+    };
+  }
+
   if (err.code === 409) {
     error = {
       message: 'Resource already exists',

@@ -125,6 +125,25 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Cosmos availability middleware (after basic health but before API routes)
+app.use((req, res, next) => {
+  // Allow health and static root
+  if (req.path.startsWith('/api/health') || req.path.startsWith('/api/auth/login')) {
+    return next();
+  }
+  const cosmosStatus = cosmosService.getStatus ? cosmosService.getStatus() : { initialized: true };
+  if (!cosmosStatus.initialized) {
+    return res.status(503).json({
+      error: 'Cosmos DB not initialized',
+      code: 'COSMOS_UNAVAILABLE',
+      details: cosmosStatus.lastInitError || null,
+      retryAfter: 30,
+      timestamp: new Date().toISOString()
+    });
+  }
+  next();
+});
+
 // Test endpoint for drug discovery without auth
 app.get('/api/test-discover', async (req, res) => {
   try {

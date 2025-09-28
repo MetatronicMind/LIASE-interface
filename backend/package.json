@@ -20,6 +20,7 @@
   "dependencies": {
     "@azure/cosmos": "^4.0.0",
     "@azure/identity": "^4.0.1",
+    "@azure/keyvault-secrets": "^4.9.0",
     "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
