@@ -77,6 +77,122 @@ router.get('/',
   }
 );
 
+// Get studies for data entry (ICSR classified only)
+router.get('/data-entry',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const { 
+        page = 1, 
+        limit = 50, 
+        search
+      } = req.query;
+      
+      // Query for studies that are either manually tagged as ICSR or AI-classified as ICSR
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND (c.userTag = @tag OR (c.userTag = null AND c.icsrClassification != null AND c.icsrClassification != ""))';
+      const parameters = [
+        { name: '@orgId', value: req.user.organizationId },
+        { name: '@tag', value: 'ICSR' }
+      ];
+
+      if (search) {
+        query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
+        parameters.push({ name: '@search', value: search });
+      }
+
+      query += ' ORDER BY c.createdAt DESC';
+
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      query += ` OFFSET ${offset} LIMIT ${limit}`;
+
+      const result = await cosmosService.queryItems('studies', query, parameters);
+
+      await auditAction(
+        req.user,
+        'list',
+        'study',
+        'data_entry',
+        'Retrieved ICSR studies for data entry',
+        { page, limit, search }
+      );
+
+      res.json({
+        success: true,
+        data: result.resources || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          hasMore: result.resources?.length === parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Data entry studies fetch error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch data entry studies', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+// Get studies for medical examiner (ICSR with completed R3 forms)
+router.get('/medical-examiner',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const { 
+        page = 1, 
+        limit = 50, 
+        search
+      } = req.query;
+      
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @tag AND c.r3FormStatus = @formStatus';
+      const parameters = [
+        { name: '@orgId', value: req.user.organizationId },
+        { name: '@tag', value: 'ICSR' },
+        { name: '@formStatus', value: 'completed' }
+      ];
+
+      if (search) {
+        query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
+        parameters.push({ name: '@search', value: search });
+      }
+
+      query += ' ORDER BY c.r3FormCompletedAt DESC';
+
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      query += ` OFFSET ${offset} LIMIT ${limit}`;
+
+      const result = await cosmosService.queryItems('studies', query, parameters);
+
+      await auditAction(
+        req.user,
+        'list',
+        'study',
+        'medical_examiner',
+        'Retrieved completed ICSR studies for medical examination',
+        { page, limit, search }
+      );
+
+      res.json({
+        success: true,
+        data: result.resources || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          hasMore: result.resources?.length === parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Medical examiner studies fetch error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch medical examiner studies', 
+        message: error.message 
+      });
+    }
+  }
+);
+
 // Get specific study
 router.get('/:studyId',
   authorizePermission('studies', 'read'),
@@ -715,122 +831,6 @@ router.post('/:id/r3-form/complete',
       console.error('R3 form completion error:', error);
       res.status(500).json({ 
         error: 'Failed to complete R3 form', 
-        message: error.message 
-      });
-    }
-  }
-);
-
-// Get studies for data entry (ICSR classified only)
-router.get('/data-entry',
-  authorizePermission('studies', 'read'),
-  async (req, res) => {
-    try {
-      const { 
-        page = 1, 
-        limit = 50, 
-        search
-      } = req.query;
-      
-      // Query for studies that are either manually tagged as ICSR or AI-classified as ICSR
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND (c.userTag = @tag OR (c.userTag = null AND c.icsrClassification != null AND c.icsrClassification != ""))';
-      const parameters = [
-        { name: '@orgId', value: req.user.organizationId },
-        { name: '@tag', value: 'ICSR' }
-      ];
-
-      if (search) {
-        query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
-        parameters.push({ name: '@search', value: search });
-      }
-
-      query += ' ORDER BY c.createdAt DESC';
-
-      const offset = (parseInt(page) - 1) * parseInt(limit);
-      query += ` OFFSET ${offset} LIMIT ${limit}`;
-
-      const result = await cosmosService.queryItems('studies', query, parameters);
-
-      await auditAction(
-        req.user,
-        'list',
-        'study',
-        'data_entry',
-        'Retrieved ICSR studies for data entry',
-        { page, limit, search }
-      );
-
-      res.json({
-        success: true,
-        data: result.resources || [],
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          hasMore: result.resources?.length === parseInt(limit)
-        }
-      });
-    } catch (error) {
-      console.error('Data entry studies fetch error:', error);
-      res.status(500).json({ 
-        error: 'Failed to fetch data entry studies', 
-        message: error.message 
-      });
-    }
-  }
-);
-
-// Get studies for medical examiner (ICSR with completed R3 forms)
-router.get('/medical-examiner',
-  authorizePermission('studies', 'read'),
-  async (req, res) => {
-    try {
-      const { 
-        page = 1, 
-        limit = 50, 
-        search
-      } = req.query;
-      
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @tag AND c.r3FormStatus = @formStatus';
-      const parameters = [
-        { name: '@orgId', value: req.user.organizationId },
-        { name: '@tag', value: 'ICSR' },
-        { name: '@formStatus', value: 'completed' }
-      ];
-
-      if (search) {
-        query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
-        parameters.push({ name: '@search', value: search });
-      }
-
-      query += ' ORDER BY c.r3FormCompletedAt DESC';
-
-      const offset = (parseInt(page) - 1) * parseInt(limit);
-      query += ` OFFSET ${offset} LIMIT ${limit}`;
-
-      const result = await cosmosService.queryItems('studies', query, parameters);
-
-      await auditAction(
-        req.user,
-        'list',
-        'study',
-        'medical_examiner',
-        'Retrieved completed ICSR studies for medical examination',
-        { page, limit, search }
-      );
-
-      res.json({
-        success: true,
-        data: result.resources || [],
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          hasMore: result.resources?.length === parseInt(limit)
-        }
-      });
-    } catch (error) {
-      console.error('Medical examiner studies fetch error:', error);
-      res.status(500).json({ 
-        error: 'Failed to fetch medical examiner studies', 
         message: error.message 
       });
     }
