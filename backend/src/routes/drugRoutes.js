@@ -103,21 +103,84 @@ router.get('/jobs',
   }
 );
 
-// Get external API health status
+// Get external API health status (including batch processing)
 router.get('/api-health',
   async (req, res) => {
     try {
-      const healthStatus = externalApiService.getHealthStatus();
-      const connectionTest = await externalApiService.testConnection();
+      const comprehensiveHealthStatus = externalApiService.getComprehensiveHealthStatus();
+      const legacyConnectionTest = await externalApiService.testConnection();
+      const batchConnectionTest = await externalApiService.testBatchConnection();
       
       res.json({
-        ...healthStatus,
-        connectionTest
+        ...comprehensiveHealthStatus,
+        connectionTests: {
+          legacy: legacyConnectionTest,
+          batch: batchConnectionTest
+        },
+        recommendations: {
+          optimalProcessingMethod: comprehensiveHealthStatus.overall.recommendedProcessingMethod,
+          useBatchProcessing: comprehensiveHealthStatus.overall.performance.recommendBatch,
+          reason: comprehensiveHealthStatus.batch.healthyEndpoints >= comprehensiveHealthStatus.legacy.healthyEndpoints
+            ? 'Batch processing has better endpoint availability'
+            : 'Legacy processing has better endpoint availability'
+        }
       });
     } catch (error) {
       console.error('Error getting API health status:', error);
       res.status(500).json({
         error: 'Failed to get API health status',
+        message: error.message
+      });
+    }
+  }
+);
+
+// Test batch processing endpoint
+router.get('/test-batch-processing',
+  async (req, res) => {
+    try {
+      const testDrugs = [
+        {
+          pmid: '40995636',
+          drugName: 'DEXAMETHASONE',
+          title: 'Test Study 1'
+        },
+        {
+          pmid: '40190438',
+          drugName: 'ASPIRIN',
+          title: 'Test Study 2'
+        },
+        {
+          pmid: '12345678',
+          drugName: 'IBUPROFEN',
+          title: 'Test Study 3'
+        }
+      ];
+
+      console.log('[TEST] Testing batch processing with sample data...');
+      
+      const startTime = Date.now();
+      const batchResult = await externalApiService.sendDrugDataBatchForced(
+        testDrugs,
+        { query: 'test', sponsor: 'TestSponsor', frequency: 'manual' },
+        { 
+          enableDetailedLogging: true,
+          batchSize: 3,
+          maxConcurrency: 2
+        }
+      );
+      const duration = Date.now() - startTime;
+
+      res.json({
+        success: true,
+        testDuration: duration,
+        batchResult,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Batch processing test failed:', error);
+      res.status(500).json({
+        error: 'Batch processing test failed',
         message: error.message
       });
     }
@@ -409,12 +472,42 @@ router.get('/discover',
             metadata: { ...job.metadata, phase: 'ai_inference' }
           });
 
-          console.log('Sending drug data to external API...');
+          console.log('Sending drug data to external API with batch processing...');
+          
+          // Create progress callback for real-time updates
+          const progressCallback = async (progress) => {
+            const aiProgress = 40 + Math.round((progress.percentage / 100) * 30); // AI takes 40-70% of total progress
+            
+            await jobTrackingService.updateJob(jobId, {
+              progress: aiProgress,
+              currentStep: 3,
+              message: `AI inference: ${progress.processed}/${progress.total} studies (${progress.percentage}%)...`,
+              metadata: { 
+                ...job.metadata, 
+                phase: 'ai_inference',
+                aiProgress: progress
+              }
+            });
+          };
+
           const externalApiResponse = await externalApiService.sendDrugData(
             results.drugs, 
-            { query, sponsor, frequency }
+            { query, sponsor, frequency },
+            { 
+              enableDetailedLogging: true,
+              progressCallback: progressCallback,
+              batchSize: 20, // Process in batches of 20 for optimal performance
+              maxConcurrency: 4 // Use all available endpoints
+            }
           );
-          console.log('External API response:', externalApiResponse);
+          
+          console.log('External API batch processing response:', {
+            success: externalApiResponse.success,
+            method: externalApiResponse.processingMethod || 'sequential',
+            processedCount: externalApiResponse.processedCount,
+            totalCount: externalApiResponse.totalCount,
+            performance: externalApiResponse.performance
+          });
           
           // Add external API response to results
           results.externalApiResponse = externalApiResponse;
@@ -1610,12 +1703,41 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
           metadata: { phase: 'ai_inference' }
         });
 
-        console.log('Sending drug data to external API...');
+        console.log('Sending drug data to external API with batch processing...');
+        
+        // Create progress callback for real-time updates
+        const progressCallback = async (progress) => {
+          const aiProgress = 40 + Math.round((progress.percentage / 100) * 30); // AI takes 40-70% of total progress
+          
+          await jobTrackingService.updateJob(jobId, {
+            progress: aiProgress,
+            currentStep: 3,
+            message: `AI inference: ${progress.processed}/${progress.total} studies (${progress.percentage}%)...`,
+            metadata: { 
+              phase: 'ai_inference',
+              aiProgress: progress
+            }
+          });
+        };
+
         const externalApiResponse = await externalApiService.sendDrugData(
           results.drugs, 
-          { query, sponsor, frequency }
+          { query, sponsor, frequency },
+          { 
+            enableDetailedLogging: true,
+            progressCallback: progressCallback,
+            batchSize: 20, // Process in batches of 20 for optimal performance
+            maxConcurrency: 4 // Use all available endpoints
+          }
         );
-        console.log('External API response:', externalApiResponse);
+        
+        console.log('External API batch processing response:', {
+          success: externalApiResponse.success,
+          method: externalApiResponse.processingMethod || 'sequential',
+          processedCount: externalApiResponse.processedCount,
+          totalCount: externalApiResponse.totalCount,
+          performance: externalApiResponse.performance
+        });
         
         // Add external API response to results
         results.externalApiResponse = externalApiResponse;
@@ -1778,14 +1900,40 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
           sponsor: configObject.sponsor,
           frequency: configObject.frequency
         });
+
+        // Create progress callback for real-time updates
+        const progressCallback = async (progress) => {
+          const aiProgress = 40 + Math.round((progress.percentage / 100) * 30); // AI takes 40-70% of total progress
+          
+          await jobTrackingService.updateJob(jobId, {
+            progress: aiProgress,
+            currentStep: 3,
+            message: `AI inference: ${progress.processed}/${progress.total} studies (${progress.percentage}%)...`,
+            metadata: { 
+              phase: 'ai_inference',
+              aiProgress: progress
+            }
+          });
+        };
         
         const aiResponse = await externalApiService.sendDrugData(results.drugs, {
           query: configObject.query,
           sponsor: configObject.sponsor,
           frequency: configObject.frequency
+        }, {
+          enableDetailedLogging: true,
+          progressCallback: progressCallback,
+          batchSize: 20, // Process in batches of 20 for optimal performance
+          maxConcurrency: 4 // Use all available endpoints
         });
         
-        console.log('AI API Response:', JSON.stringify(aiResponse, null, 2));
+        console.log('AI API Batch Processing Response:', {
+          success: aiResponse.success,
+          method: aiResponse.processingMethod || 'sequential',
+          processedCount: aiResponse.processedCount,
+          totalCount: aiResponse.totalCount,
+          performance: aiResponse.performance
+        });
         externalApiSuccess = aiResponse.success;
 
         // Update job - AI inference completed

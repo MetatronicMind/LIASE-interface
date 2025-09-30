@@ -1,12 +1,32 @@
 const xml2js = require('xml2js'); // This stays for XML parsing
 
-// Step 1: Search for articles related to drugs
+// Step 1: Search for articles related to drugs using the new custom endpoint
 async function getDrugArticles(term, maxResults = 10) {
-    // 1. Search PubMed for the term (e.g., "drug")
-    const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(term)}&retmax=${maxResults}&retmode=json`;
+    // 1. Search for PMIDs using the new custom endpoint
+    const searchUrl = `http://4.156.175.195/get_pmidlist/?search=${encodeURIComponent(term)}`;
     const searchResp = await fetch(searchUrl);
     const searchJson = await searchResp.json();
-    const ids = searchJson.esearchresult.idlist.join(',');
+    
+    // The new endpoint returns PMIDs directly in an array or object
+    let pmidList = [];
+    if (Array.isArray(searchJson)) {
+        pmidList = searchJson;
+    } else if (searchJson.pmids && Array.isArray(searchJson.pmids)) {
+        pmidList = searchJson.pmids;
+    } else if (searchJson.idlist && Array.isArray(searchJson.idlist)) {
+        pmidList = searchJson.idlist;
+    } else {
+        console.log('No PMIDs found in response');
+        return [];
+    }
+    
+    if (pmidList.length === 0) {
+        return [];
+    }
+    
+    // Limit results to maxResults
+    const limitedIds = pmidList.slice(0, maxResults);
+    const ids = limitedIds.join(',');
 
     // 2. Fetch article details with efetch
     const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids}&retmode=xml`;
@@ -76,18 +96,27 @@ class PubMedService {
 
   async search(query, { maxResults = 50, dateFrom, dateTo } = {}) {
     try {
-      const params = this.buildParams({
-        db: 'pubmed',
-        term: query,
-        retmode: 'json',
-        retmax: Math.min(maxResults, 200),
-        sort: 'relevance'
+      // Use the new custom PMID endpoint
+      const params = new URLSearchParams({
+        search: query
       });
 
-      if (dateFrom) params.mindate = dateFrom;
-      if (dateTo) params.maxdate = dateTo;
+      // The API requires both start_date and end_date, so provide defaults if missing
+      const defaultStartDate = '2000-01-01'; // Default to year 2000 if no start date
+      const defaultEndDate = new Date().toISOString().split('T')[0]; // Default to today if no end date
 
-      const searchUrl = `${this.base}/esearch.fcgi?${new URLSearchParams(params)}`;
+      // Add date range parameters (convert to YYYY-MM-DD format if needed)
+      const startDate = dateFrom ? 
+        (dateFrom.includes('/') ? dateFrom.replace(/\//g, '-') : dateFrom) : 
+        defaultStartDate;
+      const endDate = dateTo ? 
+        (dateTo.includes('/') ? dateTo.replace(/\//g, '-') : dateTo) : 
+        defaultEndDate;
+
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
+
+      const searchUrl = `http://4.156.175.195/get_pmidlist/?${params.toString()}`;
       console.log('PubMed API call:', searchUrl);
       
       await this.respectRateLimit();
@@ -95,7 +124,21 @@ class PubMedService {
       const data = await searchResp.json();
       console.log('PubMed API response:', data);
       
-      const ids = data?.esearchresult?.idlist || [];
+      // The new endpoint returns PMIDs directly in an array or object
+      let ids = [];
+      if (Array.isArray(data)) {
+        ids = data;
+      } else if (data.pmids && Array.isArray(data.pmids)) {
+        ids = data.pmids;
+      } else if (data.idlist && Array.isArray(data.idlist)) {
+        ids = data.idlist;
+      }
+      
+      // Limit results to maxResults
+      if (ids.length > maxResults) {
+        ids = ids.slice(0, maxResults);
+      }
+      
       console.log('Extracted PMIDs:', ids);
       
       return ids;
@@ -183,23 +226,42 @@ class PubMedService {
     }
   }
 
-  // Enhanced drug articles search using the new getDrugArticles function
+  // Enhanced drug articles search using the new custom PMID endpoint
   async getDrugArticles(term, maxResults = 10) {
     try {
-      // 1. Search PubMed for the term (e.g., "drug")
-      const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(term)}&retmax=${maxResults}&retmode=json`;
+      // 1. Search for PMIDs using the new custom endpoint
+      // Provide default dates since the API requires them
+      const defaultStartDate = '2000-01-01'; 
+      const defaultEndDate = new Date().toISOString().split('T')[0]; 
+      
+      const searchUrl = `http://4.156.175.195/get_pmidlist/?search=${encodeURIComponent(term)}&start_date=${defaultStartDate}&end_date=${defaultEndDate}`;
       console.log('Search URL:', searchUrl);
       
       const searchResp = await fetch(searchUrl);
       const searchJson = await searchResp.json();
       console.log('Search response:', JSON.stringify(searchJson, null, 2));
       
-      if (!searchJson.esearchresult || !searchJson.esearchresult.idlist || searchJson.esearchresult.idlist.length === 0) {
+      // The new endpoint returns PMIDs directly in an array or object
+      let pmidList = [];
+      if (Array.isArray(searchJson)) {
+        pmidList = searchJson;
+      } else if (searchJson.pmids && Array.isArray(searchJson.pmids)) {
+        pmidList = searchJson.pmids;
+      } else if (searchJson.idlist && Array.isArray(searchJson.idlist)) {
+        pmidList = searchJson.idlist;
+      } else {
+        console.log('No PMIDs found in response for term:', term);
+        return [];
+      }
+      
+      if (pmidList.length === 0) {
         console.log('No articles found for term:', term);
         return [];
       }
       
-      const ids = searchJson.esearchresult.idlist.join(',');
+      // Limit results to maxResults
+      const limitedIds = pmidList.slice(0, maxResults);
+      const ids = limitedIds.join(',');
       console.log('Found PMIDs:', ids);
 
       // 2. Fetch article details with efetch
@@ -620,32 +682,48 @@ class PubMedService {
       // Build search term without sponsor (sponsor will be passed to AI inference later)
       let searchTerm = query;
       
-      // Use the simple working approach from test_func.js with date range support
+      // Use the new custom PMID endpoint with date range support
       const params = new URLSearchParams({
-        db: 'pubmed',
-        term: searchTerm,
-        retmax: Math.min(maxResults, 10000), // Allow much higher limits
-        retmode: 'json'
+        search: searchTerm
       });
       
-      // Add date range parameters if provided
-      if (effectiveDateFrom) {
-        params.append('mindate', effectiveDateFrom);
-        console.log('Using date from:', effectiveDateFrom);
-      }
-      if (effectiveDateTo) {
-        params.append('maxdate', effectiveDateTo);
-        console.log('Using date to:', effectiveDateTo);
-      }
+      // Add date range parameters - the API requires both start_date and end_date
+      const defaultStartDate = '2000-01-01'; 
+      const defaultEndDate = new Date().toISOString().split('T')[0]; 
       
-      const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?${params.toString()}`;
+      const startDate = effectiveDateFrom ? effectiveDateFrom.replace(/\//g, '-') : defaultStartDate;
+      const endDate = effectiveDateTo ? effectiveDateTo.replace(/\//g, '-') : defaultEndDate;
+      
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
+      console.log('Using date range:', startDate, 'to', endDate);
+      
+      const searchUrl = `http://4.156.175.195/get_pmidlist/?${params.toString()}`;
       console.log('Search URL:', searchUrl);
       
       const searchResp = await fetch(searchUrl);
       const searchJson = await searchResp.json();
-      console.log('Search response:', searchJson.esearchresult);
+      console.log('Search response:', searchJson);
       
-      if (!searchJson.esearchresult || !searchJson.esearchresult.idlist || searchJson.esearchresult.idlist.length === 0) {
+      // The new endpoint returns PMIDs directly in an array or object
+      let pmidList = [];
+      if (Array.isArray(searchJson)) {
+        pmidList = searchJson;
+      } else if (searchJson.pmids && Array.isArray(searchJson.pmids)) {
+        pmidList = searchJson.pmids;
+      } else if (searchJson.idlist && Array.isArray(searchJson.idlist)) {
+        pmidList = searchJson.idlist;
+      } else {
+        console.log('No PMIDs found in response');
+        return {
+          totalFound: 0,
+          drugs: [],
+          searchDate: new Date().toISOString(),
+          searchParams: options
+        };
+      }
+      
+      if (pmidList.length === 0) {
         console.log('No articles found');
         return {
           totalFound: 0,
@@ -655,7 +733,7 @@ class PubMedService {
         };
       }
       
-      const ids = searchJson.esearchresult.idlist.join(',');
+      const ids = pmidList.join(',');
       console.log('Found PMIDs:', ids);
 
       // 2. Fetch article details with efetch

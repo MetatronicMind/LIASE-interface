@@ -1,4 +1,6 @@
 // External API Service for sending data to AI inference API
+const batchAiInferenceService = require('./batchAiInferenceService');
+
 class ExternalApiService {
   constructor() {
     this.aiInferenceUrls = [
@@ -28,6 +30,13 @@ class ExternalApiService {
       maxRetries: this.aiInferenceUrls.length // Try all endpoints once
     };
     
+    // Batch processing thresholds
+    this.batchThresholds = {
+      minBatchSize: 5, // Use batch processing for 5+ items
+      optimalBatchSize: 20, // Optimal batch size for performance
+      maxBatchSize: 50 // Maximum items per batch
+    };
+    
     // Start periodic health checks for unhealthy endpoints
     this.startHealthMonitoring();
   }
@@ -52,7 +61,7 @@ class ExternalApiService {
    * @param {Object} endpoint - Endpoint health object
    */
   async checkEndpointHealth(endpoint) {
-    const testUrl = `${endpoint.url}?PMID=40190438&sponsor=TestSponsor&drugname=TestDrug`;
+  const testUrl = `${endpoint.url}?PMID=40190438&sponsor=TestSponsor&drugname=TestDrug`;
     const startTime = Date.now();
     
     try {
@@ -67,7 +76,7 @@ class ExternalApiService {
 
       endpoint.responseTimeMs = Date.now() - startTime;
 
-      if (response.ok) {
+      if (response.ok || response.status === 422) {
         endpoint.isHealthy = true;
         endpoint.consecutiveFailures = 0;
         endpoint.lastSuccessAt = new Date();
@@ -132,11 +141,93 @@ class ExternalApiService {
 
   /**
    * Get AI inference for each drug from external API
+   * Intelligently chooses between batch and single processing based on data size
    * @param {Array} drugs - Array of objects with pmid, title, and drugName
    * @param {Object} searchParams - Original search parameters (query, sponsor, frequency)
+   * @param {Object} options - Processing options (forceBatch, progressCallback, etc.)
    * @returns {Promise<Array>} Array of AI inference responses
    */
-  async sendDrugData(drugs, searchParams = {}) {
+  async sendDrugData(drugs, searchParams = {}, options = {}) {
+    const startTime = Date.now();
+    const drugCount = drugs.length;
+
+    console.log(`[ExternalAPI] Processing ${drugCount} drugs for AI inference`);
+
+    // Determine processing strategy
+    const shouldUseBatch = options.forceBatch || 
+                          drugCount >= this.batchThresholds.minBatchSize;
+
+    if (shouldUseBatch) {
+      console.log(`[ExternalAPI] Using batch processing for ${drugCount} items`);
+      return await this.sendDrugDataBatch(drugs, searchParams, options);
+    } else {
+      console.log(`[ExternalAPI] Using sequential processing for ${drugCount} items`);
+      return await this.sendDrugDataSequential(drugs, searchParams, options);
+    }
+  }
+
+  /**
+   * Send drug data using high-performance batch processing
+   * @param {Array} drugs - Array of drug objects
+   * @param {Object} searchParams - Search parameters
+   * @param {Object} options - Processing options
+   * @returns {Promise<Object>} Batch processing results
+   */
+  async sendDrugDataBatch(drugs, searchParams = {}, options = {}) {
+    try {
+      console.log('[ExternalAPI] Starting batch AI inference processing...');
+
+      const batchOptions = {
+        batchSize: Math.min(options.batchSize || this.batchThresholds.optimalBatchSize, this.batchThresholds.maxBatchSize),
+        maxConcurrency: options.maxConcurrency || 4,
+        enableDetailedLogging: options.enableDetailedLogging !== false,
+        enableRetries: options.enableRetries !== false,
+        progressCallback: options.progressCallback
+      };
+
+      // Use the new batch processing service
+      const batchResult = await batchAiInferenceService.processBatch(
+        drugs,
+        searchParams,
+        batchOptions
+      );
+
+      if (batchResult.success) {
+        console.log(`[ExternalAPI] Batch processing completed successfully`);
+        console.log(`[ExternalAPI] Processed ${batchResult.successfulItems}/${batchResult.totalItems} items`);
+        console.log(`[ExternalAPI] Performance: ${batchResult.performance.throughputPerSecond} items/sec`);
+
+        return {
+          success: true,
+          message: 'AI inference completed via batch processing',
+          processedCount: batchResult.successfulItems,
+          totalCount: batchResult.totalItems,
+          results: batchResult.results,
+          errors: batchResult.errors,
+          performance: batchResult.performance,
+          processingMethod: 'batch',
+          timestamp: batchResult.timestamp
+        };
+      } else {
+        console.error('[ExternalAPI] Batch processing failed, falling back to sequential');
+        return await this.sendDrugDataSequential(drugs, searchParams, options);
+      }
+
+    } catch (error) {
+      console.error('[ExternalAPI] Batch processing error:', error);
+      console.log('[ExternalAPI] Falling back to sequential processing');
+      return await this.sendDrugDataSequential(drugs, searchParams, options);
+    }
+  }
+
+  /**
+   * Send drug data using original sequential processing (maintained for compatibility)
+   * @param {Array} drugs - Array of drug objects
+   * @param {Object} searchParams - Search parameters
+   * @param {Object} options - Processing options
+   * @returns {Promise<Object>} Sequential processing results
+   */
+  async sendDrugDataSequential(drugs, searchParams = {}, options = {}) {
     try {
       console.log('Getting AI inference for drugs:', {
         drugsCount: drugs.length,
@@ -164,20 +255,33 @@ class ExternalApiService {
           
           for (let i = 0; i < prioritizedEndpoints.length; i++) {
             const endpoint = prioritizedEndpoints[i];
-            const apiUrl = `${endpoint.url}?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(drugName)}`;
+            // Include sponsor and drugname by default for compatibility
+            let apiUrl = `${endpoint.url}?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(drugName)}`;
             const startTime = Date.now();
             
             try {
               console.log(`Attempt ${i + 1}: Making API call to: ${endpoint.url} (health: ${endpoint.isHealthy ? 'healthy' : 'unhealthy'}, failures: ${endpoint.consecutiveFailures})`);
               
+              // Add timeout control using AbortController
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), this.config.requestTimeout);
+              
               response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
                   'Accept': 'application/json',
-                  'User-Agent': 'LIASE-DEV/1.0'
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                  'Accept-Language': 'en-US,en;q=0.9',
+                  'Accept-Encoding': 'gzip, deflate',
+                  'Connection': 'keep-alive',
+                  'Cache-Control': 'no-cache',
+                  'Origin': 'http://localhost',
+                  'Referer': 'http://localhost/'
                 },
-                timeout: this.config.requestTimeout
+                signal: controller.signal
               });
+              
+              clearTimeout(timeoutId);
 
               const responseTimeMs = Date.now() - startTime;
               console.log(`API response status for PMID ${pmid} from ${endpoint.url}: ${response.status} ${response.statusText} (${responseTimeMs}ms)`);
@@ -193,6 +297,12 @@ class ExternalApiService {
                 console.warn(`Server error from ${endpoint.url} for PMID ${pmid}, trying next endpoint... (${errorMsg})`);
                 this.markEndpointFailure(endpoint, errorMsg);
                 lastError = errorMsg;
+                // Enrich URL for next try on next endpoint if we have sponsor
+                if (!apiUrl.includes('sponsor=') && sponsor) {
+                  apiUrl = `${endpoint.url}?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}`;
+                } else if (!apiUrl.includes('drugname=') && drugName) {
+                  apiUrl = `${endpoint.url}?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(drugName)}`;
+                }
                 continue;
               } else {
                 // Client errors (4xx) - don't retry but don't mark endpoint as failed
@@ -358,6 +468,58 @@ class ExternalApiService {
         lastSuccessAt: ep.lastSuccessAt,
         lastFailureAt: ep.lastFailureAt
       })),
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Get batch processing health status
+   * @returns {Object} Batch service health status
+   */
+  getBatchHealthStatus() {
+    return batchAiInferenceService.getHealthStatus();
+  }
+
+  /**
+   * Test batch processing connection
+   * @returns {Promise<Object>} Batch connection test results
+   */
+  async testBatchConnection() {
+    return await batchAiInferenceService.testConnection();
+  }
+
+  /**
+   * Force the use of batch processing for the next request
+   * @param {Array} drugs - Array of drug objects
+   * @param {Object} searchParams - Search parameters
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Batch processing results
+   */
+  async sendDrugDataBatchForced(drugs, searchParams = {}, options = {}) {
+    return await this.sendDrugDataBatch(drugs, searchParams, { ...options, forceBatch: true });
+  }
+
+  /**
+   * Get comprehensive API health status including both services
+   * @returns {Object} Combined health status
+   */
+  getComprehensiveHealthStatus() {
+    const legacyHealth = this.getHealthStatus();
+    const batchHealth = this.getBatchHealthStatus();
+
+    return {
+      legacy: legacyHealth,
+      batch: batchHealth,
+      overall: {
+        totalEndpoints: legacyHealth.totalEndpoints,
+        healthyEndpoints: Math.max(legacyHealth.healthyEndpoints, batchHealth.healthyEndpoints),
+        recommendedProcessingMethod: legacyHealth.healthyEndpoints > 0 ? 'automatic' : 'batch-only',
+        performance: {
+          legacyAvgResponseTime: legacyHealth.averageResponseTime,
+          batchAvgResponseTime: batchHealth.averageResponseTime,
+          recommendBatch: batchHealth.healthyEndpoints >= legacyHealth.healthyEndpoints
+        }
+      },
       timestamp: new Date().toISOString()
     };
   }
