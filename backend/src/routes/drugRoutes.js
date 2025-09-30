@@ -1785,7 +1785,7 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
               );
               
               // Store study in database
-              const savedStudy = await cosmosService.createItem('studies', study.toObject());
+              const savedStudy = await cosmosService.createItem('studies', study.toJSON());
               studiesCreated++;
               
               console.log(`Successfully created study ${savedStudy.id} for PMID ${aiResult.pmid}`);
