@@ -77,9 +77,16 @@ class RoleService {
   // Create a new role
   async createRole(roleData, createdBy) {
     try {
+      console.log('Creating role with data:', {
+        name: roleData.name,
+        organizationId: roleData.organizationId,
+        displayName: roleData.displayName
+      });
+
       // Check if role name already exists in organization
       const existingRole = await this.getRoleByName(roleData.name, roleData.organizationId);
       if (existingRole) {
+        console.log('Role already exists:', existingRole.id);
         throw new Error(`Role with name '${roleData.name}' already exists in this organization`);
       }
 
@@ -88,8 +95,20 @@ class RoleService {
         createdBy: createdBy.id
       });
 
-      await cosmosService.createItem('users', role.toJSON());
-      return role;
+      console.log('Generated role ID:', role.id);
+
+      try {
+        await cosmosService.createItem('users', role.toJSON());
+        console.log('Role created successfully:', role.id);
+        return role;
+      } catch (cosmosError) {
+        console.error('Cosmos DB error:', cosmosError.message);
+        // Handle Cosmos DB specific errors
+        if (cosmosError.code === 409 || cosmosError.message?.includes('already exists')) {
+          throw new Error(`Role with name '${roleData.name}' already exists in this organization`);
+        }
+        throw cosmosError;
+      }
     } catch (error) {
       console.error('Error creating role:', error);
       throw error;
