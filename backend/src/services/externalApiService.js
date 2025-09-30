@@ -2,9 +2,10 @@
 class ExternalApiService {
   constructor() {
     this.aiInferenceUrls = [
-      'http://20.75.201.207/get_AI_inference/',
-      'http://20.75.201.207/get_AI_inference2/',
-      'http://20.75.201.207/get_AI_inference3/'
+      'http://52.249.241.253/get_AI_inference',
+      'http://4.156.187.77/get_AI_inference2',
+      'http://20.242.192.125/get_AI_inference3',
+      'http://4.156.175.195/get_AI_inference4'
     ];
     this.apiKey = process.env.EXTERNAL_API_KEY || '';
     
