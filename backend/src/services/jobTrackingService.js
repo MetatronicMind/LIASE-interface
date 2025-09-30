@@ -148,13 +148,11 @@ class JobTrackingService {
         dbJob = await cosmosService.getItem('jobs', jobId, organizationId);
       } else {
         // Query for the job if we don't have the partition key
-        const query = {
-          query: "SELECT * FROM c WHERE c.id = @jobId",
-          parameters: [
-            { name: "@jobId", value: jobId }
-          ]
-        };
-        const results = await cosmosService.queryItems('jobs', query);
+        const query = "SELECT * FROM c WHERE c.id = @jobId";
+        const parameters = [
+          { name: "@jobId", value: jobId }
+        ];
+        const results = await cosmosService.queryItems('jobs', query, parameters);
         dbJob = results.length > 0 ? results[0] : null;
       }
       
@@ -181,14 +179,12 @@ class JobTrackingService {
    */
   async getUserJobs(userId, limit = 50) {
     try {
-      const query = {
-        query: "SELECT * FROM c WHERE c.userId = @userId ORDER BY c.startedAt DESC",
-        parameters: [
-          { name: "@userId", value: userId }
-        ]
-      };
+      const query = "SELECT * FROM c WHERE c.userId = @userId ORDER BY c.startedAt DESC";
+      const parameters = [
+        { name: "@userId", value: userId }
+      ];
 
-      const results = await cosmosService.queryItems('jobs', query);
+      const results = await cosmosService.queryItems('jobs', query, parameters);
       return results.slice(0, limit);
     } catch (error) {
       console.error(`Error getting jobs for user ${userId}:`, error);

@@ -35,7 +35,9 @@ const app = express();
 
 // Trust proxy for Azure App Service (disabled for local development)
 if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', true);
+  app.set('trust proxy', 1); // Trust first proxy only
+} else {
+  app.set('trust proxy', false);
 }
 
 // Security middleware
@@ -60,6 +62,21 @@ const generalLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Custom key generator for Azure App Service
+  keyGenerator: (req) => {
+    // Azure App Service sets X-Forwarded-For header
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip;
+    
+    // Validate IP format and provide fallback
+    const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+    return ipRegex.test(ip) ? ip : 'unknown';
+  },
+  // Disable problematic validations for Azure
+  validate: {
+    trustProxy: false,
+    ip: false
+  }
 });
 
 // Stricter limit for write operations
@@ -72,6 +89,17 @@ const writeLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Custom key generator for Azure App Service
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip;
+    const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+    return ipRegex.test(ip) ? ip : 'unknown';
+  },
+  validate: {
+    trustProxy: false,
+    ip: false
+  }
 });
 
 // Very permissive limit for job polling (read-only operations)
@@ -87,6 +115,17 @@ const jobPollingLimiter = rateLimit({
   skip: (req) => {
     // Skip rate limiting for health checks
     return req.path === '/api/health';
+  },
+  // Custom key generator for Azure App Service
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip;
+    const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+    return ipRegex.test(ip) ? ip : 'unknown';
+  },
+  validate: {
+    trustProxy: false,
+    ip: false
   }
 });
 
@@ -115,14 +154,58 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    version: process.env.npm_package_version || '1.0.0'
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connectivity
+    const cosmosStatus = cosmosService.getStatus ? cosmosService.getStatus() : { initialized: false };
+    
+    const healthData = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development',
+      version: process.env.npm_package_version || '1.0.0',
+      cosmos: {
+        initialized: cosmosStatus.initialized,
+        containers: cosmosStatus.containers || []
+      }
+    };
+
+    // If Cosmos is not initialized, return 503
+    if (!cosmosStatus.initialized) {
+      return res.status(503).json({
+        ...healthData,
+        status: 'unhealthy',
+        error: 'Cosmos DB not initialized',
+        details: cosmosStatus.lastInitError || null
+      });
+    }
+
+    // Try a simple database operation to verify connectivity
+    try {
+      // Test with a lightweight query that won't fail if container is empty
+      await cosmosService.queryItems('organizations', 'SELECT TOP 1 c.id FROM c');
+      healthData.cosmos.connectivity = 'ok';
+    } catch (dbError) {
+      healthData.cosmos.connectivity = 'error';
+      healthData.cosmos.error = dbError.message;
+      
+      return res.status(503).json({
+        ...healthData,
+        status: 'unhealthy',
+        error: 'Database connectivity issue'
+      });
+    }
+    
+    res.status(200).json(healthData);
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  }
 });
 
 // Cosmos availability middleware (after basic health but before API routes)
