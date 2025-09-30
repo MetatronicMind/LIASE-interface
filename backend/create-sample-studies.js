@@ -42,6 +42,7 @@ async function createSampleStudies() {
         attributability: 'Probable',
         drugEffect: 'Adverse',
         substanceGroup: 'Antiplatelet agents',
+        userTag: 'ICSR', // Manual classification tag for data entry
         comments: []
       },
       {
@@ -69,6 +70,7 @@ async function createSampleStudies() {
         attributability: 'Certain',
         drugEffect: 'Adverse',
         substanceGroup: 'Antidiabetic agents',
+        userTag: 'ICSR', // Manual classification tag for data entry
         comments: []
       },
       {
@@ -96,6 +98,7 @@ async function createSampleStudies() {
         attributability: 'Probable',
         drugEffect: 'Adverse but manageable',
         substanceGroup: 'ACE inhibitors',
+        userTag: 'AOI', // Manual classification tag
         comments: []
       }
     ];

@@ -732,7 +732,8 @@ router.get('/data-entry',
         search
       } = req.query;
       
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @tag';
+      // Query for studies that are either manually tagged as ICSR or AI-classified as ICSR
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND (c.userTag = @tag OR (c.userTag = null AND c.icsrClassification != null AND c.icsrClassification != ""))';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
         { name: '@tag', value: 'ICSR' }
