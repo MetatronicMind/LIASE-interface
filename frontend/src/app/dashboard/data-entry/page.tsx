@@ -97,22 +97,38 @@ export default function DataEntryPage() {
   const fetchDataEntryStudies = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token"); // Changed from "token" to "auth_token" for consistency
+      
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+      
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "10",
         ...(searchTerm && { search: searchTerm })
       });
 
+      console.log('Fetching data entry studies with params:', Object.fromEntries(params.entries()));
+
       const response = await fetch(`/api/studies/data-entry?${params}`, {
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log('Data entry API response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Data entry API response data:', data);
+        console.log('Number of ICSR studies found:', data.data?.length || 0);
         setStudies(data.data || []);
+      } else {
+        const errorText = await response.text();
+        console.error('Data entry API error:', response.status, response.statusText, errorText);
       }
     } catch (error) {
       console.error("Error fetching data entry studies:", error);
