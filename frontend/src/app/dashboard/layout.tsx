@@ -9,19 +9,39 @@ import {
   ClipboardDocumentListIcon,
   UsersIcon,
   Cog6ToothIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  PencilSquareIcon,
+  DocumentCheckIcon
 } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 
-const navItems = [
-  { name: "Dashboard", href: "/dashboard", icon: <HomeIcon className="w-5 h-5 mr-2" /> },
-  { name: "Drug Management", href: "/dashboard/drug-management", icon: <TableCellsIcon className="w-5 h-5 mr-2" /> },
-  { name: "Study Review", href: "/dashboard/study-review", icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" /> },
-  { name: "Audit Trail", href: "/dashboard/audit-trail", icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" /> },
-  { name: "User Management", href: "/dashboard/user-management", icon: <UsersIcon className="w-5 h-5 mr-2" /> },
-  { name: "Settings", href: "/dashboard/settings", icon: <Cog6ToothIcon className="w-5 h-5 mr-2" /> },
+// Base navigation items
+const baseNavItems = [
+  { name: "Dashboard", href: "/dashboard", icon: <HomeIcon className="w-5 h-5 mr-2" />, roles: ['all'] },
 ];
+
+// Role-specific navigation items
+const roleBasedNavItems = [
+  // Super Admin items
+  { name: "Drug Management", href: "/dashboard/drug-management", icon: <TableCellsIcon className="w-5 h-5 mr-2" />, roles: ['superadmin'] },
+  { name: "Triage", href: "/dashboard/triage", icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin'] },
+  { name: "Data Entry", href: "/dashboard/data-entry", icon: <PencilSquareIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin', 'data_entry'] },
+  { name: "Full Report", href: "/dashboard/full-report", icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin', 'medical_examiner'] },
+  { name: "Audit Trail", href: "/dashboard/audit-trail", icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin'] },
+  { name: "User Management", href: "/dashboard/user-management", icon: <UsersIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin'] },
+  { name: "Settings", href: "/dashboard/settings", icon: <Cog6ToothIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin'] },
+];
+
+// Function to get nav items based on user roles
+const getNavItemsForUser = (userRoles: string[] = []) => {
+  const filteredItems = roleBasedNavItems.filter(item => {
+    if (item.roles.includes('all')) return true;
+    return item.roles.some(role => userRoles.includes(role));
+  });
+  
+  return [...baseNavItems, ...filteredItems];
+};
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -31,6 +51,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { user, logout } = useAuth();
+  
+  // Get navigation items based on user roles
+  const userRoles = user?.role ? [user.role] : [];
+  const navItems = getNavItemsForUser(userRoles);
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {

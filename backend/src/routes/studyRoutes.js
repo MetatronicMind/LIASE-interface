@@ -583,6 +583,314 @@ router.patch('/:id/tag',
   }
 );
 
+// Get R3 form data for a study
+router.get('/:id/r3-form-data',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { pmid, drug_code, drugname } = req.query;
+
+      if (!pmid || !drug_code || !drugname) {
+        return res.status(400).json({ 
+          error: 'Missing required parameters: pmid, drug_code, drugname' 
+        });
+      }
+
+      // Call external API to get R3 field data
+      const axios = require('axios');
+      const apiUrl = `http://20.75.201.207/get_r3_fields/?PMID=${pmid}&drug_code=${drug_code}&drugname=${drugname}`;
+      
+      const response = await axios.get(apiUrl);
+      
+      await auditAction(
+        req.user,
+        'fetch',
+        'study',
+        'r3_form_data',
+        `Fetched R3 form data for study ${id}`,
+        { pmid, drug_code, drugname }
+      );
+
+      res.json({
+        success: true,
+        data: response.data
+      });
+    } catch (error) {
+      console.error('R3 form data fetch error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch R3 form data', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+// Update R3 form data for a study
+router.put('/:id/r3-form',
+  authorizePermission('studies', 'write'),
+  [
+    body('formData').isObject().withMessage('Form data must be an object')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { formData } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      study.updateR3FormData(formData, req.user.id, req.user.name);
+
+      // Save updated study
+      await cosmosService.upsertItem('studies', study.toJSON());
+
+      await auditAction(
+        req.user,
+        'update',
+        'study',
+        'r3_form_data',
+        `Updated R3 form data for study ${id}`,
+        { studyId: id }
+      );
+
+      res.json({
+        success: true,
+        message: 'R3 form data updated successfully',
+        study: study.toJSON()
+      });
+    } catch (error) {
+      console.error('R3 form update error:', error);
+      res.status(500).json({ 
+        error: 'Failed to update R3 form data', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+// Complete R3 form for a study
+router.post('/:id/r3-form/complete',
+  authorizePermission('studies', 'write'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      study.completeR3Form(req.user.id, req.user.name);
+
+      // Save updated study
+      await cosmosService.upsertItem('studies', study.toJSON());
+
+      await auditAction(
+        req.user,
+        'complete',
+        'study',
+        'r3_form',
+        `Completed R3 form for study ${id}`,
+        { studyId: id }
+      );
+
+      res.json({
+        success: true,
+        message: 'R3 form completed successfully',
+        study: study.toJSON()
+      });
+    } catch (error) {
+      console.error('R3 form completion error:', error);
+      res.status(500).json({ 
+        error: 'Failed to complete R3 form', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+// Get studies for data entry (ICSR classified only)
+router.get('/data-entry',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const { 
+        page = 1, 
+        limit = 50, 
+        search
+      } = req.query;
+      
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @tag';
+      const parameters = [
+        { name: '@orgId', value: req.user.organizationId },
+        { name: '@tag', value: 'ICSR' }
+      ];
+
+      if (search) {
+        query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
+        parameters.push({ name: '@search', value: search });
+      }
+
+      query += ' ORDER BY c.createdAt DESC';
+
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      query += ` OFFSET ${offset} LIMIT ${limit}`;
+
+      const result = await cosmosService.queryItems('studies', query, parameters);
+
+      await auditAction(
+        req.user,
+        'list',
+        'study',
+        'data_entry',
+        'Retrieved ICSR studies for data entry',
+        { page, limit, search }
+      );
+
+      res.json({
+        success: true,
+        data: result.resources || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          hasMore: result.resources?.length === parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Data entry studies fetch error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch data entry studies', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+// Get studies for medical examiner (ICSR with completed R3 forms)
+router.get('/medical-examiner',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const { 
+        page = 1, 
+        limit = 50, 
+        search
+      } = req.query;
+      
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @tag AND c.r3FormStatus = @formStatus';
+      const parameters = [
+        { name: '@orgId', value: req.user.organizationId },
+        { name: '@tag', value: 'ICSR' },
+        { name: '@formStatus', value: 'completed' }
+      ];
+
+      if (search) {
+        query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
+        parameters.push({ name: '@search', value: search });
+      }
+
+      query += ' ORDER BY c.r3FormCompletedAt DESC';
+
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      query += ` OFFSET ${offset} LIMIT ${limit}`;
+
+      const result = await cosmosService.queryItems('studies', query, parameters);
+
+      await auditAction(
+        req.user,
+        'list',
+        'study',
+        'medical_examiner',
+        'Retrieved completed ICSR studies for medical examination',
+        { page, limit, search }
+      );
+
+      res.json({
+        success: true,
+        data: result.resources || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          hasMore: result.resources?.length === parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Medical examiner studies fetch error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch medical examiner studies', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+// Update study classification
+router.put('/:id',
+  authorizePermission('studies', 'write'),
+  [
+    body('userTag').optional().isIn(['ICSR', 'AOI', 'No Case']).withMessage('Invalid classification tag')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { userTag } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      
+      if (userTag) {
+        study.updateUserTag(userTag, req.user.id, req.user.name);
+      }
+
+      // Save updated study
+      await cosmosService.upsertItem('studies', study.toJSON());
+
+      await auditAction(
+        req.user,
+        'update',
+        'study',
+        'classification',
+        `Updated study classification to ${userTag}`,
+        { studyId: id, userTag }
+      );
+
+      res.json({
+        success: true,
+        message: 'Study updated successfully',
+        study: study.toJSON()
+      });
+    } catch (error) {
+      console.error('Study update error:', error);
+      res.status(500).json({ 
+        error: 'Failed to update study', 
+        message: error.message 
+      });
+    }
+  }
+);
+
 module.exports = router;
 
 // Ingest studies from PubMed for a given drug

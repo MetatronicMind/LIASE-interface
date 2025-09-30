@@ -68,6 +68,18 @@ export default function AddUserPage() {
             permissions: {}
           },
           {
+            id: 'data_entry',
+            name: 'data_entry',
+            displayName: 'Data Entry',
+            permissions: {}
+          },
+          {
+            id: 'medical_examiner',
+            name: 'medical_examiner',
+            displayName: 'Medical Examiner',
+            permissions: {}
+          },
+          {
             id: 'sponsor_auditor',
             name: 'sponsor_auditor',
             displayName: 'Sponsor Auditor',

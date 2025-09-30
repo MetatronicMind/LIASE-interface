@@ -134,6 +134,38 @@ class Role {
           organizations: { read: false, write: false, delete: false }
         },
         isSystemRole: true
+      },
+      data_entry: {
+        name: 'data_entry',
+        displayName: 'Data Entry',
+        description: 'Access to data entry forms for ICSR classified studies',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: false, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false }
+        },
+        isSystemRole: true
+      },
+      medical_examiner: {
+        name: 'medical_examiner',
+        displayName: 'Medical Examiner',
+        description: 'Review and examine ICSR studies completed by data entry users',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: true, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false }
+        },
+        isSystemRole: true
       }
     };
   }

@@ -51,7 +51,12 @@ class Study {
     justification = null,
     clientName = null,
     sponsor = null,
-    userTag = null // Manual user classification: 'ICSR', 'AOI', 'No Case'
+    userTag = null, // Manual user classification: 'ICSR', 'AOI', 'No Case'
+    // R3 Form data fields
+    r3FormData = null, // JSON object to store R3 form data
+    r3FormStatus = 'not_started', // not_started, in_progress, completed
+    r3FormCompletedBy = null,
+    r3FormCompletedAt = null
   }) {
     this.id = id;
     this.organizationId = organizationId;
@@ -112,6 +117,12 @@ class Study {
     this.clientName = clientName;
     this.sponsor = sponsor;
     this.userTag = userTag; // Manual user classification
+    
+    // R3 Form data
+    this.r3FormData = r3FormData;
+    this.r3FormStatus = r3FormStatus;
+    this.r3FormCompletedBy = r3FormCompletedBy;
+    this.r3FormCompletedAt = r3FormCompletedAt;
   }
 
   addComment(comment) {
@@ -171,6 +182,38 @@ class Study {
       userId,
       userName,
       text: `Manual classification updated from "${previousTag || 'None'}" to "${tag}"`,
+      type: 'system'
+    });
+  }
+
+  updateR3FormData(formData, userId, userName) {
+    this.r3FormData = {
+      ...this.r3FormData,
+      ...formData
+    };
+    this.r3FormStatus = 'in_progress';
+    this.updatedAt = new Date().toISOString();
+    
+    // Add form update comment
+    this.addComment({
+      userId,
+      userName,
+      text: 'R3 form data updated',
+      type: 'system'
+    });
+  }
+
+  completeR3Form(userId, userName) {
+    this.r3FormStatus = 'completed';
+    this.r3FormCompletedBy = userId;
+    this.r3FormCompletedAt = new Date().toISOString();
+    this.updatedAt = new Date().toISOString();
+    
+    // Add completion comment
+    this.addComment({
+      userId,
+      userName,
+      text: 'R3 form completed',
       type: 'system'
     });
   }
@@ -261,7 +304,13 @@ class Study {
       clientName: this.clientName,
       sponsor: this.sponsor,
       userTag: this.userTag,
-      effectiveClassification: this.getEffectiveClassification()
+      effectiveClassification: this.getEffectiveClassification(),
+      
+      // R3 Form data
+      r3FormData: this.r3FormData,
+      r3FormStatus: this.r3FormStatus,
+      r3FormCompletedBy: this.r3FormCompletedBy,
+      r3FormCompletedAt: this.r3FormCompletedAt
     };
   }
 
