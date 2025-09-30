@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { getApiBaseUrl } from "@/config/api";
 
 interface Study {
   id: string;
@@ -112,7 +113,7 @@ export default function DataEntryPage() {
 
       console.log('Fetching data entry studies with params:', Object.fromEntries(params.entries()));
 
-      const response = await fetch(`/api/studies/data-entry?${params}`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/data-entry?${params}`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -152,7 +153,7 @@ export default function DataEntryPage() {
         drugname: study.drugName
       });
 
-      const response = await fetch(`/api/studies/${study.id}/r3-form-data?${params}`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/${study.id}/r3-form-data?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -190,7 +191,7 @@ export default function DataEntryPage() {
       setSavingForm(true);
       const token = localStorage.getItem("auth_token"); // Fixed: Changed from "token" to "auth_token" for consistency
 
-      const response = await fetch(`/api/studies/${selectedStudy.id}/r3-form`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/${selectedStudy.id}/r3-form`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -226,7 +227,7 @@ export default function DataEntryPage() {
       const token = localStorage.getItem("auth_token"); // Fixed: Changed from "token" to "auth_token" for consistency
 
       // First save the current form data
-      await fetch(`/api/studies/${selectedStudy.id}/r3-form`, {
+      await fetch(`${getApiBaseUrl()}/studies/${selectedStudy.id}/r3-form`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -236,7 +237,7 @@ export default function DataEntryPage() {
       });
 
       // Then mark as completed
-      const response = await fetch(`/api/studies/${selectedStudy.id}/r3-form/complete`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/${selectedStudy.id}/r3-form/complete`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { getApiBaseUrl } from "@/config/api";
 
 interface Study {
   id: string;
@@ -98,7 +99,7 @@ export default function FullReportPage() {
         ...(searchTerm && { search: searchTerm })
       });
 
-      const response = await fetch(`/api/studies/medical-examiner?${params}`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/medical-examiner?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
