@@ -2010,6 +2010,60 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
           console.log('=== No AI Results to Process ===');
           console.log('AI Response success:', aiResponse.success);
           console.log('AI Results length:', aiResponse.results ? aiResponse.results.length : 'undefined');
+          
+          // Fallback: Create basic studies from PubMed data when AI inference fails
+          if (results.drugs && results.drugs.length > 0) {
+            console.log(`=== Creating Fallback Studies from PubMed Data ===`);
+            console.log(`Creating ${results.drugs.length} basic studies without AI inference...`);
+            
+            for (let i = 0; i < results.drugs.length; i++) {
+              const drug = results.drugs[i];
+              try {
+                console.log(`Creating basic study for PMID: ${drug.pmid} (${i + 1}/${results.drugs.length})`);
+                
+                // Update progress for each study being created
+                const studyProgress = 70 + Math.round((i / results.drugs.length) * 25);
+                await jobTrackingService.updateJob(jobId, {
+                  progress: studyProgress,
+                  currentStep: 4,
+                  message: `Creating basic study ${i + 1}/${results.drugs.length} (PMID: ${drug.pmid})...`,
+                  metadata: { 
+                    phase: 'creating_basic_studies',
+                    currentStudy: i + 1,
+                    totalStudies: results.drugs.length
+                  }
+                });
+                
+                // Create basic study with PubMed data only
+                const study = new Study({
+                  organizationId: user.organizationId,
+                  createdBy: user.id,
+                  pmid: drug.pmid,
+                  title: drug.title || 'Title not available',
+                  drugName: drug.drugName || configObject.query,
+                  adverseEvent: 'Not analyzed (AI inference failed)',
+                  abstract: drug.abstract || '',
+                  publicationDate: drug.publicationDate || '',
+                  journal: drug.journal || '',
+                  authors: drug.authors || [],
+                  status: 'Pending Review'
+                });
+                
+                // Store study in database
+                const createdStudy = await cosmosService.createItem('studies', study.toJSON());
+                studiesCreated++;
+                console.log(`Successfully created basic study in database for PMID: ${drug.pmid}, ID: ${createdStudy.id}`);
+                
+              } catch (studyError) {
+                console.error(`Error creating basic study for PMID ${drug.pmid}:`, studyError);
+                console.error(`Study error stack:`, studyError.stack);
+                // Continue with other studies
+              }
+            }
+            
+            console.log(`=== Basic Study Creation Complete ===`);
+            console.log(`Successfully created ${studiesCreated} basic studies from PubMed data`);
+          }
         }
         
       } catch (error) {

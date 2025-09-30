@@ -327,14 +327,15 @@ class Study {
   static fromAIInference(aiData, originalDrug, organizationId, createdBy) {
     // Ensure originalDrug has default values if not provided or missing properties
     const safeDrug = originalDrug || {};
+    const safeAiData = aiData || {};
     
     return new Study({
       organizationId,
       createdBy,
-      pmid: aiData.PMID,
-      title: safeDrug.title || aiData.Title || 'Title not available',
-      drugName: aiData.Drugname || safeDrug.drugName || 'Drug name not available',
-      adverseEvent: aiData.Adverse_event || 'Not specified',
+      pmid: safeAiData.PMID || safeDrug.pmid || 'Unknown PMID',
+      title: safeDrug.title || safeAiData.Title || safeAiData.title || 'Title not available',
+      drugName: safeAiData.Drugname || safeAiData.drugName || safeDrug.drugName || 'Drug name not available',
+      adverseEvent: safeAiData.Adverse_event || 'Not specified',
       abstract: aiData.Summary || '',
       publicationDate: aiData.pubdate,
       journal: aiData.Vancouver_citation ? aiData.Vancouver_citation.split('.').pop() : '',

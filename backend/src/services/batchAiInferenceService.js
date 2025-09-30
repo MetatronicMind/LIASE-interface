@@ -176,7 +176,18 @@ class BatchAiInferenceService {
       // Get prioritized list of healthy endpoints
       const prioritizedEndpoints = this.getPrioritizedEndpoints();
       
+      if (options.enableDetailedLogging) {
+        console.log(`[BatchAI:${requestId}] Available endpoints: ${prioritizedEndpoints.length}/${this.endpointHealth.length}`);
+        prioritizedEndpoints.forEach((ep, idx) => {
+          console.log(`[BatchAI:${requestId}] Endpoint ${idx + 1}: ${ep.url} (healthy: ${ep.isHealthy}, failures: ${ep.consecutiveFailures})`);
+        });
+      }
+      
       if (prioritizedEndpoints.length === 0) {
+        console.error(`[BatchAI:${requestId}] No healthy endpoints available!`);
+        this.endpointHealth.forEach((ep, idx) => {
+          console.error(`[BatchAI:${requestId}] Endpoint ${idx + 1}: ${ep.url} - healthy: ${ep.isHealthy}, failures: ${ep.consecutiveFailures}`);
+        });
         throw new Error('No healthy endpoints available');
       }
 
@@ -195,10 +206,17 @@ class BatchAiInferenceService {
           
           const apiUrl = this.buildApiUrl(endpoint.url, pmid, sponsor, drugName);
           const requestStartTime = Date.now();
+          
+          if (options.enableDetailedLogging) {
+            console.log(`[BatchAI:${requestId}] Trying ${endpoint.url} with URL: ${apiUrl}`);
+          }
 
           // Create request with timeout
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), this.config.requestTimeout);
+          const timeoutId = setTimeout(() => {
+            console.log(`[BatchAI:${requestId}] Request timeout after ${this.config.requestTimeout}ms`);
+            controller.abort();
+          }, this.config.requestTimeout);
 
           response = await fetch(apiUrl, {
             method: 'GET',
@@ -229,8 +247,10 @@ class BatchAiInferenceService {
 
         } catch (fetchError) {
           endpoint.currentRequests--;
-          this.markEndpointFailure(endpoint, fetchError.message);
-          lastError = fetchError.message;
+          const errorMsg = `${fetchError.name}: ${fetchError.message}`;
+          console.error(`[BatchAI:${requestId}] Fetch error for ${endpoint.url}: ${errorMsg}`);
+          this.markEndpointFailure(endpoint, errorMsg);
+          lastError = errorMsg;
           continue;
         }
       }
