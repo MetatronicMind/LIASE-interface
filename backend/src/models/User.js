@@ -94,6 +94,22 @@ class User {
         studies: { read: true, write: false, delete: false },
         audit: { read: true, write: false, delete: false },
         settings: { read: false, write: false }
+      },
+      data_entry: {
+        dashboard: { read: true, write: false },
+        users: { read: false, write: false, delete: false },
+        drugs: { read: true, write: false, delete: false },
+        studies: { read: true, write: true, delete: false },
+        audit: { read: false, write: false, delete: false },
+        settings: { read: false, write: false }
+      },
+      medical_examiner: {
+        dashboard: { read: true, write: false },
+        users: { read: false, write: false, delete: false },
+        drugs: { read: true, write: false, delete: false },
+        studies: { read: true, write: true, delete: false },
+        audit: { read: true, write: false, delete: false },
+        settings: { read: false, write: false }
       }
     };
 
@@ -194,8 +210,8 @@ class User {
     }
 
     if (!isUpdate || data.role) {
-      if (!['Admin', 'Pharmacovigilance', 'Sponsor/Auditor', 'superadmin', 'admin', 'pharmacovigilance', 'sponsor_auditor'].includes(data.role)) {
-        errors.push('Role must be Admin, Pharmacovigilance, Sponsor/Auditor, superadmin, admin, pharmacovigilance, or sponsor_auditor');
+      if (!['Admin', 'Pharmacovigilance', 'Sponsor/Auditor', 'Data Entry', 'Medical Examiner', 'superadmin', 'admin', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'].includes(data.role)) {
+        errors.push('Role must be Admin, Pharmacovigilance, Sponsor/Auditor, Data Entry, Medical Examiner, superadmin, admin, pharmacovigilance, sponsor_auditor, data_entry, or medical_examiner');
       }
     }
 

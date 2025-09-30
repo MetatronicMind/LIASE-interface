@@ -194,7 +194,7 @@ class RoleService {
   // Initialize system roles for an organization
   async initializeSystemRoles(organizationId, createdBy) {
     try {
-      const systemRoleTypes = ['superadmin', 'admin', 'pharmacovigilance', 'sponsor_auditor'];
+      const systemRoleTypes = ['superadmin', 'admin', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'];
       const createdRoles = [];
 
       for (const roleType of systemRoleTypes) {
