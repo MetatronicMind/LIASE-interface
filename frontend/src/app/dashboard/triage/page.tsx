@@ -44,7 +44,7 @@ export default function TriagePage() {
 
       if (response.ok) {
         const data = await response.json();
-        setStudies(data.data || []);
+        setStudies(data.studies || data.data || []);
       }
     } catch (error) {
       console.error("Error fetching studies:", error);
