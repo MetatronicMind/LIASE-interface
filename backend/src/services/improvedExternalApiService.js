@@ -362,7 +362,7 @@ class ImprovedExternalApiService {
   /**
    * Send AI inference request for a single drug
    */
-  async sendSingleDrugRequest(pmid, drugName, sponsor, attempt = 0) {
+  async sendSingleDrugRequest(pmid, drugName, sponsor, originalDrug = null, attempt = 0) {
     // Check global concurrency limit
     if (this.currentRequests >= this.config.maxConcurrentRequests) {
       throw new Error('Maximum concurrent requests reached');
@@ -409,6 +409,7 @@ class ImprovedExternalApiService {
               drugName,
               sponsor,
               aiInference: aiResult,
+              originalDrug: originalDrug,
               endpoint: endpoint.url,
               responseTime: responseTime,
               attempt: attempt + 1
@@ -422,6 +423,7 @@ class ImprovedExternalApiService {
               drugName,
               sponsor,
               aiInference: { raw: responseText },
+              originalDrug: originalDrug,
               endpoint: endpoint.url,
               responseTime: responseTime,
               attempt: attempt + 1,
@@ -512,7 +514,7 @@ class ImprovedExternalApiService {
               await new Promise(resolve => setTimeout(resolve, backoffTime));
             }
             
-            const result = await this.sendSingleDrugRequest(pmid, drugName, sponsor, attempt);
+            const result = await this.sendSingleDrugRequest(pmid, drugName, sponsor, drug, attempt);
             results.push(result);
             success = true;
             

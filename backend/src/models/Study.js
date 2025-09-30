@@ -325,12 +325,15 @@ class Study {
    * @returns {Study} Study instance
    */
   static fromAIInference(aiData, originalDrug, organizationId, createdBy) {
+    // Ensure originalDrug has default values if not provided or missing properties
+    const safeDrug = originalDrug || {};
+    
     return new Study({
       organizationId,
       createdBy,
       pmid: aiData.PMID,
-      title: originalDrug.title,
-      drugName: aiData.Drugname || originalDrug.drugName,
+      title: safeDrug.title || aiData.Title || 'Title not available',
+      drugName: aiData.Drugname || safeDrug.drugName || 'Drug name not available',
       adverseEvent: aiData.Adverse_event || 'Not specified',
       abstract: aiData.Summary || '',
       publicationDate: aiData.pubdate,

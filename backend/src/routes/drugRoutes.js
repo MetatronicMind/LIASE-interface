@@ -548,10 +548,13 @@ router.get('/discover',
                   }
                 });
                 
+                // Handle different result formats from different API services
+                const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
+                
                 // Create study from AI inference data
                 const study = Study.fromAIInference(
                   aiResult.aiInference,
-                  aiResult.originalDrug,
+                  originalDrug,
                   req.user.organizationId,
                   req.user.id
                 );
@@ -1776,10 +1779,13 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
                 }
               });
               
+              // Handle different result formats from different API services
+              const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
+              
               // Create study from AI inference data
               const study = Study.fromAIInference(
                 aiResult.aiInference,
-                aiResult.originalDrug,
+                originalDrug,
                 user.organizationId,
                 user.id
               );
@@ -1973,10 +1979,13 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
               
               console.log(`AI inference data:`, JSON.stringify(aiResult.aiInference, null, 2));
               
+              // Handle different result formats from different API services
+              const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
+              
               // Create study from AI inference data
               const study = Study.fromAIInference(
                 aiResult.aiInference,
-                aiResult.originalDrug,
+                originalDrug,
                 user.organizationId,
                 user.id
               );

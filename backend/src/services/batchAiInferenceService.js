@@ -262,7 +262,7 @@ class BatchAiInferenceService {
           drugName,
           sponsor,
           aiInference: aiResult,
-          originalItem: item,
+          originalDrug: item,
           processingTimeMs: duration,
           endpoint: successfulEndpoint.url
         }
