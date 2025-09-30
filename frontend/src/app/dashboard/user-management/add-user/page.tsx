@@ -3,14 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { userService } from "@/services/userService";
-import { roleService } from "@/services/roleService";
-
-interface Role {
-  id: string;
-  name: string;
-  displayName: string;
-  permissions: Record<string, string[]>;
-}
+import { roleService, type Role } from "@/services/roleService";
 
 interface CreateUserData {
   username: string;
@@ -45,51 +38,130 @@ export default function AddUserPage() {
   const fetchRoles = async () => {
     try {
       const roles = await roleService.getRoles();
-      setRoles(roles);
+      
+      // Always ensure we have the basic system roles available
+      const systemRoles: Role[] = [
+        {
+          id: 'admin',
+          name: 'admin',
+          displayName: 'Administrator',
+          description: 'Organization administrator with user and role management access',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'pharmacovigilance',
+          name: 'pharmacovigilance',
+          displayName: 'Pharmacovigilance Specialist',
+          description: 'Pharmacovigilance specialist with access to safety data',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'data_entry',
+          name: 'data_entry',
+          displayName: 'Data Entry',
+          description: 'Data entry user with limited access to forms',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'medical_examiner',
+          name: 'medical_examiner',
+          displayName: 'Medical Examiner',
+          description: 'Medical examiner with access to completed ICSR studies',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'sponsor_auditor',
+          name: 'sponsor_auditor',
+          displayName: 'Sponsor Auditor',
+          description: 'Sponsor auditor with read-only access to audit data',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        }
+      ];
+      
+      // Merge API roles with system roles, removing duplicates
+      const allRoles = [...roles];
+      systemRoles.forEach(sysRole => {
+        if (!allRoles.find(role => role.name === sysRole.name)) {
+          allRoles.push(sysRole);
+        }
+      });
+      
+      setRoles(allRoles);
       setError(null);
     } catch (err: any) {
       console.error('Roles fetch error:', err);
       
-      // If user doesn't have permission to read roles, provide basic system roles
-      if (err.message?.includes('Permission denied') || err.message?.includes('Forbidden')) {
-        console.log('User lacks roles:read permission, using fallback system roles');
-        setHasRolePermissions(false);
-        setRoles([
-          {
-            id: 'admin',
-            name: 'admin',
-            displayName: 'Administrator',
-            permissions: {}
-          },
-          {
-            id: 'pharmacovigilance',
-            name: 'pharmacovigilance',
-            displayName: 'Pharmacovigilance Specialist',
-            permissions: {}
-          },
-          {
-            id: 'data_entry',
-            name: 'data_entry',
-            displayName: 'Data Entry',
-            permissions: {}
-          },
-          {
-            id: 'medical_examiner',
-            name: 'medical_examiner',
-            displayName: 'Medical Examiner',
-            permissions: {}
-          },
-          {
-            id: 'sponsor_auditor',
-            name: 'sponsor_auditor',
-            displayName: 'Sponsor Auditor',
-            permissions: {}
-          }
-        ]);
-        setError('Note: Limited role selection available. Contact your administrator to access custom roles.');
-      } else {
-        setError('Failed to load roles');
-      }
+      // If there's any error, provide basic system roles
+      console.log('Error fetching roles, using fallback system roles');
+      setHasRolePermissions(false);
+      setRoles([
+        {
+          id: 'admin',
+          name: 'admin',
+          displayName: 'Administrator',
+          description: 'Organization administrator with user and role management access',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'pharmacovigilance',
+          name: 'pharmacovigilance',
+          displayName: 'Pharmacovigilance Specialist',
+          description: 'Pharmacovigilance specialist with access to safety data',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'data_entry',
+          name: 'data_entry',
+          displayName: 'Data Entry',
+          description: 'Data entry user with limited access to forms',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'medical_examiner',
+          name: 'medical_examiner',
+          displayName: 'Medical Examiner',
+          description: 'Medical examiner with access to completed ICSR studies',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'sponsor_auditor',
+          name: 'sponsor_auditor',
+          displayName: 'Sponsor Auditor',
+          description: 'Sponsor auditor with read-only access to audit data',
+          permissions: {},
+          isSystemRole: true,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        }
+      ]);
+      setError('Note: Using default system roles. Contact your administrator for custom roles.');
     } finally {
       setRolesLoading(false);
     }
