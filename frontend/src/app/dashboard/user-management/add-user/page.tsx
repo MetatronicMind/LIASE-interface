@@ -20,7 +20,6 @@ export default function AddUserPage() {
   const [rolesLoading, setRolesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [hasRolePermissions, setHasRolePermissions] = useState(true);
   
   const [formData, setFormData] = useState<CreateUserData>({
     username: '',
@@ -38,130 +37,12 @@ export default function AddUserPage() {
   const fetchRoles = async () => {
     try {
       const roles = await roleService.getRoles();
-      
-      // Always ensure we have the basic system roles available
-      const systemRoles: Role[] = [
-        {
-          id: 'admin',
-          name: 'admin',
-          displayName: 'Administrator',
-          description: 'Organization administrator with user and role management access',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'pharmacovigilance',
-          name: 'pharmacovigilance',
-          displayName: 'Pharmacovigilance Specialist',
-          description: 'Pharmacovigilance specialist with access to safety data',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'data_entry',
-          name: 'data_entry',
-          displayName: 'Data Entry',
-          description: 'Data entry user with limited access to forms',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'medical_examiner',
-          name: 'medical_examiner',
-          displayName: 'Medical Examiner',
-          description: 'Medical examiner with access to completed ICSR studies',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'sponsor_auditor',
-          name: 'sponsor_auditor',
-          displayName: 'Sponsor Auditor',
-          description: 'Sponsor auditor with read-only access to audit data',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        }
-      ];
-      
-      // Merge API roles with system roles, removing duplicates
-      const allRoles = [...roles];
-      systemRoles.forEach(sysRole => {
-        if (!allRoles.find(role => role.name === sysRole.name)) {
-          allRoles.push(sysRole);
-        }
-      });
-      
-      setRoles(allRoles);
+      setRoles(roles);
       setError(null);
     } catch (err: any) {
       console.error('Roles fetch error:', err);
-      
-      // If there's any error, provide basic system roles
-      console.log('Error fetching roles, using fallback system roles');
-      setHasRolePermissions(false);
-      setRoles([
-        {
-          id: 'admin',
-          name: 'admin',
-          displayName: 'Administrator',
-          description: 'Organization administrator with user and role management access',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'pharmacovigilance',
-          name: 'pharmacovigilance',
-          displayName: 'Pharmacovigilance Specialist',
-          description: 'Pharmacovigilance specialist with access to safety data',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'data_entry',
-          name: 'data_entry',
-          displayName: 'Data Entry',
-          description: 'Data entry user with limited access to forms',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'medical_examiner',
-          name: 'medical_examiner',
-          displayName: 'Medical Examiner',
-          description: 'Medical examiner with access to completed ICSR studies',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'sponsor_auditor',
-          name: 'sponsor_auditor',
-          displayName: 'Sponsor Auditor',
-          description: 'Sponsor auditor with read-only access to audit data',
-          permissions: {},
-          isSystemRole: true,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        }
-      ]);
-      setError('Note: Using default system roles. Contact your administrator for custom roles.');
+      setError('Failed to load roles. Please try again.');
+      setRoles([]);
     } finally {
       setRolesLoading(false);
     }
@@ -360,11 +241,6 @@ export default function AddUserPage() {
                   </option>
                 ))}
               </select>
-              {!hasRolePermissions && (
-                <p className="mt-1 text-sm text-gray-600">
-                  Only system roles are available. Ask your administrator about custom roles.
-                </p>
-              )}
             </div>
 
             {/* Buttons */}
