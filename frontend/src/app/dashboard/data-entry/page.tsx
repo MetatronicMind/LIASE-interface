@@ -145,7 +145,7 @@ export default function DataEntryPage() {
     // Fetch pre-filled data from external API
     try {
       setLoadingR3Data(true);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token"); // Fixed: Changed from "token" to "auth_token" for consistency
       const params = new URLSearchParams({
         pmid: study.pmid,
         drug_code: "Synthon", // You might want to make this dynamic
@@ -188,7 +188,7 @@ export default function DataEntryPage() {
 
     try {
       setSavingForm(true);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token"); // Fixed: Changed from "token" to "auth_token" for consistency
 
       const response = await fetch(`/api/studies/${selectedStudy.id}/r3-form`, {
         method: "PUT",
@@ -223,7 +223,7 @@ export default function DataEntryPage() {
 
     try {
       setSavingForm(true);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token"); // Fixed: Changed from "token" to "auth_token" for consistency
 
       // First save the current form data
       await fetch(`/api/studies/${selectedStudy.id}/r3-form`, {
