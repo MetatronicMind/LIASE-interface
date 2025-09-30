@@ -14,7 +14,7 @@ module.exports = {
   // Batch Processing Configuration
   enableBatchProcessing: true,  // Enable high-performance batch processing
   batchProcessingThreshold: 5,  // Use batch processing for 5+ items
-  optimalBatchSize: 20,         // Optimal batch size for performance
+  optimalBatchSize: 16,         // Optimal batch size for performance (matches maxConcurrentRequests)
   maxBatchSize: 50,             // Maximum items per batch
   
   // API Response Configuration (optimized for your 45-60 second APIs)
@@ -36,8 +36,8 @@ module.exports = {
   circuitBreakerTimeout: 60000, // Try again after 1 minute
   
   // Concurrency Configuration (optimized for speed with 4 endpoints)
-  maxConcurrentRequests: 4,     // Allow 4 concurrent requests (1 per endpoint)
-  maxConcurrentPerEndpoint: 1,  // Only 1 request per endpoint at a time
+  maxConcurrentRequests: 16,    // Allow 16 concurrent requests (4 per endpoint)
+  maxConcurrentPerEndpoint: 4,  // Allow 4 requests per endpoint at a time
   
   // Rate Limiting (reduced for faster processing)
   minRequestInterval: 1000,     // Minimum 1 second between requests (faster)

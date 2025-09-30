@@ -496,8 +496,8 @@ router.get('/discover',
             { 
               enableDetailedLogging: true,
               progressCallback: progressCallback,
-              batchSize: 20, // Process in batches of 20 for optimal performance
-              maxConcurrency: 4 // Use all available endpoints
+              batchSize: 16, // Process in batches of 16 for optimal performance
+              maxConcurrency: 16 // Use increased concurrency limit
             }
           );
           
@@ -1729,8 +1729,8 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
           { 
             enableDetailedLogging: true,
             progressCallback: progressCallback,
-            batchSize: 20, // Process in batches of 20 for optimal performance
-            maxConcurrency: 4 // Use all available endpoints
+            batchSize: 16, // Process in batches of 16 for optimal performance
+            maxConcurrency: 16 // Use increased concurrency limit
           }
         );
         
@@ -1929,8 +1929,8 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
         }, {
           enableDetailedLogging: true,
           progressCallback: progressCallback,
-          batchSize: 20, // Process in batches of 20 for optimal performance
-          maxConcurrency: 4 // Use all available endpoints
+          batchSize: 16, // Process in batches of 16 for optimal performance
+          maxConcurrency: 16 // Use increased concurrency limit
         });
         
         console.log('AI API Batch Processing Response:', {

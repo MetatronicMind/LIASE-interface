@@ -179,7 +179,7 @@ class ExternalApiService {
 
       const batchOptions = {
         batchSize: Math.min(options.batchSize || this.batchThresholds.optimalBatchSize, this.batchThresholds.maxBatchSize),
-        maxConcurrency: options.maxConcurrency || 4,
+        maxConcurrency: options.maxConcurrency || 16,
         enableDetailedLogging: options.enableDetailedLogging !== false,
         enableRetries: options.enableRetries !== false,
         progressCallback: options.progressCallback

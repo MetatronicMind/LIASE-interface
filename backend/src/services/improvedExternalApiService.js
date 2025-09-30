@@ -48,7 +48,7 @@ class ImprovedExternalApiService {
       healthCheckTimeout: 30000, // 30 second timeout for health checks
       
       // Concurrency configuration (optimized for 4 endpoints)
-      maxConcurrentRequests: 4, // Allow 4 concurrent requests (1 per endpoint)
+      maxConcurrentRequests: 16, // Allow 16 concurrent requests (4 per endpoint)
       maxConcurrentPerEndpoint: 1, // Only 1 request per endpoint at a time
       
       // Rate limiting (optimized for speed)
