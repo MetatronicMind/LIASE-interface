@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { PlusIcon, CogIcon, TrashIcon, ShieldCheckIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/solid";
 import { PermissionGate, useConditionalPermissions } from "@/components/PermissionProvider";
 import { roleService } from "@/services/roleService";
@@ -27,6 +28,7 @@ interface PermissionStructure {
 }
 
 export default function RoleManagementPage() {
+  const router = useRouter();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -269,6 +271,7 @@ export default function RoleManagementPage() {
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => router.push(`/dashboard/user-management/role-management/edit-role?id=${role.id}`)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
                           title="Edit Role"
                         >

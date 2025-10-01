@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from '../config/api';
 
-interface Role {
+export interface Role {
   id: string;
   name: string;
   displayName: string;
@@ -11,7 +11,7 @@ interface Role {
   createdAt: string;
 }
 
-interface PermissionStructure {
+export interface PermissionStructure {
   [key: string]: {
     displayName: string;
     description: string;
@@ -211,4 +211,3 @@ class RoleService {
 }
 
 export const roleService = new RoleService();
-export type { Role, PermissionStructure };

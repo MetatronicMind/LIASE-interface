@@ -164,6 +164,7 @@ export default function UserManagementPage() {
                       <div className="flex gap-2">
                         <PermissionGate resource="users" action="write">
                           <button 
+                            onClick={() => router.push(`/dashboard/user-management/edit-user?id=${user.id}`)}
                             className="bg-gray-100 hover:bg-blue-100 text-blue-700 p-2 rounded transition" 
                             title="Edit"
                           >
