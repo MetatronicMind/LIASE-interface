@@ -322,4 +322,82 @@ router.post('/system/initialize',
   }
 );
 
+// Debug endpoint to force delete all roles (including system roles)
+router.delete('/debug/force-delete-all',
+  authorizeRole('superadmin'),
+  async (req, res) => {
+    try {
+      console.log('🚨 DEBUG: Force deleting all roles for organization:', req.user.organizationId);
+      
+      // Get all roles for the organization (including system roles and inactive ones)
+      const query = `
+        SELECT * FROM c 
+        WHERE c.type = 'role' 
+        AND c.organizationId = @organizationId
+      `;
+      
+      const parameters = [
+        { name: '@organizationId', value: req.user.organizationId }
+      ];
+
+      const cosmosService = require('../services/cosmosService');
+      const allRoles = await cosmosService.queryItems('users', query, parameters);
+      
+      console.log(`Found ${allRoles.length} roles to delete`);
+      
+      const deletedRoles = [];
+      const errors = [];
+
+      // Force delete each role directly from Cosmos DB
+      for (const role of allRoles) {
+        try {
+          console.log(`Deleting role: ${role.name} (${role.id})`);
+          await cosmosService.deleteItem('users', role.id, req.user.organizationId);
+          deletedRoles.push({
+            id: role.id,
+            name: role.name,
+            displayName: role.displayName,
+            isSystemRole: role.isSystemRole
+          });
+          console.log(`✅ Deleted role: ${role.name}`);
+        } catch (deleteError) {
+          console.error(`❌ Failed to delete role ${role.name}:`, deleteError);
+          errors.push({
+            id: role.id,
+            name: role.name,
+            error: deleteError.message
+          });
+        }
+      }
+
+      // Log the action
+      await auditAction(req, 'DELETE', 'all_roles', 'debug_operation', {
+        deletedCount: deletedRoles.length,
+        errorCount: errors.length,
+        deletedRoles: deletedRoles.map(r => r.name)
+      });
+
+      console.log(`🎉 Debug operation completed. Deleted: ${deletedRoles.length}, Errors: ${errors.length}`);
+
+      res.json({
+        message: 'Force delete operation completed',
+        deleted: deletedRoles,
+        errors: errors,
+        summary: {
+          totalFound: allRoles.length,
+          successfullyDeleted: deletedRoles.length,
+          failed: errors.length
+        }
+      });
+
+    } catch (error) {
+      console.error('Error in force delete all roles:', error);
+      res.status(500).json({
+        error: 'Failed to force delete all roles',
+        message: error.message
+      });
+    }
+  }
+);
+
 module.exports = router;

@@ -12,8 +12,10 @@ interface DebugTabProps {
 export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTabProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [isForceDeleting, setIsForceDeleting] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showForceDeleteConfirm, setShowForceDeleteConfirm] = useState(false);
 
   const handleSelectRole = (roleId: string) => {
     setSelectedRoles(prev => 
@@ -107,6 +109,29 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
     }
   };
 
+  const handleForceDeleteAll = async () => {
+    setIsForceDeleting(true);
+    
+    try {
+      const result = await roleService.forceDeleteAllRoles();
+      
+      if (result.errors.length === 0) {
+        onError('');
+        alert(`✅ Successfully deleted all ${result.summary.successfullyDeleted} roles!`);
+      } else {
+        onError(`Partial success: ${result.summary.successfullyDeleted} deleted, ${result.summary.failed} failed`);
+        console.error('Delete errors:', result.errors);
+      }
+
+      await onRolesChange();
+    } catch (error: any) {
+      onError(error.message || 'Failed to force delete all roles');
+    } finally {
+      setIsForceDeleting(false);
+      setShowForceDeleteConfirm(false);
+    }
+  };
+
   const customRoles = roles.filter(role => !role.isSystemRole);
   const systemRoles = roles.filter(role => role.isSystemRole);
 
@@ -139,6 +164,15 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
           >
             <TrashIcon className="w-4 h-4" />
             {isDeleting ? 'Deleting...' : `Delete All Custom Roles (${customRoles.length})`}
+          </button>
+
+          <button
+            onClick={() => setShowForceDeleteConfirm(true)}
+            disabled={isForceDeleting || roles.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-lg transition"
+          >
+            <TrashIcon className="w-4 h-4" />
+            {isForceDeleting ? 'Force Deleting...' : `🚨 FORCE DELETE ALL ROLES (${roles.length})`}
           </button>
 
           {selectedRoles.length > 0 && (
@@ -297,6 +331,67 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-red-400 transition"
                 >
                   {isDeleting ? 'Deleting...' : 'Delete All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Force Delete Confirmation Modal */}
+      {showForceDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <ExclamationTriangleIcon className="w-8 h-8 text-purple-600" />
+                <h3 className="text-lg font-semibold text-gray-900">⚠️ FORCE DELETE ALL ROLES</h3>
+              </div>
+              
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800 font-semibold mb-2">DANGEROUS OPERATION!</p>
+                <p className="text-red-700 text-sm">
+                  This will PERMANENTLY delete ALL {roles.length} roles (including system roles) 
+                  from the database. This action:
+                </p>
+                <ul className="text-red-700 text-sm mt-2 list-disc list-inside">
+                  <li>Cannot be undone</li>
+                  <li>Will break user access</li>
+                  <li>Requires system role recreation</li>
+                  <li>Should only be used to fix database conflicts</li>
+                </ul>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
+                Type "DELETE ALL ROLES" to confirm this destructive operation:
+              </p>
+
+              <input
+                type="text"
+                placeholder="Type: DELETE ALL ROLES"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4"
+                onChange={(e) => {
+                  const button = document.getElementById('force-delete-button') as HTMLButtonElement;
+                  if (button) {
+                    button.disabled = e.target.value !== 'DELETE ALL ROLES' || isForceDeleting;
+                  }
+                }}
+              />
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowForceDeleteConfirm(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="force-delete-button"
+                  onClick={handleForceDeleteAll}
+                  disabled={true}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-purple-400 transition"
+                >
+                  {isForceDeleting ? 'Force Deleting...' : '🚨 FORCE DELETE ALL'}
                 </button>
               </div>
             </div>

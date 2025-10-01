@@ -150,6 +150,31 @@ class RoleService {
     const data = await response.json();
     return data.roles || data;
   }
+
+  // Debug function to force delete all roles (including system roles)
+  async forceDeleteAllRoles(): Promise<{
+    deleted: any[];
+    errors: any[];
+    summary: {
+      totalFound: number;
+      successfullyDeleted: number;
+      failed: number;
+    };
+  }> {
+    const response = await fetch(`${this.API_BASE_URL}/roles/debug/force-delete-all`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      await this.handleAuthError(response);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to force delete all roles');
+    }
+
+    const data = await response.json();
+    return data;
+  }
 }
 
 export const roleService = new RoleService();
