@@ -149,6 +149,21 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
     }
   };
 
+  const handleTestCreateRole = async () => {
+    try {
+      const result = await roleService.testCreateRole();
+      if (result.success) {
+        onError('');
+        alert(`✅ Test role created successfully! ID: ${result.role.id}`);
+        await onRolesChange();
+      } else {
+        onError(`Test role creation failed: ${result.message}`);
+      }
+    } catch (error: any) {
+      onError(error.message || 'Failed to test role creation');
+    }
+  };
+
   const customRoles = roles.filter(role => !role.isSystemRole);
   const systemRoles = roles.filter(role => role.isSystemRole);
 
@@ -181,6 +196,14 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
           >
             <ArrowPathIcon className={`w-4 h-4 ${isInspecting ? 'animate-spin' : ''}`} />
             {isInspecting ? 'Inspecting...' : '🔍 Inspect Database'}
+          </button>
+
+          <button
+            onClick={handleTestCreateRole}
+            className="flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition"
+          >
+            <ArrowPathIcon className="w-4 h-4" />
+            🧪 Test Role Creation
           </button>
 
           <button

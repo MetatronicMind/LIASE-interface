@@ -322,6 +322,64 @@ router.post('/system/initialize',
   }
 );
 
+// Debug endpoint to test role creation with detailed logging
+router.post('/debug/test-create-role',
+  authorizeRole('superadmin'),
+  async (req, res) => {
+    try {
+      console.log('🔥 [TEST DEBUG] Starting test role creation...');
+      
+      const testRoleData = {
+        organizationId: req.user.organizationId,
+        name: `test_role_${Date.now()}`,
+        displayName: `Test Role ${new Date().toISOString()}`,
+        description: 'Debug test role',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: false, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false }
+        },
+        isSystemRole: false
+      };
+
+      console.log('🔥 [TEST DEBUG] Test role data:', JSON.stringify(testRoleData, null, 2));
+
+      const roleService = require('../services/roleService');
+      const role = await roleService.createRole(testRoleData, req.user);
+
+      console.log('🔥 [TEST DEBUG] ✅ Test role created successfully:', role.id);
+
+      res.json({
+        success: true,
+        message: 'Test role created successfully',
+        role: role.toJSON(),
+        debug: {
+          timestamp: new Date().toISOString(),
+          organizationId: req.user.organizationId
+        }
+      });
+
+    } catch (error) {
+      console.error('🔥 [TEST DEBUG] ❌ Test role creation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Test role creation failed',
+        message: error.message,
+        debug: {
+          errorType: error.constructor.name,
+          timestamp: new Date().toISOString(),
+          organizationId: req.user.organizationId
+        }
+      });
+    }
+  }
+);
+
 // Debug endpoint to inspect all data in users container
 router.get('/debug/inspect-database',
   authorizeRole('superadmin'),
