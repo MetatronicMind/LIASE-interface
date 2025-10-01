@@ -1,6 +1,7 @@
 ﻿"use client";
 import React, { useState, useEffect } from "react";
 import { getApiBaseUrl } from "@/config/api";
+import StudyProgressTracker from "@/components/StudyProgressTracker";
 
 interface DrugSearchConfig {
   id: string;
@@ -27,12 +28,57 @@ export default function DrugManagementPage() {
   const [dateTo, setDateTo] = useState('');
   const [saving, setSaving] = useState(false);
   const [runningConfigs, setRunningConfigs] = useState<Set<string>>(new Set());
+  
+  // Progress tracking state
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [showProgressTracker, setShowProgressTracker] = useState(false);
+  const [runningConfigName, setRunningConfigName] = useState<string>('');
 
   const API_BASE = `${getApiBaseUrl()}/drugs`;
 
   useEffect(() => {
     fetchSearchConfigs();
+    
+    // Restore job state from localStorage on page load
+    const persistedJobId = localStorage.getItem('activeJobId');
+    const shouldShowTracker = localStorage.getItem('showProgressTracker') === 'true';
+    const savedConfigName = localStorage.getItem('runningConfigName') || '';
+    
+    if (persistedJobId && shouldShowTracker) {
+      setActiveJobId(persistedJobId);
+      setShowProgressTracker(true);
+      setRunningConfigName(savedConfigName);
+    }
   }, []);
+
+  // Handle job completion
+  const handleJobComplete = (results: any) => {
+    console.log('Job completed with results:', results);
+    
+    // Clear job state
+    setActiveJobId(null);
+    setShowProgressTracker(false);
+    setRunningConfigName('');
+    setRunningConfigs(new Set());
+    
+    // Clear localStorage
+    localStorage.removeItem('activeJobId');
+    localStorage.removeItem('showProgressTracker');
+    localStorage.removeItem('runningConfigName');
+    
+    // Refresh configurations to show updated stats
+    fetchSearchConfigs();
+    
+    // Show completion message
+    const studiesCreated = results?.results?.studiesCreated || 0;
+    const totalFound = results?.results?.totalFound || 0;
+    
+    if (studiesCreated > 0) {
+      alert(`Discovery completed successfully!\nFound ${totalFound} articles and created ${studiesCreated} studies.`);
+    } else {
+      alert(`Discovery completed!\nFound ${totalFound} articles but no studies were created.`);
+    }
+  };
 
   const fetchSearchConfigs = async () => {
     try {
@@ -55,6 +101,7 @@ export default function DrugManagementPage() {
 
   const runSearchConfig = async (configId: string, configName: string) => {
     setRunningConfigs(prev => new Set(prev).add(configId));
+    setRunningConfigName(configName);
     
     try {
       const token = localStorage.getItem('auth_token');
@@ -69,11 +116,17 @@ export default function DrugManagementPage() {
       if (response.ok || response.status === 202) {
         const data = await response.json();
         
-        // If we got a jobId (async response), show success message
+        // If we got a jobId (async response), show progress tracker
         if (data.jobId) {
-          alert(`Search "${configName}" started successfully! Job ID: ${data.jobId}`);
+          setActiveJobId(data.jobId);
+          setShowProgressTracker(true);
+          
+          // Store job ID in localStorage for persistence across page refreshes
+          localStorage.setItem('activeJobId', data.jobId);
+          localStorage.setItem('showProgressTracker', 'true');
+          localStorage.setItem('runningConfigName', configName);
         } else {
-          // Legacy response without job tracking
+          // Legacy response without job tracking - show alert
           const resultCount = data.results?.totalFound || 0;
           const studiesCreated = data.studiesCreated || 0;
           const aiInferenceStatus = data.aiInferenceCompleted === true ? ' (AI analysis completed)' : 
@@ -86,10 +139,10 @@ export default function DrugManagementPage() {
           message += aiInferenceStatus;
           
           alert(message);
+          
+          // Refresh the configurations to show updated stats
+          fetchSearchConfigs();
         }
-        
-        // Refresh the configurations to show updated stats
-        fetchSearchConfigs();
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('Error running configuration:', errorData);
@@ -106,11 +159,14 @@ export default function DrugManagementPage() {
       console.error('Error running search config:', error);
       alert('Network error. Please check your connection and try again.');
     } finally {
-      setRunningConfigs(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(configId);
-        return newSet;
-      });
+      // Only remove from running configs if we didn't start a job
+      if (!showProgressTracker) {
+        setRunningConfigs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(configId);
+          return newSet;
+        });
+      }
     }
   };
 
@@ -308,6 +364,60 @@ export default function DrugManagementPage() {
                 </div>
               </div>
 
+              {/* Show hidden progress tracker button */}
+              {!showProgressTracker && activeJobId && (
+                <div className="mb-6">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600 mr-2"></div>
+                        <span className="text-yellow-800">
+                          A drug discovery job is running in the background: {runningConfigName}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowProgressTracker(true);
+                          localStorage.setItem('showProgressTracker', 'true');
+                        }}
+                        className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm hover:bg-yellow-700"
+                      >
+                        Show Progress
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Progress Tracker */}
+              {showProgressTracker && activeJobId && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium">
+                      Drug Discovery Progress: {runningConfigName}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        if (confirm('Are you sure you want to hide the progress tracker? The job will continue running in the background.')) {
+                          setShowProgressTracker(false);
+                          localStorage.setItem('showProgressTracker', 'false');
+                        }
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Hide progress tracker"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <StudyProgressTracker 
+                    jobId={activeJobId} 
+                    onComplete={handleJobComplete}
+                  />
+                </div>
+              )}
+
               {/* Existing Configurations */}
               <div>
                 <h3 className="text-lg font-medium mb-4">Your Search Configurations</h3>
@@ -320,7 +430,14 @@ export default function DrugManagementPage() {
                 ) : (
                   <div className="space-y-4">
                     {searchConfigs.map((config) => (
-                      <div key={config.id} className="border rounded-lg p-4 bg-white">
+                      <div 
+                        key={config.id} 
+                        className={`border rounded-lg p-4 bg-white ${
+                          showProgressTracker && config.name === runningConfigName
+                            ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200'
+                            : ''
+                        }`}
+                      >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <h4 className="font-medium">{config.name}</h4>
@@ -343,17 +460,17 @@ export default function DrugManagementPage() {
                           <div className="ml-4">
                             <button
                               onClick={() => runSearchConfig(config.id, config.name)}
-                              disabled={runningConfigs.has(config.id)}
+                              disabled={runningConfigs.has(config.id) || (showProgressTracker && config.name === runningConfigName)}
                               className={`px-4 py-2 text-sm font-medium rounded-md ${
-                                runningConfigs.has(config.id)
+                                runningConfigs.has(config.id) || (showProgressTracker && config.name === runningConfigName)
                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                   : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
                               }`}
                             >
-                              {runningConfigs.has(config.id) ? (
+                              {runningConfigs.has(config.id) || (showProgressTracker && config.name === runningConfigName) ? (
                                 <div className="flex items-center">
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                  Running...
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
+                                  {showProgressTracker && config.name === runningConfigName ? 'In Progress...' : 'Running...'}
                                 </div>
                               ) : (
                                 'Run Now'
