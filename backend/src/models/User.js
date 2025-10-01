@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 class User {
   constructor({
-    id = uuidv4(),
+    id = null, // Will be generated with user_ prefix
     organizationId,
     username,
     email,
@@ -19,7 +19,13 @@ class User {
     updatedAt = new Date().toISOString(),
     createdBy = null
   }) {
-    this.id = id;
+    // Generate ID with proper prefix if not provided
+    this.id = id || `user_${uuidv4()}`;
+    // Ensure ID always has user prefix for new users
+    if (!this.id.startsWith('user_') && !id) {
+      this.id = `user_${this.id}`;
+    }
+
     this.organizationId = organizationId;
     this.username = username ? username.toLowerCase() : '';
     this.email = email ? email.toLowerCase() : '';

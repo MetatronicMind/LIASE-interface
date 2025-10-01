@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 
 class Role {
   constructor({
-    id = `role_${uuidv4()}`, // Add 'role_' prefix to avoid ID conflicts
+    id = null, // Will be generated in the constructor
     organizationId,
     name,
     displayName,
@@ -14,7 +14,13 @@ class Role {
     updatedAt = new Date().toISOString(),
     createdBy = null
   }) {
-    this.id = id;
+    // Generate ID with proper prefix if not provided
+    this.id = id || `role_${uuidv4()}`;
+    // Ensure ID always has role prefix
+    if (!this.id.startsWith('role_')) {
+      this.id = `role_${this.id}`;
+    }
+
     this.organizationId = organizationId;
     this.name = name; // Unique identifier (e.g., 'clinical_researcher')
     this.displayName = displayName; // Human readable name (e.g., 'Clinical Researcher')

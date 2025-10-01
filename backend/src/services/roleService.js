@@ -117,7 +117,7 @@ class RoleService {
   // Create a new role
   async createRole(roleData, createdBy) {
     try {
-      console.log('Creating role with data:', {
+      console.log('🔥 [ROLE CREATE] Starting with data:', {
         roleName: roleData.name,
         organizationId: roleData.organizationId,
         createdById: createdBy.id
@@ -126,82 +126,126 @@ class RoleService {
       // Check if role name already exists in organization
       const existingRole = await this.getRoleByName(roleData.name, roleData.organizationId);
       if (existingRole) {
-        console.log('Role already exists:', existingRole.id);
+        console.log('🔥 [ROLE CREATE] Role name already exists:', existingRole.id);
         throw new Error(`Role with name '${roleData.name}' already exists in this organization`);
       }
 
-      // Create role object
+      // Create role object with guaranteed unique prefixed ID
       const role = new Role({
         ...roleData,
         createdBy: createdBy.id
       });
 
-      console.log('Creating role in database:', {
+      console.log('🔥 [ROLE CREATE] Generated role:', {
         roleId: role.id,
         roleName: role.name,
         organizationId: role.organizationId,
         hasRolePrefix: role.id.startsWith('role_')
       });
 
-      // Check if this specific ID already exists in the database
-      console.log('Checking if role ID already exists in database...');
-      try {
-        const existingEntity = await cosmosService.getItem('users', role.id, role.organizationId);
-        if (existingEntity) {
-          console.error('ID CONFLICT: Entity with this ID already exists:', {
-            conflictingId: role.id,
-            existingEntityType: existingEntity.type,
-            existingEntityName: existingEntity.name || existingEntity.email,
-            existingEntityOrgId: existingEntity.organizationId
-          });
-          // Generate a new ID and try again
-          const newRole = new Role({
-            ...roleData,
-            createdBy: createdBy.id
-          });
-          console.log('Generated new role ID:', newRole.id);
-          role.id = newRole.id;
+      // Double-check for any ID conflicts in the users container
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          // Check if this specific ID exists anywhere in this organization's partition
+          const existingEntity = await cosmosService.getItem('users', role.id, role.organizationId);
+          
+          if (existingEntity) {
+            console.error(`🔥 [ROLE CREATE] ID CONFLICT (attempt ${retryCount + 1}):`, {
+              conflictingId: role.id,
+              organizationId: role.organizationId,
+              existingEntityType: existingEntity.type,
+              existingEntityName: existingEntity.name || existingEntity.email || existingEntity.displayName
+            });
+            
+            // Generate a completely new role
+            const newRole = new Role({
+              ...roleData,
+              createdBy: createdBy.id
+            });
+            
+            console.log(`🔥 [ROLE CREATE] Generated new ID (attempt ${retryCount + 1}):`, newRole.id);
+            role.id = newRole.id;
+            retryCount++;
+            continue; // Try again with new ID
+          }
+          
+          // No conflict found, break out of retry loop
+          break;
+          
+        } catch (getError) {
+          // If getItem fails with 404, the ID doesn't exist - this is good
+          if (getError.code === 404 || getError.statusCode === 404) {
+            console.log('🔥 [ROLE CREATE] ID check passed - no conflicts found');
+            break;
+          } else {
+            console.log('🔥 [ROLE CREATE] Unexpected error during ID check:', getError.message);
+            // Continue anyway, the createItem will catch real conflicts
+            break;
+          }
         }
-      } catch (getError) {
-        // If getItem fails, the ID likely doesn't exist, which is good
-        console.log('ID check passed - no existing entity with this ID');
+      }
+      
+      if (retryCount >= maxRetries) {
+        throw new Error('Failed to generate unique role ID after multiple attempts');
       }
 
       // Save to database
-      const savedRole = await cosmosService.createItem('users', role.toJSON());
+      const roleJson = role.toJSON();
+      console.log('🔥 [ROLE CREATE] Saving to users container:', {
+        id: roleJson.id,
+        type: roleJson.type,
+        organizationId: roleJson.organizationId
+      });
       
-      console.log('Role created successfully:', savedRole.id);
+      const savedRole = await cosmosService.createItem('users', roleJson);
+      
+      console.log('🔥 [ROLE CREATE] ✅ Success:', savedRole.id);
       return new Role(savedRole);
 
     } catch (error) {
-      console.error('Error creating role:', {
+      console.error('🔥 [ROLE CREATE] ❌ Failed:', {
         message: error.message,
         code: error.code,
         statusCode: error.statusCode,
-        activityId: error.activityId,
         roleName: roleData?.name,
-        organizationId: roleData?.organizationId,
-        attemptedRoleId: error.attemptedRoleId
+        organizationId: roleData?.organizationId
       });
       
-      // If it's a 409 conflict, let's investigate further
+      // Enhanced 409 debugging - show what's in the organization
       if (error.code === 409 || error.statusCode === 409) {
-        console.log('409 Conflict detected - investigating...');
-        
-        // Check what entity exists with this ID
-        const conflictQuery = `SELECT * FROM c WHERE c.id = @roleId`;
-        const conflictParams = [{ name: '@roleId', value: roleData.attemptedRoleId || 'unknown' }];
+        console.log('🔥 [ROLE CREATE] 409 CONFLICT - Analyzing organization contents...');
         
         try {
-          const conflictingEntity = await cosmosService.queryItems('users', conflictQuery, conflictParams);
-          console.log('Conflicting entity found:', conflictingEntity.map(e => ({
+          const orgQuery = `SELECT c.id, c.type, c.name, c.email, c.displayName FROM c WHERE c.organizationId = @orgId`;
+          const orgParams = [{ name: '@orgId', value: roleData.organizationId }];
+          const entitiesInOrg = await cosmosService.queryItems('users', orgQuery, orgParams);
+          
+          console.log('🔥 [ROLE CREATE] Organization contents:', entitiesInOrg.map(e => ({
             id: e.id,
             type: e.type,
-            name: e.name || e.email,
-            organizationId: e.organizationId
+            name: e.name || e.email || e.displayName
           })));
+          
+          // Check specifically for ID pattern conflicts
+          const users = entitiesInOrg.filter(e => e.type === 'user');
+          const roles = entitiesInOrg.filter(e => e.type === 'role');
+          const unprefixedUsers = users.filter(u => !u.id.startsWith('user_'));
+          const unprefixedRoles = roles.filter(r => !r.id.startsWith('role_'));
+          
+          console.log('🔥 [ROLE CREATE] ID Analysis:', {
+            totalUsers: users.length,
+            totalRoles: roles.length,
+            unprefixedUsers: unprefixedUsers.length,
+            unprefixedRoles: unprefixedRoles.length,
+            unprefixedUserIds: unprefixedUsers.map(u => u.id),
+            unprefixedRoleIds: unprefixedRoles.map(r => r.id)
+          });
+          
         } catch (queryError) {
-          console.error('Failed to query conflicting entity:', queryError);
+          console.error('🔥 [ROLE CREATE] Failed to analyze organization:', queryError);
         }
       }
       
