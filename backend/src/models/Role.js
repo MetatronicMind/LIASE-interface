@@ -43,7 +43,8 @@ class Role {
       studies: { read: false, write: false, delete: false },
       audit: { read: false, write: false, delete: false },
       settings: { read: false, write: false },
-      organizations: { read: false, write: false, delete: false }
+      organizations: { read: false, write: false, delete: false },
+      reports: { read: false, write: false, delete: false }
     };
 
     // Merge provided permissions with default structure
@@ -89,7 +90,8 @@ class Role {
           studies: { read: true, write: true, delete: true },
           audit: { read: true, write: true, delete: false },
           settings: { read: true, write: true },
-          organizations: { read: true, write: true, delete: true }
+          organizations: { read: true, write: true, delete: true },
+          reports: { read: true, write: true, delete: true }
         },
         isSystemRole: true
       },
@@ -105,7 +107,8 @@ class Role {
           studies: { read: true, write: true, delete: true },
           audit: { read: true, write: false, delete: false },
           settings: { read: true, write: true },
-          organizations: { read: false, write: false, delete: false }
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: true, write: true, delete: false }
         },
         isSystemRole: true
       },
@@ -121,7 +124,8 @@ class Role {
           studies: { read: true, write: true, delete: false },
           audit: { read: true, write: false, delete: false },
           settings: { read: true, write: false },
-          organizations: { read: false, write: false, delete: false }
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: true, write: false, delete: false }
         },
         isSystemRole: true
       },
@@ -137,7 +141,8 @@ class Role {
           studies: { read: true, write: false, delete: false },
           audit: { read: true, write: false, delete: false },
           settings: { read: false, write: false },
-          organizations: { read: false, write: false, delete: false }
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: true, write: false, delete: false }
         },
         isSystemRole: true
       },
@@ -153,7 +158,8 @@ class Role {
           studies: { read: true, write: true, delete: false },
           audit: { read: false, write: false, delete: false },
           settings: { read: false, write: false },
-          organizations: { read: false, write: false, delete: false }
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: false, write: false, delete: false }
         },
         isSystemRole: true
       },
@@ -169,7 +175,8 @@ class Role {
           studies: { read: true, write: true, delete: false },
           audit: { read: true, write: false, delete: false },
           settings: { read: false, write: false },
-          organizations: { read: false, write: false, delete: false }
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: true, write: true, delete: false }
         },
         isSystemRole: true
       }

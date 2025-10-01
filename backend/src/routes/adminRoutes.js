@@ -504,7 +504,8 @@ router.post('/create-admin-user', async (req, res) => {
         studies: { read: true, write: true, delete: true },
         audit: { read: true, write: true, delete: false },
         settings: { read: true, write: true },
-        organizations: { read: true, write: true, delete: true }
+        organizations: { read: true, write: true, delete: true },
+        reports: { read: true, write: true, delete: true }
       } : {
         dashboard: { read: true, write: true },
         users: { read: true, write: true, delete: true },
@@ -513,7 +514,8 @@ router.post('/create-admin-user', async (req, res) => {
         studies: { read: true, write: true, delete: true },
         audit: { read: true, write: false, delete: false },
         settings: { read: true, write: true },
-        organizations: { read: true, write: true, delete: false }
+        organizations: { read: true, write: true, delete: false },
+        reports: { read: true, write: true, delete: false }
       };
 
       role = {
