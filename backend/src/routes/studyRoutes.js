@@ -88,12 +88,30 @@ router.get('/data-entry',
         search
       } = req.query;
       
+      console.log('Data entry request - User organization ID:', req.user.organizationId);
+      console.log('Data entry request - Query params:', { page, limit, search });
+      
+      // Test query to find the specific study mentioned in the issue
+      const testQuery = 'SELECT * FROM c WHERE c.pmid = @pmid';
+      const testParams = [{ name: '@pmid', value: '39234674' }];
+      const testResult = await cosmosService.queryItems('studies', testQuery, testParams);
+      console.log('Test query for PMID 39234674:', {
+        found: testResult.resources?.length > 0,
+        count: testResult.resources?.length || 0,
+        studyOrgId: testResult.resources?.[0]?.organizationId,
+        studyUserTag: testResult.resources?.[0]?.userTag,
+        studyEffectiveClassification: testResult.resources?.[0]?.effectiveClassification
+      });
+      
       // Query for studies that are manually tagged as ICSR only
       let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @tag';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
         { name: '@tag', value: 'ICSR' }
       ];
+      
+      console.log('Data entry query:', query);
+      console.log('Data entry parameters:', parameters);
 
       if (search) {
         query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
@@ -106,6 +124,17 @@ router.get('/data-entry',
       query += ` OFFSET ${offset} LIMIT ${limit}`;
 
       const result = await cosmosService.queryItems('studies', query, parameters);
+      
+      console.log('Data entry query result count:', result.resources?.length || 0);
+      if (result.resources?.length > 0) {
+        console.log('First study sample:', {
+          id: result.resources[0].id,
+          pmid: result.resources[0].pmid,
+          title: result.resources[0].title?.substring(0, 50) + '...',
+          userTag: result.resources[0].userTag,
+          organizationId: result.resources[0].organizationId
+        });
+      }
 
       await auditAction(
         req.user,
