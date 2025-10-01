@@ -983,6 +983,111 @@ router.put('/:id',
   }
 );
 
+// Update existing studies with ICSR classification from Pending to Study in Process
+router.put('/update-icsr-status',
+  authorizePermission('studies', 'update'),
+  async (req, res) => {
+    try {
+      // Query for studies with ICSR classification but still in Pending status
+      const query = `
+        SELECT * FROM c 
+        WHERE c.organizationId = @orgId 
+        AND (c.status = @pendingStatus OR c.status = @pendingReviewStatus)
+        AND (c.icsrClassification != null OR c.confirmedPotentialICSR = true)
+      `;
+      const parameters = [
+        { name: '@orgId', value: req.user.organizationId },
+        { name: '@pendingStatus', value: 'Pending' },
+        { name: '@pendingReviewStatus', value: 'Pending Review' }
+      ];
+
+      const studiesWithICSR = await cosmosService.queryItems('studies', query, parameters);
+      
+      if (!studiesWithICSR || studiesWithICSR.length === 0) {
+        return res.json({
+          message: 'No studies found with ICSR classification in Pending status',
+          updatedCount: 0
+        });
+      }
+
+      let updatedCount = 0;
+      const updateResults = [];
+
+      // Update each study
+      for (const studyData of studiesWithICSR) {
+        try {
+          // Update the status
+          studyData.status = 'Study in Process';
+          studyData.updatedAt = new Date().toISOString();
+          
+          // Add a comment about the status change
+          if (!studyData.comments) {
+            studyData.comments = [];
+          }
+          
+          studyData.comments.push({
+            id: uuidv4(),
+            userId: req.user.id,
+            userName: req.user.name || req.user.email,
+            text: 'Status automatically updated to "Study in Process" due to ICSR classification',
+            type: 'system',
+            createdAt: new Date().toISOString()
+          });
+
+          // Update the study in the database
+          const updatedStudy = await cosmosService.replaceItem('studies', studyData.id, studyData);
+          updatedCount++;
+          
+          updateResults.push({
+            pmid: studyData.pmid,
+            id: studyData.id,
+            previousStatus: 'Pending',
+            newStatus: 'Study in Process',
+            icsrClassification: studyData.icsrClassification,
+            confirmedPotentialICSR: studyData.confirmedPotentialICSR
+          });
+
+          console.log(`Updated study ${studyData.id} (PMID: ${studyData.pmid}) status to "Study in Process"`);
+          
+        } catch (updateError) {
+          console.error(`Failed to update study ${studyData.id}:`, updateError);
+          updateResults.push({
+            pmid: studyData.pmid,
+            id: studyData.id,
+            error: updateError.message
+          });
+        }
+      }
+
+      // Log the action
+      await auditAction(
+        req.user,
+        'studies_bulk_update',
+        `Updated ${updatedCount} studies with ICSR classification from Pending to Study in Process`,
+        { 
+          totalFound: studiesWithICSR.length,
+          updatedCount,
+          updateResults
+        }
+      );
+
+      res.json({
+        message: `Successfully updated ${updatedCount} out of ${studiesWithICSR.length} studies`,
+        updatedCount,
+        totalFound: studiesWithICSR.length,
+        updateResults
+      });
+
+    } catch (error) {
+      console.error('Error updating ICSR studies status:', error);
+      res.status(500).json({ 
+        error: 'Failed to update studies status', 
+        message: error.message 
+      });
+    }
+  }
+);
+
 module.exports = router;
 
 // Ingest studies from PubMed for a given drug

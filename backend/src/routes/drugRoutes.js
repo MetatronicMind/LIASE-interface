@@ -532,14 +532,14 @@ router.get('/discover',
             for (let i = 0; i < externalApiResponse.results.length; i++) {
               const aiResult = externalApiResponse.results[i];
               try {
-                console.log(`Creating study for PMID: ${aiResult.pmid} (${i + 1}/${totalAiResults})`);
+                console.log(`Processing PMID: ${aiResult.pmid} (${i + 1}/${totalAiResults})`);
                 
-                // Update progress for each study being created
+                // Update progress for each study being processed
                 const studyProgress = 70 + Math.round((i / totalAiResults) * 25);
                 await jobTrackingService.updateJob(jobId, {
                   progress: studyProgress,
                   currentStep: 4,
-                  message: `Creating study ${i + 1}/${totalAiResults} (PMID: ${aiResult.pmid})...`,
+                  message: `Processing study ${i + 1}/${totalAiResults} (PMID: ${aiResult.pmid})...`,
                   metadata: { 
                     ...job.metadata, 
                     phase: 'creating_studies',
@@ -547,6 +547,21 @@ router.get('/discover',
                     totalStudies: totalAiResults
                   }
                 });
+                
+                // Check for duplicate PMID in the database
+                const duplicateQuery = 'SELECT * FROM c WHERE c.pmid = @pmid AND c.organizationId = @organizationId';
+                const duplicateParams = [
+                  { name: '@pmid', value: aiResult.pmid },
+                  { name: '@organizationId', value: req.user.organizationId }
+                ];
+                const existingStudies = await cosmosService.queryItems('studies', duplicateQuery, duplicateParams);
+                
+                if (existingStudies && existingStudies.length > 0) {
+                  console.log(`Skipping duplicate PMID: ${aiResult.pmid} - already exists in database`);
+                  continue; // Skip processing this PMID as it already exists
+                }
+                
+                console.log(`Creating new study for PMID: ${aiResult.pmid}`);
                 
                 // Handle different result formats from different API services
                 const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
@@ -559,13 +574,19 @@ router.get('/discover',
                   req.user.id
                 );
                 
+                // Update status based on ICSR classification or confirmed potential ICSR
+                if (study.icsrClassification || study.confirmedPotentialICSR) {
+                  study.status = 'Study in Process';
+                  console.log(`Setting status to 'Study in Process' for PMID ${aiResult.pmid} due to ICSR classification`);
+                }
+                
                 // Store study in database
                 const createdStudy = await cosmosService.createItem('studies', study.toJSON());
                 studiesCreated++;
-                console.log(`Successfully created study in database for PMID: ${aiResult.pmid}, ID: ${createdStudy.id}`);
+                console.log(`Successfully created study in database for PMID: ${aiResult.pmid}, ID: ${createdStudy.id} with status: ${createdStudy.status}`);
                 
               } catch (studyError) {
-                console.error(`Error creating study for PMID ${aiResult.pmid}:`, studyError);
+                console.error(`Error processing study for PMID ${aiResult.pmid}:`, studyError);
                 // Continue with other studies
               }
             }
@@ -1764,20 +1785,35 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
           for (let i = 0; i < externalApiResponse.results.length; i++) {
             const aiResult = externalApiResponse.results[i];
             try {
-              console.log(`Creating study for PMID: ${aiResult.pmid} (${i + 1}/${totalAiResults})`);
+              console.log(`Processing PMID: ${aiResult.pmid} (${i + 1}/${totalAiResults})`);
               
-              // Update progress for each study being created
+              // Update progress for each study being processed
               const studyProgress = 70 + Math.round((i / totalAiResults) * 25);
               await jobTrackingService.updateJob(jobId, {
                 progress: studyProgress,
                 currentStep: 4,
-                message: `Creating study ${i + 1}/${totalAiResults} (PMID: ${aiResult.pmid})...`,
+                message: `Processing study ${i + 1}/${totalAiResults} (PMID: ${aiResult.pmid})...`,
                 metadata: { 
                   phase: 'creating_studies',
                   currentStudy: i + 1,
                   totalStudies: totalAiResults
                 }
               });
+              
+              // Check for duplicate PMID in the database
+              const duplicateQuery = 'SELECT * FROM c WHERE c.pmid = @pmid AND c.organizationId = @organizationId';
+              const duplicateParams = [
+                { name: '@pmid', value: aiResult.pmid },
+                { name: '@organizationId', value: user.organizationId }
+              ];
+              const existingStudies = await cosmosService.queryItems('studies', duplicateQuery, duplicateParams);
+              
+              if (existingStudies && existingStudies.length > 0) {
+                console.log(`Skipping duplicate PMID: ${aiResult.pmid} - already exists in database`);
+                continue; // Skip processing this PMID as it already exists
+              }
+              
+              console.log(`Creating new study for PMID: ${aiResult.pmid}`);
               
               // Handle different result formats from different API services
               const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
@@ -1790,14 +1826,20 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
                 user.id
               );
               
+              // Update status based on ICSR classification or confirmed potential ICSR
+              if (study.icsrClassification || study.confirmedPotentialICSR) {
+                study.status = 'Study in Process';
+                console.log(`Setting status to 'Study in Process' for PMID ${aiResult.pmid} due to ICSR classification`);
+              }
+              
               // Store study in database
               const savedStudy = await cosmosService.createItem('studies', study.toJSON());
               studiesCreated++;
               
-              console.log(`Successfully created study ${savedStudy.id} for PMID ${aiResult.pmid}`);
+              console.log(`Successfully created study ${savedStudy.id} for PMID ${aiResult.pmid} with status: ${savedStudy.status}`);
               
             } catch (studyError) {
-              console.error(`Error creating study for PMID ${aiResult.pmid}:`, studyError);
+              console.error(`Error processing study for PMID ${aiResult.pmid}:`, studyError);
               // Continue with other studies
             }
           }
@@ -2019,20 +2061,35 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
             for (let i = 0; i < results.drugs.length; i++) {
               const drug = results.drugs[i];
               try {
-                console.log(`Creating basic study for PMID: ${drug.pmid} (${i + 1}/${results.drugs.length})`);
+                console.log(`Processing basic study for PMID: ${drug.pmid} (${i + 1}/${results.drugs.length})`);
                 
-                // Update progress for each study being created
+                // Update progress for each study being processed
                 const studyProgress = 70 + Math.round((i / results.drugs.length) * 25);
                 await jobTrackingService.updateJob(jobId, {
                   progress: studyProgress,
                   currentStep: 4,
-                  message: `Creating basic study ${i + 1}/${results.drugs.length} (PMID: ${drug.pmid})...`,
+                  message: `Processing basic study ${i + 1}/${results.drugs.length} (PMID: ${drug.pmid})...`,
                   metadata: { 
                     phase: 'creating_basic_studies',
                     currentStudy: i + 1,
                     totalStudies: results.drugs.length
                   }
                 });
+                
+                // Check for duplicate PMID in the database
+                const duplicateQuery = 'SELECT * FROM c WHERE c.pmid = @pmid AND c.organizationId = @organizationId';
+                const duplicateParams = [
+                  { name: '@pmid', value: drug.pmid },
+                  { name: '@organizationId', value: user.organizationId }
+                ];
+                const existingStudies = await cosmosService.queryItems('studies', duplicateQuery, duplicateParams);
+                
+                if (existingStudies && existingStudies.length > 0) {
+                  console.log(`Skipping duplicate PMID: ${drug.pmid} - already exists in database`);
+                  continue; // Skip processing this PMID as it already exists
+                }
+                
+                console.log(`Creating new basic study for PMID: ${drug.pmid}`);
                 
                 // Create basic study with PubMed data only
                 const study = new Study({
