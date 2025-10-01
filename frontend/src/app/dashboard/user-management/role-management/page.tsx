@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
-import { PlusIcon, CogIcon, TrashIcon, ShieldCheckIcon } from "@heroicons/react/24/solid";
+import { PlusIcon, CogIcon, TrashIcon, ShieldCheckIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/solid";
 import { PermissionGate, useConditionalPermissions } from "@/components/PermissionProvider";
 import { roleService } from "@/services/roleService";
+import RoleDebugTab from "@/components/RoleDebugTab";
 
 interface Role {
   id: string;
@@ -31,6 +32,7 @@ export default function RoleManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [permissions, setPermissions] = useState<PermissionStructure>({});
+  const [activeTab, setActiveTab] = useState<'manage' | 'debug'>('manage');
   const { canManageRoles, canDeleteRoles } = useConditionalPermissions();
 
   // Create role form state
@@ -186,6 +188,43 @@ export default function RoleManagementPage() {
           </div>
         )}
 
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8 px-6" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab('manage')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  activeTab === 'manage'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CogIcon className="w-4 h-4" />
+                  Manage Roles
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('debug')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  activeTab === 'debug'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <WrenchScrewdriverIcon className="w-4 h-4" />
+                  Debug & Tools
+                </div>
+              </button>
+            </nav>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'manage' && (
+
         <div className="bg-white rounded-xl shadow border border-blue-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -261,6 +300,16 @@ export default function RoleManagementPage() {
             </table>
           </div>
         </div>
+        )}
+
+        {/* Debug Tab Content */}
+        {activeTab === 'debug' && (
+          <RoleDebugTab 
+            roles={roles}
+            onRolesChange={fetchRoles}
+            onError={setError}
+          />
+        )}
       </div>
 
       {/* Create Role Modal */}
