@@ -13,9 +13,11 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [isForceDeleting, setIsForceDeleting] = useState(false);
+  const [isInspecting, setIsInspecting] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showForceDeleteConfirm, setShowForceDeleteConfirm] = useState(false);
+  const [inspectionData, setInspectionData] = useState<any>(null);
 
   const handleSelectRole = (roleId: string) => {
     setSelectedRoles(prev => 
@@ -132,6 +134,21 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
     }
   };
 
+  const handleInspectDatabase = async () => {
+    setIsInspecting(true);
+    
+    try {
+      const data = await roleService.inspectDatabase();
+      setInspectionData(data);
+      onError('');
+      console.log('Database inspection data:', data);
+    } catch (error: any) {
+      onError(error.message || 'Failed to inspect database');
+    } finally {
+      setIsInspecting(false);
+    }
+  };
+
   const customRoles = roles.filter(role => !role.isSystemRole);
   const systemRoles = roles.filter(role => role.isSystemRole);
 
@@ -155,6 +172,15 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
           >
             <ArrowPathIcon className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
             {isFetching ? 'Refreshing...' : 'Refresh All Roles'}
+          </button>
+
+          <button
+            onClick={handleInspectDatabase}
+            disabled={isInspecting}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg transition"
+          >
+            <ArrowPathIcon className={`w-4 h-4 ${isInspecting ? 'animate-spin' : ''}`} />
+            {isInspecting ? 'Inspecting...' : '🔍 Inspect Database'}
           </button>
 
           <button
@@ -203,6 +229,112 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
           <p className="text-2xl font-bold text-purple-700">{customRoles.length}</p>
         </div>
       </div>
+
+      {/* Database Inspection Results */}
+      {inspectionData && (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h4 className="text-lg font-semibold text-gray-900">🔍 Database Inspection Results</h4>
+            <p className="text-sm text-gray-600">Raw data from the database for your organization</p>
+          </div>
+          
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <h5 className="font-semibold text-blue-900 text-sm">Total Items</h5>
+                <p className="text-xl font-bold text-blue-700">{inspectionData.summary.totalItems}</p>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <h5 className="font-semibold text-green-900 text-sm">Total Roles</h5>
+                <p className="text-xl font-bold text-green-700">{inspectionData.summary.totalRoles}</p>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <h5 className="font-semibold text-yellow-900 text-sm">Entity Types</h5>
+                <p className="text-xl font-bold text-yellow-700">{inspectionData.summary.itemsByType.length}</p>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <h5 className="font-semibold text-red-900 text-sm">Conflicts Found</h5>
+                <p className="text-xl font-bold text-red-700">
+                  {Object.values(inspectionData.conflictingIds).filter((items: any) => items.length > 0).length}
+                </p>
+              </div>
+            </div>
+
+            {/* All Roles (including inactive) */}
+            {inspectionData.allRoles.length > 0 && (
+              <div className="mb-6">
+                <h5 className="font-semibold text-gray-900 mb-3">All Roles (including inactive):</h5>
+                <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                  {inspectionData.allRoles.map((role: any, index: number) => (
+                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="font-mono text-sm">
+                        {role.name} ({role.id.substring(0, 8)}...)
+                      </span>
+                      <div className="flex gap-2">
+                        <span className={`px-2 py-1 rounded text-xs ${role.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {role.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {role.isSystemRole && (
+                          <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">System</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Conflicting IDs */}
+            {Object.entries(inspectionData.conflictingIds).some(([_, items]: [string, any]) => items.length > 0) && (
+              <div className="mb-6">
+                <h5 className="font-semibold text-red-900 mb-3">⚠️ Conflicting IDs Found:</h5>
+                <div className="bg-red-50 rounded-lg p-4">
+                  {Object.entries(inspectionData.conflictingIds).map(([id, items]: [string, any]) => (
+                    items.length > 0 && (
+                      <div key={id} className="mb-2">
+                        <p className="font-mono text-sm font-semibold text-red-800">ID: {id}</p>
+                        {items.map((item: any, index: number) => (
+                          <p key={index} className="ml-4 text-sm text-red-700">
+                            Type: {item.type}, Name: {item.name || item.username || 'N/A'}
+                          </p>
+                        ))}
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Items by Type */}
+            <div>
+              <h5 className="font-semibold text-gray-900 mb-3">Items by Type:</h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {inspectionData.summary.itemsByType.map((typeInfo: any) => (
+                  <div key={typeInfo.type} className="bg-gray-50 rounded-lg p-3">
+                    <h6 className="font-semibold text-gray-800">{typeInfo.type}</h6>
+                    <p className="text-2xl font-bold text-gray-700">{typeInfo.count} items</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setInspectionData(null)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+              >
+                Clear Results
+              </button>
+              <button
+                onClick={() => console.log('Full inspection data:', inspectionData)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                Log Full Data to Console
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Custom Roles Table */}
       {customRoles.length > 0 && (

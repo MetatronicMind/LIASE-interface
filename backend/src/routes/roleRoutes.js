@@ -322,6 +322,105 @@ router.post('/system/initialize',
   }
 );
 
+// Debug endpoint to inspect all data in users container
+router.get('/debug/inspect-database',
+  authorizeRole('superadmin'),
+  async (req, res) => {
+    try {
+      console.log('🔍 DEBUG: Inspecting database for organization:', req.user.organizationId);
+      
+      const cosmosService = require('../services/cosmosService');
+      
+      // Get ALL items for this organization (not just roles)
+      const allItemsQuery = `
+        SELECT * FROM c 
+        WHERE c.organizationId = @organizationId
+      `;
+      
+      const parameters = [
+        { name: '@organizationId', value: req.user.organizationId }
+      ];
+
+      console.log('🔍 Querying all items for organization...');
+      const allItems = await cosmosService.queryItems('users', allItemsQuery, parameters);
+      
+      // Get ALL roles (including inactive ones)
+      const allRolesQuery = `
+        SELECT * FROM c 
+        WHERE c.type = 'role' 
+        AND c.organizationId = @organizationId
+      `;
+      
+      console.log('🔍 Querying all roles for organization...');
+      const allRoles = await cosmosService.queryItems('users', allRolesQuery, parameters);
+      
+      // Categorize items by type
+      const itemsByType = {};
+      allItems.forEach(item => {
+        const type = item.type || 'unknown';
+        if (!itemsByType[type]) {
+          itemsByType[type] = [];
+        }
+        itemsByType[type].push({
+          id: item.id,
+          name: item.name || item.username || 'N/A',
+          isActive: item.isActive,
+          isSystemRole: item.isSystemRole,
+          createdAt: item.createdAt
+        });
+      });
+
+      // Check for specific ID conflicts
+      const conflictingIds = [
+        'd79d7f95-0441-49bd-831a-1440c2f15cee',
+        '030a279a-e6ba-4727-9bd5-57319893b167'
+      ];
+      
+      const conflictResults = {};
+      for (const id of conflictingIds) {
+        const conflictQuery = `SELECT * FROM c WHERE c.id = @id`;
+        const conflictParams = [{ name: '@id', value: id }];
+        const conflictItems = await cosmosService.queryItems('users', conflictQuery, conflictParams);
+        conflictResults[id] = conflictItems;
+      }
+
+      console.log(`🎯 Found ${allItems.length} total items, ${allRoles.length} roles`);
+
+      res.json({
+        organization: req.user.organizationId,
+        summary: {
+          totalItems: allItems.length,
+          totalRoles: allRoles.length,
+          itemsByType: Object.keys(itemsByType).map(type => ({
+            type,
+            count: itemsByType[type].length
+          }))
+        },
+        allRoles: allRoles.map(role => ({
+          id: role.id,
+          name: role.name,
+          displayName: role.displayName,
+          isActive: role.isActive,
+          isSystemRole: role.isSystemRole,
+          createdAt: role.createdAt
+        })),
+        itemsByType,
+        conflictingIds: conflictResults,
+        debug: {
+          message: 'This shows all data in the users container for your organization'
+        }
+      });
+
+    } catch (error) {
+      console.error('Error inspecting database:', error);
+      res.status(500).json({
+        error: 'Failed to inspect database',
+        message: error.message
+      });
+    }
+  }
+);
+
 // Debug endpoint to force delete all roles (including system roles)
 router.delete('/debug/force-delete-all',
   authorizeRole('superadmin'),

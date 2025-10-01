@@ -175,6 +175,22 @@ class RoleService {
     const data = await response.json();
     return data;
   }
+
+  // Debug function to inspect database
+  async inspectDatabase(): Promise<any> {
+    const response = await fetch(`${this.API_BASE_URL}/roles/debug/inspect-database`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      await this.handleAuthError(response);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to inspect database');
+    }
+
+    const data = await response.json();
+    return data;
+  }
 }
 
 export const roleService = new RoleService();
