@@ -16,6 +16,11 @@ interface Study {
   r3FormCompletedBy?: string;
   r3FormCompletedAt?: string;
   createdAt: string;
+  updatedAt?: string;
+  userId?: string;
+  organizationId?: string;
+  isProcessed?: boolean;
+  processingNotes?: string;
 }
 
 const R3_FORM_FIELDS = [
@@ -83,6 +88,7 @@ export default function FullReportPage() {
   const [loading, setLoading] = useState(true);
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -125,6 +131,7 @@ export default function FullReportPage() {
   const closeReport = () => {
     setShowReport(false);
     setSelectedStudy(null);
+    setShowExportMenu(false);
   };
 
   const exportReport = () => {
@@ -136,10 +143,20 @@ export default function FullReportPage() {
         title: selectedStudy.title,
         drugName: selectedStudy.drugName,
         adverseEvent: selectedStudy.adverseEvent,
+        userTag: selectedStudy.userTag,
+        r3FormStatus: selectedStudy.r3FormStatus,
+        createdAt: selectedStudy.createdAt,
+        updatedAt: selectedStudy.updatedAt,
+        userId: selectedStudy.userId,
+        organizationId: selectedStudy.organizationId,
+        isProcessed: selectedStudy.isProcessed,
+        processingNotes: selectedStudy.processingNotes,
       },
       r3FormData: selectedStudy.r3FormData,
       completedAt: selectedStudy.r3FormCompletedAt,
-      completedBy: selectedStudy.r3FormCompletedBy
+      completedBy: selectedStudy.r3FormCompletedBy,
+      exportedAt: new Date().toISOString(),
+      exportFormat: "JSON"
     };
 
     const blob = new Blob([JSON.stringify(reportData, null, 2)], {
@@ -148,7 +165,182 @@ export default function FullReportPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ICSR_Report_${selectedStudy.pmid}.json`;
+    a.download = `ICSR_Report_${selectedStudy.pmid}_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToR3XML = () => {
+    if (!selectedStudy) return;
+
+    const generateR3XML = () => {
+      const xmlData = selectedStudy.r3FormData || {};
+      const timestamp = new Date().toISOString();
+      
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ichicsr lang="en" xmlns="http://www.ich.org/ICSR">
+  <!-- ICH E2B(R3) Individual Case Safety Report -->
+  <ichicsrmessageheader>
+    <messagetype>ichicsr</messagetype>
+    <messageformatversion>2.1</messageformatversion>
+    <messageformatrelease>2.0</messageformatrelease>
+    <messagenumb>LIASE-${selectedStudy.pmid}-${Date.now()}</messagenumb>
+    <messagesenderidentifier>LIASE-SYSTEM</messagesenderidentifier>
+    <messagereceiveridentifier>REGULATORY-AUTHORITY</messagereceiveridentifier>
+    <messagedateformat>204</messagedateformat>
+    <messagedate>${timestamp.replace(/[-:T]/g, '').substring(0, 14)}</messagedate>
+  </ichicsrmessageheader>
+  
+  <safetyreport>
+    <!-- Primary source information -->
+    <primarysourcereaction>
+      <primarysourcereaction>${selectedStudy.adverseEvent}</primarysourcereaction>
+    </primarysourcereaction>
+    
+    <!-- Study information -->
+    <companynumb>LIASE-${selectedStudy.pmid}</companynumb>
+    <reporttype>1</reporttype>
+    <serious>1</serious>
+    <seriousnessdeath>${xmlData['E.i.3.2a'] === 'True' ? '1' : '0'}</seriousnessdeath>
+    <seriousnesslifethreatening>${xmlData['E.i.3.2b'] === 'True' ? '1' : '0'}</seriousnesslifethreatening>
+    <seriousnesshospitalization>${xmlData['E.i.3.2c'] === 'True' ? '1' : '0'}</seriousnesshospitalization>
+    <seriousnessdisabling>${xmlData['E.i.3.2d'] === 'True' ? '1' : '0'}</seriousnessdisabling>
+    <seriousnesscongenitalanomali>${xmlData['E.i.3.2e'] === 'True' ? '1' : '0'}</seriousnesscongenitalanomali>
+    <seriousnessother>${xmlData['E.i.3.2f'] === 'True' ? '1' : '0'}</seriousnessother>
+    
+    <!-- Literature reference -->
+    <literaturereference>
+      <literaturereference>PMID: ${selectedStudy.pmid} - ${selectedStudy.title}</literaturereference>
+    </literaturereference>
+    
+    <!-- Patient information -->
+    <patient>
+      <patientinitial>${xmlData['D.1'] || 'N/A'}</patientinitial>
+      <patientbirthdate>${xmlData['D.2.1'] || ''}</patientbirthdate>
+      <patientagegroup>${xmlData['D.2.3'] || ''}</patientagegroup>
+      <patientweight>${xmlData['D.3'] || ''}</patientweight>
+      <patientheight>${xmlData['D.4'] || ''}</patientheight>
+      <patientsex>${xmlData['D.5'] || ''}</patientsex>
+      
+      <!-- Medical history -->
+      ${xmlData['D.7.1.r.3'] ? `
+      <medicalhistoryepisode>
+        <patientepisodename>${xmlData['D.7.1.r.3']}</patientepisodename>
+        <patientepisodestartdate>${xmlData['D.7.1.r.4'] || ''}</patientepisodestartdate>
+      </medicalhistoryepisode>` : ''}
+      
+      <!-- Death information -->
+      ${xmlData['D.9.2.r'] ? `
+      <patientdeathdate>${xmlData['D.9.2.r']}</patientdeathdate>` : ''}
+      
+      <!-- Reaction information -->
+      <reaction>
+        <primarysourcereaction>${selectedStudy.adverseEvent}</primarysourcereaction>
+        <reactionmeddraversionllt>24.1</reactionmeddraversionllt>
+        <reactionmeddrallt>${selectedStudy.adverseEvent}</reactionmeddrallt>
+        <reactionstartdate>${xmlData['E.i.4'] || ''}</reactionstartdate>
+        <reactionenddate>${xmlData['E.i.5'] || ''}</reactionenddate>
+        <reactionoutcome>6</reactionoutcome>
+      </reaction>
+      
+      <!-- Drug information -->
+      <drug>
+        <drugcharacterization>1</drugcharacterization>
+        <medicinalproduct>${selectedStudy.drugName}</medicinalproduct>
+        <drugauthorizationnumb>${xmlData['G.k.2'] || ''}</drugauthorizationnumb>
+        <drugstructuredosagenumb>${xmlData['G.k.1'] || ''}</drugstructuredosagenumb>
+        <drugstartdate>${xmlData['E.i.4'] || ''}</drugstartdate>
+        <drugenddate>${xmlData['E.i.5'] || ''}</drugenddate>
+        <actiondrug>6</actiondrug>
+      </drug>
+    </patient>
+    
+    <!-- Reporter information -->
+    <primarysource>
+      <reportertitle>${xmlData['C.2.r.1.1'] || ''}</reportertitle>
+      <reportergivename>${xmlData['C.2.r.1.2'] || ''}</reportergivename>
+      <reportermiddlename>${xmlData['C.2.r.1.3'] || ''}</reportermiddlename>
+      <reporterfamilyname>${xmlData['C.2.r.1.4'] || ''}</reporterfamilyname>
+      <reporterorganization>${xmlData['C.2.r.2.1'] || ''}</reporterorganization>
+      <qualification>5</qualification>
+    </primarysource>
+    
+    <!-- Report dates -->
+    <receiptdate>${selectedStudy.createdAt ? selectedStudy.createdAt.replace(/[-:T]/g, '').substring(0, 8) : ''}</receiptdate>
+    <receivedate>${selectedStudy.r3FormCompletedAt ? selectedStudy.r3FormCompletedAt.replace(/[-:T]/g, '').substring(0, 8) : ''}</receivedate>
+    
+    <!-- Additional form data as narrative -->
+    <narrative>
+      <narrativeincludeclinical>Study Title: ${selectedStudy.title}
+
+PMID: ${selectedStudy.pmid}
+Drug: ${selectedStudy.drugName}
+Adverse Event: ${selectedStudy.adverseEvent}
+
+R3 Form Data:
+${Object.entries(xmlData).map(([key, value]) => `${key}: ${value}`).join('\n')}
+
+Form completed on: ${selectedStudy.r3FormCompletedAt ? new Date(selectedStudy.r3FormCompletedAt).toLocaleString() : 'N/A'}
+Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
+      </narrativeincludeclinical>
+    </narrative>
+  </safetyreport>
+</ichicsr>`;
+
+      return xml;
+    };
+
+    const xmlContent = generateR3XML();
+    const blob = new Blob([xmlContent], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ICSR_R3_Report_${selectedStudy.pmid}_${new Date().toISOString().split('T')[0]}.xml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = () => {
+    if (!selectedStudy) return;
+
+    const csvData = [];
+    const headers = ['Field Code', 'Field Label', 'Category', 'Value'];
+    csvData.push(headers);
+
+    // Add study information
+    csvData.push(['Study.PMID', 'PubMed ID', 'Study', selectedStudy.pmid]);
+    csvData.push(['Study.Title', 'Study Title', 'Study', selectedStudy.title]);
+    csvData.push(['Study.DrugName', 'Drug Name', 'Study', selectedStudy.drugName]);
+    csvData.push(['Study.AdverseEvent', 'Adverse Event', 'Study', selectedStudy.adverseEvent]);
+    csvData.push(['Study.UserTag', 'User Tag', 'Study', selectedStudy.userTag]);
+    csvData.push(['Study.Status', 'R3 Form Status', 'Study', selectedStudy.r3FormStatus]);
+    csvData.push(['Study.CreatedAt', 'Created Date', 'Study', selectedStudy.createdAt]);
+    csvData.push(['Study.CompletedAt', 'Completed Date', 'Study', selectedStudy.r3FormCompletedAt || 'N/A']);
+    csvData.push(['Study.CompletedBy', 'Completed By', 'Study', selectedStudy.r3FormCompletedBy || 'N/A']);
+
+    // Add R3 form data
+    if (selectedStudy.r3FormData) {
+      R3_FORM_FIELDS.forEach(field => {
+        const value = selectedStudy.r3FormData[field.key] || '';
+        if (value) {
+          csvData.push([field.key, field.label, field.category, value]);
+        }
+      });
+    }
+
+    const csvContent = csvData.map(row => 
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ICSR_Report_${selectedStudy.pmid}_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -293,12 +485,52 @@ export default function FullReportPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={exportReport}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
-                >
-                  Export Report
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center gap-2"
+                  >
+                    Export Report
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {showExportMenu && (
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[200px]">
+                      <button
+                        onClick={() => {
+                          exportReport();
+                          setShowExportMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <span className="text-blue-600">📄</span>
+                        Export as JSON
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToR3XML();
+                          setShowExportMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <span className="text-green-600">📋</span>
+                        Export as R3 XML
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToCSV();
+                          setShowExportMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <span className="text-orange-600">📊</span>
+                        Export as CSV
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={closeReport}
                   className="text-gray-400 hover:text-gray-600 ml-2"
@@ -312,7 +544,7 @@ export default function FullReportPage() {
               {/* Study Information */}
               <div className="mb-8 p-4 bg-gray-50 rounded-lg">
                 <h3 className="text-lg font-semibold text-black mb-3">Study Information</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm font-medium text-black">Title:</p>
                     <p className="text-sm text-black">{selectedStudy?.title}</p>
@@ -329,14 +561,116 @@ export default function FullReportPage() {
                     <p className="text-sm font-medium text-black">Adverse Event:</p>
                     <p className="text-sm text-black">{selectedStudy?.adverseEvent}</p>
                   </div>
+                  <div>
+                    <p className="text-sm font-medium text-black">User Tag:</p>
+                    <p className="text-sm text-black">{selectedStudy?.userTag}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-black">R3 Form Status:</p>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      selectedStudy?.r3FormStatus === 'completed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {selectedStudy?.r3FormStatus}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-black">Created Date:</p>
+                    <p className="text-sm text-black">{selectedStudy?.createdAt ? formatDate(selectedStudy.createdAt) : 'N/A'}</p>
+                  </div>
                   {selectedStudy?.r3FormCompletedAt && (
                     <div>
                       <p className="text-sm font-medium text-black">Form Completed:</p>
                       <p className="text-sm text-black">{formatDate(selectedStudy.r3FormCompletedAt)}</p>
                     </div>
                   )}
+                  {selectedStudy?.r3FormCompletedBy && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Completed By:</p>
+                      <p className="text-sm text-black">{selectedStudy.r3FormCompletedBy}</p>
+                    </div>
+                  )}
+                  {selectedStudy?.updatedAt && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Last Updated:</p>
+                      <p className="text-sm text-black">{formatDate(selectedStudy.updatedAt)}</p>
+                    </div>
+                  )}
+                  {selectedStudy?.userId && (
+                    <div>
+                      <p className="text-sm font-medium text-black">User ID:</p>
+                      <p className="text-sm text-black">{selectedStudy.userId}</p>
+                    </div>
+                  )}
+                  {selectedStudy?.organizationId && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Organization ID:</p>
+                      <p className="text-sm text-black">{selectedStudy.organizationId}</p>
+                    </div>
+                  )}
+                  {selectedStudy?.isProcessed !== undefined && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Processing Status:</p>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        selectedStudy.isProcessed 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {selectedStudy.isProcessed ? 'Processed' : 'Pending'}
+                      </span>
+                    </div>
+                  )}
+                  {selectedStudy?.processingNotes && (
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <p className="text-sm font-medium text-black">Processing Notes:</p>
+                      <p className="text-sm text-black bg-blue-50 p-2 rounded border">{selectedStudy.processingNotes}</p>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* R3 Form Data Summary */}
+              {selectedStudy?.r3FormData && (
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h3 className="text-lg font-semibold text-black mb-3">R3 Form Data Summary</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="font-medium text-black">Total Fields Completed:</p>
+                      <p className="text-black">{Object.keys(selectedStudy.r3FormData).length}</p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-black">Category A Fields:</p>
+                      <p className="text-black">
+                        {R3_FORM_FIELDS.filter(field => 
+                          field.category === 'A' && selectedStudy.r3FormData[field.key]
+                        ).length}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-black">Category B Fields:</p>
+                      <p className="text-black">
+                        {R3_FORM_FIELDS.filter(field => 
+                          field.category === 'B' && selectedStudy.r3FormData[field.key]
+                        ).length}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-black">Category C Fields:</p>
+                      <p className="text-black">
+                        {R3_FORM_FIELDS.filter(field => 
+                          field.category === 'C' && selectedStudy.r3FormData[field.key]
+                        ).length}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs text-gray-600">
+                    <p><strong>Category A:</strong> Mandatory fields required for transmission</p>
+                    <p><strong>Category B:</strong> Mandatory fields if available</p>
+                    <p><strong>Category C:</strong> Optional fields</p>
+                  </div>
+                </div>
+              )}
 
               {/* R3 Form Data */}
               <div className="space-y-6">
