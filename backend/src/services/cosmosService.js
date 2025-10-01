@@ -303,6 +303,32 @@ class CosmosService {
     }
   }
 
+  async upsertItem(containerName, item, partitionKey) {
+    try {
+      const container = this.getContainer(containerName);
+      
+      // Determine the correct partition key
+      const actualPartitionKey = this.getPartitionKey(containerName, item, partitionKey);
+      
+      // Add timestamps
+      const itemWithTimestamp = {
+        ...item,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // If no createdAt exists, add it (for new items)
+      if (!itemWithTimestamp.createdAt) {
+        itemWithTimestamp.createdAt = itemWithTimestamp.updatedAt;
+      }
+
+      const { resource } = await container.items.upsert(itemWithTimestamp);
+      return resource;
+    } catch (error) {
+      console.error(`Error upserting item in ${containerName}:`, error);
+      throw error;
+    }
+  }
+
   async queryItems(containerName, query, parameters = []) {
     try {
       const container = this.getContainer(containerName);

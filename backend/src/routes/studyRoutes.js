@@ -758,7 +758,7 @@ router.patch('/:id/tag',
       const { userTag } = req.body;
 
       // Get the study
-      const existingStudy = await cosmosService.getItem('Studies', id, req.user.organizationId);
+      const existingStudy = await cosmosService.getItem('studies', id, req.user.organizationId);
       if (!existingStudy) {
         return res.status(404).json({ error: 'Study not found' });
       }
@@ -768,7 +768,7 @@ router.patch('/:id/tag',
       study.updateUserTag(userTag, req.user.id, req.user.name);
 
       // Save to database
-      await cosmosService.upsertItem('Studies', study.toJSON());
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
 
       auditAction(req, 'study_tag_updated', { 
         studyId: id, 
@@ -859,7 +859,7 @@ router.put('/:id/r3-form',
       study.updateR3FormData(formData, req.user.id, req.user.name);
 
       // Save updated study
-      await cosmosService.upsertItem('studies', study.toJSON());
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
 
       await auditAction(
         req.user,
@@ -902,7 +902,7 @@ router.post('/:id/r3-form/complete',
       study.completeR3Form(req.user.id, req.user.name);
 
       // Save updated study
-      await cosmosService.upsertItem('studies', study.toJSON());
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
 
       await auditAction(
         req.user,
@@ -957,7 +957,7 @@ router.put('/:id',
       }
 
       // Save updated study
-      await cosmosService.upsertItem('studies', study.toJSON());
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
 
       await auditAction(
         req.user,

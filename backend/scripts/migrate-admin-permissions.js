@@ -38,7 +38,7 @@ async function migrateAdminPermissions() {
         updatedAt: new Date().toISOString()
       };
 
-      await cosmosService.upsertItem('users', updatedUser, user.id);
+      await cosmosService.updateItem('users', user.id, user.organizationId, updatedUser);
       console.log(`✅ Updated permissions for ${user.username}`);
     }
 
