@@ -291,8 +291,8 @@ export default function DataEntryPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Data Entry</h1>
-        <p className="text-gray-600">
+        <h1 className="text-3xl font-bold text-black mb-2">Data Entry</h1>
+        <p className="text-black">
           Fill out R3 XML forms for ICSR classified studies
         </p>
       </div>
@@ -332,14 +332,14 @@ export default function DataEntryPage() {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h3 className="text-lg font-semibold text-black mb-2">
                         {study.title}
                       </h3>
-                      <div className="flex gap-4 text-sm text-gray-600 mb-2">
+                      <div className="flex gap-4 text-sm text-gray-800 mb-2">
                         <span><strong>PMID:</strong> {study.pmid}</span>
                         <span><strong>Drug:</strong> {study.drugName}</span>
                       </div>
-                      <p className="text-sm text-gray-700">
+                      <p className="text-sm text-black">
                         <strong>Adverse Event:</strong> {study.adverseEvent}
                       </p>
                     </div>
@@ -378,7 +378,7 @@ export default function DataEntryPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-black">
                 R3 XML Form - {selectedStudy?.title}
               </h2>
               <button
@@ -398,37 +398,32 @@ export default function DataEntryPage() {
               ) : (
                 <div className="space-y-6">
                   {R3_FORM_FIELDS.map((field) => {
-                    const isDisabled = field.category === "A" || field.category === "C";
                     const isPrefilled = isFieldPrefilled(field.key);
                     
                     return (
                       <div key={field.key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-black">
                           {field.key} - {field.label}
-                          <span className="ml-2 text-xs text-gray-500">
+                          <span className="ml-2 text-xs text-gray-600">
                             (Category: {field.category})
                           </span>
                         </label>
                         <textarea
                           value={getFieldValue(field.key)}
                           onChange={(e) => handleFormChange(field.key, e.target.value)}
-                          disabled={isDisabled}
-                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none
-                            ${isDisabled ? "bg-gray-100 cursor-not-allowed" : ""}
+                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
                             ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
                           `}
                           rows={2}
                           placeholder={
-                            isDisabled 
-                              ? field.category === "A" 
-                                ? "Auto-filled from PubMed API"
-                                : "Auto-filled from external API"
+                            field.category === "A" 
+                              ? "Can be auto-filled from PubMed/study data - editable"
                               : "Enter value here..."
                           }
                         />
                         {isPrefilled && (
                           <p className="text-xs text-blue-600">
-                            Pre-filled from external API
+                            Pre-filled from external API - you can edit this field
                           </p>
                         )}
                       </div>

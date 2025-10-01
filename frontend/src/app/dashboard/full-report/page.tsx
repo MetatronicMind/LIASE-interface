@@ -180,8 +180,8 @@ export default function FullReportPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Full Report (Medical Examiner)</h1>
-        <p className="text-gray-600">
+        <h1 className="text-3xl font-bold text-black mb-2">Full Report (Medical Examiner)</h1>
+        <p className="text-black">
           Review completed ICSR studies with R3 form data
         </p>
       </div>
@@ -221,18 +221,18 @@ export default function FullReportPage() {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h3 className="text-lg font-semibold text-black mb-2">
                         {study.title}
                       </h3>
-                      <div className="flex gap-4 text-sm text-gray-600 mb-2">
+                      <div className="flex gap-4 text-sm text-gray-800 mb-2">
                         <span><strong>PMID:</strong> {study.pmid}</span>
                         <span><strong>Drug:</strong> {study.drugName}</span>
                       </div>
-                      <p className="text-sm text-gray-700 mb-2">
+                      <p className="text-sm text-black mb-2">
                         <strong>Adverse Event:</strong> {study.adverseEvent}
                       </p>
                       {study.r3FormCompletedAt && (
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-black">
                           <strong>Completed:</strong> {formatDate(study.r3FormCompletedAt)}
                         </p>
                       )}
@@ -272,10 +272,10 @@ export default function FullReportPage() {
           <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-black">
                   ICSR Full Report - {selectedStudy?.title}
                 </h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-black mt-1">
                   PMID: {selectedStudy?.pmid} | Drug: {selectedStudy?.drugName}
                 </p>
               </div>
@@ -298,28 +298,28 @@ export default function FullReportPage() {
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
               {/* Study Information */}
               <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Study Information</h3>
+                <h3 className="text-lg font-semibold text-black mb-3">Study Information</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">Title:</p>
-                    <p className="text-sm text-gray-900">{selectedStudy?.title}</p>
+                    <p className="text-sm font-medium text-black">Title:</p>
+                    <p className="text-sm text-black">{selectedStudy?.title}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-700">PMID:</p>
-                    <p className="text-sm text-gray-900">{selectedStudy?.pmid}</p>
+                    <p className="text-sm font-medium text-black">PMID:</p>
+                    <p className="text-sm text-black">{selectedStudy?.pmid}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-700">Drug Name:</p>
-                    <p className="text-sm text-gray-900">{selectedStudy?.drugName}</p>
+                    <p className="text-sm font-medium text-black">Drug Name:</p>
+                    <p className="text-sm text-black">{selectedStudy?.drugName}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-700">Adverse Event:</p>
-                    <p className="text-sm text-gray-900">{selectedStudy?.adverseEvent}</p>
+                    <p className="text-sm font-medium text-black">Adverse Event:</p>
+                    <p className="text-sm text-black">{selectedStudy?.adverseEvent}</p>
                   </div>
                   {selectedStudy?.r3FormCompletedAt && (
                     <div>
-                      <p className="text-sm font-medium text-gray-700">Form Completed:</p>
-                      <p className="text-sm text-gray-900">{formatDate(selectedStudy.r3FormCompletedAt)}</p>
+                      <p className="text-sm font-medium text-black">Form Completed:</p>
+                      <p className="text-sm text-black">{formatDate(selectedStudy.r3FormCompletedAt)}</p>
                     </div>
                   )}
                 </div>
@@ -327,7 +327,7 @@ export default function FullReportPage() {
 
               {/* R3 Form Data */}
               <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">R3 Form Data</h3>
+                <h3 className="text-lg font-semibold text-black mb-4">R3 Form Data</h3>
                 
                 {R3_FORM_FIELDS.map((field) => {
                   const value = selectedStudy?.r3FormData?.[field.key] || "";
@@ -338,7 +338,7 @@ export default function FullReportPage() {
                     <div key={field.key} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <h4 className="text-sm font-medium text-gray-900">
+                          <h4 className="text-sm font-medium text-black">
                             {field.key} - {field.label}
                           </h4>
                         </div>
@@ -347,7 +347,7 @@ export default function FullReportPage() {
                         </span>
                       </div>
                       <div className="mt-2">
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded border">
+                        <p className="text-sm text-black whitespace-pre-wrap bg-gray-50 p-3 rounded border">
                           {value}
                         </p>
                       </div>
