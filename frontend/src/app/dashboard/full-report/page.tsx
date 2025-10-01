@@ -21,6 +21,52 @@ interface Study {
   organizationId?: string;
   isProcessed?: boolean;
   processingNotes?: string;
+  
+  // Study metadata
+  authors?: string[] | string;
+  journal?: string;
+  publicationDate?: string;
+  abstract?: string;
+  status?: string;
+  createdBy?: string;
+  reviewedBy?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  reviewDetails?: any;
+  comments?: any[];
+  attachments?: any[];
+  
+  // AI Inference Data - Raw API response
+  aiInferenceData?: any;
+  
+  // AI Inference Fields - Normalized from backend
+  doi?: string;
+  specialCase?: string;
+  countryOfFirstAuthor?: string;
+  countryOfOccurrence?: string;
+  patientDetails?: any;
+  keyEvents?: string[] | string;
+  relevantDates?: any;
+  administeredDrugs?: string[] | string;
+  attributability?: string;
+  drugEffect?: string;
+  summary?: string;
+  identifiableHumanSubject?: boolean | string;
+  textType?: string;
+  authorPerspective?: string;
+  confirmedPotentialICSR?: boolean;
+  icsrClassification?: string;
+  substanceGroup?: string;
+  vancouverCitation?: string;
+  leadAuthor?: string;
+  serious?: boolean;
+  testSubject?: string;
+  aoiDrugEffect?: string;
+  approvedIndication?: string;
+  aoiClassification?: string;
+  justification?: string;
+  clientName?: string;
+  sponsor?: string;
 }
 
 const R3_FORM_FIELDS = [
@@ -139,24 +185,109 @@ export default function FullReportPage() {
 
     const reportData = {
       study: {
+        // Basic study info
         pmid: selectedStudy.pmid,
         title: selectedStudy.title,
         drugName: selectedStudy.drugName,
         adverseEvent: selectedStudy.adverseEvent,
         userTag: selectedStudy.userTag,
         r3FormStatus: selectedStudy.r3FormStatus,
+        status: selectedStudy.status,
+        
+        // Publication info
+        authors: selectedStudy.authors,
+        journal: selectedStudy.journal,
+        publicationDate: selectedStudy.publicationDate,
+        abstract: selectedStudy.abstract,
+        
+        // Timestamps
         createdAt: selectedStudy.createdAt,
         updatedAt: selectedStudy.updatedAt,
+        r3FormCompletedAt: selectedStudy.r3FormCompletedAt,
+        approvedAt: selectedStudy.approvedAt,
+        
+        // User info
         userId: selectedStudy.userId,
         organizationId: selectedStudy.organizationId,
+        createdBy: selectedStudy.createdBy,
+        r3FormCompletedBy: selectedStudy.r3FormCompletedBy,
+        reviewedBy: selectedStudy.reviewedBy,
+        approvedBy: selectedStudy.approvedBy,
+        
+        // Processing info
         isProcessed: selectedStudy.isProcessed,
         processingNotes: selectedStudy.processingNotes,
+        reviewDetails: selectedStudy.reviewDetails,
+        comments: selectedStudy.comments,
+        attachments: selectedStudy.attachments,
       },
-      r3FormData: selectedStudy.r3FormData,
-      completedAt: selectedStudy.r3FormCompletedAt,
-      completedBy: selectedStudy.r3FormCompletedBy,
-      exportedAt: new Date().toISOString(),
-      exportFormat: "JSON"
+      aiInferenceData: {
+        // Raw AI data
+        rawData: selectedStudy.aiInferenceData,
+        
+        // Processed AI fields
+        doi: selectedStudy.doi,
+        specialCase: selectedStudy.specialCase,
+        countryOfFirstAuthor: selectedStudy.countryOfFirstAuthor,
+        countryOfOccurrence: selectedStudy.countryOfOccurrence,
+        patientDetails: selectedStudy.patientDetails,
+        keyEvents: selectedStudy.keyEvents,
+        relevantDates: selectedStudy.relevantDates,
+        administeredDrugs: selectedStudy.administeredDrugs,
+        attributability: selectedStudy.attributability,
+        drugEffect: selectedStudy.drugEffect,
+        summary: selectedStudy.summary,
+        identifiableHumanSubject: selectedStudy.identifiableHumanSubject,
+        textType: selectedStudy.textType,
+        authorPerspective: selectedStudy.authorPerspective,
+        confirmedPotentialICSR: selectedStudy.confirmedPotentialICSR,
+        icsrClassification: selectedStudy.icsrClassification,
+        substanceGroup: selectedStudy.substanceGroup,
+        vancouverCitation: selectedStudy.vancouverCitation,
+        leadAuthor: selectedStudy.leadAuthor,
+        serious: selectedStudy.serious,
+        testSubject: selectedStudy.testSubject,
+        aoiDrugEffect: selectedStudy.aoiDrugEffect,
+        approvedIndication: selectedStudy.approvedIndication,
+        aoiClassification: selectedStudy.aoiClassification,
+        justification: selectedStudy.justification,
+        clientName: selectedStudy.clientName,
+        sponsor: selectedStudy.sponsor,
+      },
+      r3FormData: selectedStudy.r3FormData || {},
+      r3FormSummary: {
+        totalFields: R3_FORM_FIELDS.length,
+        completedFields: selectedStudy.r3FormData ? Object.keys(selectedStudy.r3FormData).length : 0,
+        completionRate: selectedStudy.r3FormData 
+          ? Math.round((Object.keys(selectedStudy.r3FormData).length / R3_FORM_FIELDS.length) * 100)
+          : 0,
+        categoryBreakdown: {
+          categoryA: {
+            total: R3_FORM_FIELDS.filter(field => field.category === 'A').length,
+            completed: selectedStudy.r3FormData 
+              ? R3_FORM_FIELDS.filter(field => field.category === 'A' && selectedStudy.r3FormData[field.key]).length
+              : 0
+          },
+          categoryB: {
+            total: R3_FORM_FIELDS.filter(field => field.category === 'B').length,
+            completed: selectedStudy.r3FormData 
+              ? R3_FORM_FIELDS.filter(field => field.category === 'B' && selectedStudy.r3FormData[field.key]).length
+              : 0
+          },
+          categoryC: {
+            total: R3_FORM_FIELDS.filter(field => field.category === 'C').length,
+            completed: selectedStudy.r3FormData 
+              ? R3_FORM_FIELDS.filter(field => field.category === 'C' && selectedStudy.r3FormData[field.key]).length
+              : 0
+          }
+        }
+      },
+      exportMetadata: {
+        exportedAt: new Date().toISOString(),
+        exportFormat: "JSON",
+        exportedBy: "LIASE System",
+        version: "2.0"
+      }
     };
 
     const blob = new Blob([JSON.stringify(reportData, null, 2)], {
@@ -165,7 +296,7 @@ export default function FullReportPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ICSR_Report_${selectedStudy.pmid}_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `ICSR_Full_Report_${selectedStudy.pmid}_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -308,29 +439,107 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
     if (!selectedStudy) return;
 
     const csvData = [];
-    const headers = ['Field Code', 'Field Label', 'Category', 'Value'];
+    const headers = ['Section', 'Field Code', 'Field Label', 'Category', 'Value'];
     csvData.push(headers);
 
     // Add study information
-    csvData.push(['Study.PMID', 'PubMed ID', 'Study', selectedStudy.pmid]);
-    csvData.push(['Study.Title', 'Study Title', 'Study', selectedStudy.title]);
-    csvData.push(['Study.DrugName', 'Drug Name', 'Study', selectedStudy.drugName]);
-    csvData.push(['Study.AdverseEvent', 'Adverse Event', 'Study', selectedStudy.adverseEvent]);
-    csvData.push(['Study.UserTag', 'User Tag', 'Study', selectedStudy.userTag]);
-    csvData.push(['Study.Status', 'R3 Form Status', 'Study', selectedStudy.r3FormStatus]);
-    csvData.push(['Study.CreatedAt', 'Created Date', 'Study', selectedStudy.createdAt]);
-    csvData.push(['Study.CompletedAt', 'Completed Date', 'Study', selectedStudy.r3FormCompletedAt || 'N/A']);
-    csvData.push(['Study.CompletedBy', 'Completed By', 'Study', selectedStudy.r3FormCompletedBy || 'N/A']);
-
-    // Add R3 form data
-    if (selectedStudy.r3FormData) {
-      R3_FORM_FIELDS.forEach(field => {
-        const value = selectedStudy.r3FormData[field.key] || '';
-        if (value) {
-          csvData.push([field.key, field.label, field.category, value]);
-        }
-      });
+    csvData.push(['Study', 'Study.PMID', 'PubMed ID', 'Study', selectedStudy.pmid]);
+    csvData.push(['Study', 'Study.Title', 'Study Title', 'Study', selectedStudy.title]);
+    csvData.push(['Study', 'Study.DrugName', 'Drug Name', 'Study', selectedStudy.drugName]);
+    csvData.push(['Study', 'Study.AdverseEvent', 'Adverse Event', 'Study', selectedStudy.adverseEvent]);
+    csvData.push(['Study', 'Study.UserTag', 'User Tag', 'Study', selectedStudy.userTag]);
+    csvData.push(['Study', 'Study.Status', 'Study Status', 'Study', selectedStudy.status || 'N/A']);
+    csvData.push(['Study', 'Study.R3FormStatus', 'R3 Form Status', 'Study', selectedStudy.r3FormStatus]);
+    
+    // Publication info
+    if (selectedStudy.authors) {
+      csvData.push(['Study', 'Study.Authors', 'Authors', 'Study', 
+        Array.isArray(selectedStudy.authors) ? selectedStudy.authors.join('; ') : selectedStudy.authors]);
     }
+    if (selectedStudy.journal) csvData.push(['Study', 'Study.Journal', 'Journal', 'Study', selectedStudy.journal]);
+    if (selectedStudy.publicationDate) csvData.push(['Study', 'Study.PublicationDate', 'Publication Date', 'Study', selectedStudy.publicationDate]);
+    if (selectedStudy.abstract) csvData.push(['Study', 'Study.Abstract', 'Abstract', 'Study', selectedStudy.abstract]);
+    
+    // Timestamps
+    csvData.push(['Study', 'Study.CreatedAt', 'Created Date', 'Study', selectedStudy.createdAt]);
+    if (selectedStudy.updatedAt) csvData.push(['Study', 'Study.UpdatedAt', 'Updated Date', 'Study', selectedStudy.updatedAt]);
+    if (selectedStudy.r3FormCompletedAt) csvData.push(['Study', 'Study.CompletedAt', 'R3 Form Completed Date', 'Study', selectedStudy.r3FormCompletedAt]);
+    if (selectedStudy.approvedAt) csvData.push(['Study', 'Study.ApprovedAt', 'Approved Date', 'Study', selectedStudy.approvedAt]);
+    
+    // User info
+    if (selectedStudy.createdBy) csvData.push(['Study', 'Study.CreatedBy', 'Created By', 'Study', selectedStudy.createdBy]);
+    if (selectedStudy.r3FormCompletedBy) csvData.push(['Study', 'Study.CompletedBy', 'R3 Form Completed By', 'Study', selectedStudy.r3FormCompletedBy]);
+    if (selectedStudy.reviewedBy) csvData.push(['Study', 'Study.ReviewedBy', 'Reviewed By', 'Study', selectedStudy.reviewedBy]);
+    if (selectedStudy.approvedBy) csvData.push(['Study', 'Study.ApprovedBy', 'Approved By', 'Study', selectedStudy.approvedBy]);
+    
+    // System info
+    if (selectedStudy.userId) csvData.push(['Study', 'Study.UserId', 'User ID', 'Study', selectedStudy.userId]);
+    if (selectedStudy.organizationId) csvData.push(['Study', 'Study.OrganizationId', 'Organization ID', 'Study', selectedStudy.organizationId]);
+    if (selectedStudy.isProcessed !== undefined) csvData.push(['Study', 'Study.IsProcessed', 'Processing Status', 'Study', selectedStudy.isProcessed ? 'Processed' : 'Pending']);
+    if (selectedStudy.processingNotes) csvData.push(['Study', 'Study.ProcessingNotes', 'Processing Notes', 'Study', selectedStudy.processingNotes]);
+
+    // Add AI Inference data
+    if (selectedStudy.doi) csvData.push(['AI', 'AI.DOI', 'DOI', 'AI', selectedStudy.doi]);
+    if (selectedStudy.specialCase) csvData.push(['AI', 'AI.SpecialCase', 'Special Case', 'AI', selectedStudy.specialCase]);
+    if (selectedStudy.countryOfFirstAuthor) csvData.push(['AI', 'AI.CountryOfFirstAuthor', 'Country of First Author', 'AI', selectedStudy.countryOfFirstAuthor]);
+    if (selectedStudy.countryOfOccurrence) csvData.push(['AI', 'AI.CountryOfOccurrence', 'Country of Occurrence', 'AI', selectedStudy.countryOfOccurrence]);
+    if (selectedStudy.attributability) csvData.push(['AI', 'AI.Attributability', 'Attributability', 'AI', selectedStudy.attributability]);
+    if (selectedStudy.drugEffect) csvData.push(['AI', 'AI.DrugEffect', 'Drug Effect', 'AI', selectedStudy.drugEffect]);
+    if (selectedStudy.textType) csvData.push(['AI', 'AI.TextType', 'Text Type', 'AI', selectedStudy.textType]);
+    if (selectedStudy.authorPerspective) csvData.push(['AI', 'AI.AuthorPerspective', 'Author Perspective', 'AI', selectedStudy.authorPerspective]);
+    if (selectedStudy.icsrClassification) csvData.push(['AI', 'AI.ICSRClassification', 'ICSR Classification', 'AI', selectedStudy.icsrClassification]);
+    if (selectedStudy.substanceGroup) csvData.push(['AI', 'AI.SubstanceGroup', 'Substance Group', 'AI', selectedStudy.substanceGroup]);
+    if (selectedStudy.leadAuthor) csvData.push(['AI', 'AI.LeadAuthor', 'Lead Author', 'AI', selectedStudy.leadAuthor]);
+    if (selectedStudy.serious !== undefined) csvData.push(['AI', 'AI.Serious', 'Serious', 'AI', selectedStudy.serious ? 'Yes' : 'No']);
+    if (selectedStudy.confirmedPotentialICSR !== undefined) csvData.push(['AI', 'AI.ConfirmedPotentialICSR', 'Confirmed Potential ICSR', 'AI', selectedStudy.confirmedPotentialICSR ? 'Yes' : 'No']);
+    if (selectedStudy.identifiableHumanSubject !== undefined) csvData.push(['AI', 'AI.IdentifiableHumanSubject', 'Identifiable Human Subject', 'AI', selectedStudy.identifiableHumanSubject ? 'Yes' : 'No']);
+    if (selectedStudy.testSubject) csvData.push(['AI', 'AI.TestSubject', 'Test Subject', 'AI', selectedStudy.testSubject]);
+    if (selectedStudy.sponsor) csvData.push(['AI', 'AI.Sponsor', 'Sponsor', 'AI', selectedStudy.sponsor]);
+    if (selectedStudy.clientName) csvData.push(['AI', 'AI.ClientName', 'Client Name', 'AI', selectedStudy.clientName]);
+    
+    // Complex AI fields
+    if (selectedStudy.patientDetails) {
+      csvData.push(['AI', 'AI.PatientDetails', 'Patient Details', 'AI', 
+        typeof selectedStudy.patientDetails === 'object' 
+          ? JSON.stringify(selectedStudy.patientDetails) 
+          : selectedStudy.patientDetails]);
+    }
+    if (selectedStudy.keyEvents) {
+      csvData.push(['AI', 'AI.KeyEvents', 'Key Events', 'AI', 
+        Array.isArray(selectedStudy.keyEvents) 
+          ? selectedStudy.keyEvents.join('; ') 
+          : selectedStudy.keyEvents]);
+    }
+    if (selectedStudy.administeredDrugs) {
+      csvData.push(['AI', 'AI.AdministeredDrugs', 'Administered Drugs', 'AI', 
+        Array.isArray(selectedStudy.administeredDrugs) 
+          ? selectedStudy.administeredDrugs.join('; ') 
+          : selectedStudy.administeredDrugs]);
+    }
+    if (selectedStudy.relevantDates) {
+      csvData.push(['AI', 'AI.RelevantDates', 'Relevant Dates', 'AI', 
+        typeof selectedStudy.relevantDates === 'object' 
+          ? JSON.stringify(selectedStudy.relevantDates) 
+          : selectedStudy.relevantDates]);
+    }
+    if (selectedStudy.summary) csvData.push(['AI', 'AI.Summary', 'AI Summary', 'AI', selectedStudy.summary]);
+    if (selectedStudy.justification) csvData.push(['AI', 'AI.Justification', 'Justification', 'AI', selectedStudy.justification]);
+    if (selectedStudy.vancouverCitation) csvData.push(['AI', 'AI.VancouverCitation', 'Vancouver Citation', 'AI', selectedStudy.vancouverCitation]);
+
+    // Add ALL R3 form data (both completed and empty fields)
+    R3_FORM_FIELDS.forEach(field => {
+      const value = selectedStudy.r3FormData?.[field.key] || '';
+      csvData.push(['R3Form', field.key, field.label, field.category, value || '(Empty)']);
+    });
+
+    // Add R3 form summary
+    csvData.push(['Summary', 'R3.TotalFields', 'Total R3 Fields', 'Summary', R3_FORM_FIELDS.length.toString()]);
+    csvData.push(['Summary', 'R3.CompletedFields', 'Completed R3 Fields', 'Summary', 
+      selectedStudy.r3FormData ? Object.keys(selectedStudy.r3FormData).length.toString() : '0']);
+    csvData.push(['Summary', 'R3.CompletionRate', 'R3 Completion Rate (%)', 'Summary', 
+      selectedStudy.r3FormData 
+        ? Math.round((Object.keys(selectedStudy.r3FormData).length / R3_FORM_FIELDS.length) * 100).toString()
+        : '0']);
 
     const csvContent = csvData.map(row => 
       row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
@@ -340,7 +549,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ICSR_Report_${selectedStudy.pmid}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `ICSR_Full_Report_${selectedStudy.pmid}_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -543,11 +752,12 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
               {/* Study Information */}
               <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-lg font-semibold text-black mb-3">Study Information</h3>
+                <h3 className="text-lg font-semibold text-black mb-3">Complete Study Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
+                  {/* Basic Study Info */}
+                  <div className="md:col-span-2 lg:col-span-3">
                     <p className="text-sm font-medium text-black">Title:</p>
-                    <p className="text-sm text-black">{selectedStudy?.title}</p>
+                    <p className="text-sm text-black bg-white p-2 rounded border">{selectedStudy?.title}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-black">PMID:</p>
@@ -566,6 +776,10 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                     <p className="text-sm text-black">{selectedStudy?.userTag}</p>
                   </div>
                   <div>
+                    <p className="text-sm font-medium text-black">Status:</p>
+                    <p className="text-sm text-black">{selectedStudy?.status || 'N/A'}</p>
+                  </div>
+                  <div>
                     <p className="text-sm font-medium text-black">R3 Form Status:</p>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       selectedStudy?.r3FormStatus === 'completed' 
@@ -575,28 +789,84 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                       {selectedStudy?.r3FormStatus}
                     </span>
                   </div>
+                  
+                  {/* Publication Info */}
+                  {selectedStudy?.journal && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Journal:</p>
+                      <p className="text-sm text-black">{selectedStudy.journal}</p>
+                    </div>
+                  )}
+                  {selectedStudy?.publicationDate && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Publication Date:</p>
+                      <p className="text-sm text-black">{selectedStudy.publicationDate}</p>
+                    </div>
+                  )}
+                  {selectedStudy?.authors && (
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <p className="text-sm font-medium text-black">Authors:</p>
+                      <p className="text-sm text-black bg-white p-2 rounded border">
+                        {Array.isArray(selectedStudy.authors) 
+                          ? selectedStudy.authors.join(', ') 
+                          : selectedStudy.authors}
+                      </p>
+                    </div>
+                  )}
+                  {selectedStudy?.abstract && (
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <p className="text-sm font-medium text-black">Abstract:</p>
+                      <p className="text-sm text-black bg-white p-3 rounded border max-h-32 overflow-y-auto">
+                        {selectedStudy.abstract}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Timestamps */}
                   <div>
                     <p className="text-sm font-medium text-black">Created Date:</p>
                     <p className="text-sm text-black">{selectedStudy?.createdAt ? formatDate(selectedStudy.createdAt) : 'N/A'}</p>
                   </div>
-                  {selectedStudy?.r3FormCompletedAt && (
-                    <div>
-                      <p className="text-sm font-medium text-black">Form Completed:</p>
-                      <p className="text-sm text-black">{formatDate(selectedStudy.r3FormCompletedAt)}</p>
-                    </div>
-                  )}
-                  {selectedStudy?.r3FormCompletedBy && (
-                    <div>
-                      <p className="text-sm font-medium text-black">Completed By:</p>
-                      <p className="text-sm text-black">{selectedStudy.r3FormCompletedBy}</p>
-                    </div>
-                  )}
                   {selectedStudy?.updatedAt && (
                     <div>
                       <p className="text-sm font-medium text-black">Last Updated:</p>
                       <p className="text-sm text-black">{formatDate(selectedStudy.updatedAt)}</p>
                     </div>
                   )}
+                  {selectedStudy?.r3FormCompletedAt && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Form Completed:</p>
+                      <p className="text-sm text-black">{formatDate(selectedStudy.r3FormCompletedAt)}</p>
+                    </div>
+                  )}
+                  
+                  {/* User Info */}
+                  {selectedStudy?.createdBy && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Created By:</p>
+                      <p className="text-sm text-black">{selectedStudy.createdBy}</p>
+                    </div>
+                  )}
+                  {selectedStudy?.r3FormCompletedBy && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Form Completed By:</p>
+                      <p className="text-sm text-black">{selectedStudy.r3FormCompletedBy}</p>
+                    </div>
+                  )}
+                  {selectedStudy?.reviewedBy && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Reviewed By:</p>
+                      <p className="text-sm text-black">{selectedStudy.reviewedBy}</p>
+                    </div>
+                  )}
+                  {selectedStudy?.approvedBy && (
+                    <div>
+                      <p className="text-sm font-medium text-black">Approved By:</p>
+                      <p className="text-sm text-black">{selectedStudy.approvedBy}</p>
+                    </div>
+                  )}
+                  
+                  {/* System Info */}
                   {selectedStudy?.userId && (
                     <div>
                       <p className="text-sm font-medium text-black">User ID:</p>
@@ -630,73 +900,345 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                 </div>
               </div>
 
-              {/* R3 Form Data Summary */}
-              {selectedStudy?.r3FormData && (
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h3 className="text-lg font-semibold text-black mb-3">R3 Form Data Summary</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <p className="font-medium text-black">Total Fields Completed:</p>
-                      <p className="text-black">{Object.keys(selectedStudy.r3FormData).length}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-black">Category A Fields:</p>
-                      <p className="text-black">
-                        {R3_FORM_FIELDS.filter(field => 
-                          field.category === 'A' && selectedStudy.r3FormData[field.key]
-                        ).length}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-black">Category B Fields:</p>
-                      <p className="text-black">
-                        {R3_FORM_FIELDS.filter(field => 
-                          field.category === 'B' && selectedStudy.r3FormData[field.key]
-                        ).length}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-black">Category C Fields:</p>
-                      <p className="text-black">
-                        {R3_FORM_FIELDS.filter(field => 
-                          field.category === 'C' && selectedStudy.r3FormData[field.key]
-                        ).length}
-                      </p>
-                    </div>
+              {/* AI Inference Data */}
+              {(selectedStudy?.aiInferenceData || 
+                selectedStudy?.doi || 
+                selectedStudy?.specialCase || 
+                selectedStudy?.countryOfFirstAuthor || 
+                selectedStudy?.summary) && (
+                <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h3 className="text-lg font-semibold text-black mb-3">AI Inference Data</h3>
+                  
+                  {/* AI Processed Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {selectedStudy?.doi && (
+                      <div>
+                        <p className="text-sm font-medium text-black">DOI:</p>
+                        <p className="text-sm text-black">{selectedStudy.doi}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.specialCase && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Special Case:</p>
+                        <p className="text-sm text-black">{selectedStudy.specialCase}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.countryOfFirstAuthor && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Country of First Author:</p>
+                        <p className="text-sm text-black">{selectedStudy.countryOfFirstAuthor}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.countryOfOccurrence && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Country of Occurrence:</p>
+                        <p className="text-sm text-black">{selectedStudy.countryOfOccurrence}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.attributability && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Attributability:</p>
+                        <p className="text-sm text-black">{selectedStudy.attributability}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.drugEffect && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Drug Effect:</p>
+                        <p className="text-sm text-black">{selectedStudy.drugEffect}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.textType && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Text Type:</p>
+                        <p className="text-sm text-black">{selectedStudy.textType}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.authorPerspective && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Author Perspective:</p>
+                        <p className="text-sm text-black">{selectedStudy.authorPerspective}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.icsrClassification && (
+                      <div>
+                        <p className="text-sm font-medium text-black">ICSR Classification:</p>
+                        <p className="text-sm text-black">{selectedStudy.icsrClassification}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.substanceGroup && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Substance Group:</p>
+                        <p className="text-sm text-black">{selectedStudy.substanceGroup}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.leadAuthor && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Lead Author:</p>
+                        <p className="text-sm text-black">{selectedStudy.leadAuthor}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.serious !== undefined && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Serious:</p>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          selectedStudy.serious ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {selectedStudy.serious ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                    )}
+                    {selectedStudy?.confirmedPotentialICSR !== undefined && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Confirmed Potential ICSR:</p>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          selectedStudy.confirmedPotentialICSR ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {selectedStudy.confirmedPotentialICSR ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                    )}
+                    {selectedStudy?.identifiableHumanSubject !== undefined && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Identifiable Human Subject:</p>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          selectedStudy.identifiableHumanSubject ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                    )}
+                    {selectedStudy?.testSubject && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Test Subject:</p>
+                        <p className="text-sm text-black">{selectedStudy.testSubject}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.sponsor && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Sponsor:</p>
+                        <p className="text-sm text-black">{selectedStudy.sponsor}</p>
+                      </div>
+                    )}
+                    {selectedStudy?.clientName && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Client Name:</p>
+                        <p className="text-sm text-black">{selectedStudy.clientName}</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-3 text-xs text-gray-600">
-                    <p><strong>Category A:</strong> Mandatory fields required for transmission</p>
-                    <p><strong>Category B:</strong> Mandatory fields if available</p>
-                    <p><strong>Category C:</strong> Optional fields</p>
-                  </div>
+                  
+                  {/* Complex AI Fields */}
+                  {selectedStudy?.patientDetails && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-black mb-2">Patient Details:</p>
+                      <div className="text-sm text-black bg-white p-3 rounded border">
+                        {typeof selectedStudy.patientDetails === 'object' 
+                          ? JSON.stringify(selectedStudy.patientDetails, null, 2)
+                          : selectedStudy.patientDetails}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedStudy?.keyEvents && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-black mb-2">Key Events:</p>
+                      <div className="text-sm text-black bg-white p-3 rounded border">
+                        {Array.isArray(selectedStudy.keyEvents) 
+                          ? selectedStudy.keyEvents.join(', ')
+                          : selectedStudy.keyEvents}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedStudy?.administeredDrugs && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-black mb-2">Administered Drugs:</p>
+                      <div className="text-sm text-black bg-white p-3 rounded border">
+                        {Array.isArray(selectedStudy.administeredDrugs) 
+                          ? selectedStudy.administeredDrugs.join(', ')
+                          : selectedStudy.administeredDrugs}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedStudy?.relevantDates && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-black mb-2">Relevant Dates:</p>
+                      <div className="text-sm text-black bg-white p-3 rounded border">
+                        {typeof selectedStudy.relevantDates === 'object' 
+                          ? JSON.stringify(selectedStudy.relevantDates, null, 2)
+                          : selectedStudy.relevantDates}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedStudy?.summary && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-black mb-2">AI Summary:</p>
+                      <div className="text-sm text-black bg-white p-3 rounded border">
+                        {selectedStudy.summary}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedStudy?.justification && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-black mb-2">Justification:</p>
+                      <div className="text-sm text-black bg-white p-3 rounded border">
+                        {selectedStudy.justification}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedStudy?.vancouverCitation && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-black mb-2">Vancouver Citation:</p>
+                      <div className="text-sm text-black bg-white p-3 rounded border">
+                        {selectedStudy.vancouverCitation}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Raw AI Inference Data */}
+                  {selectedStudy?.aiInferenceData && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-black mb-2">Raw AI Inference Data:</p>
+                      <details className="cursor-pointer">
+                        <summary className="text-sm text-blue-600 hover:text-blue-800 mb-2">
+                          Click to view raw AI response data
+                        </summary>
+                        <div className="text-xs text-black bg-white p-3 rounded border max-h-96 overflow-y-auto">
+                          <pre className="whitespace-pre-wrap">
+                            {JSON.stringify(selectedStudy.aiInferenceData, null, 2)}
+                          </pre>
+                        </div>
+                      </details>
+                    </div>
+                  )}
                 </div>
               )}
 
+              {/* R3 Form Data Summary */}
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="text-lg font-semibold text-black mb-3">R3 Form Data Summary</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
+                  <div>
+                    <p className="font-medium text-black">Total R3 Fields:</p>
+                    <p className="text-black">{R3_FORM_FIELDS.length}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-black">Fields Completed:</p>
+                    <p className="text-black">{selectedStudy?.r3FormData ? Object.keys(selectedStudy.r3FormData).length : 0}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-black">Completion Rate:</p>
+                    <p className="text-black">
+                      {selectedStudy?.r3FormData 
+                        ? Math.round((Object.keys(selectedStudy.r3FormData).length / R3_FORM_FIELDS.length) * 100)
+                        : 0}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-black">Category A:</p>
+                    <p className="text-black">
+                      {selectedStudy?.r3FormData 
+                        ? R3_FORM_FIELDS.filter(field => field.category === 'A' && selectedStudy.r3FormData[field.key]).length
+                        : 0} / {R3_FORM_FIELDS.filter(field => field.category === 'A').length}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-black">Category B:</p>
+                    <p className="text-black">
+                      {selectedStudy?.r3FormData 
+                        ? R3_FORM_FIELDS.filter(field => field.category === 'B' && selectedStudy.r3FormData[field.key]).length
+                        : 0} / {R3_FORM_FIELDS.filter(field => field.category === 'B').length}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-black">Category C:</p>
+                    <p className="text-black">
+                      {selectedStudy?.r3FormData 
+                        ? R3_FORM_FIELDS.filter(field => field.category === 'C' && selectedStudy.r3FormData[field.key]).length
+                        : 0} / {R3_FORM_FIELDS.filter(field => field.category === 'C').length}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                  <div className="bg-white p-3 rounded border">
+                    <p className="font-medium text-green-800">Category A (Mandatory for transmission)</p>
+                    <p className="text-gray-600">Required fields that must be completed for regulatory submission</p>
+                  </div>
+                  <div className="bg-white p-3 rounded border">
+                    <p className="font-medium text-yellow-800">Category B (Mandatory if available)</p>
+                    <p className="text-gray-600">Required if the information is available or relevant</p>
+                  </div>
+                  <div className="bg-white p-3 rounded border">
+                    <p className="font-medium text-blue-800">Category C (Optional)</p>
+                    <p className="text-gray-600">Additional information that may provide context</p>
+                  </div>
+                </div>
+              </div>
+
               {/* R3 Form Data */}
               <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-black mb-4">R3 Form Data</h3>
+                <h3 className="text-lg font-semibold text-black mb-4">Complete R3 Form Data (All Fields)</h3>
                 
-                {R3_FORM_FIELDS.map((field) => {
-                  const value = selectedStudy?.r3FormData?.[field.key] || "";
-                  
-                  if (!value) return null;
+                {/* Group fields by category */}
+                {['A', 'B', 'C', 'Null'].map(category => {
+                  const categoryFields = R3_FORM_FIELDS.filter(field => field.category === category);
+                  if (categoryFields.length === 0) return null;
                   
                   return (
-                    <div key={field.key} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="text-sm font-medium text-black">
-                            {field.key} - {field.label}
-                          </h4>
-                        </div>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${getCategoryColor(field.category)}`}>
-                          Category {field.category}
+                    <div key={category} className="mb-8">
+                      <h4 className="text-md font-semibold text-black mb-4 flex items-center">
+                        Category {category} Fields
+                        <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${getCategoryColor(category)}`}>
+                          {category === 'A' ? 'Mandatory for transmission' : 
+                           category === 'B' ? 'Mandatory if available' : 
+                           category === 'C' ? 'Optional' : 'Other'}
                         </span>
-                      </div>
-                      <div className="mt-2">
-                        <p className="text-sm text-black whitespace-pre-wrap bg-gray-50 p-3 rounded border">
-                          {value}
-                        </p>
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        {categoryFields.map((field) => {
+                          const value = selectedStudy?.r3FormData?.[field.key] || "";
+                          const hasValue = !!value;
+                          
+                          return (
+                            <div key={field.key} className={`border rounded-lg p-4 ${
+                              hasValue ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
+                            }`}>
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex-1">
+                                  <h5 className="text-sm font-medium text-black">
+                                    {field.key} - {field.label}
+                                  </h5>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${getCategoryColor(field.category)}`}>
+                                    Category {field.category}
+                                  </span>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    hasValue ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {hasValue ? 'Completed' : 'Empty'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="mt-2">
+                                {hasValue ? (
+                                  <p className="text-sm text-black whitespace-pre-wrap bg-white p-3 rounded border">
+                                    {value}
+                                  </p>
+                                ) : (
+                                  <p className="text-sm text-gray-500 italic p-3 rounded border border-dashed">
+                                    No data provided for this field
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
