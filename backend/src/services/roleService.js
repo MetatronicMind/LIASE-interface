@@ -117,144 +117,65 @@ class RoleService {
   // Create a new role
   async createRole(roleData, createdBy) {
     try {
-      console.log('🔥 [DETAILED DEBUG] Starting role creation...');
-      console.log('🔥 [DETAILED DEBUG] Role data:', JSON.stringify(roleData, null, 2));
-      console.log('🔥 [DETAILED DEBUG] Created by:', JSON.stringify(createdBy, null, 2));
+      console.log('Creating role with data:', {
+        roleName: roleData.name,
+        organizationId: roleData.organizationId,
+        createdById: createdBy.id
+      });
 
       // Check if role name already exists in organization
-      console.log('🔥 [DETAILED DEBUG] Checking for existing role...');
       const existingRole = await this.getRoleByName(roleData.name, roleData.organizationId);
       if (existingRole) {
-        console.log('🔥 [DETAILED DEBUG] Role already exists:', existingRole.id);
+        console.log('Role already exists:', existingRole.id);
         throw new Error(`Role with name '${roleData.name}' already exists in this organization`);
       }
-      console.log('🔥 [DETAILED DEBUG] No existing role found, proceeding...');
 
-      console.log('🔥 [DETAILED DEBUG] Creating Role object...');
-      
-      // Generate a more unique ID by combining timestamp and UUID
-      const timestampComponent = Date.now().toString(36);
-      const randomComponent = Math.random().toString(36).substr(2, 5);
-      const baseRole = new Role({
+      // Create role object
+      const role = new Role({
         ...roleData,
         createdBy: createdBy.id
       });
+
+      console.log('Creating role in database:', {
+        roleId: role.id,
+        roleName: role.name,
+        organizationId: role.organizationId
+      });
+
+      // Save to database
+      const savedRole = await cosmosService.createItem('users', role.toJSON());
       
-      // Create a hybrid ID that's virtually impossible to collide
-      const hybridId = `${baseRole.id.substr(0, 8)}-${timestampComponent}-${randomComponent}-${baseRole.id.substr(-12)}`;
-      baseRole.id = hybridId;
-      
-      const role = baseRole;
+      console.log('Role created successfully:', savedRole.id);
+      return new Role(savedRole);
 
-      console.log('🔥 [DETAILED DEBUG] Generated hybrid role ID:', role.id);
-      console.log('🔥 [DETAILED DEBUG] Full role object:', JSON.stringify(role.toJSON(), null, 2));
-
-      // Check if the generated ID already exists (with retry logic)
-      console.log('🔥 [DETAILED DEBUG] Starting ID collision check...');
-      let attempts = 0;
-      const maxAttempts = 3;
-      let finalRole = role;
-      
-      while (attempts < maxAttempts) {
-        console.log(`🔥 [DETAILED DEBUG] ID check attempt ${attempts + 1}/${maxAttempts} for ID: ${finalRole.id}`);
-        const idExists = await this.checkIdExists(finalRole.id);
-        console.log(`🔥 [DETAILED DEBUG] ID exists result: ${idExists}`);
-        
-        if (!idExists) {
-          console.log('🔥 [DETAILED DEBUG] ID is unique, proceeding with creation...');
-          break; // ID is unique, proceed
-        }
-        
-        attempts++;
-        console.log(`🔥 [DETAILED DEBUG] ID collision detected (attempt ${attempts}). Generating new ID...`);
-        
-        if (attempts < maxAttempts) {
-          const newTimestamp = Date.now().toString(36);
-          const newRandom = Math.random().toString(36).substr(2, 5);
-          const newBaseRole = new Role({
-            ...roleData,
-            createdBy: createdBy.id
-          });
-          
-          // Create another hybrid ID
-          const newHybridId = `${newBaseRole.id.substr(0, 8)}-${newTimestamp}-${newRandom}-${newBaseRole.id.substr(-12)}`;
-          newBaseRole.id = newHybridId;
-          
-          finalRole = newBaseRole;
-          console.log('🔥 [DETAILED DEBUG] New hybrid role ID generated:', finalRole.id);
-        } else {
-          console.log('🔥 [DETAILED DEBUG] Failed to generate unique ID after multiple attempts');
-          throw new Error('Failed to generate unique ID after multiple attempts');
-        }
-      }
-
-      console.log('🔥 [DETAILED DEBUG] About to create item in Cosmos DB...');
-      console.log('🔥 [DETAILED DEBUG] Final role to create:', JSON.stringify(finalRole.toJSON(), null, 2));
-
-      try {
-        // Add a small delay to avoid rapid concurrent requests
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Final check right before creation to catch race conditions
-        console.log('🔥 [DETAILED DEBUG] Final ID check before creation...');
-        const finalIdExists = await this.checkIdExists(finalRole.id);
-        console.log('🔥 [DETAILED DEBUG] Final ID check result:', finalIdExists);
-        
-        if (finalIdExists) {
-          console.log('🔥 [DETAILED DEBUG] Race condition detected! ID was created between checks.');
-          throw new Error('Race condition detected: ID was created by another request');
-        }
-
-        await cosmosService.createItem('users', finalRole.toJSON());
-        console.log('🔥 [DETAILED DEBUG] ✅ Role created successfully:', finalRole.id);
-        return finalRole;
-      } catch (cosmosError) {
-        console.error('🔥 [DETAILED DEBUG] ❌ Cosmos DB error occurred:');
-        console.error('🔥 [DETAILED DEBUG] Error code:', cosmosError.code);
-        console.error('🔥 [DETAILED DEBUG] Error message:', cosmosError.message);
-        console.error('🔥 [DETAILED DEBUG] Full Cosmos error:', JSON.stringify(cosmosError, null, 2));
-        
-        // Handle Cosmos DB specific errors
-        if (cosmosError.code === 409) {
-          console.log('🔥 [DETAILED DEBUG] Handling 409 conflict error...');
-          if (cosmosError.message?.includes('already exists')) {
-            // Check if it's the same role name or just ID collision
-            console.log('🔥 [DETAILED DEBUG] Double-checking for role name conflict...');
-            const existingRoleCheck = await this.getRoleByName(roleData.name, roleData.organizationId);
-            if (existingRoleCheck) {
-              console.log('🔥 [DETAILED DEBUG] Confirmed: Role name conflict');
-              throw new Error(`Role with name '${roleData.name}' already exists in this organization`);
-            } else {
-              // ID collision with different entity - this shouldn't happen with our pre-check but handle it
-              console.error('🔥 [DETAILED DEBUG] Unexpected ID collision after pre-check. This may indicate a race condition.');
-              console.error('🔥 [DETAILED DEBUG] Conflicting ID:', finalRole.id);
-              
-              // Let's check what entity has this ID
-              const conflictQuery = `SELECT * FROM c WHERE c.id = @id`;
-              const conflictParams = [{ name: '@id', value: finalRole.id }];
-              try {
-                const conflictingEntities = await cosmosService.queryItems('users', conflictQuery, conflictParams);
-                console.log('🔥 [DETAILED DEBUG] Conflicting entities found:', JSON.stringify(conflictingEntities, null, 2));
-              } catch (queryError) {
-                console.error('🔥 [DETAILED DEBUG] Failed to query conflicting entity:', queryError);
-              }
-              
-              throw new Error(`Unexpected ID collision. Please try again. Conflicting ID: ${finalRole.id}`);
-            }
-          } else {
-            console.log('🔥 [DETAILED DEBUG] 409 error but not "already exists" message');
-            throw new Error(`Conflict error: ${cosmosError.message}`);
-          }
-        }
-        
-        console.log('🔥 [DETAILED DEBUG] Non-409 error, re-throwing...');
-        throw cosmosError;
-      }
     } catch (error) {
-      console.error('🔥 [DETAILED DEBUG] ❌ Error in createRole method:');
-      console.error('🔥 [DETAILED DEBUG] Error type:', error.constructor.name);
-      console.error('🔥 [DETAILED DEBUG] Error message:', error.message);
-      console.error('🔥 [DETAILED DEBUG] Error stack:', error.stack);
+      console.error('Error creating role:', {
+        message: error.message,
+        code: error.code,
+        roleName: roleData?.name,
+        organizationId: roleData?.organizationId
+      });
+      
+      // If it's a 409 conflict, let's investigate further
+      if (error.code === 409) {
+        console.log('409 Conflict detected - investigating...');
+        
+        // Check if there's an organization mismatch
+        const allRolesQuery = `SELECT * FROM c WHERE c.type = 'role' AND c.name = @roleName`;
+        const allRolesParams = [{ name: '@roleName', value: roleData.name }];
+        
+        try {
+          const conflictingRoles = await cosmosService.queryItems('users', allRolesQuery, allRolesParams);
+          console.log('Conflicting roles found:', conflictingRoles.map(r => ({
+            id: r.id,
+            name: r.name,
+            organizationId: r.organizationId
+          })));
+        } catch (queryError) {
+          console.error('Failed to query conflicting roles:', queryError);
+        }
+      }
+      
       throw error;
     }
   }
