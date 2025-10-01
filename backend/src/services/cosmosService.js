@@ -125,6 +125,15 @@ class CosmosService {
         }
       },
       {
+        id: 'roles',
+        partitionKey: '/organizationId',
+        uniqueKeyPolicy: {
+          uniqueKeys: [
+            { paths: ['/name'] }
+          ]
+        }
+      },
+      {
         id: 'drugs',
         partitionKey: '/organizationId'
       },

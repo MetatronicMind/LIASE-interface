@@ -71,7 +71,8 @@ router.post('/',
     body('displayName')
       .trim()
       .isLength({ min: 2, max: 100 })
-      .withMessage('Display name must be 2-100 characters'),
+      .matches(/^[a-zA-Z0-9\s_-]+$/)
+      .withMessage('Display name must be 2-100 characters, letters, numbers, spaces, underscores, and hyphens only'),
     body('description')
       .optional()
       .trim()

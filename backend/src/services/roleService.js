@@ -40,7 +40,7 @@ class RoleService {
   // Get a specific role by ID
   async getRoleById(roleId, organizationId) {
     try {
-      const role = await cosmosService.getItem('users', roleId, organizationId);
+      const role = await cosmosService.getItem('roles', roleId, organizationId);
       if (!role || role.type !== 'role') {
         return null;
       }
@@ -67,7 +67,7 @@ class RoleService {
       console.log(`🔥 [DETAILED DEBUG] Executing query:`, query);
       console.log(`🔥 [DETAILED DEBUG] With parameters:`, parameters);
 
-      const results = await cosmosService.queryItems('users', query, parameters);
+      const results = await cosmosService.queryItems('roles', query, parameters);
       console.log(`🔥 [DETAILED DEBUG] Query results:`, JSON.stringify(results, null, 2));
       console.log(`🔥 [DETAILED DEBUG] ID exists: ${results.length > 0}`);
       
@@ -76,6 +76,20 @@ class RoleService {
       console.error('🔥 [DETAILED DEBUG] Error checking ID existence:', error);
       console.error('🔥 [DETAILED DEBUG] Assuming ID doesn\'t exist due to query error');
       return false; // Assume ID doesn't exist if query fails
+    }
+  }
+
+  // Get a specific role by ID
+  async getRoleById(roleId, organizationId) {
+    try {
+      const role = await cosmosService.getItem('roles', roleId, organizationId);
+      if (!role || role.type !== 'role') {
+        return null;
+      }
+      return new Role(role);
+    } catch (error) {
+      console.error('Error fetching role:', error);
+      throw error;
     }
   }
 
@@ -95,7 +109,7 @@ class RoleService {
       ];
 
       console.log('Checking for existing role:', { roleName, organizationId });
-      const roles = await cosmosService.queryItems('users', query, parameters);
+      const roles = await cosmosService.queryItems('roles', query, parameters);
       console.log(`Found ${roles.length} roles with name '${roleName}'`);
       
       if (roles.length > 0) {
@@ -150,7 +164,7 @@ class RoleService {
       while (retryCount < maxRetries) {
         try {
           // Check if this specific ID exists anywhere in this organization's partition
-          const existingEntity = await cosmosService.getItem('users', role.id, role.organizationId);
+          const existingEntity = await cosmosService.getItem('roles', role.id, role.organizationId);
           
           if (existingEntity) {
             console.error(`🔥 [ROLE CREATE] ID CONFLICT (attempt ${retryCount + 1}):`, {
@@ -194,13 +208,13 @@ class RoleService {
 
       // Save to database
       const roleJson = role.toJSON();
-      console.log('🔥 [ROLE CREATE] Saving to users container:', {
+      console.log('🔥 [ROLE CREATE] Saving to roles container:', {
         id: roleJson.id,
         type: roleJson.type,
         organizationId: roleJson.organizationId
       });
       
-      const savedRole = await cosmosService.createItem('users', roleJson);
+      const savedRole = await cosmosService.createItem('roles', roleJson);
       
       console.log('🔥 [ROLE CREATE] ✅ Success:', savedRole.id);
       return new Role(savedRole);
@@ -219,9 +233,9 @@ class RoleService {
         console.log('🔥 [ROLE CREATE] 409 CONFLICT - Analyzing organization contents...');
         
         try {
-          const orgQuery = `SELECT c.id, c.type, c.name, c.email, c.displayName FROM c WHERE c.organizationId = @orgId`;
+          const orgQuery = `SELECT c.id, c.type, c.name, c.displayName FROM c WHERE c.organizationId = @orgId`;
           const orgParams = [{ name: '@orgId', value: roleData.organizationId }];
-          const entitiesInOrg = await cosmosService.queryItems('users', orgQuery, orgParams);
+          const entitiesInOrg = await cosmosService.queryItems('roles', orgQuery, orgParams);
           
           console.log('🔥 [ROLE CREATE] Organization contents:', entitiesInOrg.map(e => ({
             id: e.id,
@@ -283,7 +297,7 @@ class RoleService {
         updatedBy: updatedBy.id
       });
 
-      await cosmosService.updateItem('users', roleId, organizationId, updatedRole.toJSON());
+      await cosmosService.updateItem('roles', roleId, organizationId, updatedRole.toJSON());
       return updatedRole;
     } catch (error) {
       console.error('Error updating role:', error);
@@ -309,16 +323,9 @@ class RoleService {
         throw new Error(`Cannot delete role: ${usersWithRole.length} user(s) are assigned to this role`);
       }
 
-      const deletedRole = new Role({
-        ...existingRole.toJSON(),
-        isActive: false,
-        updatedAt: new Date().toISOString(),
-        deletedAt: new Date().toISOString(),
-        deletedBy: deletedBy.id
-      });
-
-      await cosmosService.updateItem('users', roleId, organizationId, deletedRole.toJSON());
-      return deletedRole;
+      // Hard delete the role
+      await cosmosService.deleteItem('roles', roleId, organizationId);
+      return existingRole;
     } catch (error) {
       console.error('Error deleting role:', error);
       throw error;
@@ -358,7 +365,7 @@ class RoleService {
         const existingRole = await this.getRoleByName(roleType, organizationId);
         if (!existingRole) {
           const role = Role.createFromSystemRole(roleType, organizationId, createdBy?.id);
-          await cosmosService.createItem('users', role.toJSON());
+          await cosmosService.createItem('roles', role.toJSON());
           createdRoles.push(role);
         }
       }
