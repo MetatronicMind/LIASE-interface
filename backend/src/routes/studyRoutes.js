@@ -104,10 +104,10 @@ router.get('/data-entry',
       });
       
       // Query for studies that are manually tagged as ICSR only
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @tag';
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
-        { name: '@tag', value: 'ICSR' }
+        { name: '@userTag', value: 'ICSR' }
       ];
       
       console.log('Data entry query:', query);
@@ -187,10 +187,10 @@ router.get('/medical-examiner',
         search
       } = req.query;
       
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @tag AND c.r3FormStatus = @formStatus';
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.r3FormStatus = @formStatus';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
-        { name: '@tag', value: 'ICSR' },
+        { name: '@userTag', value: 'ICSR' },
         { name: '@formStatus', value: 'completed' }
       ];
 
