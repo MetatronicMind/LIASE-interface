@@ -18,7 +18,7 @@ class RoleService {
         { name: '@organizationId', value: organizationId }
       ];
 
-      const roles = await cosmosService.queryItems('users', query, parameters);
+      const roles = await cosmosService.queryItems('roles', query, parameters);
       
       // Sort in JavaScript to avoid composite index requirement in Cosmos DB
       const sortedRoles = roles.sort((a, b) => {
