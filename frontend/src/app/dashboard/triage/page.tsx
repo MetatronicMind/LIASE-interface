@@ -131,7 +131,7 @@ export default function TriagePage() {
       }
 
       console.log('Fetching studies from API...');
-      const response = await fetch(`${API_BASE}/studies`, {
+      const response = await fetch(`${API_BASE}/studies?limit=1000`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -432,7 +432,8 @@ export default function TriagePage() {
                       <select
                         value={pageSize}
                         onChange={(e) => {
-                          setPageSize(Number(e.target.value));
+                          const value = e.target.value;
+                          setPageSize(value === 'all' ? filteredStudies.length || 1000 : Number(value));
                           setPage(1);
                         }}
                         className="border border-blue-400 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-gray-900"
@@ -442,6 +443,7 @@ export default function TriagePage() {
                         <option value={25}>25</option>
                         <option value={50}>50</option>
                         <option value={100}>100</option>
+                        <option value="all">All</option>
                       </select>
                     </div>
                   )}
