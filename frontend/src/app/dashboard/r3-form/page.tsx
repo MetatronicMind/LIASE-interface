@@ -14,6 +14,41 @@ interface Study {
   r3FormStatus: string;
   r3FormData?: any;
   createdAt: string;
+  // Additional study fields from backend
+  authors?: string[] | string;
+  journal?: string;
+  publicationDate?: string;
+  abstract?: string;
+  // Raw AI Inference Data
+  aiInferenceData?: StudyAIData;
+  // AI Inference Fields - these are stored directly on the study object
+  doi?: string;
+  specialCase?: string;
+  countryOfFirstAuthor?: string;
+  countryOfOccurrence?: string;
+  patientDetails?: string;
+  keyEvents?: string | string[];
+  relevantDates?: string;
+  administeredDrugs?: string[] | string;
+  attributability?: string;
+  drugEffect?: string;
+  summary?: string;
+  identifiableHumanSubject?: boolean | string;
+  textType?: string;
+  authorPerspective?: string;
+  confirmedPotentialICSR?: boolean | string;
+  icsrClassification?: string;
+  substanceGroup?: string;
+  vancouverCitation?: string;
+  leadAuthor?: string;
+  serious?: boolean | string;
+  testSubject?: string;
+  aoiDrugEffect?: string;
+  approvedIndication?: string;
+  aoiClassification?: string;
+  justification?: string;
+  clientName?: string;
+  sponsor?: string;
 }
 
 interface StudyAIData {
@@ -56,26 +91,48 @@ interface R3FormData {
 }
 
 const R3_FORM_FIELDS = [
-  { key: "C.2.r.1", label: "Reporter's Name", category: "A", required: true },
-  { key: "C.2.r.1.1", label: "Reporter's Title", category: "A", required: false },
-  { key: "C.2.r.1.2", label: "Reporter's Given Name", category: "A", required: true },
-  { key: "C.2.r.1.3", label: "Reporter's Middle Name", category: "A", required: false },
-  { key: "C.2.r.1.4", label: "Reporter's Family Name", category: "A", required: true },
-  { key: "C.2.r.2.1", label: "Reporter's Organisation", category: "A", required: false },
-  { key: "C.4.r.1", label: "Literature Reference(s)", category: "A", required: true },
-  { key: "D", label: "Patient Characteristics", category: "B", required: false },
-  { key: "D.1", label: "Patient (name or initials)", category: "C", required: false },
-  { key: "D.2.1", label: "Date of Birth", category: "C", required: false },
-  { key: "D.2.2", label: "Age at Time of Onset of Reaction / Event", category: "C", required: false },
-  { key: "D.2.2a", label: "Age at Time of Onset of Reaction / Event (number)", category: "B", required: false },
-  { key: "D.2.2b", label: "Age at Time of Onset of Reaction / Event (unit)", category: "B", required: false },
-  { key: "D.2.2.1a", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (number)", category: "C", required: false },
-  { key: "D.2.2.1b", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (unit)", category: "B", required: false },
-  { key: "D.2.3", label: "Patient Age Group (as per reporter)", category: "C", required: false },
-  { key: "D.3", label: "Body Weight (kg)", category: "C", required: false },
-  { key: "D.4", label: "Height (cm)", category: "C", required: false },
-  { key: "D.5", label: "Sex", category: "C", required: false },
-  { key: "D.7", label: "Relevant Medical History and Concurrent Conditions (not including reaction / event)", category: "C", required: false },
+  // Reporter Information (Category A)
+  { key: "C.2.r.1", label: "Reporter's Name", category: "A", required: true, section: "reporter" },
+  { key: "C.2.r.1.1", label: "Reporter's Title", category: "A", required: false, section: "reporter" },
+  { key: "C.2.r.1.2", label: "Reporter's Given Name", category: "A", required: true, section: "reporter" },
+  { key: "C.2.r.1.3", label: "Reporter's Middle Name", category: "A", required: false, section: "reporter" },
+  { key: "C.2.r.1.4", label: "Reporter's Family Name", category: "A", required: true, section: "reporter" },
+  { key: "C.2.r.2.1", label: "Reporter's Organisation", category: "A", required: false, section: "reporter" },
+  { key: "C.4.r.1", label: "Literature Reference(s)", category: "A", required: true, section: "reporter" },
+  
+  // Patient Characteristics (Category B & C)
+  { key: "D", label: "Patient Characteristics", category: "B", required: false, section: "patient", isHeader: true },
+  { key: "D.1", label: "Patient (name or initials)", category: "C", required: false, section: "patient" },
+  { key: "D.2.1", label: "Date of Birth", category: "C", required: false, section: "patient" },
+  { key: "D.2.2", label: "Age at Time of Onset of Reaction / Event", category: "C", required: false, section: "patient" },
+  { key: "D.2.2a", label: "Age at Time of Onset of Reaction / Event (number)", category: "B", required: false, section: "patient" },
+  { key: "D.2.2b", label: "Age at Time of Onset of Reaction / Event (unit)", category: "B", required: false, section: "patient" },
+  { key: "D.2.2.1a", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (number)", category: "C", required: false, section: "patient" },
+  { key: "D.2.2.1b", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (unit)", category: "B", required: false, section: "patient" },
+  { key: "D.2.3", label: "Patient Age Group (as per reporter)", category: "C", required: false, section: "patient" },
+  { key: "D.3", label: "Body Weight (kg)", category: "C", required: false, section: "patient" },
+  { key: "D.4", label: "Height (cm)", category: "C", required: false, section: "patient" },
+  { key: "D.5", label: "Sex", category: "C", required: false, section: "patient" },
+  { key: "D.7", label: "Relevant Medical History and Concurrent Conditions", category: "C", required: false, section: "patient" },
+  { key: "D.7.1.r", label: "Structured Information - Patient History", category: "C", required: false, section: "patient" },
+  { key: "D.7.1.r.2", label: "Start Date of Medical History", category: "C", required: false, section: "patient" },
+  { key: "D.7.1.r.3", label: "Continuing Medical History", category: "C", required: false, section: "patient" },
+  { key: "D.7.1.r.4", label: "End Date of Medical History", category: "C", required: false, section: "patient" },
+  { key: "D.7.3", label: "Structured Information Available", category: "C", required: false, section: "patient" },
+  { key: "D.9.1", label: "Case Death", category: "C", required: false, section: "patient" },
+  { key: "D.9.2.r", label: "Death Details", category: "C", required: false, section: "patient" },
+  
+  // Reaction/Event Information (Category E)
+  { key: "E.i.1.1a", label: "Reaction/Event (MedDRA terminology)", category: "C", required: true, section: "reaction" },
+  { key: "E.i.3.2a", label: "Outcome - Recovered/Resolved", category: "C", required: false, section: "reaction" },
+  { key: "E.i.3.2b", label: "Outcome - Recovering/Resolving", category: "C", required: false, section: "reaction" },
+  { key: "E.i.3.2c", label: "Outcome - Not Recovered/Not Resolved", category: "C", required: false, section: "reaction" },
+  { key: "E.i.3.2d", label: "Outcome - Recovered/Resolved with Sequelae", category: "C", required: false, section: "reaction" },
+  { key: "E.i.3.2e", label: "Outcome - Fatal", category: "C", required: false, section: "reaction" },
+  { key: "E.i.3.2f", label: "Outcome - Unknown", category: "C", required: false, section: "reaction" },
+  { key: "E.i.4", label: "Date of Start of Reaction/Event", category: "C", required: false, section: "reaction" },
+  { key: "E.i.5", label: "Date of End of Reaction/Event", category: "C", required: false, section: "reaction" },
+  { key: "E.i.7", label: "Medical Confirmation by Healthcare Professional", category: "C", required: false, section: "reaction" },
 ];
 
 export default function R3FormPage() {
@@ -136,26 +193,49 @@ export default function R3FormPage() {
     try {
       setLoadingAIData(true);
       const token = localStorage.getItem("auth_token");
+      
+      // First, get the complete study object with all AI inference fields
+      const studyResponse = await fetch(`${getApiBaseUrl()}/studies/${studyData.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      let completeStudyData = studyData;
+      if (studyResponse.ok) {
+        completeStudyData = await studyResponse.json();
+        // Update our study state with complete data
+        setStudy(completeStudyData);
+      }
+      
+      // Then fetch external R3 field data
       const params = new URLSearchParams({
         pmid: studyData.pmid,
         drug_code: "Synthon",
         drugname: studyData.drugName
       });
 
-      const response = await fetch(`${getApiBaseUrl()}/studies/${studyData.id}/r3-form-data?${params}`, {
+      const r3Response = await fetch(`${getApiBaseUrl()}/studies/${studyData.id}/r3-form-data?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setStudyAIData(data.data || {});
-        
-        // Auto-populate reporter fields from AI data
-        const reporterData = extractReporterInfo(data.data || {});
-        setPrefilledData(reporterData);
+      let externalR3Data = {};
+      if (r3Response.ok) {
+        const r3Data = await r3Response.json();
+        externalR3Data = r3Data.data || {};
       }
+
+      // Set the raw AI inference data for sidebar display
+      if (completeStudyData.aiInferenceData) {
+        setStudyAIData(completeStudyData.aiInferenceData);
+      }
+
+      // Merge and populate form fields from all sources
+      const prefilledFormData = mergeDataSources(externalR3Data, completeStudyData.aiInferenceData || null, completeStudyData);
+      setPrefilledData(prefilledFormData);
+      
     } catch (error) {
       console.error("Error fetching AI inference data:", error);
     } finally {
@@ -163,29 +243,159 @@ export default function R3FormPage() {
     }
   };
 
-  const extractReporterInfo = (aiData: StudyAIData): R3FormData => {
-    const extracted: R3FormData = {};
+  const mergeDataSources = (externalR3Data: any, studyAIInfo: StudyAIData | null, studyData: Study): R3FormData => {
+    const merged: R3FormData = {};
     
-    if (aiData.Lead_author) {
-      // Parse the lead author name
-      const authorParts = aiData.Lead_author.split(' ');
+    // First, populate from external R3 API data (highest priority)
+    Object.keys(externalR3Data).forEach(key => {
+      if (externalR3Data[key] && externalR3Data[key] !== "NA" && externalR3Data[key] !== "False") {
+        merged[key] = externalR3Data[key];
+      }
+    });
+    
+    // Then, populate from study's normalized AI inference fields (these are stored directly on study object)
+    
+    // Reporter Information from study data
+    if (studyData.leadAuthor && !merged["C.2.r.1"]) {
+      const authorParts = studyData.leadAuthor.split(' ');
       if (authorParts.length > 0) {
-        extracted["C.2.r.1"] = aiData.Lead_author; // Full name
-        extracted["C.2.r.1.2"] = authorParts[0]; // First name (given name)
+        merged["C.2.r.1"] = studyData.leadAuthor;
+        merged["C.2.r.1.2"] = authorParts[0]; // Given name
         if (authorParts.length > 1) {
-          extracted["C.2.r.1.4"] = authorParts[authorParts.length - 1]; // Last name (family name)
+          merged["C.2.r.1.4"] = authorParts[authorParts.length - 1]; // Family name
         }
         if (authorParts.length > 2) {
-          extracted["C.2.r.1.3"] = authorParts.slice(1, -1).join(' '); // Middle names
+          merged["C.2.r.1.3"] = authorParts.slice(1, -1).join(' '); // Middle names
         }
       }
     }
     
-    if (aiData.Vancouver_citation) {
-      extracted["C.4.r.1"] = aiData.Vancouver_citation;
+    // Alternative: if leadAuthor not available, try from authors array
+    if (!merged["C.2.r.1"] && studyData.authors) {
+      const authorsArray = Array.isArray(studyData.authors) ? studyData.authors : [studyData.authors];
+      if (authorsArray.length > 0) {
+        const firstAuthor = authorsArray[0];
+        const authorParts = firstAuthor.split(' ');
+        merged["C.2.r.1"] = firstAuthor;
+        merged["C.2.r.1.2"] = authorParts[0];
+        if (authorParts.length > 1) {
+          merged["C.2.r.1.4"] = authorParts[authorParts.length - 1];
+        }
+      }
     }
     
-    return extracted;
+    // Literature Reference from study data
+    if (studyData.vancouverCitation && !merged["C.4.r.1"]) {
+      merged["C.4.r.1"] = studyData.vancouverCitation;
+    } else if (!merged["C.4.r.1"]) {
+      // Build citation from available study data
+      let citation = "";
+      if (studyData.authors) {
+        const authorsArray = Array.isArray(studyData.authors) ? studyData.authors : [studyData.authors];
+        citation += authorsArray.join(", ") + ". ";
+      }
+      if (studyData.title) {
+        citation += studyData.title + ". ";
+      }
+      if (studyData.journal) {
+        citation += studyData.journal + ". ";
+      }
+      if (studyData.publicationDate) {
+        citation += new Date(studyData.publicationDate).getFullYear() + ". ";
+      }
+      citation += `PMID: ${studyData.pmid}`;
+      if (studyData.doi) {
+        citation += `. DOI: ${studyData.doi}`;
+      }
+      merged["C.4.r.1"] = citation;
+    }
+    
+    // Patient Details from study AI inference data
+    if (studyData.patientDetails && !merged["D.7.1.r"]) {
+      merged["D.7.1.r"] = studyData.patientDetails;
+    }
+    
+    // Medical History from study summary or abstract
+    if (!merged["D.7"] && (studyData.summary || studyData.abstract)) {
+      merged["D.7"] = studyData.summary || studyData.abstract || "";
+    }
+    
+    // Key Events can help populate medical history
+    if (studyData.keyEvents && !merged["D.7.1.r"]) {
+      const keyEventsStr = Array.isArray(studyData.keyEvents) ? studyData.keyEvents.join('; ') : studyData.keyEvents;
+      merged["D.7.1.r"] = `Key Events: ${keyEventsStr}`;
+    }
+    
+    // Relevant dates
+    if (studyData.relevantDates && !merged["D.7.1.r.2"]) {
+      merged["D.7.1.r.2"] = studyData.relevantDates;
+    }
+    
+    // Adverse Event/Reaction Information
+    if (studyData.adverseEvent && !merged["E.i.1.1a"]) {
+      merged["E.i.1.1a"] = studyData.adverseEvent;
+    }
+    
+    // Drug Effect determines outcome
+    if (studyData.drugEffect && !merged["E.i.3.2c"]) {
+      // Map drug effect to outcome
+      if (studyData.drugEffect.toLowerCase().includes('adverse') || 
+          studyData.drugEffect.toLowerCase().includes('negative')) {
+        merged["E.i.3.2c"] = "True"; // Not Recovered/Not Resolved
+      }
+    }
+    
+    // Serious adverse events
+    if (studyData.serious && !merged["E.i.3.2e"]) {
+      const isSerious = studyData.serious === true || studyData.serious === 'Yes' || studyData.serious === 'true';
+      if (isSerious) {
+        merged["E.i.3.2e"] = "True"; // Fatal outcome possibility
+      }
+    }
+    
+    // Medical confirmation from text type or author perspective
+    if (studyData.textType && !merged["E.i.7"]) {
+      if (studyData.textType.toLowerCase().includes('case') || 
+          studyData.textType.toLowerCase().includes('report')) {
+        merged["E.i.7"] = "3"; // Healthcare professional confirmation
+      }
+    }
+    
+    // Country information for reporting
+    if (studyData.countryOfFirstAuthor && !merged["C.2.r.2.1"]) {
+      merged["C.2.r.2.1"] = `Institution in ${studyData.countryOfFirstAuthor}`;
+    }
+    
+    // Also try to get data from the raw AI inference data object if available
+    if (studyAIInfo) {
+      // Fallback mappings from raw AI data if study fields not populated
+      if (studyAIInfo.Lead_author && !merged["C.2.r.1"]) {
+        const authorParts = studyAIInfo.Lead_author.split(' ');
+        merged["C.2.r.1"] = studyAIInfo.Lead_author;
+        merged["C.2.r.1.2"] = authorParts[0];
+        if (authorParts.length > 1) {
+          merged["C.2.r.1.4"] = authorParts[authorParts.length - 1];
+        }
+      }
+      
+      if (studyAIInfo.Vancouver_citation && !merged["C.4.r.1"]) {
+        merged["C.4.r.1"] = studyAIInfo.Vancouver_citation;
+      }
+      
+      if (studyAIInfo.Patient_details && !merged["D.7.1.r"]) {
+        merged["D.7.1.r"] = studyAIInfo.Patient_details;
+      }
+      
+      if (studyAIInfo.Adverse_event && !merged["E.i.1.1a"]) {
+        merged["E.i.1.1a"] = studyAIInfo.Adverse_event;
+      }
+      
+      if (studyAIInfo.Country_of_first_author && !merged["C.2.r.2.1"]) {
+        merged["C.2.r.2.1"] = `Institution in ${studyAIInfo.Country_of_first_author}`;
+      }
+    }
+    
+    return merged;
   };
 
   const handleFormChange = (fieldKey: string, value: string) => {
@@ -434,7 +644,7 @@ export default function R3FormPage() {
                 </h2>
                 
                 <div className="grid gap-6">
-                  {R3_FORM_FIELDS.filter(field => field.key.startsWith('C.')).map((field) => {
+                  {R3_FORM_FIELDS.filter(field => field.section === 'reporter' && !field.isHeader).map((field) => {
                     const isPrefilled = isFieldPrefilled(field.key);
                     
                     return (
@@ -453,7 +663,7 @@ export default function R3FormPage() {
                             ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
                           `}
                           rows={field.key === 'C.4.r.1' ? 3 : 2}
-                          placeholder="Can be auto-filled from PubMed/study data - editable"
+                          placeholder="Auto-filled from PubMed/study data - editable"
                         />
                         {isPrefilled && (
                           <p className="text-xs text-blue-600">
@@ -469,11 +679,11 @@ export default function R3FormPage() {
               {/* Patient Characteristics Section */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  Patient Characteristics
+                  Patient Characteristics (Category B & C)
                 </h2>
                 
                 <div className="grid gap-6">
-                  {R3_FORM_FIELDS.filter(field => field.key.startsWith('D.')).map((field) => {
+                  {R3_FORM_FIELDS.filter(field => field.section === 'patient' && !field.isHeader).map((field) => {
                     const isPrefilled = isFieldPrefilled(field.key);
                     
                     return (
@@ -491,9 +701,62 @@ export default function R3FormPage() {
                           className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
                             ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
                           `}
-                          rows={2}
+                          rows={field.key.includes('D.7.1.r') ? 4 : 2}
                           placeholder="Enter value here..."
                         />
+                        {isPrefilled && (
+                          <p className="text-xs text-blue-600">
+                            Pre-filled from external API - you can edit this field
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Reaction/Event Information Section */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                  Reaction/Event Information (Category C)
+                </h2>
+                
+                <div className="grid gap-6">
+                  {R3_FORM_FIELDS.filter(field => field.section === 'reaction').map((field) => {
+                    const isPrefilled = isFieldPrefilled(field.key);
+                    
+                    return (
+                      <div key={field.key} className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          {field.key} - {field.label}
+                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                          <span className="ml-2 text-xs text-gray-500">
+                            (Category: {field.category})
+                          </span>
+                        </label>
+                        {field.key.startsWith('E.i.3.2') ? (
+                          <select
+                            value={getFieldValue(field.key)}
+                            onChange={(e) => handleFormChange(field.key, e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black
+                              ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                            `}
+                          >
+                            <option value="">Select...</option>
+                            <option value="True">True</option>
+                            <option value="False">False</option>
+                          </select>
+                        ) : (
+                          <textarea
+                            value={getFieldValue(field.key)}
+                            onChange={(e) => handleFormChange(field.key, e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
+                              ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                            `}
+                            rows={2}
+                            placeholder="Enter value here..."
+                          />
+                        )}
                         {isPrefilled && (
                           <p className="text-xs text-blue-600">
                             Pre-filled from external API - you can edit this field
