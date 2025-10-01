@@ -139,8 +139,33 @@ class RoleService {
       console.log('Creating role in database:', {
         roleId: role.id,
         roleName: role.name,
-        organizationId: role.organizationId
+        organizationId: role.organizationId,
+        hasRolePrefix: role.id.startsWith('role_')
       });
+
+      // Check if this specific ID already exists in the database
+      console.log('Checking if role ID already exists in database...');
+      try {
+        const existingEntity = await cosmosService.getItem('users', role.id, role.organizationId);
+        if (existingEntity) {
+          console.error('ID CONFLICT: Entity with this ID already exists:', {
+            conflictingId: role.id,
+            existingEntityType: existingEntity.type,
+            existingEntityName: existingEntity.name || existingEntity.email,
+            existingEntityOrgId: existingEntity.organizationId
+          });
+          // Generate a new ID and try again
+          const newRole = new Role({
+            ...roleData,
+            createdBy: createdBy.id
+          });
+          console.log('Generated new role ID:', newRole.id);
+          role.id = newRole.id;
+        }
+      } catch (getError) {
+        // If getItem fails, the ID likely doesn't exist, which is good
+        console.log('ID check passed - no existing entity with this ID');
+      }
 
       // Save to database
       const savedRole = await cosmosService.createItem('users', role.toJSON());
@@ -152,27 +177,31 @@ class RoleService {
       console.error('Error creating role:', {
         message: error.message,
         code: error.code,
+        statusCode: error.statusCode,
+        activityId: error.activityId,
         roleName: roleData?.name,
-        organizationId: roleData?.organizationId
+        organizationId: roleData?.organizationId,
+        attemptedRoleId: error.attemptedRoleId
       });
       
       // If it's a 409 conflict, let's investigate further
-      if (error.code === 409) {
+      if (error.code === 409 || error.statusCode === 409) {
         console.log('409 Conflict detected - investigating...');
         
-        // Check if there's an organization mismatch
-        const allRolesQuery = `SELECT * FROM c WHERE c.type = 'role' AND c.name = @roleName`;
-        const allRolesParams = [{ name: '@roleName', value: roleData.name }];
+        // Check what entity exists with this ID
+        const conflictQuery = `SELECT * FROM c WHERE c.id = @roleId`;
+        const conflictParams = [{ name: '@roleId', value: roleData.attemptedRoleId || 'unknown' }];
         
         try {
-          const conflictingRoles = await cosmosService.queryItems('users', allRolesQuery, allRolesParams);
-          console.log('Conflicting roles found:', conflictingRoles.map(r => ({
-            id: r.id,
-            name: r.name,
-            organizationId: r.organizationId
+          const conflictingEntity = await cosmosService.queryItems('users', conflictQuery, conflictParams);
+          console.log('Conflicting entity found:', conflictingEntity.map(e => ({
+            id: e.id,
+            type: e.type,
+            name: e.name || e.email,
+            organizationId: e.organizationId
           })));
         } catch (queryError) {
-          console.error('Failed to query conflicting roles:', queryError);
+          console.error('Failed to query conflicting entity:', queryError);
         }
       }
       

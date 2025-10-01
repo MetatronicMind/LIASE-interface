@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 
 class Role {
   constructor({
-    id = uuidv4(),
+    id = `role_${uuidv4()}`, // Add 'role_' prefix to avoid ID conflicts
     organizationId,
     name,
     displayName,
