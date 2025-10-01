@@ -96,11 +96,11 @@ router.get('/data-entry',
       const testParams = [{ name: '@pmid', value: '39234674' }];
       const testResult = await cosmosService.queryItems('studies', testQuery, testParams);
       console.log('Test query for PMID 39234674:', {
-        found: testResult.resources?.length > 0,
-        count: testResult.resources?.length || 0,
-        studyOrgId: testResult.resources?.[0]?.organizationId,
-        studyUserTag: testResult.resources?.[0]?.userTag,
-        studyEffectiveClassification: testResult.resources?.[0]?.effectiveClassification
+        found: testResult.length > 0,
+        count: testResult.length || 0,
+        studyOrgId: testResult[0]?.organizationId,
+        studyUserTag: testResult[0]?.userTag,
+        studyEffectiveClassification: testResult[0]?.effectiveClassification
       });
       
       // Query for studies that are manually tagged as ICSR only
@@ -112,6 +112,54 @@ router.get('/data-entry',
       
       console.log('Data entry query:', query);
       console.log('Data entry parameters:', parameters);
+
+      // Debug: Let's see what studies exist for this organization
+      const debugQuery = 'SELECT c.id, c.organizationId, c.userTag, c.pmid FROM c WHERE c.organizationId = @orgId';
+      const debugParams = [{ name: '@orgId', value: req.user.organizationId }];
+      const debugResult = await cosmosService.queryItems('studies', debugQuery, debugParams);
+      console.log(`Debug: Found ${debugResult.length || 0} total studies for org ${req.user.organizationId}`);
+      if (debugResult.length > 0) {
+        console.log('Debug: Sample studies:', debugResult.slice(0, 3).map(s => ({ 
+          id: s.id, 
+          pmid: s.pmid, 
+          userTag: s.userTag 
+        })));
+      }
+
+      // Debug: Let's see what studies exist with ICSR tag regardless of organization
+      const icsrDebugQuery = 'SELECT c.id, c.organizationId, c.userTag, c.pmid FROM c WHERE c.userTag = @userTag';
+      const icsrDebugParams = [{ name: '@userTag', value: 'ICSR' }];
+      const icsrDebugResult = await cosmosService.queryItems('studies', icsrDebugQuery, icsrDebugParams);
+      console.log(`Debug: Found ${icsrDebugResult.length || 0} total ICSR studies across all organizations`);
+      if (icsrDebugResult.length > 0) {
+        console.log('Debug: ICSR studies by org:', icsrDebugResult.reduce((acc, s) => {
+          acc[s.organizationId] = (acc[s.organizationId] || 0) + 1;
+          return acc;
+        }, {}));
+      }
+
+      // Debug: Let's check the specific study mentioned in the logs
+      const specificStudyQuery = 'SELECT c.id, c.organizationId, c.userTag, c.pmid FROM c WHERE c.pmid = @pmid';
+      const specificStudyParams = [{ name: '@pmid', value: '39234674' }];
+      const specificStudyResult = await cosmosService.queryItems('studies', specificStudyQuery, specificStudyParams);
+      console.log(`Debug: Found specific study 39234674:`, specificStudyResult[0] || 'NOT FOUND');
+
+      // Debug: Let's test the exact same conditions as the main query but with more detail
+      const exactTestQuery = 'SELECT c.id, c.organizationId, c.userTag, c.pmid FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag';
+      const exactTestParams = [
+        { name: '@orgId', value: req.user.organizationId },
+        { name: '@userTag', value: 'ICSR' }
+      ];
+      const exactTestResult = await cosmosService.queryItems('studies', exactTestQuery, exactTestParams);
+      console.log(`Debug: Exact match test found ${exactTestResult.length || 0} studies`);
+      if (exactTestResult.length > 0) {
+        console.log('Debug: Exact match results:', exactTestResult.map(s => ({ 
+          id: s.id, 
+          pmid: s.pmid, 
+          orgId: s.organizationId,
+          userTag: s.userTag 
+        })));
+      }
 
       if (search) {
         query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
@@ -125,14 +173,14 @@ router.get('/data-entry',
 
       const result = await cosmosService.queryItems('studies', query, parameters);
       
-      console.log('Data entry query result count:', result.resources?.length || 0);
-      if (result.resources?.length > 0) {
+      console.log('Data entry query result count:', result.length || 0);
+      if (result.length > 0) {
         console.log('First study sample:', {
-          id: result.resources[0].id,
-          pmid: result.resources[0].pmid,
-          title: result.resources[0].title?.substring(0, 50) + '...',
-          userTag: result.resources[0].userTag,
-          organizationId: result.resources[0].organizationId
+          id: result[0].id,
+          pmid: result[0].pmid,
+          title: result[0].title?.substring(0, 50) + '...',
+          userTag: result[0].userTag,
+          organizationId: result[0].organizationId
         });
       }
 
@@ -147,22 +195,22 @@ router.get('/data-entry',
 
       res.json({
         success: true,
-        data: result.resources || [],
+        data: result || [],
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          hasMore: result.resources?.length === parseInt(limit)
+          hasMore: result?.length === parseInt(limit)
         },
         debug: {
           userOrgId: req.user.organizationId,
           queryParams: { page, limit, search },
-          resultCount: result.resources?.length || 0,
-          testQuery: testResult.resources?.length > 0 ? {
+          resultCount: result?.length || 0,
+          testQuery: testResult.length > 0 ? {
             found: true,
-            studyOrgId: testResult.resources[0].organizationId,
-            studyUserTag: testResult.resources[0].userTag,
-            studyEffectiveClassification: testResult.resources[0].effectiveClassification,
-            orgIdMatch: testResult.resources[0].organizationId === req.user.organizationId
+            studyOrgId: testResult[0].organizationId,
+            studyUserTag: testResult[0].userTag,
+            studyEffectiveClassification: testResult[0].effectiveClassification,
+            orgIdMatch: testResult[0].organizationId === req.user.organizationId
           } : { found: false }
         }
       });
@@ -217,11 +265,11 @@ router.get('/medical-examiner',
 
       res.json({
         success: true,
-        data: result.resources || [],
+        data: result || [],
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          hasMore: result.resources?.length === parseInt(limit)
+          hasMore: result?.length === parseInt(limit)
         }
       });
     } catch (error) {
