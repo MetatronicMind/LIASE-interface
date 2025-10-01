@@ -152,6 +152,18 @@ router.get('/data-entry',
           page: parseInt(page),
           limit: parseInt(limit),
           hasMore: result.resources?.length === parseInt(limit)
+        },
+        debug: {
+          userOrgId: req.user.organizationId,
+          queryParams: { page, limit, search },
+          resultCount: result.resources?.length || 0,
+          testQuery: testResult.resources?.length > 0 ? {
+            found: true,
+            studyOrgId: testResult.resources[0].organizationId,
+            studyUserTag: testResult.resources[0].userTag,
+            studyEffectiveClassification: testResult.resources[0].effectiveClassification,
+            orgIdMatch: testResult.resources[0].organizationId === req.user.organizationId
+          } : { found: false }
         }
       });
     } catch (error) {

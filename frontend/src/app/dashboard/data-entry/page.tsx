@@ -126,6 +126,16 @@ export default function DataEntryPage() {
         const data = await response.json();
         console.log('Data entry API response data:', data);
         console.log('Number of ICSR studies found:', data.data?.length || 0);
+        
+        // Log debug information if available
+        if (data.debug) {
+          console.log('=== DEBUG INFORMATION ===');
+          console.log('User Organization ID:', data.debug.userOrgId);
+          console.log('Test query result:', data.debug.testQuery);
+          console.log('Query result count:', data.debug.resultCount);
+          console.log('========================');
+        }
+        
         setStudies(data.data || []);
       } else {
         const errorText = await response.text();
