@@ -449,6 +449,15 @@ class RoleService {
           write: 'Edit organization settings',
           delete: 'Delete organizations'
         }
+      },
+      reports: {
+        displayName: 'Full Report',
+        description: 'Access to comprehensive reporting and analytics',
+        actions: {
+          read: 'View full reports',
+          write: 'Create and modify reports',
+          delete: 'Delete reports'
+        }
       }
     };
   }
