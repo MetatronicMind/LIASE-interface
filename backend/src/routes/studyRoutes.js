@@ -103,11 +103,13 @@ router.get('/data-entry',
         studyEffectiveClassification: testResult[0]?.effectiveClassification
       });
       
-      // Query for studies that are manually tagged as ICSR only
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag';
+      // Query for studies that are manually tagged as ICSR AND have incomplete R3 forms
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND (c.r3FormStatus = @statusNotStarted OR c.r3FormStatus = @statusInProgress)';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
-        { name: '@userTag', value: 'ICSR' }
+        { name: '@userTag', value: 'ICSR' },
+        { name: '@statusNotStarted', value: 'not_started' },
+        { name: '@statusInProgress', value: 'in_progress' }
       ];
       
       console.log('Data entry query:', query);

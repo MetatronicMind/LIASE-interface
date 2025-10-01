@@ -209,6 +209,20 @@ class Study {
     this.r3FormCompletedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     
+    // Auto-tag as ICSR if not already tagged
+    if (!this.userTag || this.userTag !== 'ICSR') {
+      const previousTag = this.userTag;
+      this.userTag = 'ICSR';
+      
+      // Add tag change comment
+      this.addComment({
+        userId,
+        userName,
+        text: `Study automatically classified as ICSR due to R3 form completion (previous: "${previousTag || 'None'}")`,
+        type: 'system'
+      });
+    }
+    
     // Add completion comment
     this.addComment({
       userId,
