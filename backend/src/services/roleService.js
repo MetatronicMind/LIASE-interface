@@ -131,12 +131,22 @@ class RoleService {
       console.log('🔥 [DETAILED DEBUG] No existing role found, proceeding...');
 
       console.log('🔥 [DETAILED DEBUG] Creating Role object...');
-      const role = new Role({
+      
+      // Generate a more unique ID by combining timestamp and UUID
+      const timestampComponent = Date.now().toString(36);
+      const randomComponent = Math.random().toString(36).substr(2, 5);
+      const baseRole = new Role({
         ...roleData,
         createdBy: createdBy.id
       });
+      
+      // Create a hybrid ID that's virtually impossible to collide
+      const hybridId = `${baseRole.id.substr(0, 8)}-${timestampComponent}-${randomComponent}-${baseRole.id.substr(-12)}`;
+      baseRole.id = hybridId;
+      
+      const role = baseRole;
 
-      console.log('🔥 [DETAILED DEBUG] Generated role ID:', role.id);
+      console.log('🔥 [DETAILED DEBUG] Generated hybrid role ID:', role.id);
       console.log('🔥 [DETAILED DEBUG] Full role object:', JSON.stringify(role.toJSON(), null, 2));
 
       // Check if the generated ID already exists (with retry logic)
@@ -159,11 +169,19 @@ class RoleService {
         console.log(`🔥 [DETAILED DEBUG] ID collision detected (attempt ${attempts}). Generating new ID...`);
         
         if (attempts < maxAttempts) {
-          finalRole = new Role({
+          const newTimestamp = Date.now().toString(36);
+          const newRandom = Math.random().toString(36).substr(2, 5);
+          const newBaseRole = new Role({
             ...roleData,
             createdBy: createdBy.id
           });
-          console.log('🔥 [DETAILED DEBUG] New role ID generated:', finalRole.id);
+          
+          // Create another hybrid ID
+          const newHybridId = `${newBaseRole.id.substr(0, 8)}-${newTimestamp}-${newRandom}-${newBaseRole.id.substr(-12)}`;
+          newBaseRole.id = newHybridId;
+          
+          finalRole = newBaseRole;
+          console.log('🔥 [DETAILED DEBUG] New hybrid role ID generated:', finalRole.id);
         } else {
           console.log('🔥 [DETAILED DEBUG] Failed to generate unique ID after multiple attempts');
           throw new Error('Failed to generate unique ID after multiple attempts');
@@ -174,6 +192,19 @@ class RoleService {
       console.log('🔥 [DETAILED DEBUG] Final role to create:', JSON.stringify(finalRole.toJSON(), null, 2));
 
       try {
+        // Add a small delay to avoid rapid concurrent requests
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Final check right before creation to catch race conditions
+        console.log('🔥 [DETAILED DEBUG] Final ID check before creation...');
+        const finalIdExists = await this.checkIdExists(finalRole.id);
+        console.log('🔥 [DETAILED DEBUG] Final ID check result:', finalIdExists);
+        
+        if (finalIdExists) {
+          console.log('🔥 [DETAILED DEBUG] Race condition detected! ID was created between checks.');
+          throw new Error('Race condition detected: ID was created by another request');
+        }
+
         await cosmosService.createItem('users', finalRole.toJSON());
         console.log('🔥 [DETAILED DEBUG] ✅ Role created successfully:', finalRole.id);
         return finalRole;
