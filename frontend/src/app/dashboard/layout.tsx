@@ -15,29 +15,74 @@ import {
 } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/components/PermissionProvider";
 
-// Base navigation items
+// Base navigation items - always visible
 const baseNavItems = [
-  { name: "Dashboard", href: "/dashboard", icon: <HomeIcon className="w-5 h-5 mr-2" />, roles: ['all'] },
+  { name: "Dashboard", href: "/dashboard", icon: <HomeIcon className="w-5 h-5 mr-2" />, permission: null },
 ];
 
-// Role-specific navigation items
-const roleBasedNavItems = [
-  // Super Admin items
-  { name: "Drug Management", href: "/dashboard/drug-management", icon: <TableCellsIcon className="w-5 h-5 mr-2" />, roles: ['superadmin'] },
-  { name: "Triage", href: "/dashboard/triage", icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin'] },
-  { name: "Data Entry", href: "/dashboard/data-entry", icon: <PencilSquareIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin', 'data_entry'] },
-  { name: "Full Report", href: "/dashboard/full-report", icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin', 'medical_examiner'] },
-  { name: "Audit Trail", href: "/dashboard/audit-trail", icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin'] },
-  { name: "User Management", href: "/dashboard/user-management", icon: <UsersIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin'] },
-  { name: "Settings", href: "/dashboard/settings", icon: <Cog6ToothIcon className="w-5 h-5 mr-2" />, roles: ['superadmin', 'admin'] },
+// Permission-based navigation items
+const permissionBasedNavItems = [
+  { 
+    name: "Drug Management", 
+    href: "/dashboard/drug-management", 
+    icon: <TableCellsIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'drugs', action: 'read' },
+    requireSuperAdmin: true
+  },
+  { 
+    name: "Triage", 
+    href: "/dashboard/triage", 
+    icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'studies', action: 'read' },
+    requireAdmin: true
+  },
+  { 
+    name: "Data Entry", 
+    href: "/dashboard/data-entry", 
+    icon: <PencilSquareIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'studies', action: 'write' }
+  },
+  { 
+    name: "Full Report", 
+    href: "/dashboard/full-report", 
+    icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'reports', action: 'read' }
+  },
+  { 
+    name: "Audit Trail", 
+    href: "/dashboard/audit-trail", 
+    icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'audit', action: 'read' }
+  },
+  { 
+    name: "User Management", 
+    href: "/dashboard/user-management", 
+    icon: <UsersIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'users', action: 'read' }
+  },
+  { 
+    name: "Settings", 
+    href: "/dashboard/settings", 
+    icon: <Cog6ToothIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'settings', action: 'read' }
+  },
 ];
 
-// Function to get nav items based on user roles
-const getNavItemsForUser = (userRoles: string[] = []) => {
-  const filteredItems = roleBasedNavItems.filter(item => {
-    if (item.roles.includes('all')) return true;
-    return item.roles.some(role => userRoles.includes(role));
+// Function to get nav items based on user permissions
+const getNavItemsForUser = (hasPermission: (resource: string, action: string) => boolean, isAdmin: () => boolean, isSuperAdmin: () => boolean) => {
+  const filteredItems = permissionBasedNavItems.filter(item => {
+    // Check special admin requirements
+    if (item.requireSuperAdmin && !isSuperAdmin()) return false;
+    if (item.requireAdmin && !isAdmin()) return false;
+    
+    // Check permission requirement
+    if (item.permission) {
+      return hasPermission(item.permission.resource, item.permission.action);
+    }
+    
+    return true;
   });
   
   return [...baseNavItems, ...filteredItems];
@@ -51,10 +96,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { hasPermission, isAdmin, isSuperAdmin } = usePermissions();
   
-  // Get navigation items based on user roles
-  const userRoles = user?.role ? [user.role] : [];
-  const navItems = getNavItemsForUser(userRoles);
+  // Get navigation items based on user permissions
+  const navItems = getNavItemsForUser(hasPermission, isAdmin, isSuperAdmin);
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {

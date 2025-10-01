@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
+import { PermissionGate } from "@/components/PermissionProvider";
 
 interface Study {
   id: string;
@@ -178,13 +179,25 @@ export default function FullReportPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-black mb-2">Full Report (Medical Examiner)</h1>
-        <p className="text-black">
-          Review completed ICSR studies with R3 form data
-        </p>
-      </div>
+    <PermissionGate 
+      resource="reports" 
+      action="read"
+      fallback={
+        <div className="p-6 max-w-7xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <h2 className="text-xl font-semibold text-red-800 mb-2">Access Denied</h2>
+            <p className="text-red-600">You don't have permission to view full reports. Please contact your administrator to request the 'medical_examiner' role or 'reports' permission.</p>
+          </div>
+        </div>
+      }
+    >
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-black mb-2">Full Report (Medical Examiner)</h1>
+          <p className="text-black">
+            Review completed ICSR studies with R3 form data
+          </p>
+        </div>
 
       {!showReport ? (
         <>
@@ -374,6 +387,7 @@ export default function FullReportPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </PermissionGate>
   );
 }
