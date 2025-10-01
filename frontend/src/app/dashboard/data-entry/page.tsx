@@ -375,8 +375,8 @@ export default function DataEntryPage() {
         </>
       ) : (
         /* R3 Form Modal */
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl h-[95vh] sm:h-[90vh] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-black">
                 R3 XML Form - {selectedStudy?.title}
@@ -389,7 +389,7 @@ export default function DataEntryPage() {
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto min-h-0">
               {loadingR3Data ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -433,25 +433,32 @@ export default function DataEntryPage() {
               )}
             </div>
 
-            <div className="flex justify-between items-center p-6 border-t border-gray-200">
+            <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-stretch sm:items-center p-4 sm:p-6 border-t border-gray-200 gap-3 sm:gap-0">
               <button
                 onClick={closeR3Form}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 order-2 sm:order-1"
               >
                 Cancel
               </button>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 order-1 sm:order-2">
                 <button
                   onClick={saveR3Form}
                   disabled={savingForm || loadingR3Data}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50"
+                  className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50"
                 >
                   {savingForm ? "Saving..." : "Save Draft"}
                 </button>
                 <button
+                  onClick={saveR3Form}
+                  disabled={savingForm || loadingR3Data}
+                  className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingForm ? "Submitting..." : "Submit"}
+                </button>
+                <button
                   onClick={completeR3Form}
                   disabled={savingForm || loadingR3Data}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                  className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
                 >
                   Complete Form
                 </button>
