@@ -1,0 +1,538 @@
+"use client";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { getApiBaseUrl } from "@/config/api";
+import { useSearchParams, useRouter } from "next/navigation";
+
+interface Study {
+  id: string;
+  pmid: string;
+  title: string;
+  drugName: string;
+  adverseEvent: string;
+  userTag: string;
+  r3FormStatus: string;
+  r3FormData?: any;
+  createdAt: string;
+}
+
+interface StudyAIData {
+  PMID: string;
+  DOI: string;
+  special_case: string;
+  Country_of_first_author: string;
+  Country_of_occurrence: string;
+  Patient_details: string;
+  Key_events: string;
+  Relevant_dates: string;
+  Administered_drugs: string;
+  Attributability: string;
+  Drug_effect: string;
+  Summary: string;
+  Identifiable_human_subject: string;
+  Text_type: string;
+  Author_perspective: string;
+  Adverse_event: string;
+  Confirmed_potential_ICSR: string;
+  ICSR_classification: string;
+  Substance_group: string;
+  Reference_database: string;
+  Date_and_time: string;
+  Vancouver_citation: string;
+  pubdate: string;
+  Lead_author: string;
+  Serious: string;
+  Test_subject: string;
+  AOI_drug_effect: string;
+  Approved_indication: string;
+  AOI_classification: string;
+  Justification: string;
+  Client_name: string;
+  Drugname: string;
+}
+
+interface R3FormData {
+  [key: string]: string;
+}
+
+const R3_FORM_FIELDS = [
+  { key: "C.2.r.1", label: "Reporter's Name", category: "A", required: true },
+  { key: "C.2.r.1.1", label: "Reporter's Title", category: "A", required: false },
+  { key: "C.2.r.1.2", label: "Reporter's Given Name", category: "A", required: true },
+  { key: "C.2.r.1.3", label: "Reporter's Middle Name", category: "A", required: false },
+  { key: "C.2.r.1.4", label: "Reporter's Family Name", category: "A", required: true },
+  { key: "C.2.r.2.1", label: "Reporter's Organisation", category: "A", required: false },
+  { key: "C.4.r.1", label: "Literature Reference(s)", category: "A", required: true },
+  { key: "D", label: "Patient Characteristics", category: "B", required: false },
+  { key: "D.1", label: "Patient (name or initials)", category: "C", required: false },
+  { key: "D.2.1", label: "Date of Birth", category: "C", required: false },
+  { key: "D.2.2", label: "Age at Time of Onset of Reaction / Event", category: "C", required: false },
+  { key: "D.2.2a", label: "Age at Time of Onset of Reaction / Event (number)", category: "B", required: false },
+  { key: "D.2.2b", label: "Age at Time of Onset of Reaction / Event (unit)", category: "B", required: false },
+  { key: "D.2.2.1a", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (number)", category: "C", required: false },
+  { key: "D.2.2.1b", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (unit)", category: "B", required: false },
+  { key: "D.2.3", label: "Patient Age Group (as per reporter)", category: "C", required: false },
+  { key: "D.3", label: "Body Weight (kg)", category: "C", required: false },
+  { key: "D.4", label: "Height (cm)", category: "C", required: false },
+  { key: "D.5", label: "Sex", category: "C", required: false },
+  { key: "D.7", label: "Relevant Medical History and Concurrent Conditions (not including reaction / event)", category: "C", required: false },
+];
+
+export default function R3FormPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const studyId = searchParams.get("studyId");
+
+  const [study, setStudy] = useState<Study | null>(null);
+  const [studyAIData, setStudyAIData] = useState<StudyAIData | null>(null);
+  const [r3FormData, setR3FormData] = useState<R3FormData>({});
+  const [prefilledData, setPrefilledData] = useState<R3FormData>({});
+  const [loading, setLoading] = useState(true);
+  const [loadingAIData, setLoadingAIData] = useState(false);
+  const [savingForm, setSavingForm] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (!studyId) {
+      router.push("/dashboard/data-entry");
+      return;
+    }
+    fetchStudyData();
+  }, [studyId]);
+
+  const fetchStudyData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("auth_token");
+      
+      // Fetch study details
+      const studyResponse = await fetch(`${getApiBaseUrl()}/studies/${studyId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (studyResponse.ok) {
+        const studyData = await studyResponse.json();
+        setStudy(studyData);
+        setR3FormData(studyData.r3FormData || {});
+        
+        // Fetch AI inference data
+        await fetchAIInferenceData(studyData);
+      } else {
+        throw new Error("Failed to fetch study data");
+      }
+    } catch (error) {
+      console.error("Error fetching study data:", error);
+      alert("Error loading study data. Redirecting back to data entry.");
+      router.push("/dashboard/data-entry");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAIInferenceData = async (studyData: Study) => {
+    try {
+      setLoadingAIData(true);
+      const token = localStorage.getItem("auth_token");
+      const params = new URLSearchParams({
+        pmid: studyData.pmid,
+        drug_code: "Synthon",
+        drugname: studyData.drugName
+      });
+
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyData.id}/r3-form-data?${params}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStudyAIData(data.data || {});
+        
+        // Auto-populate reporter fields from AI data
+        const reporterData = extractReporterInfo(data.data || {});
+        setPrefilledData(reporterData);
+      }
+    } catch (error) {
+      console.error("Error fetching AI inference data:", error);
+    } finally {
+      setLoadingAIData(false);
+    }
+  };
+
+  const extractReporterInfo = (aiData: StudyAIData): R3FormData => {
+    const extracted: R3FormData = {};
+    
+    if (aiData.Lead_author) {
+      // Parse the lead author name
+      const authorParts = aiData.Lead_author.split(' ');
+      if (authorParts.length > 0) {
+        extracted["C.2.r.1"] = aiData.Lead_author; // Full name
+        extracted["C.2.r.1.2"] = authorParts[0]; // First name (given name)
+        if (authorParts.length > 1) {
+          extracted["C.2.r.1.4"] = authorParts[authorParts.length - 1]; // Last name (family name)
+        }
+        if (authorParts.length > 2) {
+          extracted["C.2.r.1.3"] = authorParts.slice(1, -1).join(' '); // Middle names
+        }
+      }
+    }
+    
+    if (aiData.Vancouver_citation) {
+      extracted["C.4.r.1"] = aiData.Vancouver_citation;
+    }
+    
+    return extracted;
+  };
+
+  const handleFormChange = (fieldKey: string, value: string) => {
+    setR3FormData(prev => ({
+      ...prev,
+      [fieldKey]: value
+    }));
+  };
+
+  const getFieldValue = (fieldKey: string) => {
+    return r3FormData[fieldKey] || prefilledData[fieldKey] || "";
+  };
+
+  const isFieldPrefilled = (fieldKey: string) => {
+    return prefilledData[fieldKey] && !r3FormData[fieldKey];
+  };
+
+  const saveR3Form = async () => {
+    if (!study) return;
+
+    try {
+      setSavingForm(true);
+      const token = localStorage.getItem("auth_token");
+
+      const response = await fetch(`${getApiBaseUrl()}/studies/${study.id}/r3-form`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ formData: r3FormData }),
+      });
+
+      if (response.ok) {
+        alert("R3 form data saved successfully!");
+      } else {
+        throw new Error("Failed to save R3 form data");
+      }
+    } catch (error) {
+      console.error("Error saving R3 form:", error);
+      alert("Error saving R3 form data. Please try again.");
+    } finally {
+      setSavingForm(false);
+    }
+  };
+
+  const completeR3Form = async () => {
+    if (!study) return;
+
+    try {
+      setSavingForm(true);
+      const token = localStorage.getItem("auth_token");
+
+      // First save the current form data
+      await fetch(`${getApiBaseUrl()}/studies/${study.id}/r3-form`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ formData: r3FormData }),
+      });
+
+      // Then mark as completed
+      const response = await fetch(`${getApiBaseUrl()}/studies/${study.id}/r3-form/complete`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        alert("R3 form completed successfully!");
+        router.push("/dashboard/data-entry");
+      } else {
+        throw new Error("Failed to complete R3 form");
+      }
+    } catch (error) {
+      console.error("Error completing R3 form:", error);
+      alert("Error completing R3 form. Please try again.");
+    } finally {
+      setSavingForm(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading study data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!study) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Study Not Found</h2>
+          <button
+            onClick={() => router.push("/dashboard/data-entry")}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Back to Data Entry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Side Panel */}
+      <div className={`bg-white border-r border-gray-200 transition-all duration-300 ${
+        sidebarCollapsed ? 'w-12' : 'w-80'
+      }`}>
+        <div className="h-full flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            {!sidebarCollapsed && (
+              <h3 className="text-lg font-semibold text-gray-900">Study Information</h3>
+            )}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-1 hover:bg-gray-100 rounded"
+            >
+              {sidebarCollapsed ? '→' : '←'}
+            </button>
+          </div>
+
+          {/* Content */}
+          {!sidebarCollapsed && (
+            <div className="flex-1 p-4 overflow-y-auto">
+              {/* Basic Study Info */}
+              <div className="mb-6">
+                <h4 className="font-medium text-gray-900 mb-3">Basic Information</h4>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">PMID:</span>
+                    <span className="ml-2 text-gray-900">{study.pmid}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Drug:</span>
+                    <span className="ml-2 text-gray-900">{study.drugName}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Adverse Event:</span>
+                    <span className="ml-2 text-gray-900">{study.adverseEvent}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Inference Data */}
+              {loadingAIData ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-sm text-gray-600">Loading AI data...</span>
+                </div>
+              ) : studyAIData && (
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900">AI Inference Data</h4>
+                  
+                  {studyAIData.Lead_author && (
+                    <div>
+                      <span className="font-medium text-gray-600 text-sm">Lead Author:</span>
+                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Lead_author}</p>
+                    </div>
+                  )}
+                  
+                  {studyAIData.Country_of_first_author && (
+                    <div>
+                      <span className="font-medium text-gray-600 text-sm">Country:</span>
+                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Country_of_first_author}</p>
+                    </div>
+                  )}
+                  
+                  {studyAIData.Patient_details && (
+                    <div>
+                      <span className="font-medium text-gray-600 text-sm">Patient Details:</span>
+                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Patient_details}</p>
+                    </div>
+                  )}
+                  
+                  {studyAIData.Key_events && (
+                    <div>
+                      <span className="font-medium text-gray-600 text-sm">Key Events:</span>
+                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Key_events}</p>
+                    </div>
+                  )}
+                  
+                  {studyAIData.Administered_drugs && (
+                    <div>
+                      <span className="font-medium text-gray-600 text-sm">Administered Drugs:</span>
+                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Administered_drugs}</p>
+                    </div>
+                  )}
+                  
+                  {studyAIData.Summary && (
+                    <div>
+                      <span className="font-medium text-gray-600 text-sm">Summary:</span>
+                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Summary}</p>
+                    </div>
+                  )}
+                  
+                  {studyAIData.Vancouver_citation && (
+                    <div>
+                      <span className="font-medium text-gray-600 text-sm">Vancouver Citation:</span>
+                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Vancouver_citation}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">R3 XML Form</h1>
+              <p className="text-sm text-gray-600 mt-1">{study.title}</p>
+            </div>
+            <button
+              onClick={() => router.push("/dashboard/data-entry")}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Back to Data Entry
+            </button>
+          </div>
+        </div>
+
+        {/* Form Content */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              {/* Reporter Information Section */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                  Reporter Information (Category A)
+                </h2>
+                
+                <div className="grid gap-6">
+                  {R3_FORM_FIELDS.filter(field => field.key.startsWith('C.')).map((field) => {
+                    const isPrefilled = isFieldPrefilled(field.key);
+                    
+                    return (
+                      <div key={field.key} className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          {field.key} - {field.label}
+                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                          <span className="ml-2 text-xs text-gray-500">
+                            (Category: {field.category})
+                          </span>
+                        </label>
+                        <textarea
+                          value={getFieldValue(field.key)}
+                          onChange={(e) => handleFormChange(field.key, e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
+                            ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                          `}
+                          rows={field.key === 'C.4.r.1' ? 3 : 2}
+                          placeholder="Can be auto-filled from PubMed/study data - editable"
+                        />
+                        {isPrefilled && (
+                          <p className="text-xs text-blue-600">
+                            Pre-filled from external API - you can edit this field
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Patient Characteristics Section */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                  Patient Characteristics
+                </h2>
+                
+                <div className="grid gap-6">
+                  {R3_FORM_FIELDS.filter(field => field.key.startsWith('D.')).map((field) => {
+                    const isPrefilled = isFieldPrefilled(field.key);
+                    
+                    return (
+                      <div key={field.key} className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          {field.key} - {field.label}
+                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                          <span className="ml-2 text-xs text-gray-500">
+                            (Category: {field.category})
+                          </span>
+                        </label>
+                        <textarea
+                          value={getFieldValue(field.key)}
+                          onChange={(e) => handleFormChange(field.key, e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
+                            ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                          `}
+                          rows={2}
+                          placeholder="Enter value here..."
+                        />
+                        {isPrefilled && (
+                          <p className="text-xs text-blue-600">
+                            Pre-filled from external API - you can edit this field
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="bg-white border-t border-gray-200 px-6 py-4">
+          <div className="max-w-4xl mx-auto flex justify-between items-center">
+            <span className="text-sm text-gray-500">
+              All changes are automatically saved
+            </span>
+            <div className="flex gap-3">
+              <button
+                onClick={saveR3Form}
+                disabled={savingForm}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50"
+              >
+                {savingForm ? "Saving..." : "Save Draft"}
+              </button>
+              <button
+                onClick={completeR3Form}
+                disabled={savingForm}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+              >
+                {savingForm ? "Completing..." : "Complete Form"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
