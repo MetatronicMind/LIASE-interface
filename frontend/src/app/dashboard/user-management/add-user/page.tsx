@@ -36,7 +36,7 @@ export default function AddUserPage() {
 
   const fetchRoles = async () => {
     try {
-      const roles = await roleService.getRoles();
+      const roles = await roleService.getAvailableRoles();
       setRoles(roles);
       setError(null);
     } catch (err: any) {

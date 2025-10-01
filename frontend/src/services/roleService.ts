@@ -137,7 +137,7 @@ class RoleService {
   }
 
   async getAvailableRoles(): Promise<Role[]> {
-    const response = await fetch(`${this.API_BASE_URL}/roles`, {
+    const response = await fetch(`${this.API_BASE_URL}/users/roles/available`, {
       headers: this.getAuthHeaders()
     });
 
