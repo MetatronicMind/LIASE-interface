@@ -93,7 +93,7 @@ export default function FullReportPage() {
   const fetchMedicalExaminerStudies = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token");
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "10",
