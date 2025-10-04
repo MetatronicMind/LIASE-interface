@@ -808,6 +808,9 @@ router.post('/search-configs',
         createdBy: req.user.id
       };
       
+      console.log('📝 Creating config with received data:', req.body);
+      console.log('📝 Final config data before DrugSearchConfig creation:', configData);
+      
       const config = new DrugSearchConfig(configData);
       
       // Validate the configuration
@@ -894,6 +897,14 @@ router.post('/search-configs/:configId/run',
         dateFrom: configObject.dateFrom,
         dateTo: configObject.dateTo,
         frequency: configObject.frequency
+      });
+      console.log('🗂️ Full config object:', {
+        name: configObject.name,
+        query: configObject.query,
+        sponsor: configObject.sponsor,
+        frequency: configObject.frequency,
+        dateFrom: configObject.dateFrom,
+        dateTo: configObject.dateTo
       });
       
       // Create job for tracking progress
