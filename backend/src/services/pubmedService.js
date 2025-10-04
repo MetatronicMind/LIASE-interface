@@ -702,33 +702,43 @@ class PubMedService {
       console.log('Using date range:', startDate, 'to', endDate);
       
       const searchUrl = `http://4.156.175.195/get_pmidlist/?${params.toString()}`;
-      console.log('Search URL:', searchUrl);
+      console.log('🔗 Final Search URL:', searchUrl);
+      console.log('🔗 URL Parameters:', params.toString());
       
       const searchResp = await fetch(searchUrl);
-      console.log('Search response status:', searchResp.status);
-      console.log('Search response headers:', Object.fromEntries(searchResp.headers.entries()));
+      console.log('📡 Search response status:', searchResp.status);
+      console.log('📡 Search response headers:', Object.fromEntries(searchResp.headers.entries()));
       
       if (!searchResp.ok) {
-        console.error(`Custom PMID endpoint failed: ${searchResp.status} ${searchResp.statusText}`);
+        console.error(`❌ Custom PMID endpoint failed: ${searchResp.status} ${searchResp.statusText}`);
         const errorText = await searchResp.text();
-        console.error('Error response:', errorText);
-        throw new Error(`Custom PMID endpoint failed: ${searchResp.status}`);
+        console.error('❌ Error response:', errorText);
+        return {
+          totalFound: 0,
+          drugs: [],
+          searchDate: new Date().toISOString(),
+          searchParams: options,
+          error: `Custom endpoint failed: ${searchResp.status} - ${errorText}`
+        };
       }
       
       const searchJson = await searchResp.json();
-      console.log('Search response:', searchJson);
+      console.log('📋 Raw Search response:', JSON.stringify(searchJson, null, 2));
       
-      // The new endpoint returns PMIDs directly in an array or object
+      // The custom endpoint returns PMIDs directly as an array
       let pmidList = [];
       if (Array.isArray(searchJson)) {
         pmidList = searchJson;
+        console.log(`✅ Custom endpoint returned ${pmidList.length} PMIDs as direct array`);
       } else if (searchJson.pmids && Array.isArray(searchJson.pmids)) {
         pmidList = searchJson.pmids;
+        console.log(`✅ Custom endpoint returned ${pmidList.length} PMIDs in pmids property`);
       } else if (searchJson.idlist && Array.isArray(searchJson.idlist)) {
         pmidList = searchJson.idlist;
+        console.log(`✅ Custom endpoint returned ${pmidList.length} PMIDs in idlist property`);
       } else {
-        console.log('No PMIDs found in custom endpoint response');
-        console.log('Response structure:', JSON.stringify(searchJson, null, 2));
+        console.error('❌ No PMIDs found in custom endpoint response');
+        console.error('❌ Response structure:', JSON.stringify(searchJson, null, 2));
         return {
           totalFound: 0,
           drugs: [],
@@ -739,7 +749,7 @@ class PubMedService {
       }
       
       if (pmidList.length === 0) {
-        console.log('No articles found');
+        console.log('❌ No articles found in response');
         return {
           totalFound: 0,
           drugs: [],
@@ -748,8 +758,14 @@ class PubMedService {
         };
       }
       
+      // Limit results to maxResults to avoid overwhelming the system
+      if (pmidList.length > maxResults) {
+        console.log(`📊 Limiting results from ${pmidList.length} to ${maxResults} PMIDs`);
+        pmidList = pmidList.slice(0, maxResults);
+      }
+      
       const ids = pmidList.join(',');
-      console.log('Found PMIDs:', ids);
+      console.log(`🔗 Processing ${pmidList.length} PMIDs:`, pmidList.slice(0, 5), '...');
 
       // 2. Fetch article details with efetch
       const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids}&retmode=xml`;
