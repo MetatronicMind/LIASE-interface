@@ -769,46 +769,73 @@ class PubMedService {
 
       // 2. Fetch article details with efetch
       const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids}&retmode=xml`;
-      console.log('Fetch URL:', fetchUrl);
+      console.log('📡 Fetching article details from PubMed:', fetchUrl);
       
       const fetchResp = await fetch(fetchUrl);
       
       if (!fetchResp.ok) {
-        console.error(`PubMed fetch failed: ${fetchResp.status} ${fetchResp.statusText}`);
+        console.error(`❌ PubMed fetch failed: ${fetchResp.status} ${fetchResp.statusText}`);
+        const errorText = await fetchResp.text();
+        console.error('❌ PubMed fetch error response:', errorText);
         return {
           totalFound: 0,
           drugs: [],
           searchDate: new Date().toISOString(),
-          searchParams: options
+          searchParams: options,
+          error: `PubMed fetch failed: ${fetchResp.status}`
         };
       }
       
       const xml = await fetchResp.text();
-      console.log('Got XML response, length:', xml.length);
+      console.log('📄 Got XML response, length:', xml.length, 'chars');
+      
+      if (xml.length < 100) {
+        console.error('❌ XML response too short, might be empty:', xml);
+        return {
+          totalFound: 0,
+          drugs: [],
+          searchDate: new Date().toISOString(),
+          searchParams: options,
+          error: 'Empty XML response from PubMed'
+        };
+      }
 
       // 3. Parse the XML response
       let articles;
       try {
         articles = await this.safeParseXML(xml, 'discoverDrugs');
+        console.log('🔍 Parsed XML articles:', articles.length);
+        
+        if (articles.length === 0) {
+          console.warn('⚠️ No articles parsed from XML, checking XML structure...');
+          console.log('XML preview (first 500 chars):', xml.substring(0, 500));
+        }
       } catch (error) {
-        console.error('Failed to parse XML in discoverDrugs:', error.message);
+        console.error('❌ Failed to parse XML in discoverDrugs:', error.message);
+        console.error('❌ Error details:', error);
+        console.log('❌ XML preview (first 500 chars):', xml.substring(0, 500));
         return {
           totalFound: 0,
           drugs: [],
           searchDate: new Date().toISOString(),
-          searchParams: options
+          searchParams: options,
+          error: `XML parsing failed: ${error.message}`
         };
       }
 
       if (!articles.PubmedArticleSet || !articles.PubmedArticleSet.PubmedArticle) {
-        console.log('No articles in response');
+        console.error('❌ No articles in XML response structure');
+        console.log('❌ Articles structure:', JSON.stringify(articles, null, 2).substring(0, 1000));
         return {
           totalFound: 0,
           drugs: [],
           searchDate: new Date().toISOString(),
-          searchParams: options
+          searchParams: options,
+          error: 'No articles found in XML structure'
         };
       }
+
+      console.log(`📚 Found ${articles.PubmedArticleSet.PubmedArticle.length} articles in XML`);
 
       // 4. Extract PMID, Drug Name, Sponsor using the working logic
       const drugArticles = articles.PubmedArticleSet.PubmedArticle.map(article => {
@@ -899,7 +926,7 @@ class PubMedService {
         };
       });
 
-      console.log('Processed articles:', drugArticles.length);
+      console.log('🔍 Processed articles:', drugArticles.length);
 
       // Process articles into format with PMID, title, and drug name
       const processedDrugs = drugArticles.map(article => ({
@@ -908,8 +935,9 @@ class PubMedService {
         drugName: query // Always use the search query as the drug name
       }));
       
-      console.log('=== Drug Discovery Results ===');
-      console.log('Processed drugs for AI inference:', processedDrugs.map(d => ({
+      console.log('=== 🧪 Drug Discovery Results ===');
+      console.log(`✅ Processed ${processedDrugs.length} drugs for AI inference`);
+      console.log('📋 Sample results:', processedDrugs.slice(0, 3).map(d => ({
         pmid: d.pmid,
         drugName: d.drugName,
         titlePreview: d.title.substring(0, 100) + '...'
@@ -922,12 +950,13 @@ class PubMedService {
         searchParams: { query, sponsor, frequency }
       };
       
-      console.log('=== Discovery Summary ===');
-      console.log('Returning discovery result:', {
+      console.log('=== 📊 Discovery Summary ===');
+      console.log('🎯 Returning discovery result:', {
         totalFound: result.totalFound,
         drugsCount: result.drugs.length,
         query: query,
-        sponsor: sponsor
+        sponsor: sponsor,
+        dateRange: `${effectiveDateFrom} to ${effectiveDateTo}`
       });
       
       return result;

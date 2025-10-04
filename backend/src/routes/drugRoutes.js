@@ -775,14 +775,14 @@ router.post('/search-configs',
     body('includeSafety').optional().isBoolean().withMessage('Include safety must be boolean'),
     body('sendToExternalApi').optional().isBoolean().withMessage('Send to external API must be boolean'),
     body('dateFrom').optional({ nullable: true }).custom(value => {
-      if (value && !value.match(/^\d{4}\/\d{2}\/\d{2}$/)) {
-        throw new Error('Date from must be in YYYY/MM/DD format');
+      if (value && !value.match(/^\d{4}[-\/]\d{2}[-\/]\d{2}$/)) {
+        throw new Error('Date from must be in YYYY-MM-DD or YYYY/MM/DD format');
       }
       return true;
     }),
     body('dateTo').optional({ nullable: true }).custom(value => {
-      if (value && !value.match(/^\d{4}\/\d{2}\/\d{2}$/)) {
-        throw new Error('Date to must be in YYYY/MM/DD format');
+      if (value && !value.match(/^\d{4}[-\/]\d{2}[-\/]\d{2}$/)) {
+        throw new Error('Date to must be in YYYY-MM-DD or YYYY/MM/DD format');
       }
       return true;
     })
@@ -890,6 +890,11 @@ router.post('/search-configs/:configId/run',
       const configObject = DrugSearchConfig.fromObject(config);
       
       console.log('🚀 SEARCH CONFIG RUN - NEW ASYNC JOB CREATION 🚀');
+      console.log('🗓️ Config dates:', {
+        dateFrom: configObject.dateFrom,
+        dateTo: configObject.dateTo,
+        frequency: configObject.frequency
+      });
       
       // Create job for tracking progress
       const job = await jobTrackingService.createJob(
