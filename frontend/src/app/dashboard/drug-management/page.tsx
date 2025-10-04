@@ -26,6 +26,9 @@ export default function DrugManagementPage() {
   const [frequency, setFrequency] = useState('custom');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  // Keep HTML date format for the input fields
+  const [dateFromInput, setDateFromInput] = useState('');
+  const [dateToInput, setDateToInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [runningConfigs, setRunningConfigs] = useState<Set<string>>(new Set());
   
@@ -228,6 +231,8 @@ export default function DrugManagementPage() {
         setFrequency('custom');
         setDateFrom('');
         setDateTo('');
+        setDateFromInput('');
+        setDateToInput('');
         fetchSearchConfigs();
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -325,10 +330,12 @@ export default function DrugManagementPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Date From (Optional)</label>
                         <input
                           type="date"
+                          value={dateFromInput}
                           onChange={(e) => {
-                            const dateValue = e.target.value;
+                            const dateValue = e.target.value; // YYYY-MM-DD format
+                            setDateFromInput(dateValue);
                             if (dateValue) {
-                              setDateFrom(dateValue.replace(/-/g, '/'));
+                              setDateFrom(dateValue.replace(/-/g, '/')); // Convert to YYYY/MM/DD for backend
                             } else {
                               setDateFrom('');
                             }
@@ -340,10 +347,12 @@ export default function DrugManagementPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Date To (Optional)</label>
                         <input
                           type="date"
+                          value={dateToInput}
                           onChange={(e) => {
-                            const dateValue = e.target.value;
+                            const dateValue = e.target.value; // YYYY-MM-DD format
+                            setDateToInput(dateValue);
                             if (dateValue) {
-                              setDateTo(dateValue.replace(/-/g, '/'));
+                              setDateTo(dateValue.replace(/-/g, '/')); // Convert to YYYY/MM/DD for backend
                             } else {
                               setDateTo('');
                             }
