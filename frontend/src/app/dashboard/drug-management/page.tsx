@@ -36,6 +36,27 @@ export default function DrugManagementPage() {
 
   const API_BASE = `${getApiBaseUrl()}/drugs`;
 
+  // Helper function to format time until next run
+  const getTimeUntilRun = (nextRunTime: string) => {
+    const now = new Date();
+    const nextRun = new Date(nextRunTime);
+    const diffMs = nextRun.getTime() - now.getTime();
+    
+    if (diffMs <= 0) return "Due now";
+    
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffHours > 24) {
+      const diffDays = Math.floor(diffHours / 24);
+      return `in ${diffDays} day${diffDays > 1 ? 's' : ''}`;
+    } else if (diffHours > 0) {
+      return `in ${diffHours}h ${diffMinutes}m`;
+    } else {
+      return `in ${diffMinutes} min${diffMinutes !== 1 ? 's' : ''}`;
+    }
+  };
+
   useEffect(() => {
     fetchSearchConfigs();
     
@@ -238,6 +259,29 @@ export default function DrugManagementPage() {
         <div className="bg-white shadow rounded-lg">
           <div className="p-6">
             <div>
+              {/* Header with Scheduler Information */}
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Automated Drug Discovery</h2>
+                <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-green-800">
+                        ⏰ Scheduler Status: Active
+                      </h3>
+                      <div className="mt-2 text-sm text-green-700">
+                        <p>• Our scheduler runs <strong>every 12 hours</strong> (at 00:00 and 12:00 UTC)</p>
+                        <p>• Scheduled searches will be automatically executed when due</p>
+                        <p>• You can also run any configuration manually at any time</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <h2 className="text-xl font-semibold mb-4">Search Configurations</h2>
               
               {/* Create Form */}
@@ -270,10 +314,10 @@ export default function DrugManagementPage() {
                     onChange={(e) => setFrequency(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
-                    <option value="custom">Custom (Manual/Date Range)</option>
-                    <option value="daily">Daily (Last 24 hours)</option>
-                    <option value="weekly">Weekly (Last 7 days)</option>
-                    <option value="monthly">Monthly (Last 30 days)</option>
+                    <option value="custom">Custom Date Range</option>
+                    <option value="daily">Last One Day (Daily)</option>
+                    <option value="weekly">Last One Week (Weekly)</option>
+                    <option value="monthly">Last One Month (Monthly)</option>
                   </select>
                   {frequency === 'custom' && (
                     <>
@@ -313,10 +357,13 @@ export default function DrugManagementPage() {
                     <div className="md:col-span-2">
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                         <p className="text-sm text-blue-800">
-                          <strong>{frequency.charAt(0).toUpperCase() + frequency.slice(1)} Search:</strong> 
-                          {frequency === 'daily' && ' Will search articles from the last 24 hours'}
-                          {frequency === 'weekly' && ' Will search articles from the last 7 days'}
-                          {frequency === 'monthly' && ' Will search articles from the last 30 days'}
+                          <strong>📅 {frequency.charAt(0).toUpperCase() + frequency.slice(1)} Search:</strong> 
+                          {frequency === 'daily' && ' Will search articles from the last 24 hours and run every 24 hours'}
+                          {frequency === 'weekly' && ' Will search articles from the last 7 days and run every week'}
+                          {frequency === 'monthly' && ' Will search articles from the last 30 days and run every month'}
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          ⏰ <strong>Scheduler runs every 12 hours</strong> - your search will be automatically executed when due
                         </p>
                       </div>
                     </div>
@@ -450,10 +497,24 @@ export default function DrugManagementPage() {
                               <span>Total Runs: {config.totalRuns}</span>
                               <span>Last Result: {config.lastResultCount} items</span>
                               {config.lastRunAt && (
-                                <span>Last Run: {new Date(config.lastRunAt).toLocaleDateString()}</span>
+                                <span>Last Run: {new Date(config.lastRunAt).toLocaleString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  timeZoneName: 'short'
+                                })}</span>
                               )}
                               {config.nextRunAt && config.frequency !== 'manual' && (
-                                <span>Next Run: {new Date(config.nextRunAt).toLocaleDateString()}</span>
+                                <span className="text-blue-600 font-medium">
+                                  Next Run: {new Date(config.nextRunAt).toLocaleString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    timeZoneName: 'short'
+                                  })} ({getTimeUntilRun(config.nextRunAt)})
+                                </span>
                               )}
                             </div>
                           </div>

@@ -12,25 +12,24 @@ class DrugSearchScheduler {
     this.runHistory = [];
   }
 
-  // Start the scheduler - runs every minute for testing
+  // Start the scheduler - runs every 12 hours
   start() {
     if (this.cronJob) {
       console.log('Drug search scheduler is already running');
       return;
     }
 
-    console.log('Starting drug search scheduler - will run every minute (FOR TESTING)');
+    console.log('Starting drug search scheduler - will run every 12 hours');
     
-    // FOR TESTING: Schedule to run every minute instead of every 12 hours
-    // TODO: Change back to '0 0,12 * * *' after testing
-    this.cronJob = cron.schedule('* * * * *', async () => {
+    // Schedule to run every 12 hours (at 00:00 and 12:00)
+    this.cronJob = cron.schedule('0 0,12 * * *', async () => {
       await this.runScheduledSearches();
     }, {
       scheduled: true,
       timezone: "UTC"
     });
 
-    console.log('Drug search scheduler started successfully - checking every minute');
+    console.log('Drug search scheduler started successfully - checking every 12 hours');
   }
 
   // Stop the scheduler
