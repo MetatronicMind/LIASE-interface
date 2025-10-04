@@ -667,6 +667,7 @@ class PubMedService {
     
     try {
       console.log('Starting drug discovery with options:', options);
+      console.log('📅 Date parameters received - dateFrom:', dateFrom, 'dateTo:', dateTo);
       
       // Calculate automatic date ranges based on frequency
       let effectiveDateFrom = dateFrom;
@@ -677,6 +678,8 @@ class PubMedService {
         effectiveDateFrom = dateRange.dateFrom;
         effectiveDateTo = dateRange.dateTo;
         console.log(`Auto-calculated date range for ${frequency}: ${effectiveDateFrom} to ${effectiveDateTo}`);
+      } else {
+        console.log(`Using custom date range: ${effectiveDateFrom} to ${effectiveDateTo}`);
       }
       
       // Build search term without sponsor (sponsor will be passed to AI inference later)
@@ -702,6 +705,16 @@ class PubMedService {
       console.log('Search URL:', searchUrl);
       
       const searchResp = await fetch(searchUrl);
+      console.log('Search response status:', searchResp.status);
+      console.log('Search response headers:', Object.fromEntries(searchResp.headers.entries()));
+      
+      if (!searchResp.ok) {
+        console.error(`Custom PMID endpoint failed: ${searchResp.status} ${searchResp.statusText}`);
+        const errorText = await searchResp.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Custom PMID endpoint failed: ${searchResp.status}`);
+      }
+      
       const searchJson = await searchResp.json();
       console.log('Search response:', searchJson);
       
@@ -714,12 +727,14 @@ class PubMedService {
       } else if (searchJson.idlist && Array.isArray(searchJson.idlist)) {
         pmidList = searchJson.idlist;
       } else {
-        console.log('No PMIDs found in response');
+        console.log('No PMIDs found in custom endpoint response');
+        console.log('Response structure:', JSON.stringify(searchJson, null, 2));
         return {
           totalFound: 0,
           drugs: [],
           searchDate: new Date().toISOString(),
-          searchParams: options
+          searchParams: options,
+          message: 'No results found from custom endpoint'
         };
       }
       

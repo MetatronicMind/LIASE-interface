@@ -904,7 +904,9 @@ router.post('/search-configs/:configId/run',
             frequency: configObject.frequency,
             maxResults: configObject.maxResults || 50,
             includeAdverseEvents: configObject.includeAdverseEvents,
-            includeSafety: configObject.includeSafety
+            includeSafety: configObject.includeSafety,
+            dateFrom: configObject.dateFrom, // Add missing date parameters
+            dateTo: configObject.dateTo     // Add missing date parameters
           },
           phase: 'starting',
           configId: req.params.configId,
