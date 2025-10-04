@@ -32,6 +32,11 @@ class DrugSearchConfig {
     this.sendToExternalApi = data.sendToExternalApi !== undefined ? data.sendToExternalApi : true;
     this.lastExternalApiCall = data.lastExternalApiCall || null;
     this.lastExternalApiSuccess = data.lastExternalApiSuccess || null;
+
+    // FOR TESTING: Log when config is created without data.id (meaning it's new)
+    if (!data.id && this.frequency !== 'manual') {
+      console.log(`🔧 NEW DRUG SEARCH CONFIG CREATED: "${this.name}" with frequency "${this.frequency}" - will schedule for 5 minutes from now`);
+    }
   }
 
   // Calculate date range based on frequency
@@ -80,21 +85,38 @@ class DrugSearchConfig {
   // Calculate next run time based on frequency
   calculateNextRun() {
     const now = new Date();
+    let nextRun = null;
     
+    // FOR TESTING: Use 5 minutes for all scheduled searches
+    // TODO: Change back to original intervals after testing
     switch (this.frequency) {
       case 'daily':
-        return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        // return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        nextRun = new Date(now.getTime() + 5 * 60 * 1000).toISOString(); // 5 minutes for testing
+        break;
       case 'weekly':
-        return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        // return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        nextRun = new Date(now.getTime() + 5 * 60 * 1000).toISOString(); // 5 minutes for testing
+        break;
       case 'monthly':
-        return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        // return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        nextRun = new Date(now.getTime() + 5 * 60 * 1000).toISOString(); // 5 minutes for testing
+        break;
       case 'custom':
-        return this.customFrequencyHours ? 
-          new Date(now.getTime() + this.customFrequencyHours * 60 * 60 * 1000).toISOString() :
+        nextRun = this.customFrequencyHours ? 
+          // new Date(now.getTime() + this.customFrequencyHours * 60 * 60 * 1000).toISOString() :
+          new Date(now.getTime() + 5 * 60 * 1000).toISOString() : // 5 minutes for testing
           null; // Custom with no hours means manual execution
+        break;
       default:
-        return null; // Custom searches without hours don't have scheduled next run
+        nextRun = null; // Custom searches without hours don't have scheduled next run
     }
+
+    if (nextRun) {
+      console.log(`🕐 SCHEDULED: "${this.name || this.id}" (${this.frequency}) next run at ${nextRun} (in 5 minutes)`);
+    }
+
+    return nextRun;
   }
 
   // Update after a search run
