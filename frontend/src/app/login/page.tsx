@@ -96,24 +96,6 @@ export default function LoginPage() {
           >
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
-          <div className="text-center mb-6">
-            <p className="text-gray-600">
-              Don't have an organization?{' '}
-              <a href="/register" className="text-primary font-semibold hover:underline">
-                Create one here
-              </a>
-            </p>
-          </div>
-          
-          <hr className="my-1 border-gray-200" />
-          <div className="demo-credentials text-center">
-            <div className="font-bold text-gray-700 mb-3 text-base">Demo Credentials:</div>
-            <div className="credentials-list space-y-1">
-              <div><span className="text-primary font-bold">Admin:</span> <span className="text-gray-700">admin</span> <span className="text-gray-400">/</span> <span className="text-gray-700">Admin123!</span></div>
-              <div><span className="text-primary font-bold">Pharmacovigilance:</span> <span className="text-gray-700">pv_user1</span> <span className="text-gray-400">/</span> <span className="text-gray-700">Pharma123!</span></div>
-              <div><span className="text-primary font-bold">Sponsor/Auditor:</span> <span className="text-gray-700">auditor</span> <span className="text-gray-400">/</span> <span className="text-gray-700">Audit123!</span></div>
-            </div>
-          </div>
         </form>
       </div>
     </div>
