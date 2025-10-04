@@ -58,9 +58,10 @@ class DrugSearchScheduler {
       console.log(`=== CHECKING FOR DUE SEARCHES AT ${runStartTime.toISOString()} ===`);
 
       // Get all active drug search configurations
-      const allConfigs = await cosmosService.queryItems('drugSearchConfigs', {
-        isActive: true
-      });
+      const allConfigs = await cosmosService.queryItems('drugSearchConfigs', 
+        'SELECT * FROM c WHERE c.isActive = @isActive',
+        [{ name: '@isActive', value: true }]
+      );
 
       console.log(`Found ${allConfigs.length} active drug search configurations`);
 
@@ -212,9 +213,10 @@ class DrugSearchScheduler {
   // Get due configurations (for debugging)
   async getDueConfigurations() {
     try {
-      const allConfigs = await cosmosService.queryItems('drugSearchConfigs', {
-        isActive: true
-      });
+      const allConfigs = await cosmosService.queryItems('drugSearchConfigs', 
+        'SELECT * FROM c WHERE c.isActive = @isActive',
+        [{ name: '@isActive', value: true }]
+      );
 
       const dueConfigs = allConfigs.filter(configData => {
         const config = DrugSearchConfig.fromObject(configData);
