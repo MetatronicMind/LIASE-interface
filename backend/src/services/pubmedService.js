@@ -765,13 +765,32 @@ class PubMedService {
       }
       
       const ids = pmidList.join(',');
-      console.log(`🔗 Processing ${pmidList.length} PMIDs:`, pmidList.slice(0, 5), '...');
+      console.log(`🔗 Processing ${pmidList.length} PMIDs for PubMed fetch`);
+      console.log(`🔗 First 3 PMIDs:`, pmidList.slice(0, 3));
+      console.log(`🔗 Total character length of ID string:`, ids.length);
+      
+      // PubMed has URL length limits - if too many PMIDs, reduce the batch
+      if (ids.length > 8000) { // Conservative limit to avoid URL too long errors
+        const reducedCount = Math.floor(8000 / (ids.length / pmidList.length));
+        console.log(`⚠️ URL too long (${ids.length} chars), reducing from ${pmidList.length} to ${reducedCount} PMIDs`);
+        pmidList = pmidList.slice(0, reducedCount);
+      }
+      
+      const finalIds = pmidList.join(','); // Recalculate after potential reduction
 
       // 2. Fetch article details with efetch
-      const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids}&retmode=xml`;
-      console.log('📡 Fetching article details from PubMed:', fetchUrl);
+      const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${finalIds}&retmode=xml`;
+      console.log('📡 About to fetch article details from PubMed');
+      console.log('📡 Fetch URL length:', fetchUrl.length);
+      console.log('📡 Making request to PubMed efetch...');
+      
+      const startTime = Date.now();
       
       const fetchResp = await fetch(fetchUrl);
+      const fetchTime = Date.now() - startTime;
+      console.log(`📡 PubMed fetch completed in ${fetchTime}ms`);
+      console.log('📡 Response status:', fetchResp.status);
+      console.log('📡 Response headers:', Object.fromEntries(fetchResp.headers.entries()));
       
       if (!fetchResp.ok) {
         console.error(`❌ PubMed fetch failed: ${fetchResp.status} ${fetchResp.statusText}`);
@@ -786,6 +805,7 @@ class PubMedService {
         };
       }
       
+      console.log('📄 Reading XML response...');
       const xml = await fetchResp.text();
       console.log('📄 Got XML response, length:', xml.length, 'chars');
       
