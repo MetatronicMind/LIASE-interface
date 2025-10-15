@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 
 const roleService = require('../services/roleService');
+const Role = require('../models/Role');
 const { authorizeRole, authorizePermission } = require('../middleware/authorization');
 const { auditLogger, auditAction } = require('../middleware/audit');
 
@@ -9,6 +10,103 @@ const router = express.Router();
 
 // Apply audit logging to all routes
 router.use(auditLogger());
+
+// Get permission templates
+router.get('/templates', 
+  authorizePermission('roles', 'read'),
+  (req, res) => {
+    try {
+      const templates = Role.getPermissionTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error('Error fetching permission templates:', error);
+      res.status(500).json({ error: 'Failed to fetch permission templates' });
+    }
+  }
+);
+
+// Create custom role from template
+router.post('/custom', 
+  authorizePermission('roles', 'write'),
+  [
+    body('customName').notEmpty().withMessage('Custom name is required'),
+    body('customDisplayName').notEmpty().withMessage('Display name is required'),
+    body('permissionTemplate').notEmpty().withMessage('Permission template is required'),
+    body('organizationId').notEmpty().withMessage('Organization ID is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { customName, customDisplayName, permissionTemplate, organizationId, description } = req.body;
+
+      // Create custom role using template
+      const role = Role.createCustomRole(
+        customName,
+        customDisplayName,
+        permissionTemplate,
+        organizationId,
+        description,
+        req.user.id
+      );
+      
+      // Save the role using roleService
+      const savedRole = await roleService.createRole(role);
+      
+      res.status(201).json(savedRole.toJSON());
+    } catch (error) {
+      console.error('Error creating custom role:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Get system role templates
+router.get('/system/templates', 
+  authorizePermission('roles', 'read'),
+  (req, res) => {
+    try {
+      const systemRoles = Role.getSystemRoles();
+      res.json(systemRoles);
+    } catch (error) {
+      console.error('Error fetching system role templates:', error);
+      res.status(500).json({ error: 'Failed to fetch system role templates' });
+    }
+  }
+);
+
+// Create role from system template
+router.post('/system', 
+  authorizePermission('roles', 'write'),
+  [
+    body('roleType').notEmpty().withMessage('Role type is required'),
+    body('organizationId').notEmpty().withMessage('Organization ID is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { roleType, organizationId } = req.body;
+
+      // Create role from system template
+      const role = Role.createFromSystemRole(roleType, organizationId, req.user.id);
+      
+      // Save the role using roleService
+      const savedRole = await roleService.createRole(role);
+      
+      res.status(201).json(savedRole.toJSON());
+    } catch (error) {
+      console.error('Error creating system role:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
 
 // Get all roles for the organization
 router.get('/', 

@@ -274,6 +274,152 @@ class Role {
     };
   }
 
+  // Get permission templates for different workflow roles
+  static getPermissionTemplates() {
+    return {
+      triage_specialist: {
+        name: 'triage_specialist',
+        displayName: 'Triage Specialist Template',
+        description: 'Template for roles that classify studies and run manual drug tests',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: false, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: false, write: false, delete: false },
+          triage: { read: true, write: true, classify: true, manual_drug_test: true },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: false, write: false, r3_form: false },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+        }
+      },
+      qa_reviewer: {
+        name: 'qa_reviewer',
+        displayName: 'Quality Assurance Template',
+        description: 'Template for roles that approve or reject study classifications',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: true, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: false, write: false, delete: false },
+          triage: { read: true, write: false, classify: false, manual_drug_test: false },
+          qa: { read: true, write: true, approve: true, reject: true },
+          data_entry: { read: false, write: false, r3_form: false },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+        }
+      },
+      data_entry_specialist: {
+        name: 'data_entry_specialist',
+        displayName: 'Data Entry Specialist Template',
+        description: 'Template for roles that fill R3 forms for approved ICSR studies',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: false, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: false, write: false, delete: false },
+          triage: { read: false, write: false, classify: false, manual_drug_test: false },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: true, write: true, r3_form: true },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+        }
+      },
+      medical_reviewer: {
+        name: 'medical_reviewer',
+        displayName: 'Medical Reviewer Template',
+        description: 'Template for roles that review, comment, edit, and revoke completed studies',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: true, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: true, write: true, delete: false },
+          triage: { read: false, write: false, classify: false, manual_drug_test: false },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: true, write: false, r3_form: false },
+          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
+        }
+      },
+      pharmacovigilance_user: {
+        name: 'pharmacovigilance_user',
+        displayName: 'Pharmacovigilance User Template',
+        description: 'Template for standard pharmacovigilance users with drug and study access',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: true, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: true, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: true, write: false, delete: false },
+          settings: { read: true, write: false },
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: true, write: false, delete: false },
+          triage: { read: false, write: false, classify: false, manual_drug_test: false },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: false, write: false, r3_form: false },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+        }
+      },
+      read_only_auditor: {
+        name: 'read_only_auditor',
+        displayName: 'Read-Only Auditor Template',
+        description: 'Template for sponsors and auditors with read-only access',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: false, delete: false },
+          audit: { read: true, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: true, write: false, delete: false },
+          triage: { read: false, write: false, classify: false, manual_drug_test: false },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: false, write: false, r3_form: false },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+        }
+      }
+    };
+  }
+
+  // Create a custom role with predefined permission template
+  static createCustomRole(customName, customDisplayName, permissionTemplate, organizationId, description = '', createdBy = null) {
+    const templates = Role.getPermissionTemplates();
+    const template = templates[permissionTemplate];
+    
+    if (!template) {
+      throw new Error(`Permission template '${permissionTemplate}' not found. Available templates: ${Object.keys(templates).join(', ')}`);
+    }
+
+    return new Role({
+      organizationId,
+      name: customName.toLowerCase().replace(/\s+/g, '_'), // Convert to valid name format
+      displayName: customDisplayName,
+      description: description || template.description,
+      permissions: template.permissions,
+      isSystemRole: false, // Custom roles are not system roles
+      createdBy
+    });
+  }
+
   // Create a role from system role template
   static createFromSystemRole(roleType, organizationId, createdBy = null) {
     const systemRoles = Role.getSystemRoles();
