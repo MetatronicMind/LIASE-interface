@@ -11,7 +11,9 @@ import {
   Cog6ToothIcon,
   UserCircleIcon,
   PencilSquareIcon,
-  DocumentCheckIcon
+  DocumentCheckIcon,
+  CheckCircleIcon,
+  UserIcon
 } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,6 +45,18 @@ const permissionBasedNavItems = [
     href: "/dashboard/data-entry", 
     icon: <PencilSquareIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'studies', action: 'write' }
+  },
+  { 
+    name: "QA Review", 
+    href: "/dashboard/qa", 
+    icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'qa', action: 'read' }
+  },
+  { 
+    name: "Medical Examiner", 
+    href: "/dashboard/medical-examiner", 
+    icon: <UserIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'medical_examiner', action: 'read' }
   },
   { 
     name: "Full Report", 

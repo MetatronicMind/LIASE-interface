@@ -77,6 +77,53 @@ router.get('/',
   }
 );
 
+// Get studies for QA approval (studies awaiting QA approval)
+router.get('/qa-pending',
+  authorizePermission('qa', 'read'),
+  async (req, res) => {
+    try {
+      const { 
+        page = 1, 
+        limit = 50, 
+        search
+      } = req.query;
+      
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag != null AND c.qaApprovalStatus = @status';
+      const parameters = [
+        { name: '@orgId', value: req.user.organizationId },
+        { name: '@status', value: 'pending' }
+      ];
+
+      if (search) {
+        query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
+        parameters.push({ name: '@search', value: search });
+      }
+
+      query += ' ORDER BY c.updatedAt DESC';
+      const offset = (page - 1) * limit;
+      query += ` OFFSET ${offset} LIMIT ${limit}`;
+
+      const studies = await cosmosService.queryItems('studies', query, parameters);
+
+      res.json({
+        success: true,
+        data: studies,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: studies.length
+        }
+      });
+    } catch (error) {
+      console.error('QA pending studies fetch error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch QA pending studies', 
+        message: error.message 
+      });
+    }
+  }
+);
+
 // Get studies for data entry (ICSR classified only)
 router.get('/data-entry',
   authorizePermission('studies', 'read'),
@@ -103,13 +150,15 @@ router.get('/data-entry',
         studyEffectiveClassification: testResult[0]?.effectiveClassification
       });
       
-      // Query for studies that are manually tagged as ICSR AND have incomplete R3 forms
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND (c.r3FormStatus = @statusNotStarted OR c.r3FormStatus = @statusInProgress)';
+      // Query for studies that are manually tagged as ICSR, QA approved, AND have incomplete R3 forms
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND (c.r3FormStatus = @statusNotStarted OR c.r3FormStatus = @statusInProgress) AND c.medicalReviewStatus != @revoked';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
         { name: '@userTag', value: 'ICSR' },
+        { name: '@qaStatus', value: 'approved' },
         { name: '@statusNotStarted', value: 'not_started' },
-        { name: '@statusInProgress', value: 'in_progress' }
+        { name: '@statusInProgress', value: 'in_progress' },
+        { name: '@revoked', value: 'revoked' }
       ];
       
       console.log('Data entry query:', query);
@@ -234,15 +283,31 @@ router.get('/medical-examiner',
       const { 
         page = 1, 
         limit = 50, 
-        search
+        search,
+        status = 'all' // all, pending, completed, revoked
       } = req.query;
       
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.r3FormStatus = @formStatus';
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND c.r3FormStatus = @formStatus';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
         { name: '@userTag', value: 'ICSR' },
+        { name: '@qaStatus', value: 'approved' },
         { name: '@formStatus', value: 'completed' }
       ];
+
+      // Add medical review status filter
+      if (status !== 'all') {
+        if (status === 'pending') {
+          query += ' AND (c.medicalReviewStatus = @medicalStatus1 OR c.medicalReviewStatus = @medicalStatus2)';
+          parameters.push(
+            { name: '@medicalStatus1', value: 'not_started' },
+            { name: '@medicalStatus2', value: 'in_progress' }
+          );
+        } else {
+          query += ' AND c.medicalReviewStatus = @medicalStatus';
+          parameters.push({ name: '@medicalStatus', value: status });
+        }
+      }
 
       if (search) {
         query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
@@ -1082,6 +1147,304 @@ router.put('/update-icsr-status',
       console.error('Error updating ICSR studies status:', error);
       res.status(500).json({ 
         error: 'Failed to update studies status', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+// QA Approval/Rejection endpoints
+router.post('/:id/qa/approve',
+  authorizePermission('qa', 'approve'),
+  [
+    body('comments').optional().isString().withMessage('Comments must be a string')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { comments } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      study.approveClassification(req.user.id, req.user.name, comments);
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      await auditAction(
+        req.user,
+        'approve',
+        'study',
+        'qa_classification',
+        `Approved classification for study ${id}`,
+        { studyId: id, classification: study.userTag, comments }
+      );
+
+      res.json({
+        success: true,
+        message: 'Classification approved successfully',
+        study: study.toJSON()
+      });
+    } catch (error) {
+      console.error('QA approval error:', error);
+      res.status(500).json({ 
+        error: 'Failed to approve classification', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+router.post('/:id/qa/reject',
+  authorizePermission('qa', 'reject'),
+  [
+    body('reason').isString().isLength({ min: 1 }).withMessage('Rejection reason is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      study.rejectClassification(req.user.id, req.user.name, reason);
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      await auditAction(
+        req.user,
+        'reject',
+        'study',
+        'qa_classification',
+        `Rejected classification for study ${id}`,
+        { studyId: id, classification: study.userTag, reason }
+      );
+
+      res.json({
+        success: true,
+        message: 'Classification rejected successfully',
+        study: study.toJSON()
+      });
+    } catch (error) {
+      console.error('QA rejection error:', error);
+      res.status(500).json({ 
+        error: 'Failed to reject classification', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+// Medical Examiner endpoints
+router.post('/:id/field-comment',
+  authorizePermission('medical_examiner', 'comment_fields'),
+  [
+    body('fieldKey').isString().isLength({ min: 1 }).withMessage('Field key is required'),
+    body('comment').isString().isLength({ min: 1 }).withMessage('Comment is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { fieldKey, comment } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      const fieldComment = study.addFieldComment(fieldKey, comment, req.user.id, req.user.name);
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      await auditAction(
+        req.user,
+        'comment',
+        'study',
+        'field_comment',
+        `Added comment to field ${fieldKey} in study ${id}`,
+        { studyId: id, fieldKey, comment }
+      );
+
+      res.json({
+        success: true,
+        message: 'Field comment added successfully',
+        fieldComment: fieldComment
+      });
+    } catch (error) {
+      console.error('Field comment error:', error);
+      res.status(500).json({ 
+        error: 'Failed to add field comment', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+router.put('/:id/field-value',
+  authorizePermission('medical_examiner', 'edit_fields'),
+  [
+    body('fieldKey').isString().isLength({ min: 1 }).withMessage('Field key is required'),
+    body('value').isString().withMessage('Value must be a string')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { fieldKey, value } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      study.updateFieldValue(fieldKey, value, req.user.id, req.user.name);
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      await auditAction(
+        req.user,
+        'edit',
+        'study',
+        'field_value',
+        `Updated field ${fieldKey} in study ${id}`,
+        { studyId: id, fieldKey, value }
+      );
+
+      res.json({
+        success: true,
+        message: 'Field value updated successfully'
+      });
+    } catch (error) {
+      console.error('Field update error:', error);
+      res.status(500).json({ 
+        error: 'Failed to update field value', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+router.post('/:id/revoke',
+  authorizePermission('medical_examiner', 'revoke_studies'),
+  [
+    body('reason').isString().isLength({ min: 1 }).withMessage('Revocation reason is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      study.revokeStudy(req.user.id, req.user.name, reason);
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      await auditAction(
+        req.user,
+        'revoke',
+        'study',
+        'medical_revocation',
+        `Revoked study ${id} back to Data Entry`,
+        { studyId: id, reason }
+      );
+
+      res.json({
+        success: true,
+        message: 'Study revoked successfully and returned to Data Entry'
+      });
+    } catch (error) {
+      console.error('Study revocation error:', error);
+      res.status(500).json({ 
+        error: 'Failed to revoke study', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+router.post('/:id/medical-review/complete',
+  authorizePermission('medical_examiner', 'write'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      study.completeMedicalReview(req.user.id, req.user.name);
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      await auditAction(
+        req.user,
+        'complete',
+        'study',
+        'medical_review',
+        `Completed medical review for study ${id}`,
+        { studyId: id }
+      );
+
+      res.json({
+        success: true,
+        message: 'Medical review completed successfully'
+      });
+    } catch (error) {
+      console.error('Medical review completion error:', error);
+      res.status(500).json({ 
+        error: 'Failed to complete medical review', 
         message: error.message 
       });
     }

@@ -52,11 +52,25 @@ class Study {
     clientName = null,
     sponsor = null,
     userTag = null, // Manual user classification: 'ICSR', 'AOI', 'No Case'
+    qaApprovalStatus = 'pending', // pending, approved, rejected
+    qaApprovedBy = null,
+    qaApprovedAt = null,
+    qaRejectedBy = null,
+    qaRejectedAt = null,
+    qaComments = null,
     // R3 Form data fields
     r3FormData = null, // JSON object to store R3 form data
     r3FormStatus = 'not_started', // not_started, in_progress, completed
     r3FormCompletedBy = null,
-    r3FormCompletedAt = null
+    r3FormCompletedAt = null,
+    // Medical Examiner fields
+    medicalReviewStatus = 'not_started', // not_started, in_progress, completed, revoked
+    medicalReviewedBy = null,
+    medicalReviewedAt = null,
+    fieldComments = [], // Array of field-level comments
+    revokedBy = null,
+    revokedAt = null,
+    revocationReason = null
   }) {
     this.id = id;
     this.organizationId = organizationId;
@@ -118,11 +132,28 @@ class Study {
     this.sponsor = sponsor;
     this.userTag = userTag; // Manual user classification
     
+    // QA workflow fields
+    this.qaApprovalStatus = qaApprovalStatus;
+    this.qaApprovedBy = qaApprovedBy;
+    this.qaApprovedAt = qaApprovedAt;
+    this.qaRejectedBy = qaRejectedBy;
+    this.qaRejectedAt = qaRejectedAt;
+    this.qaComments = qaComments;
+    
     // R3 Form data
     this.r3FormData = r3FormData;
     this.r3FormStatus = r3FormStatus;
     this.r3FormCompletedBy = r3FormCompletedBy;
     this.r3FormCompletedAt = r3FormCompletedAt;
+    
+    // Medical Examiner fields
+    this.medicalReviewStatus = medicalReviewStatus;
+    this.medicalReviewedBy = medicalReviewedBy;
+    this.medicalReviewedAt = medicalReviewedAt;
+    this.fieldComments = fieldComments || [];
+    this.revokedBy = revokedBy;
+    this.revokedAt = revokedAt;
+    this.revocationReason = revocationReason;
   }
 
   addComment(comment) {
@@ -175,14 +206,136 @@ class Study {
     
     const previousTag = this.userTag;
     this.userTag = tag;
+    this.qaApprovalStatus = 'pending'; // Reset QA approval when tag changes
     this.updatedAt = new Date().toISOString();
     
     // Add tag change comment
     this.addComment({
       userId,
       userName,
-      text: `Manual classification updated from "${previousTag || 'None'}" to "${tag}"`,
+      text: `Manual classification updated from "${previousTag || 'None'}" to "${tag}". Awaiting QA approval.`,
       type: 'system'
+    });
+  }
+
+  // QA Workflow Methods
+  approveClassification(userId, userName, comments = null) {
+    if (this.qaApprovalStatus === 'approved') {
+      throw new Error('Classification is already approved');
+    }
+    
+    this.qaApprovalStatus = 'approved';
+    this.qaApprovedBy = userId;
+    this.qaApprovedAt = new Date().toISOString();
+    this.qaComments = comments;
+    this.updatedAt = new Date().toISOString();
+    
+    // Add approval comment
+    this.addComment({
+      userId,
+      userName,
+      text: `Classification "${this.userTag}" approved by QA${comments ? '. Comments: ' + comments : ''}`,
+      type: 'qa_approval'
+    });
+  }
+
+  rejectClassification(userId, userName, reason) {
+    if (!reason) {
+      throw new Error('Rejection reason is required');
+    }
+    
+    this.qaApprovalStatus = 'rejected';
+    this.qaRejectedBy = userId;
+    this.qaRejectedAt = new Date().toISOString();
+    this.qaComments = reason;
+    this.updatedAt = new Date().toISOString();
+    
+    // Add rejection comment
+    this.addComment({
+      userId,
+      userName,
+      text: `Classification "${this.userTag}" rejected by QA. Reason: ${reason}`,
+      type: 'qa_rejection'
+    });
+  }
+
+  // Medical Examiner Methods
+  addFieldComment(fieldKey, comment, userId, userName) {
+    const { v4: uuidv4 } = require('uuid');
+    const fieldComment = {
+      id: uuidv4(),
+      fieldKey,
+      comment,
+      userId,
+      userName,
+      createdAt: new Date().toISOString()
+    };
+    
+    this.fieldComments.push(fieldComment);
+    this.updatedAt = new Date().toISOString();
+    
+    // Add general comment about field comment
+    this.addComment({
+      userId,
+      userName,
+      text: `Added comment to field ${fieldKey}: ${comment}`,
+      type: 'field_comment'
+    });
+    
+    return fieldComment;
+  }
+
+  updateFieldValue(fieldKey, newValue, userId, userName) {
+    if (!this.r3FormData) {
+      this.r3FormData = {};
+    }
+    
+    const oldValue = this.r3FormData[fieldKey];
+    this.r3FormData[fieldKey] = newValue;
+    this.updatedAt = new Date().toISOString();
+    
+    // Add comment about field edit
+    this.addComment({
+      userId,
+      userName,
+      text: `Updated field ${fieldKey} from "${oldValue || 'empty'}" to "${newValue}"`,
+      type: 'field_edit'
+    });
+  }
+
+  revokeStudy(userId, userName, reason) {
+    if (!reason) {
+      throw new Error('Revocation reason is required');
+    }
+    
+    this.medicalReviewStatus = 'revoked';
+    this.revokedBy = userId;
+    this.revokedAt = new Date().toISOString();
+    this.revocationReason = reason;
+    this.r3FormStatus = 'in_progress'; // Reset to allow data entry to fix
+    this.updatedAt = new Date().toISOString();
+    
+    // Add revocation comment
+    this.addComment({
+      userId,
+      userName,
+      text: `Study revoked by Medical Examiner. Reason: ${reason}. Returned to Data Entry for corrections.`,
+      type: 'revocation'
+    });
+  }
+
+  completeMedicalReview(userId, userName) {
+    this.medicalReviewStatus = 'completed';
+    this.medicalReviewedBy = userId;
+    this.medicalReviewedAt = new Date().toISOString();
+    this.updatedAt = new Date().toISOString();
+    
+    // Add completion comment
+    this.addComment({
+      userId,
+      userName,
+      text: 'Medical review completed. Study approved for final processing.',
+      type: 'medical_approval'
     });
   }
 
@@ -320,11 +473,28 @@ class Study {
       userTag: this.userTag,
       effectiveClassification: this.getEffectiveClassification(),
       
+      // QA workflow fields
+      qaApprovalStatus: this.qaApprovalStatus,
+      qaApprovedBy: this.qaApprovedBy,
+      qaApprovedAt: this.qaApprovedAt,
+      qaRejectedBy: this.qaRejectedBy,
+      qaRejectedAt: this.qaRejectedAt,
+      qaComments: this.qaComments,
+      
       // R3 Form data
       r3FormData: this.r3FormData,
       r3FormStatus: this.r3FormStatus,
       r3FormCompletedBy: this.r3FormCompletedBy,
-      r3FormCompletedAt: this.r3FormCompletedAt
+      r3FormCompletedAt: this.r3FormCompletedAt,
+      
+      // Medical Examiner fields
+      medicalReviewStatus: this.medicalReviewStatus,
+      medicalReviewedBy: this.medicalReviewedBy,
+      medicalReviewedAt: this.medicalReviewedAt,
+      fieldComments: this.fieldComments,
+      revokedBy: this.revokedBy,
+      revokedAt: this.revokedAt,
+      revocationReason: this.revocationReason
     };
   }
 

@@ -44,7 +44,32 @@ class Role {
       audit: { read: false, write: false, delete: false },
       settings: { read: false, write: false },
       organizations: { read: false, write: false, delete: false },
-      reports: { read: false, write: false, delete: false }
+      reports: { read: false, write: false, delete: false },
+      // New workflow-specific permissions
+      triage: { 
+        read: false, 
+        write: false, 
+        classify: false, 
+        manual_drug_test: false 
+      },
+      qa: { 
+        read: false, 
+        write: false, 
+        approve: false, 
+        reject: false 
+      },
+      data_entry: { 
+        read: false, 
+        write: false, 
+        r3_form: false 
+      },
+      medical_examiner: { 
+        read: false, 
+        write: false, 
+        comment_fields: false, 
+        edit_fields: false, 
+        revoke_studies: false 
+      }
     };
 
     // Merge provided permissions with default structure
@@ -91,7 +116,11 @@ class Role {
           audit: { read: true, write: true, delete: false },
           settings: { read: true, write: true },
           organizations: { read: true, write: true, delete: true },
-          reports: { read: true, write: true, delete: true }
+          reports: { read: true, write: true, delete: true },
+          triage: { read: true, write: true, classify: true, manual_drug_test: true },
+          qa: { read: true, write: true, approve: true, reject: true },
+          data_entry: { read: true, write: true, r3_form: true },
+          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
         },
         isSystemRole: true
       },
@@ -108,7 +137,53 @@ class Role {
           audit: { read: true, write: false, delete: false },
           settings: { read: true, write: true },
           organizations: { read: false, write: false, delete: false },
-          reports: { read: true, write: true, delete: false }
+          reports: { read: true, write: true, delete: false },
+          triage: { read: true, write: true, classify: true, manual_drug_test: true },
+          qa: { read: true, write: true, approve: true, reject: true },
+          data_entry: { read: true, write: true, r3_form: true },
+          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
+        },
+        isSystemRole: true
+      },
+      triage: {
+        name: 'triage',
+        displayName: 'Triage Specialist',
+        description: 'Can run manual drug tests and classify studies as ICSR, AOI, or No Case',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: false, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: false, write: false, delete: false },
+          triage: { read: true, write: true, classify: true, manual_drug_test: true },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: false, write: false, r3_form: false },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+        },
+        isSystemRole: true
+      },
+      qa: {
+        name: 'qa',
+        displayName: 'Quality Assurance',
+        description: 'Can approve or reject classifications made by Triage specialists',
+        permissions: {
+          dashboard: { read: true, write: false },
+          users: { read: false, write: false, delete: false },
+          roles: { read: false, write: false, delete: false },
+          drugs: { read: true, write: false, delete: false },
+          studies: { read: true, write: true, delete: false },
+          audit: { read: true, write: false, delete: false },
+          settings: { read: false, write: false },
+          organizations: { read: false, write: false, delete: false },
+          reports: { read: false, write: false, delete: false },
+          triage: { read: true, write: false, classify: false, manual_drug_test: false },
+          qa: { read: true, write: true, approve: true, reject: true },
+          data_entry: { read: false, write: false, r3_form: false },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         },
         isSystemRole: true
       },
@@ -125,7 +200,11 @@ class Role {
           audit: { read: true, write: false, delete: false },
           settings: { read: true, write: false },
           organizations: { read: false, write: false, delete: false },
-          reports: { read: true, write: false, delete: false }
+          reports: { read: true, write: false, delete: false },
+          triage: { read: false, write: false, classify: false, manual_drug_test: false },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: false, write: false, r3_form: false },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         },
         isSystemRole: true
       },
@@ -142,14 +221,18 @@ class Role {
           audit: { read: true, write: false, delete: false },
           settings: { read: false, write: false },
           organizations: { read: false, write: false, delete: false },
-          reports: { read: true, write: false, delete: false }
+          reports: { read: true, write: false, delete: false },
+          triage: { read: false, write: false, classify: false, manual_drug_test: false },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: false, write: false, r3_form: false },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         },
         isSystemRole: true
       },
       data_entry: {
         name: 'data_entry',
-        displayName: 'Data Entry',
-        description: 'Access to data entry forms for ICSR classified studies',
+        displayName: 'Data Entry Specialist',
+        description: 'Access to QA-approved ICSR studies for R3 XML form completion',
         permissions: {
           dashboard: { read: true, write: false },
           users: { read: false, write: false, delete: false },
@@ -159,14 +242,18 @@ class Role {
           audit: { read: false, write: false, delete: false },
           settings: { read: false, write: false },
           organizations: { read: false, write: false, delete: false },
-          reports: { read: false, write: false, delete: false }
+          reports: { read: false, write: false, delete: false },
+          triage: { read: false, write: false, classify: false, manual_drug_test: false },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: true, write: true, r3_form: true },
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         },
         isSystemRole: true
       },
       medical_examiner: {
         name: 'medical_examiner',
         displayName: 'Medical Examiner',
-        description: 'Review and examine ICSR studies completed by data entry users',
+        description: 'Review completed ICSR studies, comment on fields, edit data, and manage revocations',
         permissions: {
           dashboard: { read: true, write: false },
           users: { read: false, write: false, delete: false },
@@ -176,7 +263,11 @@ class Role {
           audit: { read: true, write: false, delete: false },
           settings: { read: false, write: false },
           organizations: { read: false, write: false, delete: false },
-          reports: { read: true, write: true, delete: false }
+          reports: { read: true, write: true, delete: false },
+          triage: { read: false, write: false, classify: false, manual_drug_test: false },
+          qa: { read: false, write: false, approve: false, reject: false },
+          data_entry: { read: true, write: false, r3_form: false },
+          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
         },
         isSystemRole: true
       }

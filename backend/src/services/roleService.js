@@ -358,7 +358,7 @@ class RoleService {
   // Initialize system roles for an organization
   async initializeSystemRoles(organizationId, createdBy) {
     try {
-      const systemRoleTypes = ['superadmin', 'admin', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'];
+      const systemRoleTypes = ['superadmin', 'admin', 'triage', 'qa', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'];
       const createdRoles = [];
 
       for (const roleType of systemRoleTypes) {
@@ -457,6 +457,46 @@ class RoleService {
           read: 'View full reports',
           write: 'Create and modify reports',
           delete: 'Delete reports'
+        }
+      },
+      triage: {
+        displayName: 'Triage Operations',
+        description: 'Manual drug testing and study classification',
+        actions: {
+          read: 'View triage queue',
+          write: 'Update triage records',
+          classify: 'Classify studies as ICSR/AOI/No Case',
+          manual_drug_test: 'Run manual drug tests'
+        }
+      },
+      qa: {
+        displayName: 'Quality Assurance',
+        description: 'Review and approve triage classifications',
+        actions: {
+          read: 'View QA queue',
+          write: 'Update QA records',
+          approve: 'Approve classifications',
+          reject: 'Reject classifications'
+        }
+      },
+      data_entry: {
+        displayName: 'Data Entry',
+        description: 'Complete R3 forms for approved ICSR studies',
+        actions: {
+          read: 'View data entry queue',
+          write: 'Update data entry records',
+          r3_form: 'Complete R3 XML forms'
+        }
+      },
+      medical_examiner: {
+        displayName: 'Medical Examiner',
+        description: 'Review completed studies and manage quality control',
+        actions: {
+          read: 'View medical review queue',
+          write: 'Update review records',
+          comment_fields: 'Comment on R3 form fields',
+          edit_fields: 'Edit R3 form field values',
+          revoke_studies: 'Revoke studies back to Data Entry'
         }
       }
     };

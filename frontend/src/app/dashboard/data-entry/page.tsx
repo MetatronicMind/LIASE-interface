@@ -11,8 +11,14 @@ interface Study {
   drugName: string;
   adverseEvent: string;
   userTag: string;
+  qaApprovalStatus: string;
+  qaApprovedAt?: string;
   r3FormStatus: string;
   r3FormData?: any;
+  medicalReviewStatus?: string;
+  revokedBy?: string;
+  revokedAt?: string;
+  revocationReason?: string;
 }
 
 export default function DataEntryPage() {
@@ -145,9 +151,36 @@ export default function DataEntryPage() {
                     <span><strong>PMID:</strong> {study.pmid}</span>
                     <span><strong>Drug:</strong> {study.drugName}</span>
                   </div>
-                  <p className="text-sm text-black">
+                  <p className="text-sm text-black mb-2">
                     <strong>Adverse Event:</strong> {study.adverseEvent}
                   </p>
+                  
+                  {/* QA Approval Info */}
+                  {study.qaApprovedAt && (
+                    <p className="text-xs text-green-600 mb-2">
+                      ✓ QA Approved on {new Date(study.qaApprovedAt).toLocaleDateString()}
+                    </p>
+                  )}
+                  
+                  {/* Revocation Notice */}
+                  {study.medicalReviewStatus === 'revoked' && study.revocationReason && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-2">
+                      <div className="flex items-start">
+                        <svg className="h-5 w-5 text-orange-400 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-medium text-orange-800">Revoked by Medical Examiner</p>
+                          <p className="text-xs text-orange-700 mt-1">{study.revocationReason}</p>
+                          {study.revokedAt && (
+                            <p className="text-xs text-orange-600 mt-1">
+                              Revoked on {new Date(study.revokedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2 ml-4">
                   <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
