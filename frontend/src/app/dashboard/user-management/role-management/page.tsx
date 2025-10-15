@@ -35,7 +35,17 @@ export default function RoleManagementPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [permissions, setPermissions] = useState<PermissionStructure>({});
   const [activeTab, setActiveTab] = useState<'manage' | 'debug'>('manage');
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [availableTemplates, setAvailableTemplates] = useState<Record<string, any>>({});
   const { canManageRoles, canDeleteRoles } = useConditionalPermissions();
+
+  // Template role form state
+  const [templateRole, setTemplateRole] = useState({
+    customName: '',
+    displayName: '',
+    description: '',
+    selectedTemplate: ''
+  });
 
   // Create role form state
   const [newRole, setNewRole] = useState({
@@ -48,7 +58,25 @@ export default function RoleManagementPage() {
   useEffect(() => {
     fetchRoles();
     fetchPermissionStructure();
+    fetchTemplates();
   }, []);
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await fetch('/api/roles/templates', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const templates = await response.json();
+        setAvailableTemplates(templates);
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
 
   const fetchRoles = async () => {
     try {
@@ -117,6 +145,46 @@ export default function RoleManagementPage() {
     }
   };
 
+  const handleCreateTemplateRole = async () => {
+    if (!templateRole.customName || !templateRole.displayName || !templateRole.selectedTemplate) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/roles/custom', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          customName: templateRole.customName,
+          customDisplayName: templateRole.displayName,
+          permissionTemplate: templateRole.selectedTemplate,
+          organizationId: 'current-org', // You might need to get this from user context
+          description: templateRole.description
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create role');
+      }
+
+      setShowTemplateModal(false);
+      setTemplateRole({
+        customName: '',
+        displayName: '',
+        description: '',
+        selectedTemplate: ''
+      });
+      await fetchRoles();
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create role');
+    }
+  };
+
   const handleDeleteRole = async (roleId: string, roleName: string) => {
     if (!confirm(`Are you sure you want to delete role "${roleName}"?`)) {
       return;
@@ -174,13 +242,22 @@ export default function RoleManagementPage() {
             <div className="text-gray-600 text-base font-medium">Create and manage user roles and permissions</div>
           </div>
           <PermissionGate resource="roles" action="write">
-            <button
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2 self-start sm:self-auto"
-              onClick={() => setShowCreateModal(true)}
-            >
-              <PlusIcon className="w-5 h-5" />
-              Create New Role
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                className="bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2"
+                onClick={() => setShowTemplateModal(true)}
+              >
+                <ShieldCheckIcon className="w-5 h-5" />
+                Create from Template
+              </button>
+              <button
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2"
+                onClick={() => setShowCreateModal(true)}
+              >
+                <PlusIcon className="w-5 h-5" />
+                Create Custom Role
+              </button>
+            </div>
           </PermissionGate>
         </div>
 
@@ -417,6 +494,207 @@ export default function RoleManagementPage() {
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                 >
                   Create Role
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Role from Template Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Create Role from Template</h2>
+              <p className="text-gray-600 mt-2">Choose a predefined template and customize the role name</p>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Role Name * <span className="text-xs text-gray-500">(e.g., TRIAGE, QA_TEAM)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={templateRole.customName}
+                    onChange={(e) => setTemplateRole(prev => ({ ...prev, customName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter custom role name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Display Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={templateRole.displayName}
+                    onChange={(e) => setTemplateRole(prev => ({ ...prev, displayName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter display name"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Permission Template *
+                </label>
+                <select
+                  value={templateRole.selectedTemplate}
+                  onChange={(e) => setTemplateRole(prev => ({ ...prev, selectedTemplate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select a template...</option>
+                  {Object.entries(availableTemplates).map(([key, template]: [string, any]) => (
+                    <option key={key} value={key}>
+                      {template.displayName} - {template.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description (Optional)
+                </label>
+                <textarea
+                  value={templateRole.description}
+                  onChange={(e) => setTemplateRole(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Describe the purpose of this role..."
+                />
+              </div>
+
+              {/* Template Preview */}
+              {templateRole.selectedTemplate && availableTemplates[templateRole.selectedTemplate] && (
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium text-blue-900 text-sm mb-2">Template Preview:</h4>
+                  <p className="text-blue-700 text-sm mb-2">
+                    {availableTemplates[templateRole.selectedTemplate].description}
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {availableTemplates[templateRole.selectedTemplate].permissions?.triage?.classify && (
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Can classify studies
+                      </span>
+                    )}
+                    {availableTemplates[templateRole.selectedTemplate].permissions?.triage?.manual_drug_test && (
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Can run manual drug tests
+                      </span>
+                    )}
+                    {availableTemplates[templateRole.selectedTemplate].permissions?.qa?.approve && (
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Can approve classifications
+                      </span>
+                    )}
+                    {availableTemplates[templateRole.selectedTemplate].permissions?.qa?.reject && (
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Can reject classifications
+                      </span>
+                    )}
+                    {availableTemplates[templateRole.selectedTemplate].permissions?.data_entry?.r3_form && (
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Can fill R3 forms
+                      </span>
+                    )}
+                    {availableTemplates[templateRole.selectedTemplate].permissions?.medical_examiner?.comment_fields && (
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Can comment on fields
+                      </span>
+                    )}
+                    {availableTemplates[templateRole.selectedTemplate].permissions?.medical_examiner?.revoke_studies && (
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Can revoke studies
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Create Buttons */}
+              <div className="border-t border-gray-200 pt-4">
+                <h4 className="font-medium text-gray-900 mb-3">Quick Create Common Roles:</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setTemplateRole({
+                      customName: 'TRIAGE',
+                      displayName: 'Triage Team',
+                      selectedTemplate: 'triage_specialist',
+                      description: 'Team responsible for classifying studies and running manual drug tests'
+                    })}
+                    className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition text-sm"
+                  >
+                    Create TRIAGE Role
+                  </button>
+                  <button
+                    onClick={() => setTemplateRole({
+                      customName: 'QA',
+                      displayName: 'Quality Assurance',
+                      selectedTemplate: 'qa_reviewer',
+                      description: 'Team responsible for reviewing and approving study classifications'
+                    })}
+                    className="px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition text-sm"
+                  >
+                    Create QA Role
+                  </button>
+                  <button
+                    onClick={() => setTemplateRole({
+                      customName: 'DATA_ENTRY',
+                      displayName: 'Data Entry Team',
+                      selectedTemplate: 'data_entry_specialist',
+                      description: 'Team responsible for filling R3 forms for approved ICSR studies'
+                    })}
+                    className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition text-sm"
+                  >
+                    Create DATA ENTRY Role
+                  </button>
+                  <button
+                    onClick={() => setTemplateRole({
+                      customName: 'MEDICAL_EXAMINER',
+                      displayName: 'Medical Examiner',
+                      selectedTemplate: 'medical_reviewer',
+                      description: 'Team responsible for final review, commenting, and study revocation'
+                    })}
+                    className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition text-sm"
+                  >
+                    Create MEDICAL EXAMINER Role
+                  </button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowTemplateModal(false);
+                    setTemplateRole({
+                      customName: '',
+                      displayName: '',
+                      description: '',
+                      selectedTemplate: ''
+                    });
+                  }}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateTemplateRole}
+                  disabled={!templateRole.customName || !templateRole.displayName || !templateRole.selectedTemplate}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Create Role from Template
                 </button>
               </div>
             </div>
