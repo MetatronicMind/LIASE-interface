@@ -63,17 +63,22 @@ export default function ReportsPage() {
   const [selectAll, setSelectAll] = useState(false);
 
   useEffect(() => {
-    fetchStudies();
-  }, []);
+    // Only fetch if user is available
+    if (user) {
+      fetchStudies();
+    }
+  }, [user]);
 
   const fetchStudies = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       if (!token) {
-        throw new Error('No authentication token found');
+        setError('No authentication token found. Please log in again.');
+        setLoading(false);
+        return;
       }
 
       const response = await fetch(`${API_CONFIG.BASE_URL}/studies?limit=1000`, {
@@ -84,10 +89,12 @@ export default function ReportsPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch studies: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch studies: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('Fetched studies:', data.studies?.length || 0);
       setStudies(data.studies || []);
     } catch (err: any) {
       console.error('Error fetching studies:', err);
@@ -331,6 +338,16 @@ export default function ReportsPage() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">Loading user information...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
       {/* Header */}
@@ -562,11 +579,19 @@ export default function ReportsPage() {
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center gap-2 text-red-800">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-            <span className="font-medium">{error}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-red-800">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <span className="font-medium">{error}</span>
+            </div>
+            <button
+              onClick={fetchStudies}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+            >
+              Retry
+            </button>
           </div>
         </div>
       )}
