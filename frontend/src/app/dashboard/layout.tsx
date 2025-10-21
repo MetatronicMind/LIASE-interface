@@ -13,7 +13,8 @@ import {
   PencilSquareIcon,
   DocumentCheckIcon,
   CheckCircleIcon,
-  UserIcon
+  UserIcon,
+  ChartBarIcon
 } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
@@ -63,6 +64,12 @@ const permissionBasedNavItems = [
     href: "/dashboard/full-report", 
     icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'reports', action: 'read' }
+  },
+  { 
+    name: "Reports", 
+    href: "/dashboard/reports", 
+    icon: <ChartBarIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'studies', action: 'read' }
   },
   { 
     name: "Audit Trail", 
