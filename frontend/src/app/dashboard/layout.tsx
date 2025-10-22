@@ -37,8 +37,7 @@ const permissionBasedNavItems = [
     name: "Triage", 
     href: "/dashboard/triage", 
     icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'studies', action: 'read' },
-    requireAdmin: true
+    permission: { resource: 'triage', action: 'write' } // Requires triage create/edit permission
   },
   { 
     name: "Data Entry", 
