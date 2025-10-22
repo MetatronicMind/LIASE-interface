@@ -162,19 +162,19 @@ export default function DataEntryPage() {
                     </p>
                   )}
                   
-                  {/* Revocation Notice */}
-                  {study.medicalReviewStatus === 'revoked' && study.revocationReason && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-2">
+                  {/* Revocation Notice - Check for revokedBy field to show revocation */}
+                  {study.revokedBy && study.revocationReason && (
+                    <div className="bg-orange-50 border-l-4 border-orange-400 rounded-r-lg p-3 mb-2">
                       <div className="flex items-start">
-                        <svg className="h-5 w-5 text-orange-400 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="h-5 w-5 text-orange-400 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                         </svg>
-                        <div>
-                          <p className="text-sm font-medium text-orange-800">Revoked by Medical Examiner</p>
-                          <p className="text-xs text-orange-700 mt-1">{study.revocationReason}</p>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-orange-800">⚠️ Revoked by Medical Examiner</p>
+                          <p className="text-xs text-orange-700 mt-1"><strong>Reason:</strong> {study.revocationReason}</p>
                           {study.revokedAt && (
                             <p className="text-xs text-orange-600 mt-1">
-                              Revoked on {new Date(study.revokedAt).toLocaleDateString()}
+                              Revoked on {new Date(study.revokedAt).toLocaleDateString()} - Please make corrections and resubmit
                             </p>
                           )}
                         </div>

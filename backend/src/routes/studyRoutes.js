@@ -151,13 +151,15 @@ router.get('/data-entry',
       });
       
       // Query for studies that are manually tagged as ICSR, QA approved, AND have incomplete R3 forms
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND (c.r3FormStatus = @statusNotStarted OR c.r3FormStatus = @statusInProgress) AND c.medicalReviewStatus != @revoked';
+      // INCLUDES revoked studies (they need to be fixed by Data Entry)
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND (c.r3FormStatus = @statusNotStarted OR c.r3FormStatus = @statusInProgress) AND (c.medicalReviewStatus != @completed OR c.medicalReviewStatus = @revoked OR NOT IS_DEFINED(c.medicalReviewStatus))';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
         { name: '@userTag', value: 'ICSR' },
         { name: '@qaStatus', value: 'approved' },
         { name: '@statusNotStarted', value: 'not_started' },
         { name: '@statusInProgress', value: 'in_progress' },
+        { name: '@completed', value: 'completed' },
         { name: '@revoked', value: 'revoked' }
       ];
       

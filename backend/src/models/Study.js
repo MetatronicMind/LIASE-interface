@@ -312,12 +312,17 @@ class Study {
       throw new Error('Revocation reason is required');
     }
     
-    this.medicalReviewStatus = 'revoked';
+    // Reset medical review status so it can be reviewed again after Data Entry fixes
+    this.medicalReviewStatus = 'not_started';
     this.revokedBy = userId;
     this.revokedAt = new Date().toISOString();
     this.revocationReason = reason;
     this.r3FormStatus = 'in_progress'; // Reset to allow data entry to fix
     this.updatedAt = new Date().toISOString();
+    
+    // Clear previous medical review data since it's being re-worked
+    this.medicalReviewedBy = null;
+    this.medicalReviewedAt = null;
     
     // Add revocation comment
     this.addComment({
