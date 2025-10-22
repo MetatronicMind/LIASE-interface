@@ -139,3 +139,30 @@ GET http://localhost:3001/api/organizations/current
 Authorization: Bearer {{LOGIN_TOKEN}}
 
 ###
+
+### Get Permission Templates
+GET http://localhost:3001/api/roles/templates
+Authorization: Bearer {{LOGIN_TOKEN}}
+
+###
+
+### Create Role from Template
+POST http://localhost:3001/api/roles/custom
+Content-Type: application/json
+Authorization: Bearer {{LOGIN_TOKEN}}
+
+{
+  "customName": "TRIAGE",
+  "customDisplayName": "Triage Team",
+  "permissionTemplate": "triage_specialist",
+  "description": "Team responsible for classifying studies and running manual drug tests"
+}
+
+###
+
+### Get All Roles
+GET http://localhost:3001/api/roles
+Authorization: Bearer {{LOGIN_TOKEN}}
+
+###
+

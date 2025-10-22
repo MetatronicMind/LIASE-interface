@@ -63,16 +63,8 @@ export default function RoleManagementPage() {
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch('/api/roles/templates', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const templates = await response.json();
-        setAvailableTemplates(templates);
-      }
+      const templates = await roleService.getPermissionTemplates();
+      setAvailableTemplates(templates);
     } catch (error) {
       console.error('Error fetching templates:', error);
     }
@@ -152,24 +144,12 @@ export default function RoleManagementPage() {
     }
 
     try {
-      const response = await fetch('/api/roles/custom', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          customName: templateRole.customName,
-          customDisplayName: templateRole.displayName,
-          permissionTemplate: templateRole.selectedTemplate,
-          organizationId: 'current-org', // You might need to get this from user context
-          description: templateRole.description
-        })
+      await roleService.createRoleFromTemplate({
+        customName: templateRole.customName,
+        customDisplayName: templateRole.displayName,
+        permissionTemplate: templateRole.selectedTemplate,
+        description: templateRole.description
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create role');
-      }
 
       setShowTemplateModal(false);
       setTemplateRole({

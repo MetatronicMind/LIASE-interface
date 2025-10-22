@@ -136,6 +136,61 @@ class RoleService {
     return data.permissions || data;
   }
 
+  // Get permission templates for role creation
+  async getPermissionTemplates(): Promise<Record<string, any>> {
+    const response = await fetch(`${this.API_BASE_URL}/roles/templates`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      await this.handleAuthError(response);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to fetch permission templates');
+    }
+
+    const data = await response.json();
+    return data;
+  }
+
+  // Create role from template
+  async createRoleFromTemplate(params: {
+    customName: string;
+    customDisplayName: string;
+    permissionTemplate: string;
+    description?: string;
+  }): Promise<Role> {
+    const response = await fetch(`${this.API_BASE_URL}/roles/custom`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(params)
+    });
+
+    if (!response.ok) {
+      await this.handleAuthError(response);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to create role from template');
+    }
+
+    const data = await response.json();
+    return data.role || data;
+  }
+
+  // Get system role templates
+  async getSystemRoleTemplates(): Promise<any[]> {
+    const response = await fetch(`${this.API_BASE_URL}/roles/system/templates`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      await this.handleAuthError(response);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to fetch system role templates');
+    }
+
+    const data = await response.json();
+    return data;
+  }
+
   async getAvailableRoles(): Promise<Role[]> {
     const response = await fetch(`${this.API_BASE_URL}/users/roles/available`, {
       headers: this.getAuthHeaders()

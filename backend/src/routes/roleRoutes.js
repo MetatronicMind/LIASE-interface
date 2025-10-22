@@ -31,8 +31,7 @@ router.post('/custom',
   [
     body('customName').notEmpty().withMessage('Custom name is required'),
     body('customDisplayName').notEmpty().withMessage('Display name is required'),
-    body('permissionTemplate').notEmpty().withMessage('Permission template is required'),
-    body('organizationId').notEmpty().withMessage('Organization ID is required')
+    body('permissionTemplate').notEmpty().withMessage('Permission template is required')
   ],
   async (req, res) => {
     try {
@@ -41,7 +40,10 @@ router.post('/custom',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { customName, customDisplayName, permissionTemplate, organizationId, description } = req.body;
+      const { customName, customDisplayName, permissionTemplate, description } = req.body;
+      
+      // Use organization ID from authenticated user
+      const organizationId = req.user.organizationId;
 
       // Create custom role using template
       const role = Role.createCustomRole(
@@ -82,8 +84,7 @@ router.get('/system/templates',
 router.post('/system', 
   authorizePermission('roles', 'write'),
   [
-    body('roleType').notEmpty().withMessage('Role type is required'),
-    body('organizationId').notEmpty().withMessage('Organization ID is required')
+    body('roleType').notEmpty().withMessage('Role type is required')
   ],
   async (req, res) => {
     try {
@@ -92,7 +93,10 @@ router.post('/system',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { roleType, organizationId } = req.body;
+      const { roleType } = req.body;
+      
+      // Use organization ID from authenticated user
+      const organizationId = req.user.organizationId;
 
       // Create role from system template
       const role = Role.createFromSystemRole(roleType, organizationId, req.user.id);
