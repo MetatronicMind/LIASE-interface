@@ -40,27 +40,49 @@ router.post('/custom',
         return res.status(400).json({ errors: errors.array() });
       }
 
+      // Validate req.user is present
+      if (!req.user) {
+        console.error('req.user is undefined in /custom route');
+        return res.status(401).json({ error: 'User authentication failed' });
+      }
+
+      if (!req.user.id) {
+        console.error('req.user.id is undefined:', req.user);
+        return res.status(401).json({ error: 'User ID not found in authentication' });
+      }
+
+      if (!req.user.organizationId) {
+        console.error('req.user.organizationId is undefined:', req.user);
+        return res.status(401).json({ error: 'Organization ID not found in authentication' });
+      }
+
       const { customName, customDisplayName, permissionTemplate, description } = req.body;
       
-      // Use organization ID from authenticated user
-      const organizationId = req.user.organizationId;
+      console.log('Creating role with:', {
+        customName,
+        customDisplayName,
+        permissionTemplate,
+        organizationId: req.user.organizationId,
+        userId: req.user.id
+      });
 
       // Create custom role using template
       const role = Role.createCustomRole(
         customName,
         customDisplayName,
         permissionTemplate,
-        organizationId,
+        req.user.organizationId,
         description,
         req.user.id
       );
       
-      // Save the role using roleService
-      const savedRole = await roleService.createRole(role);
+      // Save the role using roleService (pass req.user as second parameter)
+      const savedRole = await roleService.createRole(role, req.user);
       
       res.status(201).json(savedRole.toJSON());
     } catch (error) {
       console.error('Error creating custom role:', error);
+      console.error('Error stack:', error.stack);
       res.status(500).json({ error: error.message });
     }
   }
@@ -101,8 +123,8 @@ router.post('/system',
       // Create role from system template
       const role = Role.createFromSystemRole(roleType, organizationId, req.user.id);
       
-      // Save the role using roleService
-      const savedRole = await roleService.createRole(role);
+      // Save the role using roleService (pass req.user as second parameter)
+      const savedRole = await roleService.createRole(role, req.user);
       
       res.status(201).json(savedRole.toJSON());
     } catch (error) {
