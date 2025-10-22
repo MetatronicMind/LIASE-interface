@@ -31,10 +31,7 @@ const permissionBasedNavItems = [
     name: "Drug Management", 
     href: "/dashboard/drug-management", 
     icon: <TableCellsIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'drugs', action: 'read' },
-    // Allow superadmins OR users with manual_drug_test permission (like triage)
-    customCheck: (hasPermission: any, isAdmin: any, isSuperAdmin: any) => 
-      isSuperAdmin() || hasPermission('triage', 'manual_drug_test')
+    permission: { resource: 'drugs', action: 'write' } // Requires drugs.write permission (includes running tests)
   },
   { 
     name: "Triage", 
@@ -96,11 +93,6 @@ const permissionBasedNavItems = [
 // Function to get nav items based on user permissions
 const getNavItemsForUser = (hasPermission: (resource: string, action: string) => boolean, isAdmin: () => boolean, isSuperAdmin: () => boolean) => {
   const filteredItems = permissionBasedNavItems.filter(item => {
-    // Check if there's a custom check function
-    if ('customCheck' in item && item.customCheck) {
-      return item.customCheck(hasPermission, isAdmin, isSuperAdmin);
-    }
-    
     // Check special admin requirements
     if ('requireSuperAdmin' in item && item.requireSuperAdmin && !isSuperAdmin()) return false;
     if ('requireAdmin' in item && item.requireAdmin && !isAdmin()) return false;

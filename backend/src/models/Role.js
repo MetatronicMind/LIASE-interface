@@ -153,7 +153,7 @@ class Role {
           dashboard: { read: true, write: false },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
-          drugs: { read: true, write: false, delete: false },
+          drugs: { read: true, write: true, delete: false }, // write: true to enable drug test execution
           studies: { read: true, write: true, delete: false },
           audit: { read: false, write: false, delete: false },
           settings: { read: false, write: false },
@@ -285,7 +285,7 @@ class Role {
           dashboard: { read: true, write: false },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
-          drugs: { read: true, write: false, delete: false },
+          drugs: { read: true, write: true, delete: false }, // write: true to enable drug test execution
           studies: { read: true, write: true, delete: false },
           audit: { read: false, write: false, delete: false },
           settings: { read: false, write: false },
