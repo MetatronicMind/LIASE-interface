@@ -481,7 +481,36 @@ router.put('/:studyId',
         });
       }
 
-      // Update study
+      // If userTag is being updated, use the Study model to handle it properly
+      if (updates.userTag) {
+        const study = new Study(existingStudy);
+        study.updateUserTag(updates.userTag, req.user.id, req.user.name);
+        
+        // Save updated study with qaApprovalStatus set to pending
+        const updatedStudy = await cosmosService.updateItem(
+          'studies',
+          studyId,
+          req.user.organizationId,
+          study.toJSON()
+        );
+
+        await auditAction(
+          req.user,
+          'update',
+          'study',
+          studyId,
+          `Updated study classification to ${updates.userTag}`,
+          { userTag: updates.userTag }
+        );
+
+        return res.json({
+          success: true,
+          message: 'Study classification updated successfully',
+          study: updatedStudy
+        });
+      }
+
+      // Regular update for other fields
       const updatedStudy = await cosmosService.updateItem(
         'studies',
         studyId,

@@ -18,6 +18,7 @@ interface Study {
   updatedAt: string;
   createdBy: string;
   comments?: any[];
+  qaApprovalStatus?: 'pending' | 'approved' | 'rejected';
   
   // AI Inference Data - Raw API response
   aiInferenceData?: any;
@@ -201,16 +202,19 @@ export default function TriagePage() {
       });
 
       if (response.ok) {
-        // Update the study in the local state
+        const result = await response.json();
+        // Update the study in the local state with the response from the server
+        // This ensures qaApprovalStatus is set to 'pending'
         setStudies(prev => prev.map(study => 
           study.id === studyId 
-            ? { ...study, userTag: classification as any }
+            ? { ...study, userTag: classification as any, qaApprovalStatus: 'pending' }
             : study
         ));
         // Also update selected study if it's the one being classified
         if (selectedStudy && selectedStudy.id === studyId) {
-          setSelectedStudy(prev => prev ? { ...prev, userTag: classification as any } : null);
+          setSelectedStudy(prev => prev ? { ...prev, userTag: classification as any, qaApprovalStatus: 'pending' } : null);
         }
+        alert(`Study classified as ${classification}. Awaiting QA approval.`);
       } else {
         throw new Error("Failed to classify study");
       }
