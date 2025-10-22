@@ -349,48 +349,49 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Reports Dashboard</h1>
-        <p className="text-gray-600">Comprehensive view of all reports with advanced filtering and export options</p>
-      </div>
+    <div className="p-4 sm:p-6 w-full overflow-x-hidden">
+      <div className="max-w-full">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Reports Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600">Comprehensive view of all reports with advanced filtering and export options</p>
+        </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-          <div className="text-sm text-gray-600">Total Reports</div>
-          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-blue-500">
+          <div className="text-xs sm:text-sm text-gray-600 truncate">Total Reports</div>
+          <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-          <div className="text-sm text-gray-600">ICSR</div>
-          <div className="text-2xl font-bold text-red-600">{stats.icsrCount}</div>
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-red-500">
+          <div className="text-xs sm:text-sm text-gray-600 truncate">ICSR</div>
+          <div className="text-xl sm:text-2xl font-bold text-red-600">{stats.icsrCount}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-          <div className="text-sm text-gray-600">Article of Interest</div>
-          <div className="text-2xl font-bold text-yellow-600">{stats.aoiCount}</div>
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-yellow-500">
+          <div className="text-xs sm:text-sm text-gray-600 truncate">Article of Interest</div>
+          <div className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.aoiCount}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-500">
-          <div className="text-sm text-gray-600">No Case</div>
-          <div className="text-2xl font-bold text-gray-600">{stats.noCaseCount}</div>
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-gray-500">
+          <div className="text-xs sm:text-sm text-gray-600 truncate">No Case</div>
+          <div className="text-xl sm:text-2xl font-bold text-gray-600">{stats.noCaseCount}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
-          <div className="text-sm text-gray-600">Unclassified</div>
-          <div className="text-2xl font-bold text-purple-600">{stats.unclassified}</div>
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-purple-500">
+          <div className="text-xs sm:text-sm text-gray-600 truncate">Unclassified</div>
+          <div className="text-xl sm:text-2xl font-bold text-purple-600">{stats.unclassified}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
-          <div className="text-sm text-gray-600">Serious</div>
-          <div className="text-2xl font-bold text-orange-600">{stats.seriousCount}</div>
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-orange-500">
+          <div className="text-xs sm:text-sm text-gray-600 truncate">Serious</div>
+          <div className="text-xl sm:text-2xl font-bold text-orange-600">{stats.seriousCount}</div>
         </div>
       </div>
 
       {/* Filters and Export Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Filters & Export</h2>
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Filters & Export</h2>
           <button
             onClick={resetFilters}
-            className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors w-full sm:w-auto"
           >
             Reset Filters
           </button>
@@ -405,7 +406,7 @@ export default function ReportsPage() {
                 setStudyType(type);
                 setCurrentPage(1);
               }}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
                 studyType === type
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -417,7 +418,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Search and Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
             <input
@@ -545,29 +546,29 @@ export default function ReportsPage() {
         </div>
 
         {/* Export Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t">
-          <div className="text-sm text-gray-600">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-4 border-t gap-3">
+          <div className="text-xs sm:text-sm text-gray-600">
             {selectedStudies.size > 0 ? (
               <span>{selectedStudies.size} selected</span>
             ) : (
               <span>Showing {filteredStudies.length} reports</span>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button
               onClick={exportToCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+              className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Export CSV
             </button>
             <button
               onClick={exportToJSON}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               Export JSON
@@ -598,11 +599,15 @@ export default function ReportsPage() {
 
       {/* Reports Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        {/* Scroll Hint for mobile */}
+        <div className="block sm:hidden bg-blue-50 border-b border-blue-100 px-4 py-2 text-xs text-blue-700 text-center">
+          ← Scroll horizontally to see all columns →
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3">
+                <th className="px-2 sm:px-4 py-3 sticky left-0 bg-gray-50 z-10">
                   <input
                     type="checkbox"
                     checked={selectAll}
@@ -612,7 +617,7 @@ export default function ReportsPage() {
                 </th>
                 <th
                   onClick={() => handleSort('pmid')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1">
                     PMID
@@ -623,7 +628,7 @@ export default function ReportsPage() {
                 </th>
                 <th
                   onClick={() => handleSort('title')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[200px]"
                 >
                   <div className="flex items-center gap-1">
                     Title
@@ -634,7 +639,7 @@ export default function ReportsPage() {
                 </th>
                 <th
                   onClick={() => handleSort('drugName')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1">
                     Drug
@@ -643,24 +648,24 @@ export default function ReportsPage() {
                     )}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Adverse Event
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Classification
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   QA
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   R3
                 </th>
                 <th
                   onClick={() => handleSort('createdAt')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1">
                     Created
@@ -674,7 +679,7 @@ export default function ReportsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedStudies.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={10} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -687,7 +692,7 @@ export default function ReportsPage() {
               ) : (
                 paginatedStudies.map((study) => (
                   <tr key={study.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4">
+                    <td className="px-2 sm:px-4 py-3 sm:py-4 sticky left-0 bg-white hover:bg-gray-50">
                       <input
                         type="checkbox"
                         checked={selectedStudies.has(study.id)}
@@ -695,7 +700,7 @@ export default function ReportsPage() {
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-blue-600">
                       <a
                         href={`https://pubmed.ncbi.nlm.nih.gov/${study.pmid}`}
                         target="_blank"
@@ -705,20 +710,20 @@ export default function ReportsPage() {
                         {study.pmid}
                       </a>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[200px] sm:max-w-md">
                       <div className="line-clamp-2" title={study.title}>
                         {study.title}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-700">
                       {study.drugName}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-700 max-w-[150px] sm:max-w-xs">
                       <div className="line-clamp-2" title={study.adverseEvent}>
                         {study.adverseEvent}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getClassificationBadgeColor(study.userTag)}`}>
                         {study.userTag || 'Unclassified'}
                       </span>
@@ -728,10 +733,10 @@ export default function ReportsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-700">
                       {study.status}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                         study.qaApprovalStatus === 'approved' ? 'bg-green-100 text-green-800' :
                         study.qaApprovalStatus === 'rejected' ? 'bg-red-100 text-red-800' :
@@ -740,7 +745,7 @@ export default function ReportsPage() {
                         {study.qaApprovalStatus || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                         study.r3FormStatus === 'completed' ? 'bg-green-100 text-green-800' :
                         study.r3FormStatus === 'in_progress' ? 'bg-blue-100 text-blue-800' :
@@ -749,7 +754,7 @@ export default function ReportsPage() {
                         {study.r3FormStatus?.replace('_', ' ') || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                       {new Date(study.createdAt).toLocaleDateString()}
                     </td>
                   </tr>
@@ -761,18 +766,18 @@ export default function ReportsPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700">
+          <div className="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
                 Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
                 {Math.min(currentPage * itemsPerPage, filteredStudies.length)} of{' '}
                 {filteredStudies.length} results
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -795,7 +800,7 @@ export default function ReportsPage() {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                        className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg ${
                           currentPage === pageNum
                             ? 'bg-blue-600 text-white'
                             : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
@@ -810,7 +815,7 @@ export default function ReportsPage() {
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -818,6 +823,7 @@ export default function ReportsPage() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
