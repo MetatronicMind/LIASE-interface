@@ -7,6 +7,7 @@ import {
   CheckCircleIcon,
   CubeIcon
 } from "@heroicons/react/24/outline";
+import { API_CONFIG } from "@/config/api";
 
 interface Stats {
   total: number;
@@ -71,12 +72,12 @@ export default function DashboardPage() {
       };
 
       // Fetch study statistics
-      const statsResponse = await fetch("/api/studies/stats/summary", { headers });
+      const statsResponse = await fetch(`${API_CONFIG.BASE_URL}/studies/stats/summary`, { headers });
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         
         // Fetch active drugs count
-        const drugsResponse = await fetch("/api/drugs?limit=1000", { headers });
+        const drugsResponse = await fetch(`${API_CONFIG.BASE_URL}/drugs?limit=1000`, { headers });
         let activeDrugsCount = 0;
         if (drugsResponse.ok) {
           const drugsData = await drugsResponse.json();
@@ -94,7 +95,7 @@ export default function DashboardPage() {
       }
 
       // Fetch recent audit logs
-      const auditResponse = await fetch("/api/audit?limit=5&sortOrder=desc", { headers });
+      const auditResponse = await fetch(`${API_CONFIG.BASE_URL}/audit?limit=5&sortOrder=desc`, { headers });
       if (auditResponse.ok) {
         const auditData = await auditResponse.json();
         setRecentActivity(auditData.auditLogs || []);
