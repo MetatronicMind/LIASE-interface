@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   DocumentTextIcon,
   ClockIcon,
@@ -140,8 +141,17 @@ export default function DashboardPage() {
   return (
     <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-white min-h-screen p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-black text-blue-900 mb-1">Dashboard</h1>
-        <div className="text-blue-700 mb-8 font-medium">Welcome back, {userName}</div>
+        <div className="mb-8">
+          <Image 
+            src="/logo_black.svg" 
+            alt="LIASE Logo" 
+            width={200} 
+            height={80} 
+            className="mb-2"
+            priority
+          />
+          <div className="text-blue-700 font-medium">Welcome back, {userName}</div>
+        </div>
 
         {loading ? (
           <div className="flex justify-center items-center py-20">
