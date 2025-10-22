@@ -367,7 +367,7 @@ export default function ReportsPage() {
           <div className="text-2xl font-bold text-red-600">{stats.icsrCount}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-          <div className="text-sm text-gray-600">AOI</div>
+          <div className="text-sm text-gray-600">Article of Interest</div>
           <div className="text-2xl font-bold text-yellow-600">{stats.aoiCount}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-500">

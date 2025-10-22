@@ -678,7 +678,7 @@ useEffect(() => {
                             <div className="flex items-center space-x-2">
                               <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
                               <div>
-                                <p className="text-sm font-medium text-purple-900">AOI Classification</p>
+                                <p className="text-sm font-medium text-purple-900">Article of Interest Classification</p>
                                 <p className="text-sm font-semibold text-gray-800">{selectedStudy.aoiClassification}</p>
                               </div>
                             </div>
@@ -750,7 +750,7 @@ useEffect(() => {
                         )}
                         {selectedStudy.aoiDrugEffect && (
                           <div className="mb-3">
-                            <span className="font-medium text-blue-900">AOI Drug Effect:</span>
+                            <span className="font-medium text-blue-900">Article of Interest Drug Effect:</span>
                             <p className="mt-1 text-gray-800 leading-relaxed">{selectedStudy.aoiDrugEffect}</p>
                           </div>
                         )}

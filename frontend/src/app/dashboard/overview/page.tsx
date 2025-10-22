@@ -21,7 +21,7 @@ const recentActivity = [
   { user: "System Administrator", action: "User admin logged in with role Admin", date: "01-Dec-2024" },
   { user: "John Smith", action: "User pv_user1 logged in with role Pharmacovigilance", date: "01-Dec-2024" },
   { user: "John Smith", action: "Added comment to study PMID: 38901235", date: "01-Dec-2024" },
-  { user: "Sarah Johnson", action: "Approved study PMID: 38901236 for AOI reporting", date: "30-Nov-2024" },
+  { user: "Sarah Johnson", action: "Approved study PMID: 38901236 for Article of Interest reporting", date: "30-Nov-2024" },
 ];
 
 export default function OverviewPage() {

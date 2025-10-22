@@ -284,7 +284,7 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
                     <p className="text-gray-900">{formatValue(study.serious)}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">AOI Drug Effect</label>
+                    <label className="text-sm font-medium text-gray-700">Article of Interest Drug Effect</label>
                     <p className="text-gray-900">{formatValue(study.aoiDrugEffect)}</p>
                   </div>
                 </div>
@@ -304,7 +304,7 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
                       <p className="text-gray-900">{formatValue(study.icsrClassification)}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">AOI Classification</label>
+                      <label className="text-sm font-medium text-gray-700">Article of Interest Classification</label>
                       <p className="text-gray-900">{formatValue(study.aoiClassification)}</p>
                     </div>
                     <div>

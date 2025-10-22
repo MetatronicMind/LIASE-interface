@@ -306,7 +306,7 @@ export default function TriagePage() {
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">TRIAGE</h1>
-          <p className="mt-1 text-sm text-gray-600">Classify studies as ICSR, AOI, or No Case for pharmacovigilance processing</p>
+          <p className="mt-1 text-sm text-gray-600">Classify studies as ICSR, Article of Interest, or No Case for pharmacovigilance processing</p>
         </div>
       </div>
 
@@ -720,7 +720,7 @@ export default function TriagePage() {
                                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  AOI (Adverse Event of Interest)
+                                  Article of Interest
                                 </>
                               )}
                             </button>
@@ -773,7 +773,7 @@ export default function TriagePage() {
                               disabled={classifying === selectedStudy.id}
                               className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200 disabled:opacity-50 text-sm transition-colors"
                             >
-                              AOI
+                              Article of Interest
                             </button>
                             <button
                               onClick={() => classifyStudy(selectedStudy.id, "No Case")}
@@ -990,7 +990,7 @@ export default function TriagePage() {
                         )}
                         {selectedStudy.aoiDrugEffect && (
                           <div>
-                            <span className="font-medium text-gray-700">AOI Drug Effect:</span>
+                            <span className="font-medium text-gray-700">Article of Interest Drug Effect:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.aoiDrugEffect}</p>
                           </div>
                         )}
@@ -1009,7 +1009,7 @@ export default function TriagePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           {selectedStudy.aoiClassification && (
                             <div>
-                              <span className="font-medium text-gray-700">AOI Classification:</span>
+                              <span className="font-medium text-gray-700">Article of Interest Classification:</span>
                               <p className="mt-1 text-gray-900">{selectedStudy.aoiClassification}</p>
                             </div>
                           )}
