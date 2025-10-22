@@ -109,7 +109,7 @@ export default function QAPage() {
         setSelectedStudy(null);
         setRejectionReason("");
         setShowRejectModal(false);
-        alert("Classification rejected successfully!");
+        alert("Classification rejected successfully! Study has been returned to Triage for re-classification.");
       } else {
         throw new Error("Failed to reject classification");
       }

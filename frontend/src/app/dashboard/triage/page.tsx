@@ -19,6 +19,7 @@ interface Study {
   createdBy: string;
   comments?: any[];
   qaApprovalStatus?: 'pending' | 'approved' | 'rejected';
+  qaComments?: string;
   
   // AI Inference Data - Raw API response
   aiInferenceData?: any;
@@ -228,6 +229,13 @@ export default function TriagePage() {
 
   // Filtering logic
   const filteredStudies = studies.filter((study: Study) => {
+    // Only show studies that need triage classification:
+    // 1. Studies without a userTag (not yet classified), OR
+    // 2. Studies that were rejected by QA (need re-classification)
+    // Exclude studies that are approved or pending QA approval
+    const needsTriage = !study.userTag || study.qaApprovalStatus === 'rejected';
+    if (!needsTriage) return false;
+    
     // Search by drug name or title
     const matchesSearch =
       search.trim() === "" ||
@@ -520,6 +528,14 @@ export default function TriagePage() {
 
                           {/* Classification and Tags */}
                           <div className="flex flex-wrap gap-1">
+                            {study.qaApprovalStatus === 'rejected' && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-300">
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                QA Rejected
+                              </span>
+                            )}
                             {study.userTag && (
                               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getClassificationColor(study.userTag)}`}>
                                 {study.userTag}
@@ -535,7 +551,7 @@ export default function TriagePage() {
                                 Human Subject
                               </span>
                             )}
-                            {!study.userTag && (
+                            {!study.userTag && study.qaApprovalStatus !== 'rejected' && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                                 Unclassified
                               </span>
@@ -624,6 +640,31 @@ export default function TriagePage() {
 
                   {/* Content */}
                   <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                    {/* QA Rejection Notice */}
+                    {selectedStudy.qaApprovalStatus === 'rejected' && selectedStudy.qaComments && (
+                      <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-lg">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="ml-3 flex-1">
+                            <h3 className="text-sm font-medium text-orange-800">
+                              Classification Rejected by QA
+                            </h3>
+                            <div className="mt-2 text-sm text-orange-700">
+                              <p className="font-semibold">Reason:</p>
+                              <p className="mt-1">{selectedStudy.qaComments}</p>
+                            </div>
+                            <p className="mt-3 text-xs text-orange-600">
+                              Please review and re-classify this study based on the QA feedback.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Classification Actions - Primary Feature for Triage */}
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
                       <h4 className="font-semibold text-gray-900 mb-4 flex items-center">

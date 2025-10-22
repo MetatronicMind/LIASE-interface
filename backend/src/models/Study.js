@@ -244,17 +244,21 @@ class Study {
       throw new Error('Rejection reason is required');
     }
     
+    const previousTag = this.userTag;
     this.qaApprovalStatus = 'rejected';
     this.qaRejectedBy = userId;
     this.qaRejectedAt = new Date().toISOString();
     this.qaComments = reason;
     this.updatedAt = new Date().toISOString();
     
+    // Clear the userTag so the study goes back to Triage for re-classification
+    this.userTag = null;
+    
     // Add rejection comment
     this.addComment({
       userId,
       userName,
-      text: `Classification "${this.userTag}" rejected by QA. Reason: ${reason}`,
+      text: `Classification "${previousTag}" rejected by QA. Reason: ${reason}. Study returned to Triage for re-classification.`,
       type: 'qa_rejection'
     });
   }
