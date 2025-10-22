@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -158,9 +159,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className={`fixed z-40 top-0 left-0 h-full w-64 flex flex-col py-8 px-4 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} bg-[#1856a5] shadow-2xl`}
         style={{ minWidth: '16rem', boxShadow: '0 8px 32px 0 rgba(37,99,235,0.18), 0 1.5px 8px 0 rgba(0,0,0,0.08)' }}
       >
-        <div className="mb-10 text-center">
-          <span
-            className="inline-block px-6 py-3 text-2xl font-black tracking-widest text-white drop-shadow shadow rounded-xl"
+        <div className="mb-10 text-center flex justify-center">
+          <div
+            className="inline-block px-4 py-3 rounded-xl"
             style={{
               background: 'linear-gradient(120deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)',
               boxShadow: '0 4px 24px 0 rgba(255,255,255,0.10), 0 1.5px 8px 0 rgba(0,0,0,0.08)',
@@ -170,8 +171,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               WebkitBoxShadow: '0 4px 24px 0 rgba(255,255,255,0.10), 0 1.5px 8px 0 rgba(0,0,0,0.08)'
             }}
           >
-            LIASE
-          </span>
+            <Image 
+              src="/logo_black.svg" 
+              alt="LIASE Logo" 
+              width={140} 
+              height={60}
+              priority
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
+          </div>
         </div>
         <nav className="flex-1">
           <ul className="space-y-2">
