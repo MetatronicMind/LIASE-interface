@@ -4,6 +4,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
 import { useSearchParams, useRouter } from "next/navigation";
 
+interface FieldComment {
+  id: string;
+  fieldKey: string;
+  comment: string;
+  userId: string;
+  userName: string;
+  createdAt: string;
+}
+
 interface Study {
   id: string;
   pmid: string;
@@ -14,6 +23,10 @@ interface Study {
   r3FormStatus: string;
   r3FormData?: any;
   createdAt: string;
+  fieldComments?: FieldComment[];
+  revokedBy?: string;
+  revokedAt?: string;
+  revocationReason?: string;
   // Additional study fields from backend
   authors?: string[] | string;
   journal?: string;
@@ -149,6 +162,12 @@ export default function R3FormPage() {
   const [loadingAIData, setLoadingAIData] = useState(false);
   const [savingForm, setSavingForm] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Helper function to get field comments for a specific field
+  const getFieldComments = (fieldKey: string): FieldComment[] => {
+    if (!study?.fieldComments) return [];
+    return study.fieldComments.filter(comment => comment.fieldKey === fieldKey);
+  };
 
   useEffect(() => {
     if (!studyId) {
@@ -636,6 +655,34 @@ export default function R3FormPage() {
         {/* Form Content */}
         <div className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto">
+            {/* Revocation Notice - Shows if study was previously revoked */}
+            {study?.revokedBy && study?.revocationReason && (
+              <div className="mb-6 bg-orange-50 border-l-4 border-orange-400 rounded-r-lg p-4">
+                <div className="flex items-start">
+                  <svg className="h-5 w-5 text-orange-400 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-orange-900 mb-1">
+                      ⚠️ Study Revoked by Medical Examiner
+                    </h3>
+                    <p className="text-xs text-orange-800 mb-2">
+                      This study was revoked and sent back for corrections. Please address the issues mentioned below.
+                    </p>
+                    <div className="bg-orange-100 rounded p-3 mt-2">
+                      <p className="text-xs text-orange-900 font-semibold">Revocation Reason:</p>
+                      <p className="text-sm text-orange-800 mt-1">{study.revocationReason}</p>
+                      {study.revokedAt && (
+                        <p className="text-xs text-orange-700 mt-2">
+                          Revoked on: {new Date(study.revokedAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               {/* Reporter Information Section */}
               <div className="mb-8">
@@ -646,6 +693,7 @@ export default function R3FormPage() {
                 <div className="grid gap-6">
                   {R3_FORM_FIELDS.filter(field => field.section === 'reporter' && !field.isHeader).map((field) => {
                     const isPrefilled = isFieldPrefilled(field.key);
+                    const fieldComments = getFieldComments(field.key);
                     
                     return (
                       <div key={field.key} className="space-y-2">
@@ -656,11 +704,33 @@ export default function R3FormPage() {
                             (Category: {field.category})
                           </span>
                         </label>
+                        
+                        {/* Medical Examiner Comments */}
+                        {fieldComments.length > 0 && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
+                            <div className="flex items-center text-yellow-800">
+                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                              </svg>
+                              <span className="text-sm font-semibold">Medical Examiner Comments:</span>
+                            </div>
+                            {fieldComments.map((comment) => (
+                              <div key={comment.id} className="bg-yellow-100 rounded p-2">
+                                <p className="text-sm text-yellow-900">{comment.comment}</p>
+                                <p className="text-xs text-yellow-700 mt-1">
+                                  By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
                         <textarea
                           value={getFieldValue(field.key)}
                           onChange={(e) => handleFormChange(field.key, e.target.value)}
                           className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
                             ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                            ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
                           `}
                           rows={field.key === 'C.4.r.1' ? 3 : 2}
                           placeholder="Auto-filled from PubMed/study data - editable"
@@ -685,6 +755,7 @@ export default function R3FormPage() {
                 <div className="grid gap-6">
                   {R3_FORM_FIELDS.filter(field => field.section === 'patient' && !field.isHeader).map((field) => {
                     const isPrefilled = isFieldPrefilled(field.key);
+                    const fieldComments = getFieldComments(field.key);
                     
                     return (
                       <div key={field.key} className="space-y-2">
@@ -695,11 +766,33 @@ export default function R3FormPage() {
                             (Category: {field.category})
                           </span>
                         </label>
+                        
+                        {/* Medical Examiner Comments */}
+                        {fieldComments.length > 0 && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
+                            <div className="flex items-center text-yellow-800">
+                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                              </svg>
+                              <span className="text-sm font-semibold">Medical Examiner Comments:</span>
+                            </div>
+                            {fieldComments.map((comment) => (
+                              <div key={comment.id} className="bg-yellow-100 rounded p-2">
+                                <p className="text-sm text-yellow-900">{comment.comment}</p>
+                                <p className="text-xs text-yellow-700 mt-1">
+                                  By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
                         <textarea
                           value={getFieldValue(field.key)}
                           onChange={(e) => handleFormChange(field.key, e.target.value)}
                           className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
                             ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                            ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
                           `}
                           rows={field.key.includes('D.7.1.r') ? 4 : 2}
                           placeholder="Enter value here..."
@@ -724,6 +817,7 @@ export default function R3FormPage() {
                 <div className="grid gap-6">
                   {R3_FORM_FIELDS.filter(field => field.section === 'reaction').map((field) => {
                     const isPrefilled = isFieldPrefilled(field.key);
+                    const fieldComments = getFieldComments(field.key);
                     
                     return (
                       <div key={field.key} className="space-y-2">
@@ -734,12 +828,34 @@ export default function R3FormPage() {
                             (Category: {field.category})
                           </span>
                         </label>
+                        
+                        {/* Medical Examiner Comments */}
+                        {fieldComments.length > 0 && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
+                            <div className="flex items-center text-yellow-800">
+                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                              </svg>
+                              <span className="text-sm font-semibold">Medical Examiner Comments:</span>
+                            </div>
+                            {fieldComments.map((comment) => (
+                              <div key={comment.id} className="bg-yellow-100 rounded p-2">
+                                <p className="text-sm text-yellow-900">{comment.comment}</p>
+                                <p className="text-xs text-yellow-700 mt-1">
+                                  By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
                         {field.key.startsWith('E.i.3.2') ? (
                           <select
                             value={getFieldValue(field.key)}
                             onChange={(e) => handleFormChange(field.key, e.target.value)}
                             className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black
                               ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                              ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
                             `}
                           >
                             <option value="">Select...</option>
@@ -752,6 +868,7 @@ export default function R3FormPage() {
                             onChange={(e) => handleFormChange(field.key, e.target.value)}
                             className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
                               ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                              ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
                             `}
                             rows={2}
                             placeholder="Enter value here..."

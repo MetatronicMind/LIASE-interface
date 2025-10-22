@@ -65,18 +65,47 @@ interface FieldComment {
 }
 
 const R3_FORM_FIELDS = [
+  // Reporter Information (Category A)
   { key: "C.2.r.1", label: "Reporter's Name", category: "A" },
+  { key: "C.2.r.1.1", label: "Reporter's Title", category: "A" },
   { key: "C.2.r.1.2", label: "Reporter's Given Name", category: "A" },
+  { key: "C.2.r.1.3", label: "Reporter's Middle Name", category: "A" },
   { key: "C.2.r.1.4", label: "Reporter's Family Name", category: "A" },
   { key: "C.2.r.2.1", label: "Reporter's Organisation", category: "A" },
-  { key: "C.4.r.1", label: "Literature Reference", category: "B" },
-  { key: "D.1", label: "Patient Initial", category: "B" },
-  { key: "D.2.1", label: "Patient Age", category: "B" },
+  { key: "C.4.r.1", label: "Literature Reference(s)", category: "A" },
+  
+  // Patient Characteristics (Category B & C)
+  { key: "D.1", label: "Patient (name or initials)", category: "C" },
+  { key: "D.2.1", label: "Date of Birth", category: "C" },
+  { key: "D.2.2", label: "Age at Time of Onset of Reaction / Event", category: "C" },
+  { key: "D.2.2a", label: "Age at Time of Onset of Reaction / Event (number)", category: "B" },
+  { key: "D.2.2b", label: "Age at Time of Onset of Reaction / Event (unit)", category: "B" },
+  { key: "D.2.2.1a", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (number)", category: "C" },
+  { key: "D.2.2.1b", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (unit)", category: "B" },
+  { key: "D.2.3", label: "Patient Age Group (as per reporter)", category: "C" },
+  { key: "D.3", label: "Body Weight (kg)", category: "C" },
+  { key: "D.4", label: "Height (cm)", category: "C" },
   { key: "D.5", label: "Sex", category: "C" },
-  { key: "E.i.1.1a", label: "Reaction/Event", category: "C" },
+  { key: "D.7", label: "Relevant Medical History and Concurrent Conditions", category: "C" },
+  { key: "D.7.1.r", label: "Structured Information - Patient History", category: "C" },
+  { key: "D.7.1.r.2", label: "Start Date of Medical History", category: "C" },
+  { key: "D.7.1.r.3", label: "Continuing Medical History", category: "C" },
+  { key: "D.7.1.r.4", label: "End Date of Medical History", category: "C" },
+  { key: "D.7.3", label: "Structured Information Available", category: "C" },
+  { key: "D.9.1", label: "Case Death", category: "C" },
+  { key: "D.9.2.r", label: "Death Details", category: "C" },
+  
+  // Reaction/Event Information (Category E)
+  { key: "E.i.1.1a", label: "Reaction/Event (MedDRA terminology)", category: "C" },
   { key: "E.i.3.2a", label: "Outcome - Recovered/Resolved", category: "C" },
-  { key: "E.i.3.2c", label: "Outcome - Not Recovered", category: "C" },
-  { key: "E.i.3.2e", label: "Outcome - Fatal", category: "C" }
+  { key: "E.i.3.2b", label: "Outcome - Recovering/Resolving", category: "C" },
+  { key: "E.i.3.2c", label: "Outcome - Not Recovered/Not Resolved", category: "C" },
+  { key: "E.i.3.2d", label: "Outcome - Recovered/Resolved with Sequelae", category: "C" },
+  { key: "E.i.3.2e", label: "Outcome - Fatal", category: "C" },
+  { key: "E.i.3.2f", label: "Outcome - Unknown", category: "C" },
+  { key: "E.i.4", label: "Date of Start of Reaction/Event", category: "C" },
+  { key: "E.i.5", label: "Date of End of Reaction/Event", category: "C" },
+  { key: "E.i.7", label: "Medical Confirmation by Healthcare Professional", category: "C" },
 ];
 
 export default function MedicalExaminerPage() {
@@ -682,6 +711,107 @@ export default function MedicalExaminerPage() {
                           );
                         })}
                       </div>
+                      
+                      {/* Additional Fields - Show all other fields that exist in r3FormData but not in predefined list */}
+                      {selectedStudy.r3FormData && Object.keys(selectedStudy.r3FormData).filter(key => 
+                        !R3_FORM_FIELDS.some(field => field.key === key) && selectedStudy.r3FormData?.[key]
+                      ).length > 0 && (
+                        <div className="mt-6">
+                          <h4 className="text-md font-semibold text-gray-800 mb-3 border-t pt-4">Additional R3 Fields</h4>
+                          <div className="space-y-3">
+                            {Object.keys(selectedStudy.r3FormData)
+                              .filter(key => !R3_FORM_FIELDS.some(field => field.key === key) && selectedStudy.r3FormData?.[key])
+                              .sort()
+                              .map((fieldKey) => {
+                                const value = selectedStudy.r3FormData?.[fieldKey] || '';
+                                const comments = getFieldComments(fieldKey);
+                                const isEditing = editingField === fieldKey;
+
+                                return (
+                                  <div key={fieldKey} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div className="flex-1">
+                                        <h4 className="text-sm font-medium text-gray-900">{fieldKey}</h4>
+                                      </div>
+                                      <div className="flex space-x-2">
+                                        <PermissionGate resource="medical_examiner" action="comment_fields">
+                                          <button
+                                            onClick={() => {
+                                              setCommentingField(fieldKey);
+                                              setShowCommentModal(true);
+                                            }}
+                                            className="text-blue-600 hover:text-blue-800 text-xs"
+                                          >
+                                            Comment
+                                          </button>
+                                        </PermissionGate>
+                                        <PermissionGate resource="medical_examiner" action="edit_fields">
+                                          <button
+                                            onClick={() => {
+                                              setEditingField(fieldKey);
+                                              setFieldValue(value);
+                                            }}
+                                            className="text-green-600 hover:text-green-800 text-xs"
+                                          >
+                                            Edit
+                                          </button>
+                                        </PermissionGate>
+                                      </div>
+                                    </div>
+
+                                    <div className="mb-2">
+                                      {isEditing ? (
+                                        <div className="space-y-2">
+                                          <input
+                                            type="text"
+                                            value={fieldValue}
+                                            onChange={(e) => setFieldValue(e.target.value)}
+                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                          />
+                                          <div className="flex space-x-2">
+                                            <button
+                                              onClick={() => updateFieldValue(fieldKey, fieldValue)}
+                                              className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                            >
+                                              Save
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                setEditingField(null);
+                                                setFieldValue('');
+                                              }}
+                                              className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-gray-800 bg-white p-2 rounded border border-gray-200">
+                                          {value || 'No value entered'}
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    {comments.length > 0 && (
+                                      <div className="space-y-1">
+                                        <p className="text-xs font-medium text-gray-700">Comments:</p>
+                                        {comments.map((comment) => (
+                                          <div key={comment.id} className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                                            <p className="text-xs text-gray-800">{comment.comment}</p>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                              By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                            </p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Action Buttons */}
