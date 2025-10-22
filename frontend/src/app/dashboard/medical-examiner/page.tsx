@@ -554,7 +554,7 @@ export default function MedicalExaminerPage() {
                             </div>
                           )}
                           
-                          {selectedStudy.keyEvents && selectedStudy.keyEvents.length > 0 && (
+                          {selectedStudy.keyEvents && Array.isArray(selectedStudy.keyEvents) && selectedStudy.keyEvents.length > 0 && (
                             <div className="pt-2 border-t border-gray-200">
                               <span className="font-medium text-gray-700 text-sm">Key Events:</span>
                               <ul className="list-disc list-inside text-sm text-gray-800 mt-1 space-y-1">
@@ -565,7 +565,7 @@ export default function MedicalExaminerPage() {
                             </div>
                           )}
                           
-                          {selectedStudy.administeredDrugs && selectedStudy.administeredDrugs.length > 0 && (
+                          {selectedStudy.administeredDrugs && Array.isArray(selectedStudy.administeredDrugs) && selectedStudy.administeredDrugs.length > 0 && (
                             <div className="pt-2 border-t border-gray-200">
                               <span className="font-medium text-gray-700 text-sm">Administered Drugs:</span>
                               <p className="text-sm text-gray-800 mt-1">{selectedStudy.administeredDrugs.join(', ')}</p>
