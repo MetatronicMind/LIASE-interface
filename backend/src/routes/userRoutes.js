@@ -198,6 +198,7 @@ router.delete('/:userId',
   async (req, res) => {
     try {
       const { userId } = req.params;
+      const { hardDelete } = req.query; // Optional query param: ?hardDelete=true
 
       // Prevent deleting self
       if (userId === req.user.id) {
@@ -206,18 +207,24 @@ router.delete('/:userId',
         });
       }
 
-      // Delete user using service
-      const deletedUser = await userService.deleteUser(userId, req.user.organizationId, req.user);
+      // Delete user using service (soft delete by default, hard delete if requested)
+      const deletedUser = await userService.deleteUser(
+        userId, 
+        req.user.organizationId, 
+        req.user,
+        hardDelete === 'true'
+      );
 
       // Create audit log
       await auditAction(req, 'DELETE', 'user', userId, {
         username: deletedUser.username,
         email: deletedUser.email,
-        role: deletedUser.role
+        role: deletedUser.role,
+        hardDelete: hardDelete === 'true'
       });
 
       res.json({
-        message: 'User deleted successfully'
+        message: hardDelete === 'true' ? 'User permanently deleted' : 'User deleted successfully'
       });
 
     } catch (error) {

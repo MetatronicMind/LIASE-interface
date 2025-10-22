@@ -232,8 +232,8 @@ class UserService {
     }
   }
 
-  // Delete a user (soft delete)
-  async deleteUser(userId, organizationId, deletedBy) {
+  // Delete a user (soft delete by default, set hardDelete=true for permanent deletion)
+  async deleteUser(userId, organizationId, deletedBy, hardDelete = false) {
     try {
       const existingUser = await this.getUserById(userId, organizationId);
       if (!existingUser) {
@@ -245,16 +245,23 @@ class UserService {
         throw new Error('Cannot delete superadmin users');
       }
 
-      const deletedUser = new User({
-        ...existingUser.toJSON(),
-        isActive: false,
-        updatedAt: new Date().toISOString(),
-        deletedAt: new Date().toISOString(),
-        deletedBy: deletedBy.id
-      });
+      if (hardDelete) {
+        // Permanently delete from database
+        await cosmosService.deleteItem('users', userId, organizationId);
+        return { ...existingUser.toJSON(), deleted: true };
+      } else {
+        // Soft delete - mark as inactive
+        const deletedUser = new User({
+          ...existingUser.toJSON(),
+          isActive: false,
+          updatedAt: new Date().toISOString(),
+          deletedAt: new Date().toISOString(),
+          deletedBy: deletedBy.id
+        });
 
-      await cosmosService.updateItem('users', userId, organizationId, deletedUser.toJSON());
-      return deletedUser;
+        await cosmosService.updateItem('users', userId, organizationId, deletedUser.toJSON());
+        return deletedUser;
+      }
     } catch (error) {
       console.error('Error deleting user:', error);
       throw error;

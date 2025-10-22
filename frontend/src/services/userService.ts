@@ -118,8 +118,12 @@ class UserService {
     return response.json();
   }
 
-  async deleteUser(userId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+  async deleteUser(userId: string, hardDelete: boolean = false): Promise<void> {
+    const url = hardDelete 
+      ? `${API_BASE_URL}/users/${userId}?hardDelete=true`
+      : `${API_BASE_URL}/users/${userId}`;
+      
+    const response = await fetch(url, {
       method: 'DELETE',
       headers: this.getAuthHeaders()
     });

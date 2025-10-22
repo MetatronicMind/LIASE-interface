@@ -49,12 +49,32 @@ export default function UserManagementPage() {
   };
 
   const handleDeleteUser = async (userId: string, username: string) => {
-    if (!confirm(`Are you sure you want to delete user "${username}"?`)) {
-      return;
+    // First confirmation - soft or hard delete
+    const deleteType = confirm(
+      `Delete user "${username}"?\n\n` +
+      `Click OK for SOFT DELETE (recommended - can be recovered)\n` +
+      `Click Cancel to choose PERMANENT DELETE`
+    );
+
+    let hardDelete = false;
+    
+    if (!deleteType) {
+      // User clicked Cancel - ask if they want permanent deletion
+      const confirmPermanent = confirm(
+        `⚠️ PERMANENT DELETION ⚠️\n\n` +
+        `This will PERMANENTLY delete "${username}" from the database.\n` +
+        `This action CANNOT be undone!\n\n` +
+        `Are you absolutely sure you want to permanently delete this user?`
+      );
+      
+      if (!confirmPermanent) {
+        return; // User cancelled
+      }
+      hardDelete = true;
     }
 
     try {
-      await userService.deleteUser(userId);
+      await userService.deleteUser(userId, hardDelete);
       await fetchUsers();
       setError(null);
     } catch (err: any) {
