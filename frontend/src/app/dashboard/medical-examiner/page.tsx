@@ -20,6 +20,11 @@ interface Study {
   createdAt: string;
   updatedAt: string;
   
+  // Revocation tracking
+  revokedBy?: string;
+  revokedAt?: string;
+  revocationReason?: string;
+  
   // Additional fields from Triage/AI Inference
   abstract?: string;
   publicationDate?: string;
@@ -363,11 +368,18 @@ export default function MedicalExaminerPage() {
                           <p className="text-xs text-gray-600 mb-1">
                             Drug: {study.drugName} | Event: {study.adverseEvent}
                           </p>
-                          {study.r3FormCompletedAt && (
-                            <p className="text-xs text-green-600">
-                              R3 Form completed: {new Date(study.r3FormCompletedAt).toLocaleDateString()}
-                            </p>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {study.r3FormCompletedAt && (
+                              <p className="text-xs text-green-600">
+                                R3 Form completed: {new Date(study.r3FormCompletedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                            {study.revokedBy && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-300">
+                                ↻ Resubmitted
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -386,6 +398,36 @@ export default function MedicalExaminerPage() {
                   </div>
 
                   <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                    {/* Resubmission Notice - Shows if study was previously revoked */}
+                    {selectedStudy.revokedBy && selectedStudy.revocationReason && (
+                      <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-lg p-4">
+                        <div className="flex items-start">
+                          <svg className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                              ↻ Resubmitted After Revocation
+                            </h3>
+                            <p className="text-xs text-blue-800 mb-2">
+                              This study was previously revoked and has been corrected by Data Entry. Please review the updates.
+                            </p>
+                            <div className="bg-blue-100 rounded p-2 mt-2">
+                              <p className="text-xs text-blue-900">
+                                <strong>Previous Revocation Reason:</strong>
+                              </p>
+                              <p className="text-xs text-blue-800 mt-1">{selectedStudy.revocationReason}</p>
+                              {selectedStudy.revokedAt && (
+                                <p className="text-xs text-blue-700 mt-1">
+                                  Revoked on: {new Date(selectedStudy.revokedAt).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Comprehensive Study Information */}
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 mb-3">Study Details</h3>

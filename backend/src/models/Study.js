@@ -339,6 +339,16 @@ class Study {
     this.medicalReviewedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     
+    // Check if this was a resubmission after revocation
+    const wasResubmitted = this.revokedBy !== null && this.revokedBy !== undefined;
+    
+    // Clear revocation tracking since study is now approved
+    if (wasResubmitted) {
+      this.revokedBy = null;
+      this.revokedAt = null;
+      this.revocationReason = null;
+    }
+    
     // Add completion comment
     this.addComment({
       userId,
@@ -371,6 +381,31 @@ class Study {
     this.r3FormCompletedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     
+    // Check if this study was previously revoked by Medical Examiner
+    const wasRevoked = this.revokedBy !== null && this.revokedBy !== undefined;
+    
+    // If the study was revoked, ensure it goes back to Medical Examiner for re-approval
+    if (wasRevoked) {
+      // Keep medicalReviewStatus as 'not_started' so it appears in Medical Examiner queue
+      this.medicalReviewStatus = 'not_started';
+      
+      // Add comment indicating resubmission after revocation
+      this.addComment({
+        userId,
+        userName,
+        text: 'R3 form completed and resubmitted after Medical Examiner revocation. Awaiting medical re-review.',
+        type: 'resubmission'
+      });
+    } else {
+      // First-time completion - add standard completion comment
+      this.addComment({
+        userId,
+        userName,
+        text: 'R3 form completed. Ready for Medical Examiner review.',
+        type: 'system'
+      });
+    }
+    
     // Auto-tag as ICSR if not already tagged
     if (!this.userTag || this.userTag !== 'ICSR') {
       const previousTag = this.userTag;
@@ -384,14 +419,6 @@ class Study {
         type: 'system'
       });
     }
-    
-    // Add completion comment
-    this.addComment({
-      userId,
-      userName,
-      text: 'R3 form completed',
-      type: 'system'
-    });
   }
 
   getEffectiveClassification() {
