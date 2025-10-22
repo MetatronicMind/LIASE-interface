@@ -679,10 +679,10 @@ router.get('/search-configs',
       console.log('GET /search-configs - Starting request');
       const { page = 1, limit = 50, active = 'all' } = req.query;
       
-      // Build query filter
+      // Build query filter - organization-wide, not user-specific
       let filter = {
-        organizationId: req.user.organizationId,
-        userId: req.user.id
+        organizationId: req.user.organizationId
+        // Removed userId filter - configs should be visible to all users in the organization
       };
       
       console.log('Query filter:', filter);
@@ -696,10 +696,9 @@ router.get('/search-configs',
       console.log('Final filter:', filter);
       
       // Build SQL query
-      let queryParts = ['SELECT * FROM c WHERE c.organizationId = @organizationId AND c.userId = @userId'];
+      let queryParts = ['SELECT * FROM c WHERE c.organizationId = @organizationId'];
       let parameters = [
-        { name: '@organizationId', value: filter.organizationId },
-        { name: '@userId', value: filter.userId }
+        { name: '@organizationId', value: filter.organizationId }
       ];
       
       if (filter.hasOwnProperty('isActive')) {
@@ -883,8 +882,12 @@ router.post('/search-configs/:configId/run',
         });
       }
       
-      // Verify user owns this config
-      if (config.userId !== req.user.id) {
+      // Allow access if user is admin/superadmin OR owns the config
+      const isAdminOrOwner = req.user.role === 'admin' || 
+                            req.user.role === 'superadmin' || 
+                            config.userId === req.user.id;
+      
+      if (!isAdminOrOwner) {
         return res.status(403).json({
           error: 'Access denied to this configuration'
         });
@@ -986,12 +989,8 @@ router.get('/search-configs/:configId',
         });
       }
       
-      // Verify user owns this config
-      if (config.userId !== req.user.id) {
-        return res.status(403).json({
-          error: 'Access denied to this configuration'
-        });
-      }
+      // Allow read access to all users in the organization (no ownership check for GET)
+      // Users can view all configs in their org, but can only modify their own (unless admin)
       
       const configObject = DrugSearchConfig.fromObject(config);
       res.json(configObject.toObject());
@@ -1033,8 +1032,12 @@ router.put('/search-configs/:configId',
         });
       }
       
-      // Verify user owns this config
-      if (existingConfig.userId !== req.user.id) {
+      // Allow modification if user is admin/superadmin OR owns the config
+      const isAdminOrOwner = req.user.role === 'admin' || 
+                            req.user.role === 'superadmin' || 
+                            existingConfig.userId === req.user.id;
+      
+      if (!isAdminOrOwner) {
         return res.status(403).json({
           error: 'Access denied to this configuration'
         });
@@ -1116,8 +1119,12 @@ router.delete('/search-configs/:configId',
         });
       }
       
-      // Verify user owns this config
-      if (existingConfig.userId !== req.user.id) {
+      // Allow deletion if user is admin/superadmin OR owns the config
+      const isAdminOrOwner = req.user.role === 'admin' || 
+                            req.user.role === 'superadmin' || 
+                            existingConfig.userId === req.user.id;
+      
+      if (!isAdminOrOwner) {
         return res.status(403).json({
           error: 'Access denied to this configuration'
         });
