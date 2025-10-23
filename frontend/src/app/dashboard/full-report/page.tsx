@@ -453,10 +453,12 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
     
     // Publication info
     if (selectedStudy.authors) {
-      csvData.push(['Study', 'Study.Authors', 'Authors', 'Study', 
-        Array.isArray(selectedStudy.authors) ? selectedStudy.authors.join('; ') : selectedStudy.authors]);
+      const authorsStr = Array.isArray(selectedStudy.authors) 
+        ? selectedStudy.authors.join('; ') 
+        : (typeof selectedStudy.authors === 'string' ? selectedStudy.authors : String(selectedStudy.authors || ''));
+      csvData.push(['Study', 'Study.Authors', 'Authors', 'Study', authorsStr]);
     }
-    if (selectedStudy.journal) csvData.push(['Study', 'Study.Journal', 'Journal', 'Study', selectedStudy.journal]);
+    if (selectedStudy.journal) csvData.push(['Study', 'Study.Journal', 'Journal', 'Study', selectedStudy.journal || '']);
     if (selectedStudy.publicationDate) csvData.push(['Study', 'Study.PublicationDate', 'Publication Date', 'Study', selectedStudy.publicationDate]);
     if (selectedStudy.abstract) csvData.push(['Study', 'Study.Abstract', 'Abstract', 'Study', selectedStudy.abstract]);
     
@@ -544,7 +546,12 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
     // Helper function to safely escape CSV cells
     const escapeCSVCell = (cell: any): string => {
       if (cell === null || cell === undefined) return '';
-      const str = String(cell);
+      // Handle arrays by joining them
+      if (Array.isArray(cell)) {
+        cell = cell.join('; ');
+      }
+      // Convert to string safely
+      const str = typeof cell === 'string' ? cell : String(cell);
       // Escape double quotes and wrap in quotes if contains comma, newline, or quote
       if (str.includes(',') || str.includes('\n') || str.includes('"') || str.includes('\r')) {
         return `"${str.replace(/"/g, '""')}"`;
