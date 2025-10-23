@@ -9,6 +9,7 @@ import {
   CubeIcon
 } from "@heroicons/react/24/outline";
 import { API_CONFIG } from "@/config/api";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Stats {
   total: number;
@@ -29,6 +30,7 @@ interface AuditLog {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [processing, setProcessing] = useState(false);
   const [stats, setStats] = useState<Stats>({
     total: 0,
@@ -40,7 +42,6 @@ export default function DashboardPage() {
   });
   const [recentActivity, setRecentActivity] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("User");
 
   useEffect(() => {
     fetchDashboardData();
@@ -55,16 +56,6 @@ export default function DashboardPage() {
         console.error("No token found");
         setLoading(false);
         return;
-      }
-
-      // Get user info from token
-      try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(window.atob(base64));
-        setUserName(payload.name || payload.username || "User");
-      } catch (e) {
-        console.error("Error decoding token:", e);
       }
 
       const headers = {
@@ -143,7 +134,7 @@ export default function DashboardPage() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Dashboard</h1>
-          <p className="text-gray-600">Hello, {userName}</p>
+          <p className="text-gray-600">Hello, {user?.firstName || "User"}</p>
         </div>
 
         {loading ? (
