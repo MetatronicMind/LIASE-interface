@@ -255,26 +255,36 @@ export default function ReportsPage() {
       'Updated At',
     ];
 
-    const rows = studiesToExport.map(study => [
-      study.pmid || '',
-      `"${(study.title || '').replace(/"/g, '""')}"`,
-      study.drugName || '',
-      study.adverseEvent || '',
-      study.userTag || study.effectiveClassification || 'Unclassified',
-      study.status || '',
-      study.qaApprovalStatus || '',
-      study.r3FormStatus || '',
-      study.medicalReviewStatus || '',
-      study.serious ? 'Yes' : 'No',
-      `"${(study.authors || '').replace(/"/g, '""')}"`,
-      study.journal || '',
-      study.publicationDate || '',
-      study.countryOfFirstAuthor || '',
-      study.countryOfOccurrence || '',
-      study.substanceGroup || '',
-      new Date(study.createdAt).toLocaleString(),
-      new Date(study.updatedAt).toLocaleString(),
-    ]);
+    const rows = studiesToExport.map(study => {
+      // Handle authors field - could be string or array
+      let authorsStr = '';
+      if (Array.isArray(study.authors)) {
+        authorsStr = study.authors.join('; ');
+      } else if (typeof study.authors === 'string') {
+        authorsStr = study.authors;
+      }
+      
+      return [
+        study.pmid || '',
+        `"${(study.title || '').replace(/"/g, '""')}"`,
+        study.drugName || '',
+        study.adverseEvent || '',
+        study.userTag || study.effectiveClassification || 'Unclassified',
+        study.status || '',
+        study.qaApprovalStatus || '',
+        study.r3FormStatus || '',
+        study.medicalReviewStatus || '',
+        study.serious ? 'Yes' : 'No',
+        `"${authorsStr.replace(/"/g, '""')}"`,
+        study.journal || '',
+        study.publicationDate || '',
+        study.countryOfFirstAuthor || '',
+        study.countryOfOccurrence || '',
+        study.substanceGroup || '',
+        new Date(study.createdAt).toLocaleString(),
+        new Date(study.updatedAt).toLocaleString(),
+      ];
+    });
 
     const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
