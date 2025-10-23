@@ -439,13 +439,20 @@ export default function R3FormPage() {
       setSavingForm(true);
       const token = localStorage.getItem("auth_token");
 
+      // Merge prefilled data with manually entered data
+      // Manually entered data (r3FormData) takes priority over prefilled data
+      const completeFormData = {
+        ...prefilledData,  // First, include all prefilled data from API
+        ...r3FormData      // Then override with any manually entered data
+      };
+
       const response = await fetch(`${getApiBaseUrl()}/studies/${study.id}/r3-form`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ formData: r3FormData }),
+        body: JSON.stringify({ formData: completeFormData }),
       });
 
       if (response.ok) {
@@ -468,14 +475,21 @@ export default function R3FormPage() {
       setSavingForm(true);
       const token = localStorage.getItem("auth_token");
 
-      // First save the current form data
+      // Merge prefilled data with manually entered data
+      // Manually entered data (r3FormData) takes priority over prefilled data
+      const completeFormData = {
+        ...prefilledData,  // First, include all prefilled data from API
+        ...r3FormData      // Then override with any manually entered data
+      };
+
+      // First save the complete form data (including prefilled data)
       await fetch(`${getApiBaseUrl()}/studies/${study.id}/r3-form`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ formData: r3FormData }),
+        body: JSON.stringify({ formData: completeFormData }),
       });
 
       // Then mark as completed
