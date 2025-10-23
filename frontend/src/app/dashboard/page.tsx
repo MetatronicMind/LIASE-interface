@@ -142,15 +142,8 @@ export default function DashboardPage() {
     <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-white min-h-screen p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <Image 
-            src="/logo_black.svg" 
-            alt="LIASE Logo" 
-            width={200} 
-            height={80} 
-            className="mb-2"
-            priority
-          />
-          <div className="text-blue-700 font-medium">Welcome back, {userName}</div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Dashboard</h1>
+          <p className="text-gray-600">Hello, {userName}</p>
         </div>
 
         {loading ? (
