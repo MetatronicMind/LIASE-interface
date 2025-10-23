@@ -172,12 +172,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             }}
           >
             <Image 
-              src="/logo_black.svg" 
+              src="/logo_white.png" 
               alt="LIASE Logo" 
               width={140} 
               height={60}
               priority
-              style={{ filter: 'brightness(0) invert(1)' }}
             />
           </div>
         </div>
@@ -223,11 +222,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            {!sidebarOpen && (
-              <div className="flex items-center justify-center text-white font-black text-xl tracking-widest">
-                LIASE
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-4">
             <button className="bg-blue-700/40 rounded-full p-2 text-white hover:bg-blue-800/60 transition">
