@@ -63,7 +63,7 @@ export default function LoginPage() {
           <div className="text-center mb-10">
             <div className="flex justify-center mb-4">
               <Image 
-                src="/logo_white.png" 
+                src="/logo_black.png" 
                 alt="LIASE Logo" 
                 width={180} 
                 height={72}
