@@ -541,11 +541,25 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
         ? Math.round((Object.keys(selectedStudy.r3FormData).length / R3_FORM_FIELDS.length) * 100).toString()
         : '0']);
 
+    // Helper function to safely escape CSV cells
+    const escapeCSVCell = (cell: any): string => {
+      if (cell === null || cell === undefined) return '';
+      const str = String(cell);
+      // Escape double quotes and wrap in quotes if contains comma, newline, or quote
+      if (str.includes(',') || str.includes('\n') || str.includes('"') || str.includes('\r')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Generate CSV content with proper escaping
     const csvContent = csvData.map(row => 
-      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+      row.map(cell => escapeCSVCell(cell)).join(',')
     ).join('\n');
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    // Add BOM for Excel compatibility
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
