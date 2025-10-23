@@ -3,6 +3,7 @@ import "./login.css";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
@@ -60,7 +61,16 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <form onSubmit={handleSubmit} className="bg-white p-14 rounded-3xl shadow-[0_8px_32px_0_rgba(37,99,235,0.18)] border border-blue-100 w-full max-w-md">
           <div className="text-center mb-10">
-            <h1 className="text-5xl font-black text-primary mb-2 tracking-wider drop-shadow-sm">LIASE</h1>
+            <div className="flex justify-center mb-4">
+              <Image 
+                src="/logo_white.png" 
+                alt="LIASE Logo" 
+                width={180} 
+                height={72}
+                priority
+                className="drop-shadow-md"
+              />
+            </div>
             <p className="text-gray-500 text-lg mb-0 font-medium">Literature Automation and Segregation</p>
           </div>
           <div className="mb-7">
