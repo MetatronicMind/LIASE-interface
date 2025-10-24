@@ -41,9 +41,15 @@ const permissionBasedNavItems = [
     permission: { resource: 'triage', action: 'write' } // Requires triage.write permission
   },
   { 
-    name: "QC Review", 
-    href: "/dashboard/QC", 
+    name: "QA Review", 
+    href: "/dashboard/qa", 
     icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'QA', action: 'read' } // Requires QA.read permission
+  },
+  { 
+    name: "QC Review", 
+    href: "/dashboard/qc", 
+    icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'QC', action: 'read' } // Requires QC.read permission
   },
   { 
