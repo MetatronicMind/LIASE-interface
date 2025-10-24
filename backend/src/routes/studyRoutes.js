@@ -973,17 +973,25 @@ router.put('/:id/r3-form',
         return res.status(404).json({ error: 'Study not found' });
       }
 
-      // Capture before value
-      const beforeValue = studyData.r3FormData ? { ...studyData.r3FormData } : null;
+      // Capture before value (deep copy to avoid reference issues)
+      const beforeValue = studyData.r3FormData ? JSON.parse(JSON.stringify(studyData.r3FormData)) : null;
 
       const study = new Study(studyData);
       study.updateR3FormData(formData, req.user.id, req.user.name);
 
-      // Capture after value
-      const afterValue = study.r3FormData ? { ...study.r3FormData } : null;
+      // Capture after value (deep copy to avoid reference issues)
+      const afterValue = study.r3FormData ? JSON.parse(JSON.stringify(study.r3FormData)) : null;
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      // Log changes for debugging
+      console.log('R3 Form Update - Changes detected:', {
+        hasBeforeValue: !!beforeValue,
+        hasAfterValue: !!afterValue,
+        beforeKeys: beforeValue ? Object.keys(beforeValue).length : 0,
+        afterKeys: afterValue ? Object.keys(afterValue).length : 0
+      });
 
       await auditAction(
         req.user,

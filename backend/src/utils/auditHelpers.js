@@ -56,6 +56,7 @@ function extractChanges(before, after, fieldsToTrack = null) {
         });
       }
     });
+    console.log('Extract Changes (creation):', changes.length, 'changes');
     return changes;
   }
 
@@ -72,6 +73,7 @@ function extractChanges(before, after, fieldsToTrack = null) {
         });
       }
     });
+    console.log('Extract Changes (deletion):', changes.length, 'changes');
     return changes;
   }
 
@@ -90,6 +92,7 @@ function extractChanges(before, after, fieldsToTrack = null) {
     }
   });
 
+  console.log('Extract Changes (update):', changes.length, 'changes detected from', keys.length, 'keys');
   return changes;
 }
 
