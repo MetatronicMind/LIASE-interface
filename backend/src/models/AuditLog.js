@@ -14,7 +14,10 @@ class AuditLog {
     userAgent,
     location = null,
     timestamp = new Date().toISOString(),
-    metadata = {}
+    metadata = {},
+    beforeValue = null,
+    afterValue = null,
+    changes = []
   }) {
     this.id = id;
     this.organizationId = organizationId;
@@ -29,6 +32,9 @@ class AuditLog {
     this.location = location; // { country, countryCode, region, city, timezone, isp }
     this.timestamp = timestamp;
     this.metadata = metadata;
+    this.beforeValue = beforeValue; // The value before the change
+    this.afterValue = afterValue; // The value after the change
+    this.changes = changes; // Array of {field, before, after} for detailed field-level changes
     this.type = 'audit-log';
   }
 
@@ -47,6 +53,9 @@ class AuditLog {
       location: this.location,
       timestamp: this.timestamp,
       metadata: this.metadata,
+      beforeValue: this.beforeValue,
+      afterValue: this.afterValue,
+      changes: this.changes,
       type: this.type
     };
   }

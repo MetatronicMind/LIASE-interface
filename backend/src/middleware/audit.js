@@ -1,5 +1,6 @@
 const AuditLog = require('../models/AuditLog');
 const cosmosService = require('../services/cosmosService');
+const { extractChanges, createAuditDescription } = require('../utils/auditHelpers');
 
 const auditLogger = (action, resource) => {
   return async (req, res, next) => {
@@ -45,16 +46,34 @@ const auditLogger = (action, resource) => {
   };
 };
 
-const auditAction = async (user, action, resource, resourceId, details, metadata = {}) => {
+const auditAction = async (user, action, resource, resourceId, details, metadata = {}, beforeValue = null, afterValue = null) => {
   try {
-    const auditLog = AuditLog.createResourceLog(
-      user,
+    // Extract field-level changes if before and after values are provided
+    let changes = [];
+    let enrichedDetails = details;
+
+    if (beforeValue !== null && afterValue !== null) {
+      changes = extractChanges(beforeValue, afterValue);
+      
+      // Enrich details with change information
+      if (changes.length > 0) {
+        enrichedDetails = createAuditDescription(action, resource, resourceId, changes);
+      }
+    }
+
+    const auditLog = new AuditLog({
+      organizationId: user.organizationId,
+      userId: user.id,
+      userName: user.getFullName(),
       action,
       resource,
       resourceId,
-      details,
-      metadata
-    );
+      details: enrichedDetails,
+      metadata,
+      beforeValue,
+      afterValue,
+      changes
+    });
 
     await cosmosService.createItem('audit-logs', auditLog.toJSON());
   } catch (error) {

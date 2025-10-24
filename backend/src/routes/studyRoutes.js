@@ -485,8 +485,12 @@ router.put('/:studyId',
 
       // If userTag is being updated, use the Study model to handle it properly
       if (updates.userTag) {
+        const beforeValue = { userTag: existingStudy.userTag };
+        
         const study = new Study(existingStudy);
         study.updateUserTag(updates.userTag, req.user.id, req.user.name);
+        
+        const afterValue = { userTag: study.userTag };
         
         // Save updated study with qaApprovalStatus set to pending
         const updatedStudy = await cosmosService.updateItem(
@@ -502,7 +506,9 @@ router.put('/:studyId',
           'study',
           studyId,
           `Updated study classification to ${updates.userTag}`,
-          { userTag: updates.userTag }
+          { pmid: study.pmid },
+          beforeValue,
+          afterValue
         );
 
         return res.json({
@@ -512,6 +518,12 @@ router.put('/:studyId',
         });
       }
 
+      // Capture before values for regular updates
+      const beforeValue = {};
+      Object.keys(updates).forEach(key => {
+        beforeValue[key] = existingStudy[key];
+      });
+
       // Regular update for other fields
       const updatedStudy = await cosmosService.updateItem(
         'studies',
@@ -520,6 +532,12 @@ router.put('/:studyId',
         updates
       );
 
+      // Capture after values
+      const afterValue = {};
+      Object.keys(updates).forEach(key => {
+        afterValue[key] = updatedStudy[key];
+      });
+
       // Create audit log
       await auditAction(
         req.user,
@@ -527,7 +545,9 @@ router.put('/:studyId',
         'study',
         studyId,
         `Updated study: PMID ${updatedStudy.pmid}`,
-        { updates: Object.keys(updates) }
+        { updates: Object.keys(updates), pmid: updatedStudy.pmid },
+        beforeValue,
+        afterValue
       );
 
       res.json({
@@ -593,14 +613,16 @@ router.post('/:studyId/comments',
         }
       );
 
-      // Create audit log
+      // Create audit log with comment content
       await auditAction(
         req.user,
         'comment',
         'study',
         studyId,
-        `Added comment to study PMID ${study.pmid}`,
-        { commentType: type }
+        `Added comment to study PMID ${study.pmid}: "${comment}"`,
+        { commentType: type, pmid: study.pmid },
+        null,
+        { commentText: comment, commentType: type }
       );
 
       res.status(201).json({
@@ -951,8 +973,14 @@ router.put('/:id/r3-form',
         return res.status(404).json({ error: 'Study not found' });
       }
 
+      // Capture before value
+      const beforeValue = studyData.r3FormData ? { ...studyData.r3FormData } : null;
+
       const study = new Study(studyData);
       study.updateR3FormData(formData, req.user.id, req.user.name);
+
+      // Capture after value
+      const afterValue = study.r3FormData ? { ...study.r3FormData } : null;
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
@@ -961,9 +989,11 @@ router.put('/:id/r3-form',
         req.user,
         'update',
         'study',
-        'r3_form_data',
+        id,
         `Updated R3 form data for study ${id}`,
-        { studyId: id }
+        { studyId: id, pmid: study.pmid },
+        beforeValue,
+        afterValue
       );
 
       res.json({
@@ -1046,11 +1076,15 @@ router.put('/:id',
         return res.status(404).json({ error: 'Study not found' });
       }
 
+      const beforeValue = { userTag: studyData.userTag };
+      
       const study = new Study(studyData);
       
       if (userTag) {
         study.updateUserTag(userTag, req.user.id, req.user.name);
       }
+
+      const afterValue = { userTag: study.userTag };
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
@@ -1059,9 +1093,11 @@ router.put('/:id',
         req.user,
         'update',
         'study',
-        'classification',
+        id,
         `Updated study classification to ${userTag}`,
-        { studyId: id, userTag }
+        { studyId: id, pmid: study.pmid },
+        beforeValue,
+        afterValue
       );
 
       res.json({
@@ -1206,8 +1242,20 @@ router.post('/:id/qa/approve',
         return res.status(404).json({ error: 'Study not found' });
       }
 
+      const beforeValue = { 
+        qaApprovalStatus: studyData.qaApprovalStatus,
+        qaApprovedBy: studyData.qaApprovedBy,
+        qaApprovedAt: studyData.qaApprovedAt
+      };
+
       const study = new Study(studyData);
       study.approveClassification(req.user.id, req.user.name, comments);
+
+      const afterValue = {
+        qaApprovalStatus: study.qaApprovalStatus,
+        qaApprovedBy: study.qaApprovedBy,
+        qaApprovedAt: study.qaApprovedAt
+      };
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
@@ -1216,9 +1264,11 @@ router.post('/:id/qa/approve',
         req.user,
         'approve',
         'study',
-        'qa_classification',
-        `Approved classification for study ${id}`,
-        { studyId: id, classification: study.userTag, comments }
+        id,
+        `Approved classification for study ${id}${comments ? ': "' + comments + '"' : ''}`,
+        { studyId: id, classification: study.userTag, pmid: study.pmid },
+        beforeValue,
+        afterValue
       );
 
       res.json({
@@ -1320,9 +1370,11 @@ router.post('/:id/field-comment',
         req.user,
         'comment',
         'study',
-        'field_comment',
-        `Added comment to field ${fieldKey} in study ${id}`,
-        { studyId: id, fieldKey, comment }
+        id,
+        `Added comment to field ${fieldKey} in study ${id}: "${comment}"`,
+        { studyId: id, fieldKey, pmid: study.pmid },
+        null,
+        { fieldKey, commentText: comment }
       );
 
       res.json({

@@ -23,6 +23,13 @@ export interface AuditLog {
   };
   timestamp: string;
   metadata?: any;
+  beforeValue?: any;
+  afterValue?: any;
+  changes?: Array<{
+    field: string;
+    before: any;
+    after: any;
+  }>;
   type: string;
 }
 
@@ -181,17 +188,28 @@ class AuditService {
       // Get all logs with the filters (increase limit for export)
       const response = await this.getAuditLogs({ ...filters, limit: 10000 });
       
-      const header = ['Timestamp', 'User', 'Action', 'Resource', 'Country', 'City', 'IP Address', 'Details'];
-      const rows = response.auditLogs.map(log => [
-        new Date(log.timestamp).toLocaleString(),
-        log.userName,
-        log.action,
-        log.resource,
-        log.location?.country || 'Unknown',
-        log.location?.city || 'Unknown',
-        log.ipAddress || 'N/A',
-        log.details
-      ]);
+      const header = ['Timestamp', 'User', 'Action', 'Resource', 'Country', 'City', 'IP Address', 'Details', 'Changes'];
+      const rows = response.auditLogs.map(log => {
+        // Format changes as a readable string
+        let changesText = '';
+        if (log.changes && log.changes.length > 0) {
+          changesText = log.changes.map(change => 
+            `${change.field}: "${change.before || '<empty>'}" → "${change.after || '<empty>'}"`
+          ).join('; ');
+        }
+        
+        return [
+          new Date(log.timestamp).toLocaleString(),
+          log.userName,
+          log.action,
+          log.resource,
+          log.location?.country || 'Unknown',
+          log.location?.city || 'Unknown',
+          log.ipAddress || 'N/A',
+          log.details,
+          changesText
+        ];
+      });
       
       const csv = [header, ...rows]
         .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))

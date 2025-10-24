@@ -306,7 +306,33 @@ export default function AuditTrailPage() {
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 align-top text-blue-900">{log.details}</td>
+                      <td className="py-3 px-4 align-top text-blue-900">
+                        <div className="mb-1">{log.details}</div>
+                        {log.changes && log.changes.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {log.changes.map((change, changeIdx) => (
+                              <div key={changeIdx} className="text-xs bg-blue-50 rounded p-2 border border-blue-100">
+                                <div className="font-semibold text-blue-900 mb-1">{change.field}:</div>
+                                <div className="flex items-start gap-2">
+                                  <div className="flex-1">
+                                    <div className="text-gray-500 text-xs mb-0.5">Before:</div>
+                                    <div className="text-red-600 font-mono text-xs break-words">
+                                      {change.before === null ? '<empty>' : String(change.before)}
+                                    </div>
+                                  </div>
+                                  <div className="text-gray-400 self-center">→</div>
+                                  <div className="flex-1">
+                                    <div className="text-gray-500 text-xs mb-0.5">After:</div>
+                                    <div className="text-green-600 font-mono text-xs break-words">
+                                      {change.after === null ? '<empty>' : String(change.after)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}
