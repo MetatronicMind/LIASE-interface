@@ -50,7 +50,7 @@ export default function QAPage() {
   const fetchPendingStudies = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/QC-pending`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/QA-pending`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -98,7 +98,7 @@ export default function QAPage() {
     setActionInProgress(studyId);
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QC/approve`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QA/approve`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,7 +132,7 @@ export default function QAPage() {
     setActionInProgress(studyId);
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QC/reject`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QA/reject`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

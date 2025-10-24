@@ -77,9 +77,9 @@ router.get('/',
   }
 );
 
-// Get studies for QC approval (studies awaiting QC approval)
-router.get('/QC-pending',
-  authorizePermission('QC', 'read'),
+// Get studies for QA approval (studies awaiting triage classification approval)
+router.get('/QA-pending',
+  authorizePermission('QA', 'read'),
   async (req, res) => {
     try {
       const { 
@@ -1281,8 +1281,8 @@ router.put('/update-icsr-status',
 );
 
 // QC Approval/Rejection endpoints
-router.post('/:id/QC/approve',
-  authorizePermission('QC', 'approve'),
+router.post('/:id/QA/approve',
+  authorizePermission('QA', 'approve'),
   [
     body('comments').optional().isString().withMessage('Comments must be a string')
   ],
@@ -1346,8 +1346,8 @@ router.post('/:id/QC/approve',
   }
 );
 
-router.post('/:id/QC/reject',
-  authorizePermission('QC', 'reject'),
+router.post('/:id/QA/reject',
+  authorizePermission('QA', 'reject'),
   [
     body('reason').isString().isLength({ min: 1 }).withMessage('Rejection reason is required')
   ],
