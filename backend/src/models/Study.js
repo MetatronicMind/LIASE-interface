@@ -63,7 +63,7 @@ class Study {
     r3FormStatus = 'not_started', // not_started, in_progress, completed
     r3FormCompletedBy = null,
     r3FormCompletedAt = null,
-    // Medical Examiner fields
+    // Medical Reviewer fields
     medicalReviewStatus = 'not_started', // not_started, in_progress, completed, revoked
     medicalReviewedBy = null,
     medicalReviewedAt = null,
@@ -132,7 +132,7 @@ class Study {
     this.sponsor = sponsor;
     this.userTag = userTag; // Manual user classification
     
-    // QA workflow fields
+    // QC workflow fields
     this.qaApprovalStatus = qaApprovalStatus;
     this.qaApprovedBy = qaApprovedBy;
     this.qaApprovedAt = qaApprovedAt;
@@ -146,7 +146,7 @@ class Study {
     this.r3FormCompletedBy = r3FormCompletedBy;
     this.r3FormCompletedAt = r3FormCompletedAt;
     
-    // Medical Examiner fields
+    // Medical Reviewer fields
     this.medicalReviewStatus = medicalReviewStatus;
     this.medicalReviewedBy = medicalReviewedBy;
     this.medicalReviewedAt = medicalReviewedAt;
@@ -206,19 +206,19 @@ class Study {
     
     const previousTag = this.userTag;
     this.userTag = tag;
-    this.qaApprovalStatus = 'pending'; // Reset QA approval when tag changes
+    this.qaApprovalStatus = 'pending'; // Reset QC approval when tag changes
     this.updatedAt = new Date().toISOString();
     
     // Add tag change comment
     this.addComment({
       userId,
       userName,
-      text: `Manual classification updated from "${previousTag || 'None'}" to "${tag}". Awaiting QA approval.`,
+      text: `Manual classification updated from "${previousTag || 'None'}" to "${tag}". Awaiting QC approval.`,
       type: 'system'
     });
   }
 
-  // QA Workflow Methods
+  // QC Workflow Methods
   approveClassification(userId, userName, comments = null) {
     if (this.qaApprovalStatus === 'approved') {
       throw new Error('Classification is already approved');
@@ -234,8 +234,8 @@ class Study {
     this.addComment({
       userId,
       userName,
-      text: `Classification "${this.userTag}" approved by QA${comments ? '. Comments: ' + comments : ''}`,
-      type: 'qa_approval'
+      text: `Classification "${this.userTag}" approved by QC${comments ? '. Comments: ' + comments : ''}`,
+      type: 'QC_approval'
     });
   }
 
@@ -258,12 +258,12 @@ class Study {
     this.addComment({
       userId,
       userName,
-      text: `Classification "${previousTag}" rejected by QA. Reason: ${reason}. Study returned to Triage for re-classification.`,
-      type: 'qa_rejection'
+      text: `Classification "${previousTag}" rejected by QC. Reason: ${reason}. Study returned to Triage for re-classification.`,
+      type: 'QC_rejection'
     });
   }
 
-  // Medical Examiner Methods
+  // Medical Reviewer Methods
   addFieldComment(fieldKey, comment, userId, userName) {
     const { v4: uuidv4 } = require('uuid');
     const fieldComment = {
@@ -328,7 +328,7 @@ class Study {
     this.addComment({
       userId,
       userName,
-      text: `Study revoked by Medical Examiner. Reason: ${reason}. Returned to Data Entry for corrections.`,
+      text: `Study revoked by Medical Reviewer. Reason: ${reason}. Returned to Data Entry for corrections.`,
       type: 'revocation'
     });
   }
@@ -381,19 +381,19 @@ class Study {
     this.r3FormCompletedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     
-    // Check if this study was previously revoked by Medical Examiner
+    // Check if this study was previously revoked by Medical Reviewer
     const wasRevoked = this.revokedBy !== null && this.revokedBy !== undefined;
     
-    // If the study was revoked, ensure it goes back to Medical Examiner for re-approval
+    // If the study was revoked, ensure it goes back to Medical Reviewer for re-approval
     if (wasRevoked) {
-      // Keep medicalReviewStatus as 'not_started' so it appears in Medical Examiner queue
+      // Keep medicalReviewStatus as 'not_started' so it appears in Medical Reviewer queue
       this.medicalReviewStatus = 'not_started';
       
       // Add comment indicating resubmission after revocation
       this.addComment({
         userId,
         userName,
-        text: 'R3 form completed and resubmitted after Medical Examiner revocation. Awaiting medical re-review.',
+        text: 'R3 form completed and resubmitted after Medical Reviewer revocation. Awaiting medical re-review.',
         type: 'resubmission'
       });
     } else {
@@ -401,7 +401,7 @@ class Study {
       this.addComment({
         userId,
         userName,
-        text: 'R3 form completed. Ready for Medical Examiner review.',
+        text: 'R3 form completed. Ready for Medical Reviewer review.',
         type: 'system'
       });
     }
@@ -509,7 +509,7 @@ class Study {
       userTag: this.userTag,
       effectiveClassification: this.getEffectiveClassification(),
       
-      // QA workflow fields
+      // QC workflow fields
       qaApprovalStatus: this.qaApprovalStatus,
       qaApprovedBy: this.qaApprovedBy,
       qaApprovedAt: this.qaApprovedAt,
@@ -523,7 +523,7 @@ class Study {
       r3FormCompletedBy: this.r3FormCompletedBy,
       r3FormCompletedAt: this.r3FormCompletedAt,
       
-      // Medical Examiner fields
+      // Medical Reviewer fields
       medicalReviewStatus: this.medicalReviewStatus,
       medicalReviewedBy: this.medicalReviewedBy,
       medicalReviewedAt: this.medicalReviewedAt,

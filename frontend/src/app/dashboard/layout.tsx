@@ -41,10 +41,10 @@ const permissionBasedNavItems = [
     permission: { resource: 'triage', action: 'write' } // Requires triage.write permission
   },
   { 
-    name: "QA Review", 
-    href: "/dashboard/qa", 
+    name: "QC Review", 
+    href: "/dashboard/QC", 
     icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'qa', action: 'read' } // Requires qa.read permission
+    permission: { resource: 'QC', action: 'read' } // Requires QC.read permission
   },
   { 
     name: "Data Entry", 
@@ -53,7 +53,7 @@ const permissionBasedNavItems = [
     permission: { resource: 'data_entry', action: 'read' } // Requires data_entry.read permission
   },
   { 
-    name: "Medical Examiner", 
+    name: "Medical Reviewer", 
     href: "/dashboard/medical-examiner", 
     icon: <UserIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'medical_examiner', action: 'read' } // Requires medical_examiner.read permission

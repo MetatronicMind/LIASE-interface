@@ -52,7 +52,7 @@ class Role {
         classify: false, 
         manual_drug_test: false 
       },
-      qa: { 
+      QC: { 
         read: false, 
         write: false, 
         approve: false, 
@@ -118,7 +118,7 @@ class Role {
           organizations: { read: true, write: true, delete: true },
           reports: { read: true, write: true, delete: true },
           triage: { read: true, write: true, classify: true, manual_drug_test: true },
-          qa: { read: true, write: true, approve: true, reject: true },
+          QC: { read: true, write: true, approve: true, reject: true },
           data_entry: { read: true, write: true, r3_form: true },
           medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
         },
@@ -139,7 +139,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: true, write: true, delete: false },
           triage: { read: true, write: true, classify: true, manual_drug_test: true },
-          qa: { read: true, write: true, approve: true, reject: true },
+          QC: { read: true, write: true, approve: true, reject: true },
           data_entry: { read: true, write: true, r3_form: true },
           medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
         },
@@ -160,14 +160,14 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: false, write: false, delete: false },
           triage: { read: true, write: true, classify: true, manual_drug_test: true },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: false, write: false, r3_form: false },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         },
         isSystemRole: true
       },
-      qa: {
-        name: 'qa',
+      QC: {
+        name: 'QC',
         displayName: 'Quality Assurance',
         description: 'Can approve or reject classifications made by Triage specialists',
         permissions: {
@@ -181,7 +181,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: false, write: false, delete: false },
           triage: { read: true, write: false, classify: false, manual_drug_test: false },
-          qa: { read: true, write: true, approve: true, reject: true },
+          QC: { read: true, write: true, approve: true, reject: true },
           data_entry: { read: false, write: false, r3_form: false },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         },
@@ -202,7 +202,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: true, write: false, delete: false },
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: false, write: false, r3_form: false },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         },
@@ -223,7 +223,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: true, write: false, delete: false },
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: false, write: false, r3_form: false },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         },
@@ -232,7 +232,7 @@ class Role {
       data_entry: {
         name: 'data_entry',
         displayName: 'Data Entry Specialist',
-        description: 'Access to QA-approved ICSR studies for R3 XML form completion',
+        description: 'Access to QC-approved ICSR studies for R3 XML form completion',
         permissions: {
           dashboard: { read: true, write: false },
           users: { read: false, write: false, delete: false },
@@ -244,7 +244,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: false, write: false, delete: false },
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: true, write: true, r3_form: true },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         },
@@ -252,7 +252,7 @@ class Role {
       },
       medical_examiner: {
         name: 'medical_examiner',
-        displayName: 'Medical Examiner',
+        displayName: 'Medical Reviewer',
         description: 'Review completed ICSR studies, comment on fields, edit data, and manage revocations',
         permissions: {
           dashboard: { read: true, write: false },
@@ -265,7 +265,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: true, write: true, delete: false },
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: true, write: false, r3_form: false },
           medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
         },
@@ -292,13 +292,13 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: false, write: false, delete: false },
           triage: { read: true, write: true, classify: true, manual_drug_test: true },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: false, write: false, r3_form: false },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         }
       },
-      qa_reviewer: {
-        name: 'qa_reviewer',
+      QC_reviewer: {
+        name: 'QC_reviewer',
         displayName: 'Quality Assurance Template',
         description: 'Template for roles that approve or reject study classifications',
         permissions: {
@@ -312,7 +312,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: false, write: false, delete: false },
           triage: { read: true, write: false, classify: false, manual_drug_test: false },
-          qa: { read: true, write: true, approve: true, reject: true },
+          QC: { read: true, write: true, approve: true, reject: true },
           data_entry: { read: false, write: false, r3_form: false },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         }
@@ -332,7 +332,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: false, write: false, delete: false },
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: true, write: true, r3_form: true },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         }
@@ -352,7 +352,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: true, write: true, delete: false },
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: true, write: false, r3_form: false },
           medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
         }
@@ -372,7 +372,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: true, write: false, delete: false },
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: false, write: false, r3_form: false },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         }
@@ -392,7 +392,7 @@ class Role {
           organizations: { read: false, write: false, delete: false },
           reports: { read: true, write: false, delete: false },
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
-          qa: { read: false, write: false, approve: false, reject: false },
+          QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: false, write: false, r3_form: false },
           medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
         }

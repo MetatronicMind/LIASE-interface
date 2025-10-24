@@ -77,9 +77,9 @@ router.get('/',
   }
 );
 
-// Get studies for QA approval (studies awaiting QA approval)
-router.get('/qa-pending',
-  authorizePermission('qa', 'read'),
+// Get studies for QC approval (studies awaiting QC approval)
+router.get('/QC-pending',
+  authorizePermission('QC', 'read'),
   async (req, res) => {
     try {
       const { 
@@ -115,9 +115,9 @@ router.get('/qa-pending',
         }
       });
     } catch (error) {
-      console.error('QA pending studies fetch error:', error);
+      console.error('QC pending studies fetch error:', error);
       res.status(500).json({ 
-        error: 'Failed to fetch QA pending studies', 
+        error: 'Failed to fetch QC pending studies', 
         message: error.message 
       });
     }
@@ -150,7 +150,7 @@ router.get('/data-entry',
         studyEffectiveClassification: testResult[0]?.effectiveClassification
       });
       
-      // Query for studies that are manually tagged as ICSR, QA approved, AND have incomplete R3 forms
+      // Query for studies that are manually tagged as ICSR, QC approved, AND have incomplete R3 forms
       // INCLUDES revoked studies (they need to be fixed by Data Entry)
       let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND (c.r3FormStatus = @statusNotStarted OR c.r3FormStatus = @statusInProgress) AND (c.medicalReviewStatus != @completed OR c.medicalReviewStatus = @revoked OR NOT IS_DEFINED(c.medicalReviewStatus))';
       const parameters = [
@@ -277,7 +277,7 @@ router.get('/data-entry',
   }
 );
 
-// Get studies for medical examiner (ICSR with completed R3 forms)
+// Get studies for Medical Reviewer (ICSR with completed R3 forms)
 router.get('/medical-examiner',
   authorizePermission('studies', 'read'),
   async (req, res) => {
@@ -342,9 +342,9 @@ router.get('/medical-examiner',
         }
       });
     } catch (error) {
-      console.error('Medical examiner studies fetch error:', error);
+      console.error('Medical Reviewer studies fetch error:', error);
       res.status(500).json({ 
-        error: 'Failed to fetch medical examiner studies', 
+        error: 'Failed to fetch Medical Reviewer studies', 
         message: error.message 
       });
     }
@@ -1228,9 +1228,9 @@ router.put('/update-icsr-status',
   }
 );
 
-// QA Approval/Rejection endpoints
-router.post('/:id/qa/approve',
-  authorizePermission('qa', 'approve'),
+// QC Approval/Rejection endpoints
+router.post('/:id/QC/approve',
+  authorizePermission('QC', 'approve'),
   [
     body('comments').optional().isString().withMessage('Comments must be a string')
   ],
@@ -1285,7 +1285,7 @@ router.post('/:id/qa/approve',
         study: study.toJSON()
       });
     } catch (error) {
-      console.error('QA approval error:', error);
+      console.error('QC approval error:', error);
       res.status(500).json({ 
         error: 'Failed to approve classification', 
         message: error.message 
@@ -1294,8 +1294,8 @@ router.post('/:id/qa/approve',
   }
 );
 
-router.post('/:id/qa/reject',
-  authorizePermission('qa', 'reject'),
+router.post('/:id/QC/reject',
+  authorizePermission('QC', 'reject'),
   [
     body('reason').isString().isLength({ min: 1 }).withMessage('Rejection reason is required')
   ],
@@ -1325,7 +1325,7 @@ router.post('/:id/qa/reject',
         req.user,
         'reject',
         'study',
-        'qa_classification',
+        'QC_classification',
         `Rejected classification for study ${id}`,
         { studyId: id, classification: study.userTag, reason }
       );
@@ -1336,7 +1336,7 @@ router.post('/:id/qa/reject',
         study: study.toJSON()
       });
     } catch (error) {
-      console.error('QA rejection error:', error);
+      console.error('QC rejection error:', error);
       res.status(500).json({ 
         error: 'Failed to reject classification', 
         message: error.message 
@@ -1345,7 +1345,7 @@ router.post('/:id/qa/reject',
   }
 );
 
-// Medical Examiner endpoints
+// Medical Reviewer endpoints
 router.post('/:id/field-comment',
   authorizePermission('medical_examiner', 'comment_fields'),
   [

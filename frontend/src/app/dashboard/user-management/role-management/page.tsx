@@ -573,12 +573,12 @@ export default function RoleManagementPage() {
                         Can run manual drug tests
                       </span>
                     )}
-                    {availableTemplates[templateRole.selectedTemplate].permissions?.qa?.approve && (
+                    {availableTemplates[templateRole.selectedTemplate].permissions?.QC?.approve && (
                       <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                         Can approve classifications
                       </span>
                     )}
-                    {availableTemplates[templateRole.selectedTemplate].permissions?.qa?.reject && (
+                    {availableTemplates[templateRole.selectedTemplate].permissions?.QC?.reject && (
                       <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                         Can reject classifications
                       </span>
@@ -619,14 +619,14 @@ export default function RoleManagementPage() {
                   </button>
                   <button
                     onClick={() => setTemplateRole({
-                      customName: 'QA',
+                      customName: 'QC',
                       displayName: 'Quality Assurance',
                       selectedTemplate: 'qa_reviewer',
                       description: 'Team responsible for reviewing and approving study classifications'
                     })}
                     className="px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition text-sm"
                   >
-                    Create QA Role
+                    Create QC Role
                   </button>
                   <button
                     onClick={() => setTemplateRole({
@@ -642,13 +642,13 @@ export default function RoleManagementPage() {
                   <button
                     onClick={() => setTemplateRole({
                       customName: 'MEDICAL_EXAMINER',
-                      displayName: 'Medical Examiner',
+                      displayName: 'Medical Reviewer',
                       selectedTemplate: 'medical_reviewer',
                       description: 'Team responsible for final review, commenting, and study revocation'
                     })}
                     className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition text-sm"
                   >
-                    Create MEDICAL EXAMINER Role
+                    Create Medical Reviewer Role
                   </button>
                 </div>
               </div>

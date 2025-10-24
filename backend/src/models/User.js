@@ -216,8 +216,8 @@ class User {
     }
 
     if (!isUpdate || data.role) {
-      if (!['Admin', 'Pharmacovigilance', 'Sponsor/Auditor', 'Data Entry', 'Medical Examiner', 'superadmin', 'admin', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'].includes(data.role)) {
-        errors.push('Role must be Admin, Pharmacovigilance, Sponsor/Auditor, Data Entry, Medical Examiner, superadmin, admin, pharmacovigilance, sponsor_auditor, data_entry, or medical_examiner');
+      if (!['Admin', 'Pharmacovigilance', 'Sponsor/Auditor', 'Data Entry', 'Medical Reviewer', 'superadmin', 'admin', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'].includes(data.role)) {
+        errors.push('Role must be Admin, Pharmacovigilance, Sponsor/Auditor, Data Entry, Medical Reviewer, superadmin, admin, pharmacovigilance, sponsor_auditor, data_entry, or medical_examiner');
       }
     }
 

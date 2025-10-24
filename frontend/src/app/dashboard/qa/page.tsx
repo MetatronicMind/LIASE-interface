@@ -38,7 +38,7 @@ export default function QAPage() {
   const fetchPendingStudies = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/qa-pending`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/QC-pending`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -52,7 +52,7 @@ export default function QAPage() {
       }
     } catch (error) {
       console.error("Error fetching studies:", error);
-      setError("Failed to load studies for QA review");
+      setError("Failed to load studies for QC review");
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ export default function QAPage() {
     setActionInProgress(studyId);
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/qa/approve`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QC/approve`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -96,7 +96,7 @@ export default function QAPage() {
     setActionInProgress(studyId);
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/qa/reject`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QC/reject`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -135,13 +135,13 @@ export default function QAPage() {
     return (
       <div className="p-6">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="text-center mt-2 text-gray-600">Loading QA queue...</p>
+        <p className="text-center mt-2 text-gray-600">Loading QC queue...</p>
       </div>
     );
   }
 
   return (
-    <PermissionGate resource="qa" action="read">
+    <PermissionGate resource="QC" action="read">
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
@@ -170,7 +170,7 @@ export default function QAPage() {
                   Pending Classifications ({studies.length})
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Studies awaiting QA approval
+                  Studies awaiting QC approval
                 </p>
               </div>
 
@@ -261,10 +261,10 @@ export default function QAPage() {
                       </div>
                     </div>
 
-                    {/* QA Comments */}
+                    {/* QC Comments */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        QA Comments (Optional)
+                        QC Comments (Optional)
                       </label>
                       <textarea
                         value={comments}
@@ -277,7 +277,7 @@ export default function QAPage() {
 
                     {/* Action Buttons */}
                     <div className="flex space-x-3">
-                      <PermissionGate resource="qa" action="approve">
+                      <PermissionGate resource="QC" action="approve">
                         <button
                           onClick={() => approveClassification(selectedStudy.id)}
                           disabled={actionInProgress === selectedStudy.id}
@@ -302,7 +302,7 @@ export default function QAPage() {
                         </button>
                       </PermissionGate>
 
-                      <PermissionGate resource="qa" action="reject">
+                      <PermissionGate resource="QC" action="reject">
                         <button
                           onClick={() => setShowRejectModal(true)}
                           disabled={actionInProgress === selectedStudy.id}

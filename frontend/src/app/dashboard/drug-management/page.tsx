@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect } from "react";
 import { getApiBaseUrl } from "@/config/api";
 import StudyProgressTracker from "@/components/StudyProgressTracker";
@@ -276,12 +276,12 @@ export default function DrugManagementPage() {
                     </div>
                     <div className="ml-3">
                       <h3 className="text-sm font-medium text-green-800">
-                        ⏰ Scheduler Status: Active
+                        ? Scheduler Status: Active
                       </h3>
                       <div className="mt-2 text-sm text-green-700">
-                        <p>• Our scheduler runs <strong>every 12 hours</strong> (at 00:00 and 12:00 UTC)</p>
-                        <p>• Scheduled searches will be automatically executed when due</p>
-                        <p>• You can also run any configuration manually at any time</p>
+                        <p>� Our scheduler runs <strong>every 12 hours</strong> (at 00:00 and 12:00 UTC)</p>
+                        <p>� Scheduled searches will be automatically executed when due</p>
+                        <p>� You can also run any configuration manually at any time</p>
                       </div>
                     </div>
                   </div>
@@ -366,13 +366,13 @@ export default function DrugManagementPage() {
                     <div className="md:col-span-2">
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                         <p className="text-sm text-blue-800">
-                          <strong>📅 {frequency.charAt(0).toUpperCase() + frequency.slice(1)} Search:</strong> 
+                          <strong>?? {frequency.charAt(0).toUpperCase() + frequency.slice(1)} Search:</strong> 
                           {frequency === 'daily' && ' Will search articles from the last 24 hours and run every 24 hours'}
                           {frequency === 'weekly' && ' Will search articles from the last 7 days and run every week'}
                           {frequency === 'monthly' && ' Will search articles from the last 30 days and run every month'}
                         </p>
                         <p className="text-xs text-blue-600 mt-1">
-                          ⏰ <strong>Scheduler runs every 12 hours</strong> - your search will be automatically executed when due
+                          ? <strong>Scheduler runs every 12 hours</strong> - your search will be automatically executed when due
                         </p>
                       </div>
                     </div>

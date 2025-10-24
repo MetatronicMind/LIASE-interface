@@ -216,7 +216,7 @@ export default function TriagePage() {
         if (selectedStudy && selectedStudy.id === studyId) {
           setSelectedStudy(prev => prev ? { ...prev, userTag: classification as any, qaApprovalStatus: 'pending' } : null);
         }
-        alert(`Study classified as ${classification}. Awaiting QA approval.`);
+        alert(`Study classified as ${classification}. Awaiting QC approval.`);
       } else {
         throw new Error("Failed to classify study");
       }
@@ -232,8 +232,8 @@ export default function TriagePage() {
   const filteredStudies = studies.filter((study: Study) => {
     // Only show studies that need triage classification:
     // 1. Studies without a userTag (not yet classified), OR
-    // 2. Studies that were rejected by QA (need re-classification)
-    // Exclude studies that are approved or pending QA approval
+    // 2. Studies that were rejected by QC (need re-classification)
+    // Exclude studies that are approved or pending QC approval
     const needsTriage = !study.userTag || study.qaApprovalStatus === 'rejected';
     if (!needsTriage) return false;
     
@@ -534,7 +534,7 @@ export default function TriagePage() {
                                 <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                                 </svg>
-                                QA Rejected
+                                QC Rejected
                               </span>
                             )}
                             {study.userTag && (
@@ -641,7 +641,7 @@ export default function TriagePage() {
 
                   {/* Content */}
                   <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                    {/* QA Rejection Notice */}
+                    {/* QC Rejection Notice */}
                     {selectedStudy.qaApprovalStatus === 'rejected' && selectedStudy.qaComments && (
                       <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-lg">
                         <div className="flex items-start">
@@ -652,14 +652,14 @@ export default function TriagePage() {
                           </div>
                           <div className="ml-3 flex-1">
                             <h3 className="text-sm font-medium text-orange-800">
-                              Classification Rejected by QA
+                              Classification Rejected by QC
                             </h3>
                             <div className="mt-2 text-sm text-orange-700">
                               <p className="font-semibold">Reason:</p>
                               <p className="mt-1">{selectedStudy.qaComments}</p>
                             </div>
                             <p className="mt-3 text-xs text-orange-600">
-                              Please review and re-classify this study based on the QA feedback.
+                              Please review and re-classify this study based on the QC feedback.
                             </p>
                           </div>
                         </div>

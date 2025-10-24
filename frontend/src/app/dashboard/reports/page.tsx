@@ -131,7 +131,7 @@ export default function ReportsPage() {
       filtered = filtered.filter(study => study.status === statusFilter);
     }
 
-    // QA filter
+    // QC filter
     if (qaFilter !== 'all') {
       filtered = filtered.filter(study => study.qaApprovalStatus === qaFilter);
     }
@@ -244,7 +244,7 @@ export default function ReportsPage() {
       'Triage Classification',
       'AI Classification',
       'Status',
-      'QA Status',
+      'QC Status',
       'R3 Status',
       'Medical Review',
       'Serious',
@@ -486,16 +486,16 @@ export default function ReportsPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">QA Status</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">QC Status</label>
             <select
               value={qaFilter}
               onChange={(e) => {
                 setQaFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">All QA Statuses</option>
+              <option value="all">All QC Statuses</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
@@ -698,7 +698,7 @@ export default function ReportsPage() {
                   Status
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                  QA
+                  QC
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   R3

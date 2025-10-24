@@ -164,7 +164,7 @@ export default function FullReportPage() {
         setStudies(data.data || []);
       }
     } catch (error) {
-      console.error("Error fetching medical examiner studies:", error);
+      console.error("Error fetching Medical Reviewer studies:", error);
     } finally {
       setLoading(false);
     }
@@ -616,7 +616,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
     >
       <div className="p-6 max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-black mb-2">Full Report (Medical Examiner)</h1>
+          <h1 className="text-3xl font-bold text-black mb-2">Full Report (Medical Reviewer)</h1>
           <p className="text-black">
             Review completed ICSR studies with R3 form data
           </p>

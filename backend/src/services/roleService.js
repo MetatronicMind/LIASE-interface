@@ -358,7 +358,7 @@ class RoleService {
   // Initialize system roles for an organization
   async initializeSystemRoles(organizationId, createdBy) {
     try {
-      const systemRoleTypes = ['superadmin', 'admin', 'triage', 'qa', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'];
+      const systemRoleTypes = ['superadmin', 'admin', 'triage', 'QC', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'];
       const createdRoles = [];
 
       for (const roleType of systemRoleTypes) {
@@ -469,12 +469,12 @@ class RoleService {
           manual_drug_test: 'Run manual drug tests'
         }
       },
-      qa: {
+      QC: {
         displayName: 'Quality Assurance',
         description: 'Review and approve triage classifications',
         actions: {
-          read: 'View QA queue',
-          write: 'Update QA records',
+          read: 'View QC queue',
+          write: 'Update QC records',
           approve: 'Approve classifications',
           reject: 'Reject classifications'
         }
@@ -489,7 +489,7 @@ class RoleService {
         }
       },
       medical_examiner: {
-        displayName: 'Medical Examiner',
+        displayName: 'Medical Reviewer',
         description: 'Review completed studies and manage quality control',
         actions: {
           read: 'View medical review queue',
