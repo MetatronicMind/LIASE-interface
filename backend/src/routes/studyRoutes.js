@@ -1084,24 +1084,25 @@ router.post('/:id/r3-form/complete',
         return res.status(404).json({ error: 'Study not found' });
       }
 
-      // Capture before value (deep copy)
+      // Capture before value (deep copy) - include R3 form data snapshot
       const beforeValue = {
         r3FormStatus: studyData.r3FormStatus,
         r3FormCompletedBy: studyData.r3FormCompletedBy,
         r3FormCompletedAt: studyData.r3FormCompletedAt,
-        qcR3Status: studyData.qcR3Status
+        qcR3Status: studyData.qcR3Status,
+        r3FormData: studyData.r3FormData ? JSON.parse(JSON.stringify(studyData.r3FormData)) : null
       };
 
       const study = new Study(studyData);
       study.completeR3Form(req.user.id, req.user.name);
 
-      // Capture after value
+      // Capture after value - include complete R3 form data snapshot
       const afterValue = {
         r3FormStatus: study.r3FormStatus,
         r3FormCompletedBy: study.r3FormCompletedBy,
         r3FormCompletedAt: study.r3FormCompletedAt,
         qcR3Status: study.qcR3Status,
-        r3FormDataFields: study.r3FormData ? Object.keys(study.r3FormData).length : 0
+        r3FormData: study.r3FormData ? JSON.parse(JSON.stringify(study.r3FormData)) : null
       };
 
       // Save updated study
