@@ -1,4 +1,4 @@
-"use client";"use client";
+﻿"use client";"use client";
 
 import React, { useState, useEffect } from "react";import React, { useState, useEffect } from "react";
 
@@ -560,11 +560,11 @@ export default function DrugManagementPage() {export default function DrugManage
 
                       <div className="mt-2 text-sm text-green-700">                      <div className="mt-2 text-sm text-green-700">
 
-                        <p>Our scheduler runs every 12 hours (at 00:00 and 12:00 UTC)</p>                        <p>� Our scheduler runs <strong>every 12 hours</strong> (at 00:00 and 12:00 UTC)</p>
+                        <p>Our scheduler runs every 12 hours (at 00:00 and 12:00 UTC)</p>                        <p> Our scheduler runs <strong>every 12 hours</strong> (at 00:00 and 12:00 UTC)</p>
 
-                        <p>Scheduled searches will be automatically executed when due</p>                        <p>� Scheduled searches will be automatically executed when due</p>
+                        <p>Scheduled searches will be automatically executed when due</p>                        <p> Scheduled searches will be automatically executed when due</p>
 
-                        <p>You can also run any configuration manually at any time</p>                        <p>� You can also run any configuration manually at any time</p>
+                        <p>You can also run any configuration manually at any time</p>                        <p> You can also run any configuration manually at any time</p>
 
                       </div>                      </div>
 
