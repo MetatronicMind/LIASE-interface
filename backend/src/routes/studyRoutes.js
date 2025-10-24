@@ -986,11 +986,14 @@ router.put('/:id/r3-form',
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
 
       // Log changes for debugging
-      console.log('R3 Form Update - Changes detected:', {
+      console.log('R3 Form Update - Audit Data:', {
         hasBeforeValue: !!beforeValue,
         hasAfterValue: !!afterValue,
         beforeKeys: beforeValue ? Object.keys(beforeValue).length : 0,
-        afterKeys: afterValue ? Object.keys(afterValue).length : 0
+        afterKeys: afterValue ? Object.keys(afterValue).length : 0,
+        beforeSample: beforeValue ? Object.keys(beforeValue).slice(0, 3) : [],
+        afterSample: afterValue ? Object.keys(afterValue).slice(0, 3) : [],
+        areSame: JSON.stringify(beforeValue) === JSON.stringify(afterValue)
       });
 
       await auditAction(

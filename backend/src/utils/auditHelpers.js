@@ -39,29 +39,37 @@ function hasChanged(before, after) {
 function extractChanges(before, after, fieldsToTrack = null) {
   const changes = [];
 
+  // Check if both are null/undefined
   if (!before && !after) {
+    console.log('extractChanges: Both before and after are null/undefined');
     return changes;
   }
 
-  // If no before object, this is a creation
-  if (!before) {
+  // Treat empty objects as null
+  const isBeforeEmpty = !before || (typeof before === 'object' && Object.keys(before).length === 0);
+  const isAfterEmpty = !after || (typeof after === 'object' && Object.keys(after).length === 0);
+
+  // If no before object or empty before object, this is a creation
+  if (isBeforeEmpty && !isAfterEmpty) {
     const afterObj = after || {};
     const keys = fieldsToTrack || Object.keys(afterObj);
     keys.forEach(key => {
-      if (afterObj[key] !== undefined && afterObj[key] !== null) {
+      // Include fields even if they are empty string, but skip undefined/null
+      const value = afterObj[key];
+      if (value !== undefined && value !== null && value !== '') {
         changes.push({
           field: key,
           before: null,
-          after: formatValue(afterObj[key])
+          after: formatValue(value)
         });
       }
     });
-    console.log('Extract Changes (creation):', changes.length, 'changes');
+    console.log('Extract Changes (creation):', changes.length, 'changes from', keys.length, 'keys');
     return changes;
   }
 
   // If no after object, this is a deletion
-  if (!after) {
+  if (!isBeforeEmpty && isAfterEmpty) {
     const beforeObj = before || {};
     const keys = fieldsToTrack || Object.keys(beforeObj);
     keys.forEach(key => {
@@ -81,6 +89,12 @@ function extractChanges(before, after, fieldsToTrack = null) {
   const beforeObj = before || {};
   const afterObj = after || {};
   const keys = fieldsToTrack || [...new Set([...Object.keys(beforeObj), ...Object.keys(afterObj)])];
+
+  console.log('Extract Changes - Comparing:', {
+    totalKeys: keys.length,
+    beforeKeys: Object.keys(beforeObj).length,
+    afterKeys: Object.keys(afterObj).length
+  });
 
   keys.forEach(key => {
     if (hasChanged(beforeObj[key], afterObj[key])) {
