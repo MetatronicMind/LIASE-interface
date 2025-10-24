@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
+import { PmidLink } from "@/components/PmidLink";
 
 interface Study {
   id: string;
@@ -194,7 +195,7 @@ export default function QAPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-sm font-mono text-gray-600">PMID: {study.pmid}</span>
+                            <span className="text-sm font-mono text-gray-600">PMID: <PmidLink pmid={study.pmid} className="text-blue-600 hover:underline" /></span>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getClassificationColor(study.userTag)}`}>
                               {study.userTag}
                             </span>
@@ -229,7 +230,7 @@ export default function QAPage() {
                 <>
                   <div className="p-6 border-b border-gray-200">
                     <h2 className="text-xl font-semibold text-gray-900">Review Classification</h2>
-                    <p className="text-sm text-gray-600 mt-1">PMID: {selectedStudy.pmid}</p>
+                    <p className="text-sm text-gray-600 mt-1">PMID: <PmidLink pmid={selectedStudy.pmid} showIcon={true} /></p>
                   </div>
 
                   <div className="p-6 space-y-6">

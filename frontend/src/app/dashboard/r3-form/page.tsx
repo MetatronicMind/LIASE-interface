@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
 import { useSearchParams, useRouter } from "next/navigation";
+import { PmidLink } from "@/components/PmidLink";
 
 interface FieldComment {
   id: string;
@@ -570,7 +571,7 @@ export default function R3FormPage() {
                 <div className="space-y-2 text-sm">
                   <div>
                     <span className="font-medium text-gray-600">PMID:</span>
-                    <span className="ml-2 text-gray-900">{study.pmid}</span>
+                    <span className="ml-2"><PmidLink pmid={study.pmid} showIcon={true} /></span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-600">Drug:</span>

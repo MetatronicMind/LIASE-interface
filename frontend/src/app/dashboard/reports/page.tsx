@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { API_CONFIG } from '../../../config/api';
+import { PmidLink } from '../../../components/PmidLink';
 
 interface Study {
   id: string;
@@ -710,15 +711,8 @@ export default function ReportsPage() {
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-blue-600">
-                      <a
-                        href={`https://pubmed.ncbi.nlm.nih.gov/${study.pmid}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                      >
-                        {study.pmid}
-                      </a>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
+                      <PmidLink pmid={study.pmid} className="text-blue-600 hover:underline font-mono" />
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[200px] sm:max-w-md">
                       <div className="line-clamp-2" title={study.title}>

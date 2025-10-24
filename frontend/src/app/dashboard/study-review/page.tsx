@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { MagnifyingGlassIcon, UserGroupIcon, ExclamationTriangleIcon, ChartBarIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
 import { getApiBaseUrl } from "@/config/api";
+import { PmidLink } from "@/components/PmidLink";
 
 interface Study {
   id: string;
@@ -429,7 +430,7 @@ useEffect(() => {
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              PMID: {study.pmid}
+                              PMID: <PmidLink pmid={study.pmid} className="text-blue-800 hover:underline ml-1" />
                             </span>
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[study.status]}`}
@@ -573,7 +574,7 @@ useEffect(() => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="font-medium text-gray-700">PMID:</span>
-                          <span className="ml-2 text-blue-700 font-mono">{selectedStudy.pmid}</span>
+                          <span className="ml-2"><PmidLink pmid={selectedStudy.pmid} showIcon={true} /></span>
                         </div>
                         <div>
                           <span className="font-medium text-gray-700">Drug:</span>

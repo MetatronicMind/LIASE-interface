@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { MagnifyingGlassIcon, ExclamationTriangleIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
 import { getApiBaseUrl } from "@/config/api";
+import { PmidLink } from "@/components/PmidLink";
 
 interface Study {
   id: string;
@@ -497,7 +498,7 @@ export default function TriagePage() {
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              PMID: {study.pmid}
+                              PMID: <PmidLink pmid={study.pmid} className="text-blue-800 hover:underline ml-1" />
                             </span>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[study.status]}`}>
                               {study.status}
@@ -793,7 +794,7 @@ export default function TriagePage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="font-medium text-gray-700">PMID:</span>
-                          <p className="mt-1 text-gray-900">{selectedStudy.pmid}</p>
+                          <p className="mt-1"><PmidLink pmid={selectedStudy.pmid} showIcon={true} /></p>
                         </div>
                         <div>
                           <span className="font-medium text-gray-700">Drug:</span>

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
+import { PmidLink } from "@/components/PmidLink";
 
 interface Study {
   id: string;
@@ -660,7 +661,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                         {study.title}
                       </h3>
                       <div className="flex gap-4 text-sm text-gray-800 mb-2">
-                        <span><strong>PMID:</strong> {study.pmid}</span>
+                        <span><strong>PMID:</strong> <PmidLink pmid={study.pmid} className="text-blue-600 hover:underline" /></span>
                         <span><strong>Drug:</strong> {study.drugName}</span>
                       </div>
                       <p className="text-sm text-black mb-2">
@@ -711,7 +712,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                   ICSR Full Report - {selectedStudy?.title}
                 </h2>
                 <p className="text-sm text-black mt-1">
-                  PMID: {selectedStudy?.pmid} | Drug: {selectedStudy?.drugName}
+                  PMID: <PmidLink pmid={selectedStudy?.pmid || ''} showIcon={true} className="text-blue-600 hover:underline" /> | Drug: {selectedStudy?.drugName}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -782,7 +783,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-black">PMID:</p>
-                    <p className="text-sm text-black">{selectedStudy?.pmid}</p>
+                    <p className="text-sm text-black"><PmidLink pmid={selectedStudy?.pmid || ''} showIcon={true} /></p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-black">Drug Name:</p>
