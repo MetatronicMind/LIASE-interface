@@ -1084,8 +1084,25 @@ router.post('/:id/r3-form/complete',
         return res.status(404).json({ error: 'Study not found' });
       }
 
+      // Capture before value (deep copy)
+      const beforeValue = {
+        r3FormStatus: studyData.r3FormStatus,
+        r3FormCompletedBy: studyData.r3FormCompletedBy,
+        r3FormCompletedAt: studyData.r3FormCompletedAt,
+        qcR3Status: studyData.qcR3Status
+      };
+
       const study = new Study(studyData);
       study.completeR3Form(req.user.id, req.user.name);
+
+      // Capture after value
+      const afterValue = {
+        r3FormStatus: study.r3FormStatus,
+        r3FormCompletedBy: study.r3FormCompletedBy,
+        r3FormCompletedAt: study.r3FormCompletedAt,
+        qcR3Status: study.qcR3Status,
+        r3FormDataFields: study.r3FormData ? Object.keys(study.r3FormData).length : 0
+      };
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
@@ -1094,9 +1111,11 @@ router.post('/:id/r3-form/complete',
         req.user,
         'complete',
         'study',
-        'r3_form',
+        id,
         `Completed R3 form for study ${id}`,
-        { studyId: id }
+        { studyId: id, pmid: study.pmid },
+        beforeValue,
+        afterValue
       );
 
       res.json({
@@ -1484,8 +1503,24 @@ router.post('/:id/QC/r3/reject',
         return res.status(404).json({ error: 'Study not found' });
       }
 
+      const beforeValue = {
+        qcR3Status: studyData.qcR3Status,
+        qcR3RejectedBy: studyData.qcR3RejectedBy,
+        qcR3RejectedAt: studyData.qcR3RejectedAt,
+        qcR3RejectionReason: studyData.qcR3RejectionReason,
+        r3FormStatus: studyData.r3FormStatus
+      };
+
       const study = new Study(studyData);
       study.rejectR3Form(req.user.id, req.user.name, reason);
+
+      const afterValue = {
+        qcR3Status: study.qcR3Status,
+        qcR3RejectedBy: study.qcR3RejectedBy,
+        qcR3RejectedAt: study.qcR3RejectedAt,
+        qcR3RejectionReason: study.qcR3RejectionReason,
+        r3FormStatus: study.r3FormStatus
+      };
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
@@ -1494,9 +1529,11 @@ router.post('/:id/QC/r3/reject',
         req.user,
         'reject',
         'study',
-        'QC_r3_form',
-        `Rejected R3 XML form for study ${id}`,
-        { studyId: id, pmid: study.pmid, reason }
+        id,
+        `Rejected R3 XML form for study ${id}: "${reason}"`,
+        { studyId: id, pmid: study.pmid, reason },
+        beforeValue,
+        afterValue
       );
 
       res.json({
