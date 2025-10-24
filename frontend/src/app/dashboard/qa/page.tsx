@@ -16,13 +16,21 @@ interface Study {
   userTag: 'ICSR' | 'AOI' | 'No Case';
   qaApprovalStatus: 'pending' | 'approved' | 'rejected';
   qaComments?: string;
+  r3FormStatus?: string;
+  qcR3Status?: string;
+  r3FormData?: any;
   createdAt: string;
   updatedAt: string;
+  r3FormCompletedAt?: string;
 }
+
+type ReviewTab = 'triage' | 'r3xml';
 
 export default function QAPage() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<ReviewTab>('triage');
   const [studies, setStudies] = useState<Study[]>([]);
+  const [r3Studies, setR3Studies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
@@ -32,8 +40,12 @@ export default function QAPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
 
   useEffect(() => {
-    fetchPendingStudies();
-  }, []);
+    if (activeTab === 'triage') {
+      fetchPendingStudies();
+    } else {
+      fetchPendingR3Studies();
+    }
+  }, [activeTab]);
 
   const fetchPendingStudies = async () => {
     try {
@@ -53,6 +65,30 @@ export default function QAPage() {
     } catch (error) {
       console.error("Error fetching studies:", error);
       setError("Failed to load studies for QC review");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPendingR3Studies = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`${getApiBaseUrl()}/studies/QC-r3-pending`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setR3Studies(data.data || []);
+      } else {
+        throw new Error("Failed to fetch pending R3 studies");
+      }
+    } catch (error) {
+      console.error("Error fetching R3 studies:", error);
+      setError("Failed to load R3 forms for QC review");
     } finally {
       setLoading(false);
     }
@@ -122,6 +158,70 @@ export default function QAPage() {
     }
   };
 
+  const approveR3Form = async (studyId: string) => {
+    setActionInProgress(studyId);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QC/r3/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ comments }),
+      });
+
+      if (response.ok) {
+        setR3Studies(prev => prev.filter(study => study.id !== studyId));
+        setSelectedStudy(null);
+        setComments("");
+        alert("R3 XML form approved successfully! Study will proceed to Medical Reviewer.");
+      } else {
+        throw new Error("Failed to approve R3 form");
+      }
+    } catch (error) {
+      console.error("Error approving R3 form:", error);
+      alert("Failed to approve R3 form. Please try again.");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const rejectR3Form = async (studyId: string) => {
+    if (!rejectionReason.trim()) {
+      alert("Please provide a reason for rejection");
+      return;
+    }
+
+    setActionInProgress(studyId);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QC/r3/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason: rejectionReason }),
+      });
+
+      if (response.ok) {
+        setR3Studies(prev => prev.filter(study => study.id !== studyId));
+        setSelectedStudy(null);
+        setRejectionReason("");
+        setShowRejectModal(false);
+        alert("R3 XML form rejected successfully! Study has been returned to Data Entry for corrections.");
+      } else {
+        throw new Error("Failed to reject R3 form");
+      }
+    } catch (error) {
+      console.error("Error rejecting R3 form:", error);
+      alert("Failed to reject R3 form. Please try again.");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
   const getClassificationColor = (classification: string) => {
     switch (classification) {
       case 'ICSR': return 'bg-red-100 text-red-800 border-red-200';
@@ -148,12 +248,50 @@ export default function QAPage() {
           <div className="max-w-7xl mx-auto">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">QUALITY ASSURANCE</h1>
             <p className="mt-1 text-sm text-gray-600">
-              Review and approve study classifications made by Triage team
+              Review and approve study classifications and R3 XML forms
             </p>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                <button
+                  onClick={() => {
+                    setActiveTab('triage');
+                    setSelectedStudy(null);
+                    setComments("");
+                    setRejectionReason("");
+                  }}
+                  className={`${
+                    activeTab === 'triage'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                >
+                  Triage Classifications ({studies.length})
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('r3xml');
+                    setSelectedStudy(null);
+                    setComments("");
+                    setRejectionReason("");
+                  }}
+                  className={`${
+                    activeTab === 'r3xml'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                >
+                  R3 XML Forms ({r3Studies.length})
+                </button>
+              </nav>
+            </div>
+          </div>
+
           {/* Error Banner */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -167,24 +305,28 @@ export default function QAPage() {
             <div className="bg-white rounded-xl shadow-lg">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Pending Classifications ({studies.length})
+                  {activeTab === 'triage' ? `Pending Classifications (${studies.length})` : `Pending R3 XML Forms (${r3Studies.length})`}
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Studies awaiting QC approval
+                  {activeTab === 'triage' ? 'Studies awaiting QC approval' : 'R3 XML forms awaiting QC approval'}
                 </p>
               </div>
 
               <div className="divide-y divide-gray-200 max-h-[70vh] overflow-y-auto">
-                {studies.length === 0 ? (
+                {(activeTab === 'triage' ? studies : r3Studies).length === 0 ? (
                   <div className="p-6 text-center text-gray-500">
                     <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No pending classifications</h3>
-                    <p className="mt-1 text-sm text-gray-500">All studies have been reviewed.</p>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">
+                      {activeTab === 'triage' ? 'No pending classifications' : 'No pending R3 XML forms'}
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {activeTab === 'triage' ? 'All studies have been reviewed.' : 'All R3 forms have been reviewed.'}
+                    </p>
                   </div>
                 ) : (
-                  studies.map((study) => (
+                  (activeTab === 'triage' ? studies : r3Studies).map((study) => (
                     <div
                       key={study.id}
                       className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
@@ -207,7 +349,10 @@ export default function QAPage() {
                             Drug: {study.drugName} | Event: {study.adverseEvent}
                           </p>
                           <p className="text-xs text-gray-500">
-                            Classified: {new Date(study.updatedAt).toLocaleDateString()}
+                            {activeTab === 'triage' 
+                              ? `Classified: ${new Date(study.updatedAt).toLocaleDateString()}`
+                              : `Completed: ${study.r3FormCompletedAt ? new Date(study.r3FormCompletedAt).toLocaleDateString() : 'N/A'}`
+                            }
                           </p>
                         </div>
                         {selectedStudy?.id === study.id && (
@@ -252,12 +397,27 @@ export default function QAPage() {
                             <p className="text-sm text-gray-900">{selectedStudy.adverseEvent}</p>
                           </div>
                         </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-700">Current Classification:</span>
-                          <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getClassificationColor(selectedStudy.userTag)}`}>
-                            {selectedStudy.userTag}
-                          </span>
-                        </div>
+                        {activeTab === 'triage' ? (
+                          <div>
+                            <span className="text-sm font-medium text-gray-700">Current Classification:</span>
+                            <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getClassificationColor(selectedStudy.userTag)}`}>
+                              {selectedStudy.userTag}
+                            </span>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="text-sm font-medium text-gray-700">R3 Form Status:</span>
+                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                              {selectedStudy.r3FormStatus?.replace('_', ' ') || 'Completed'}
+                            </span>
+                            <div className="mt-2">
+                              <span className="text-sm font-medium text-gray-700">Completed:</span>
+                              <span className="ml-2 text-sm text-gray-900">
+                                {selectedStudy.r3FormCompletedAt ? new Date(selectedStudy.r3FormCompletedAt).toLocaleString() : 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -279,7 +439,7 @@ export default function QAPage() {
                     <div className="flex space-x-3">
                       <PermissionGate resource="QC" action="approve">
                         <button
-                          onClick={() => approveClassification(selectedStudy.id)}
+                          onClick={() => activeTab === 'triage' ? approveClassification(selectedStudy.id) : approveR3Form(selectedStudy.id)}
                           disabled={actionInProgress === selectedStudy.id}
                           className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center"
                         >
@@ -296,7 +456,7 @@ export default function QAPage() {
                               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                               </svg>
-                              Approve Classification
+                              {activeTab === 'triage' ? 'Approve Classification' : 'Approve R3 XML Form'}
                             </>
                           )}
                         </button>
@@ -311,7 +471,7 @@ export default function QAPage() {
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
-                          Reject Classification
+                          {activeTab === 'triage' ? 'Reject Classification' : 'Reject R3 XML Form'}
                         </button>
                       </PermissionGate>
                     </div>
@@ -335,7 +495,9 @@ export default function QAPage() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Reject Classification</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {activeTab === 'triage' ? 'Reject Classification' : 'Reject R3 XML Form'}
+                </h3>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Reason for rejection: <span className="text-red-500">*</span>
@@ -345,7 +507,7 @@ export default function QAPage() {
                     onChange={(e) => setRejectionReason(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
                     rows={4}
-                    placeholder="Explain why this classification is incorrect..."
+                    placeholder={activeTab === 'triage' ? 'Explain why this classification is incorrect...' : 'Explain what needs to be corrected in the R3 form...'}
                     required
                   />
                 </div>
@@ -360,7 +522,7 @@ export default function QAPage() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => selectedStudy && rejectClassification(selectedStudy.id)}
+                    onClick={() => selectedStudy && (activeTab === 'triage' ? rejectClassification(selectedStudy.id) : rejectR3Form(selectedStudy.id))}
                     disabled={!rejectionReason.trim() || actionInProgress === selectedStudy?.id}
                     className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium transition-colors"
                   >

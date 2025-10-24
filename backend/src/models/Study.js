@@ -63,6 +63,13 @@ class Study {
     r3FormStatus = 'not_started', // not_started, in_progress, completed
     r3FormCompletedBy = null,
     r3FormCompletedAt = null,
+    // QC R3 XML Review fields
+    qcR3Status = 'not_applicable', // not_applicable, pending, approved, rejected
+    qcR3ApprovedBy = null,
+    qcR3ApprovedAt = null,
+    qcR3RejectedBy = null,
+    qcR3RejectedAt = null,
+    qcR3Comments = null,
     // Medical Reviewer fields
     medicalReviewStatus = 'not_started', // not_started, in_progress, completed, revoked
     medicalReviewedBy = null,
@@ -145,6 +152,14 @@ class Study {
     this.r3FormStatus = r3FormStatus;
     this.r3FormCompletedBy = r3FormCompletedBy;
     this.r3FormCompletedAt = r3FormCompletedAt;
+    
+    // QC R3 XML Review fields
+    this.qcR3Status = qcR3Status;
+    this.qcR3ApprovedBy = qcR3ApprovedBy;
+    this.qcR3ApprovedAt = qcR3ApprovedAt;
+    this.qcR3RejectedBy = qcR3RejectedBy;
+    this.qcR3RejectedAt = qcR3RejectedAt;
+    this.qcR3Comments = qcR3Comments;
     
     // Medical Reviewer fields
     this.medicalReviewStatus = medicalReviewStatus;
@@ -260,6 +275,52 @@ class Study {
       userName,
       text: `Classification "${previousTag}" rejected by QC. Reason: ${reason}. Study returned to Triage for re-classification.`,
       type: 'QC_rejection'
+    });
+  }
+
+  // QC R3 XML Review Methods
+  approveR3Form(userId, userName, comments = null) {
+    if (this.qcR3Status === 'approved') {
+      throw new Error('R3 form is already approved by QC');
+    }
+    
+    if (this.r3FormStatus !== 'completed') {
+      throw new Error('R3 form must be completed before QC approval');
+    }
+    
+    this.qcR3Status = 'approved';
+    this.qcR3ApprovedBy = userId;
+    this.qcR3ApprovedAt = new Date().toISOString();
+    this.qcR3Comments = comments;
+    this.updatedAt = new Date().toISOString();
+    
+    // Add approval comment
+    this.addComment({
+      userId,
+      userName,
+      text: `R3 XML form approved by QC. Ready for Medical Reviewer${comments ? '. Comments: ' + comments : ''}`,
+      type: 'qc_r3_approval'
+    });
+  }
+
+  rejectR3Form(userId, userName, reason) {
+    if (!reason) {
+      throw new Error('Rejection reason is required');
+    }
+    
+    this.qcR3Status = 'rejected';
+    this.qcR3RejectedBy = userId;
+    this.qcR3RejectedAt = new Date().toISOString();
+    this.qcR3Comments = reason;
+    this.r3FormStatus = 'in_progress'; // Reset to allow data entry to fix
+    this.updatedAt = new Date().toISOString();
+    
+    // Add rejection comment
+    this.addComment({
+      userId,
+      userName,
+      text: `R3 XML form rejected by QC. Reason: ${reason}. Returned to Data Entry for corrections.`,
+      type: 'qc_r3_rejection'
     });
   }
 
@@ -381,19 +442,18 @@ class Study {
     this.r3FormCompletedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     
+    // Set QC R3 status to pending - requires QC approval before Medical Reviewer
+    this.qcR3Status = 'pending';
+    
     // Check if this study was previously revoked by Medical Reviewer
     const wasRevoked = this.revokedBy !== null && this.revokedBy !== undefined;
     
-    // If the study was revoked, ensure it goes back to Medical Reviewer for re-approval
+    // Add comment indicating R3 form completion
     if (wasRevoked) {
-      // Keep medicalReviewStatus as 'not_started' so it appears in Medical Reviewer queue
-      this.medicalReviewStatus = 'not_started';
-      
-      // Add comment indicating resubmission after revocation
       this.addComment({
         userId,
         userName,
-        text: 'R3 form completed and resubmitted after Medical Reviewer revocation. Awaiting medical re-review.',
+        text: 'R3 form completed and resubmitted after Medical Reviewer revocation. Awaiting QC approval before medical re-review.',
         type: 'resubmission'
       });
     } else {
@@ -401,7 +461,7 @@ class Study {
       this.addComment({
         userId,
         userName,
-        text: 'R3 form completed. Ready for Medical Reviewer review.',
+        text: 'R3 form completed. Awaiting QC approval before Medical Reviewer review.',
         type: 'system'
       });
     }
@@ -522,6 +582,14 @@ class Study {
       r3FormStatus: this.r3FormStatus,
       r3FormCompletedBy: this.r3FormCompletedBy,
       r3FormCompletedAt: this.r3FormCompletedAt,
+      
+      // QC R3 XML Review fields
+      qcR3Status: this.qcR3Status,
+      qcR3ApprovedBy: this.qcR3ApprovedBy,
+      qcR3ApprovedAt: this.qcR3ApprovedAt,
+      qcR3RejectedBy: this.qcR3RejectedBy,
+      qcR3RejectedAt: this.qcR3RejectedAt,
+      qcR3Comments: this.qcR3Comments,
       
       // Medical Reviewer fields
       medicalReviewStatus: this.medicalReviewStatus,

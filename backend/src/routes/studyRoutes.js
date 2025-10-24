@@ -124,6 +124,54 @@ router.get('/QC-pending',
   }
 );
 
+// Get studies with completed R3 forms awaiting QC R3 approval
+router.get('/QC-r3-pending',
+  authorizePermission('QC', 'read'),
+  async (req, res) => {
+    try {
+      const { 
+        page = 1, 
+        limit = 50, 
+        search
+      } = req.query;
+      
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.r3FormStatus = @r3Status AND c.qcR3Status = @qcR3Status';
+      const parameters = [
+        { name: '@orgId', value: req.user.organizationId },
+        { name: '@r3Status', value: 'completed' },
+        { name: '@qcR3Status', value: 'pending' }
+      ];
+
+      if (search) {
+        query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
+        parameters.push({ name: '@search', value: search });
+      }
+
+      query += ' ORDER BY c.r3FormCompletedAt DESC';
+      const offset = (page - 1) * limit;
+      query += ` OFFSET ${offset} LIMIT ${limit}`;
+
+      const studies = await cosmosService.queryItems('studies', query, parameters);
+
+      res.json({
+        success: true,
+        data: studies,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: studies.length
+        }
+      });
+    } catch (error) {
+      console.error('QC R3 pending studies fetch error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch QC R3 pending studies', 
+        message: error.message 
+      });
+    }
+  }
+);
+
 // Get studies for data entry (ICSR classified only)
 router.get('/data-entry',
   authorizePermission('studies', 'read'),
@@ -277,7 +325,7 @@ router.get('/data-entry',
   }
 );
 
-// Get studies for Medical Reviewer (ICSR with completed R3 forms)
+// Get studies for Medical Reviewer (ICSR with completed R3 forms and QC R3 approval)
 router.get('/medical-examiner',
   authorizePermission('studies', 'read'),
   async (req, res) => {
@@ -289,12 +337,13 @@ router.get('/medical-examiner',
         status = 'all' // all, pending, completed, revoked
       } = req.query;
       
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND c.r3FormStatus = @formStatus';
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND c.r3FormStatus = @formStatus AND c.qcR3Status = @qcR3Status';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
         { name: '@userTag', value: 'ICSR' },
         { name: '@qaStatus', value: 'approved' },
-        { name: '@formStatus', value: 'completed' }
+        { name: '@formStatus', value: 'completed' },
+        { name: '@qcR3Status', value: 'approved' }
       ];
 
       // Add medical review status filter
@@ -316,7 +365,7 @@ router.get('/medical-examiner',
         parameters.push({ name: '@search', value: search });
       }
 
-      query += ' ORDER BY c.r3FormCompletedAt DESC';
+      query += ' ORDER BY c.qcR3ApprovedAt DESC';
 
       const offset = (parseInt(page) - 1) * parseInt(limit);
       query += ` OFFSET ${offset} LIMIT ${limit}`;
@@ -1342,6 +1391,123 @@ router.post('/:id/QC/reject',
       console.error('QC rejection error:', error);
       res.status(500).json({ 
         error: 'Failed to reject classification', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+// QC R3 XML Approval/Rejection endpoints
+router.post('/:id/QC/r3/approve',
+  authorizePermission('QC', 'approve'),
+  [
+    body('comments').optional().isString().withMessage('Comments must be a string')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { comments } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const beforeValue = { 
+        qcR3Status: studyData.qcR3Status,
+        qcR3ApprovedBy: studyData.qcR3ApprovedBy,
+        qcR3ApprovedAt: studyData.qcR3ApprovedAt
+      };
+
+      const study = new Study(studyData);
+      study.approveR3Form(req.user.id, req.user.name, comments);
+
+      const afterValue = {
+        qcR3Status: study.qcR3Status,
+        qcR3ApprovedBy: study.qcR3ApprovedBy,
+        qcR3ApprovedAt: study.qcR3ApprovedAt
+      };
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      await auditAction(
+        req.user,
+        'approve',
+        'study',
+        id,
+        `Approved R3 XML form for study ${id}${comments ? ': "' + comments + '"' : ''}`,
+        { studyId: id, pmid: study.pmid },
+        beforeValue,
+        afterValue
+      );
+
+      res.json({
+        success: true,
+        message: 'R3 XML form approved successfully',
+        study: study.toJSON()
+      });
+    } catch (error) {
+      console.error('QC R3 approval error:', error);
+      res.status(500).json({ 
+        error: 'Failed to approve R3 form', 
+        message: error.message 
+      });
+    }
+  }
+);
+
+router.post('/:id/QC/r3/reject',
+  authorizePermission('QC', 'reject'),
+  [
+    body('reason').isString().isLength({ min: 1 }).withMessage('Rejection reason is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const study = new Study(studyData);
+      study.rejectR3Form(req.user.id, req.user.name, reason);
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      await auditAction(
+        req.user,
+        'reject',
+        'study',
+        'QC_r3_form',
+        `Rejected R3 XML form for study ${id}`,
+        { studyId: id, pmid: study.pmid, reason }
+      );
+
+      res.json({
+        success: true,
+        message: 'R3 XML form rejected successfully',
+        study: study.toJSON()
+      });
+    } catch (error) {
+      console.error('QC R3 rejection error:', error);
+      res.status(500).json({ 
+        error: 'Failed to reject R3 form', 
         message: error.message 
       });
     }

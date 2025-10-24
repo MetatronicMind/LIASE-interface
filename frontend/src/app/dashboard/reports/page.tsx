@@ -24,6 +24,7 @@ interface Study {
   updatedAt: string;
   qaApprovalStatus?: string;
   r3FormStatus?: string;
+  qcR3Status?: string;
   medicalReviewStatus?: string;
   serious?: boolean;
   substanceGroup?: string;
@@ -686,9 +687,6 @@ export default function ReportsPage() {
                   Adverse Event
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                  Classification
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Triage Class.
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
@@ -698,7 +696,10 @@ export default function ReportsPage() {
                   Status
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                  QC
+                  QC Triage
+                </th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  QC R3 XML
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   R3
@@ -719,7 +720,7 @@ export default function ReportsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedStudies.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                  <td colSpan={11} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -756,16 +757,6 @@ export default function ReportsPage() {
                         {study.adverseEvent}
                       </div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getClassificationBadgeColor(study.userTag)}`}>
-                        {study.userTag || 'Unclassified'}
-                      </span>
-                      {study.serious && (
-                        <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full border bg-orange-100 text-orange-800 border-orange-200">
-                          Serious
-                        </span>
-                      )}
-                    </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                         getTriageClassification(study) === 'Pending' 
@@ -774,6 +765,11 @@ export default function ReportsPage() {
                       }`}>
                         {getTriageClassification(study)}
                       </span>
+                      {study.serious && (
+                        <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full border bg-orange-100 text-orange-800 border-orange-200">
+                          Serious
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -794,6 +790,16 @@ export default function ReportsPage() {
                         'bg-yellow-100 text-yellow-800'
                       }`}>
                         {study.qaApprovalStatus || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        (study as any).qcR3Status === 'approved' ? 'bg-green-100 text-green-800' :
+                        (study as any).qcR3Status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        (study as any).qcR3Status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {(study as any).qcR3Status === 'not_applicable' ? 'N/A' : ((study as any).qcR3Status || 'N/A')}
                       </span>
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
