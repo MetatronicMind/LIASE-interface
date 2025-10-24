@@ -15,6 +15,33 @@ const router = express.Router();
 // Apply audit logging to all routes
 router.use(auditLogger());
 
+// Helper function to get only changed fields between two objects
+function getChangedFields(beforeObj, afterObj) {
+  const changes = {};
+  
+  if (!beforeObj && !afterObj) return changes;
+  if (!beforeObj) return afterObj;
+  if (!afterObj) return {};
+  
+  // Compare all keys from both objects
+  const allKeys = new Set([...Object.keys(beforeObj), ...Object.keys(afterObj)]);
+  
+  for (const key of allKeys) {
+    const beforeValue = beforeObj[key];
+    const afterValue = afterObj[key];
+    
+    // Check if values are different
+    if (JSON.stringify(beforeValue) !== JSON.stringify(afterValue)) {
+      changes[key] = {
+        before: beforeValue,
+        after: afterValue
+      };
+    }
+  }
+  
+  return changes;
+}
+
 // Get all studies in organization
 router.get('/',
   authorizePermission('studies', 'read'),
@@ -1031,18 +1058,16 @@ router.put('/:id/r3-form',
       // Capture after value (deep copy to avoid reference issues)
       const afterValue = study.r3FormData ? JSON.parse(JSON.stringify(study.r3FormData)) : null;
 
+      // Get only the changed fields
+      const changedFields = getChangedFields(beforeValue, afterValue);
+
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
 
       // Log changes for debugging
-      console.log('R3 Form Update - Audit Data:', {
-        hasBeforeValue: !!beforeValue,
-        hasAfterValue: !!afterValue,
-        beforeKeys: beforeValue ? Object.keys(beforeValue).length : 0,
-        afterKeys: afterValue ? Object.keys(afterValue).length : 0,
-        beforeSample: beforeValue ? Object.keys(beforeValue).slice(0, 3) : [],
-        afterSample: afterValue ? Object.keys(afterValue).slice(0, 3) : [],
-        areSame: JSON.stringify(beforeValue) === JSON.stringify(afterValue)
+      console.log('R3 Form Update - Changed Fields:', {
+        changedFieldCount: Object.keys(changedFields).length,
+        changedFieldNames: Object.keys(changedFields)
       });
 
       await auditAction(
@@ -1050,10 +1075,10 @@ router.put('/:id/r3-form',
         'update',
         'study',
         id,
-        `Updated R3 form data for study ${id}`,
+        `Updated R3 form data for study ${id} (${Object.keys(changedFields).length} fields changed)`,
         { studyId: id, pmid: study.pmid },
-        beforeValue,
-        afterValue
+        { r3FormChanges: changedFields },
+        { r3FormChanges: changedFields }
       );
 
       res.json({
@@ -1084,25 +1109,39 @@ router.post('/:id/r3-form/complete',
         return res.status(404).json({ error: 'Study not found' });
       }
 
-      // Capture before value (deep copy) - include R3 form data snapshot
-      const beforeValue = {
+      // Capture before R3 form data (deep copy)
+      const beforeR3FormData = studyData.r3FormData ? JSON.parse(JSON.stringify(studyData.r3FormData)) : null;
+      const beforeStatus = {
         r3FormStatus: studyData.r3FormStatus,
         r3FormCompletedBy: studyData.r3FormCompletedBy,
         r3FormCompletedAt: studyData.r3FormCompletedAt,
-        qcR3Status: studyData.qcR3Status,
-        r3FormData: studyData.r3FormData ? JSON.parse(JSON.stringify(studyData.r3FormData)) : null
+        qcR3Status: studyData.qcR3Status
       };
 
       const study = new Study(studyData);
       study.completeR3Form(req.user.id, req.user.name);
 
-      // Capture after value - include complete R3 form data snapshot
-      const afterValue = {
+      // Capture after R3 form data (deep copy)
+      const afterR3FormData = study.r3FormData ? JSON.parse(JSON.stringify(study.r3FormData)) : null;
+      const afterStatus = {
         r3FormStatus: study.r3FormStatus,
         r3FormCompletedBy: study.r3FormCompletedBy,
         r3FormCompletedAt: study.r3FormCompletedAt,
-        qcR3Status: study.qcR3Status,
-        r3FormData: study.r3FormData ? JSON.parse(JSON.stringify(study.r3FormData)) : null
+        qcR3Status: study.qcR3Status
+      };
+
+      // Get only the changed R3 form fields
+      const changedR3Fields = getChangedFields(beforeR3FormData, afterR3FormData);
+      
+      // Combine status changes with R3 field changes
+      const beforeValue = {
+        ...beforeStatus,
+        r3FormFieldsChanged: Object.keys(changedR3Fields).length
+      };
+      
+      const afterValue = {
+        ...afterStatus,
+        r3FormChanges: changedR3Fields
       };
 
       // Save updated study
