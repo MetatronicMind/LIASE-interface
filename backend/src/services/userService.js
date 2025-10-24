@@ -25,12 +25,16 @@ class UserService {
       const usersWithRoles = await Promise.all(users.map(async (userData) => {
         const user = new User(userData);
         
+        // Store user's custom permissions before loading role
+        const userCustomPermissions = user.permissions || {};
+        
         if (user.roleId) {
           const role = await roleService.getRoleById(user.roleId, organizationId);
           if (role) {
             user.role = role.name;
             user.roleDisplayName = role.displayName;
-            user.setPermissions(role.permissions);
+            // Merge role permissions with user's custom permissions (user permissions take priority)
+            user.setPermissions({ ...role.permissions, ...userCustomPermissions });
           }
         } else if (user.role) {
           // Handle legacy users with role names instead of roleId
@@ -38,7 +42,8 @@ class UserService {
           if (role) {
             user.roleId = role.id;
             user.roleDisplayName = role.displayName;
-            user.setPermissions(role.permissions);
+            // Merge role permissions with user's custom permissions (user permissions take priority)
+            user.setPermissions({ ...role.permissions, ...userCustomPermissions });
           }
         }
         
@@ -62,13 +67,17 @@ class UserService {
 
       const user = new User(userData);
       
+      // Store user's custom permissions before loading role
+      const userCustomPermissions = user.permissions || {};
+      
       // Populate role information
       if (user.roleId) {
         const role = await roleService.getRoleById(user.roleId, organizationId);
         if (role) {
           user.role = role.name;
           user.roleDisplayName = role.displayName;
-          user.setPermissions(role.permissions);
+          // Merge role permissions with user's custom permissions (user permissions take priority)
+          user.setPermissions({ ...role.permissions, ...userCustomPermissions });
         }
       } else if (user.role) {
         // Handle legacy users
@@ -76,7 +85,8 @@ class UserService {
         if (role) {
           user.roleId = role.id;
           user.roleDisplayName = role.displayName;
-          user.setPermissions(role.permissions);
+          // Merge role permissions with user's custom permissions (user permissions take priority)
+          user.setPermissions({ ...role.permissions, ...userCustomPermissions });
         }
       }
 
