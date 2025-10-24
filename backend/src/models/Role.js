@@ -52,6 +52,12 @@ class Role {
         classify: false, 
         manual_drug_test: false 
       },
+      QA: { 
+        read: false, 
+        write: false, 
+        approve: false, 
+        reject: false 
+      },
       QC: { 
         read: false, 
         write: false, 
