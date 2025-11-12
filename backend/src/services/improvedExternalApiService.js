@@ -16,10 +16,10 @@ const http = require('http');
 class ImprovedExternalApiService {
   constructor() {
     this.aiInferenceUrls = [
-      'http://52.249.241.253/get_AI_inference',
-      'http://4.156.187.77/get_AI_inference2',
-      'http://20.242.192.125/get_AI_inference3',
-      'http://4.156.175.195/get_AI_inference4'
+   'http://20.242.200.176/get_AI_inference',
+    'http://20.246.204.143/get_AI_inference2',
+    'http://20.242.192.125/get_AI_inference3',
+    'http://52.191.200.41/get_AI_inference4'
     ];
     
     // Configuration optimized for 45-60 second API responses

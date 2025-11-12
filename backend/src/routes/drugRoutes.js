@@ -239,9 +239,9 @@ router.get('/external-api/test', async (req, res) => {
       message: isConnected ? 'AI inference API connection successful' : 'AI inference API connection failed',
       timestamp: new Date().toISOString(),
       apiUrls: [
-        'http://20.75.201.207/get_AI_inference/',
-        'http://20.75.201.207/get_AI_inference2/',
-        'http://20.75.201.207/get_AI_inference3/'
+        'http://20.242.200.176/get_AI_inference/',
+        'http://20.246.204.143/get_AI_inference2/',
+        'http://20.242.192.125/get_AI_inference3/'
       ]
     });
   } catch (error) {

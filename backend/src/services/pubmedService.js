@@ -116,7 +116,7 @@ class PubMedService {
       params.append('start_date', startDate);
       params.append('end_date', endDate);
 
-      const searchUrl = `http://20.242.200.176/get_pmidlist/?${params.toString()}`;
+      const searchUrl = `http://20.246.204.143/get_pmidlist/?${params.toString()}`;
       console.log('PubMed API call:', searchUrl);
       
       await this.respectRateLimit();
@@ -234,7 +234,7 @@ class PubMedService {
       const defaultStartDate = '2000-01-01'; 
       const defaultEndDate = new Date().toISOString().split('T')[0]; 
       
-      const searchUrl = `http://20.242.200.176/get_pmidlist/?search=${encodeURIComponent(term)}&start_date=${defaultStartDate}&end_date=${defaultEndDate}`;
+      const searchUrl = `http://20.242.192.125/get_pmidlist/?search=${encodeURIComponent(term)}&start_date=${defaultStartDate}&end_date=${defaultEndDate}`;
       console.log('Search URL:', searchUrl);
       
       const searchResp = await fetch(searchUrl);
@@ -701,7 +701,7 @@ class PubMedService {
       params.append('end_date', endDate);
       console.log('Using date range:', startDate, 'to', endDate);
       
-      const searchUrl = `http://20.242.200.176/get_pmidlist/?${params.toString()}`;
+      const searchUrl = `http://52.191.200.41/get_pmidlist/?${params.toString()}`;
       console.log('🔗 Final Search URL:', searchUrl);
       console.log('🔗 URL Parameters:', params.toString());
       

@@ -443,7 +443,7 @@ class DrugDiscoveryToAIInferenceTest {
     console.log('\n🔍 Debug: Testing Single API Call');
     console.log('-'.repeat(50));
     
-    const testUrl = `http://52.249.241.253/get_AI_inference?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(drugName)}`;
+    const testUrl = `http://20.242.200.176/get_AI_inference?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(drugName)}`;
     console.log('🌐 Test URL:', testUrl);
     
     try {
