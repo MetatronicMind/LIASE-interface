@@ -845,7 +845,7 @@ export default function TriagePage() {
                     </div>
 
                     {/* Enhanced Abstract Display */}
-                    {selectedStudy.abstract && (
+                    {(selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract) && (
                       <div className="bg-gray-50 rounded-lg p-4">
                         <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                           <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -854,7 +854,7 @@ export default function TriagePage() {
                           Abstract
                         </h4>
                         <div className="bg-white rounded p-4 border">
-                          <p className="text-gray-900 leading-relaxed text-sm">{selectedStudy.abstract}</p>
+                          <p className="text-gray-900 leading-relaxed text-sm">{selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract}</p>
                         </div>
                       </div>
                     )}
