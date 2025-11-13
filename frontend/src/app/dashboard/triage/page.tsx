@@ -233,6 +233,40 @@ export default function TriagePage() {
     }
   };
 
+  // Function to calculate final classification based on AI inference data
+  // (Defined before filteredStudies to avoid hoisting issues)
+  const getFinalClassification = (study: Study): string | null => {
+    const icsrClassification = study.aiInferenceData?.ICSR_classification || study.ICSR_classification || study.icsrClassification;
+    const aoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+
+    if (!icsrClassification) return null;
+
+    // If ICSR Classification is "Probable ICSR/AOI", return it regardless of AOI Classification
+    if (icsrClassification === "Probable ICSR/AOI") {
+      return "Probable ICSR/AOI";
+    }
+
+    // If ICSR Classification is "Probable ICSR"
+    if (icsrClassification === "Probable ICSR") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (ICSR)") {
+        return "Probable ICSR/AOI";
+      } else {
+        return "Probable ICSR";
+      }
+    }
+
+    // If ICSR Classification is "No Case"
+    if (icsrClassification === "No Case") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (AOI)") {
+        return "Probable AOI";
+      } else {
+        return "No Case";
+      }
+    }
+
+    return null;
+  };
+
   // Filtering logic
   const filteredStudies = studies.filter((study: Study) => {
     // Only show studies that need triage classification:
@@ -305,39 +339,6 @@ export default function TriagePage() {
       default:
         return "bg-blue-100 text-blue-800 border-blue-200";
     }
-  };
-
-  // Function to calculate final classification based on AI inference data
-  const getFinalClassification = (study: Study): string | null => {
-    const icsrClassification = study.aiInferenceData?.ICSR_classification || study.ICSR_classification || study.icsrClassification;
-    const aoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
-
-    if (!icsrClassification) return null;
-
-    // If ICSR Classification is "Probable ICSR/AOI", return it regardless of AOI Classification
-    if (icsrClassification === "Probable ICSR/AOI") {
-      return "Probable ICSR/AOI";
-    }
-
-    // If ICSR Classification is "Probable ICSR"
-    if (icsrClassification === "Probable ICSR") {
-      if (aoiClassification === "Yes" || aoiClassification === "Yes (ICSR)") {
-        return "Probable ICSR/AOI";
-      } else {
-        return "Probable ICSR";
-      }
-    }
-
-    // If ICSR Classification is "No Case"
-    if (icsrClassification === "No Case") {
-      if (aoiClassification === "Yes" || aoiClassification === "Yes (AOI)") {
-        return "Probable AOI";
-      } else {
-        return "No Case";
-      }
-    }
-
-    return null;
   };
 
   const detailsRef = useRef<HTMLDivElement>(null);
@@ -618,11 +619,6 @@ export default function TriagePage() {
                             {study.userTag && (
                               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getClassificationColor(study.userTag)}`}>
                                 {study.userTag}
-                              </span>
-                            )}
-                            {study.serious && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                                Serious
                               </span>
                             )}
                             {study.identifiableHumanSubject && (

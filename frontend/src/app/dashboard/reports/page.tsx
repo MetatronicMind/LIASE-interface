@@ -765,11 +765,6 @@ export default function ReportsPage() {
                       }`}>
                         {getTriageClassification(study)}
                       </span>
-                      {study.serious && (
-                        <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full border bg-orange-100 text-orange-800 border-orange-200">
-                          Serious
-                        </span>
-                      )}
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${

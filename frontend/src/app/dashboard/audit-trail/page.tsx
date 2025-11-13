@@ -280,7 +280,10 @@ export default function AuditTrailPage() {
                   auditLogs.map((log, idx) => (
                     <tr key={idx} className="border-b border-blue-50 last:border-b-0">
                       <td className="py-3 px-4 align-top text-blue-900">
-                        {new Date(log.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        <div>{new Date(log.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                        <div className="text-xs text-gray-600">
+                          {new Date(log.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short" })}
+                        </div>
                       </td>
                       <td className="py-3 px-4 align-top text-blue-900 font-bold">
                         {log.userName}
