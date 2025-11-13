@@ -84,8 +84,13 @@ export default function TriagePage() {
   const [status, setStatus] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [caseType, setCaseType] = useState("");
+  const [classificationType, setClassificationType] = useState("");
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
   const [comment, setComment] = useState("");
+  
+  // Listedness state
+  const [listedness, setListedness] = useState<'Yes' | 'No' | null>(null);
   
   // Pagination state
   const [page, setPage] = useState(1);
@@ -248,7 +253,17 @@ export default function TriagePage() {
     const studyDate = study.createdAt.split('T')[0]; // Extract date part
     const matchesDateFrom = !dateFrom || studyDate >= dateFrom;
     const matchesDateTo = !dateTo || studyDate <= dateTo;
-    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
+    
+    // Case Type filter (serious/non-serious)
+    const matchesCaseType = caseType === "" || 
+      (caseType === "Serious" && study.serious) ||
+      (caseType === "Non-Serious" && !study.serious);
+    
+    // Classification Type filter
+    const finalClassification = getFinalClassification(study);
+    const matchesClassificationType = classificationType === "" || finalClassification === classificationType;
+    
+    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo && matchesCaseType && matchesClassificationType;
   });
 
   // Pagination logic
@@ -372,7 +387,7 @@ export default function TriagePage() {
             </svg>
             Filter Studies for Triage
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Search Studies</label>
               <div className="relative">
@@ -398,6 +413,34 @@ export default function TriagePage() {
                 <option value="Pending Review">Pending Review</option>
                 <option value="Under Review">Under Review</option>
                 <option value="Approved">Approved</option>
+              </select>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Case Type</label>
+              <select
+                value={caseType}
+                onChange={e => setCaseType(e.target.value)}
+                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+              >
+                <option value="">All Case Types</option>
+                <option value="Serious">Serious</option>
+                <option value="Non-Serious">Non-Serious</option>
+              </select>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Classification Type</label>
+              <select
+                value={classificationType}
+                onChange={e => setClassificationType(e.target.value)}
+                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+              >
+                <option value="">All Classifications</option>
+                <option value="Probable ICSR/AOI">Probable ICSR/AOI</option>
+                <option value="Probable ICSR">Probable ICSR</option>
+                <option value="Probable AOI">Probable AOI</option>
+                <option value="No Case">No Case</option>
               </select>
             </div>
             
@@ -431,6 +474,8 @@ export default function TriagePage() {
                 setStatus("");
                 setDateFrom("");
                 setDateTo("");
+                setCaseType("");
+                setClassificationType("");
                 setPage(1);
               }}
             >
@@ -877,20 +922,6 @@ export default function TriagePage() {
                       )}
                     </div>
 
-                    {/* AI Final Classification */}
-                    {getFinalClassification(selectedStudy) && (
-                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-6 border-2 border-indigo-200">
-                        <div className="flex items-center justify-center">
-                          <div className="text-center">
-                            <p className="text-sm font-medium text-gray-600 mb-2">AI Classification Result</p>
-                            <p className="text-2xl font-bold text-indigo-900">
-                              {getFinalClassification(selectedStudy)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                     {/* Enhanced Abstract Display */}
                     {(selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract) && (
                       <div className="bg-gray-50 rounded-lg p-4">
@@ -1130,44 +1161,58 @@ export default function TriagePage() {
                       </div>
                     )}
 
-                    {/* Key Points for Triage Decision */}
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                        <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
-                        Key Points for Classification
-                      </h4>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <ul className="space-y-2 text-sm text-gray-700">
-                          <li className="flex items-start">
-                            <span className="font-medium text-gray-900 mr-2">•</span>
-                            <span><strong>Drug:</strong> {selectedStudy.drugName}</span>
-                          </li>
-                          <li className="flex items-start">
-                            <span className="font-medium text-gray-900 mr-2">•</span>
-                            <span><strong>Adverse Event:</strong> {selectedStudy.adverseEvent}</span>
-                          </li>
-                          {selectedStudy.serious && (
-                            <li className="flex items-start">
-                              <span className="font-medium text-red-600 mr-2">•</span>
-                              <span className="text-red-700"><strong>Serious adverse event reported</strong></span>
-                            </li>
-                          )}
-                          {selectedStudy.identifiableHumanSubject && (
-                            <li className="flex items-start">
-                              <span className="font-medium text-blue-600 mr-2">•</span>
-                              <span className="text-blue-700"><strong>Involves identifiable human subject</strong></span>
-                            </li>
-                          )}
-                          {selectedStudy.confirmedPotentialICSR && (
-                            <li className="flex items-start">
-                              <span className="font-medium text-purple-600 mr-2">•</span>
-                              <span className="text-purple-700"><strong>AI confirms potential ICSR</strong></span>
-                            </li>
-                          )}
-                        </ul>
+                    {/* AI Final Classification - Moved above comments */}
+                    {getFinalClassification(selectedStudy) && (
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-6 border-2 border-indigo-200">
+                        <div className="flex items-center justify-center">
+                          <div className="text-center">
+                            <p className="text-sm font-medium text-gray-600 mb-2">AI Classification Result</p>
+                            <p className="text-2xl font-bold text-indigo-900">
+                              {getFinalClassification(selectedStudy)}
+                            </p>
+                          </div>
+                        </div>
                       </div>
+                    )}
+
+                    {/* Listedness Selection */}
+                    <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Listedness
+                      </h4>
+                      <p className="text-sm text-gray-700 mb-4">
+                        Is this adverse event listed in the product label?
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setListedness('Yes')}
+                          className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                            listedness === 'Yes'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-green-500'
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => setListedness('No')}
+                          className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                            listedness === 'No'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-red-500'
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+                      {listedness && (
+                        <p className="mt-3 text-sm text-gray-600 text-center">
+                          Selected: <span className="font-semibold">{listedness}</span>
+                        </p>
+                      )}
                     </div>
 
                     {/* Comments */}
