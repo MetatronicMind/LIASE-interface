@@ -122,7 +122,6 @@ export default function ReportsPage() {
         study.title?.toLowerCase().includes(query) ||
         study.pmid?.toLowerCase().includes(query) ||
         study.drugName?.toLowerCase().includes(query) ||
-        study.adverseEvent?.toLowerCase().includes(query) ||
         study.authors?.toLowerCase().includes(query)
       );
     }
@@ -240,7 +239,6 @@ export default function ReportsPage() {
       'PMID',
       'Title',
       'Drug Name',
-      'Adverse Event',
       'Classification',
       'Triage Classification',
       'AI Classification',
@@ -272,7 +270,6 @@ export default function ReportsPage() {
         study.pmid || '',
         `"${(study.title || '').replace(/"/g, '""')}"`,
         study.drugName || '',
-        study.adverseEvent || '',
         study.userTag || study.effectiveClassification || 'Unclassified',
         getTriageClassification(study),
         getAIClassification(study),
@@ -684,9 +681,6 @@ export default function ReportsPage() {
                   </div>
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                  Adverse Event
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Triage Class.
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
@@ -720,7 +714,7 @@ export default function ReportsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedStudies.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-3 sm:px-6 py-12 text-center text-gray-500">
+                  <td colSpan={10} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -751,11 +745,6 @@ export default function ReportsPage() {
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-700">
                       {study.drugName}
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-700 max-w-[150px] sm:max-w-xs">
-                      <div className="line-clamp-2" title={study.adverseEvent}>
-                        {study.adverseEvent}
-                      </div>
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
