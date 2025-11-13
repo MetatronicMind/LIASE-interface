@@ -277,12 +277,15 @@ export default function AuditTrailPage() {
                     <td colSpan={5} className="text-center py-6 text-gray-400 border-b border-blue-100">No records found.</td>
                   </tr>
                 ) : (
-                  auditLogs.map((log, idx) => (
+                  auditLogs.map((log, idx) => {
+                    // Use the timezone from location data, fallback to UTC
+                    const userTimezone = log.location?.timezone || 'UTC';
+                    return (
                     <tr key={idx} className="border-b border-blue-50 last:border-b-0">
                       <td className="py-3 px-4 align-top text-blue-900">
-                        <div>{new Date(log.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                        <div>{new Date(log.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: userTimezone })}</div>
                         <div className="text-xs text-gray-600">
-                          {new Date(log.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short" })}
+                          {new Date(log.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: userTimezone, timeZoneName: "short" })}
                         </div>
                       </td>
                       <td className="py-3 px-4 align-top text-blue-900 font-bold">
@@ -337,7 +340,8 @@ export default function AuditTrailPage() {
                         )}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
