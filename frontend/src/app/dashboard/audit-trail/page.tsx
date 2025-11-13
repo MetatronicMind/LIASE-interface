@@ -279,7 +279,18 @@ export default function AuditTrailPage() {
                 ) : (
                   auditLogs.map((log, idx) => {
                     // Use the timezone from location data, fallback to UTC
-                    const userTimezone = log.location?.timezone || 'UTC';
+                    // Handle invalid timezone values (like "Unknown") by using UTC
+                    let userTimezone = 'UTC';
+                    if (log.location?.timezone && log.location.timezone !== 'Unknown') {
+                      try {
+                        // Validate timezone by attempting to use it
+                        new Date().toLocaleString('en-US', { timeZone: log.location.timezone });
+                        userTimezone = log.location.timezone;
+                      } catch (e) {
+                        // Invalid timezone, use UTC
+                        userTimezone = 'UTC';
+                      }
+                    }
                     return (
                     <tr key={idx} className="border-b border-blue-50 last:border-b-0">
                       <td className="py-3 px-4 align-top text-blue-900">

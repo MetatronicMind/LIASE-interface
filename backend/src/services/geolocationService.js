@@ -21,7 +21,9 @@ class GeolocationService {
           country: 'Local',
           countryCode: 'LOCAL',
           region: 'Local',
-          city: 'Local'
+          city: 'Local',
+          timezone: null,
+          isp: null
         };
       }
 
@@ -44,8 +46,8 @@ class GeolocationService {
           countryCode: response.data.countryCode || 'UN',
           region: response.data.region || 'Unknown',
           city: response.data.city || 'Unknown',
-          timezone: response.data.timezone || 'Unknown',
-          isp: response.data.isp || 'Unknown'
+          timezone: response.data.timezone || null,
+          isp: response.data.isp || null
         };
 
         // Cache the result for 1 hour
@@ -101,8 +103,8 @@ class GeolocationService {
       countryCode: 'UN',
       region: 'Unknown',
       city: 'Unknown',
-      timezone: 'Unknown',
-      isp: 'Unknown'
+      timezone: null,
+      isp: null
     };
   }
 
