@@ -1,6 +1,7 @@
 const AuditLog = require('../models/AuditLog');
 const cosmosService = require('../services/cosmosService');
 const { extractChanges, createAuditDescription } = require('../utils/auditHelpers');
+const geolocationService = require('../services/geolocationService');
 
 const auditLogger = (action, resource) => {
   return async (req, res, next) => {
@@ -8,12 +9,17 @@ const auditLogger = (action, resource) => {
     const originalJson = res.json;
 
     // Override json method to capture response
-    res.json = function(data) {
+    res.json = async function(data) {
       // Create audit log entry
       if (req.user && res.statusCode < 400) {
         const fullName = typeof req.user.getFullName === 'function'
           ? req.user.getFullName()
           : [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.username || req.user.email || 'Unknown User';
+        
+        // Get location from IP address
+        const ipAddress = req.ip || req.connection.remoteAddress;
+        const location = await geolocationService.getCountryFromIP(ipAddress).catch(() => null);
+        
         const auditLog = new AuditLog({
           organizationId: req.user.organizationId,
           userId: req.user.id,
@@ -22,8 +28,9 @@ const auditLogger = (action, resource) => {
           resource: resource || req.route?.path?.split('/')[1] || 'unknown',
           resourceId: req.params.id || req.params.userId || req.params.drugId || req.params.studyId,
           details: `${req.method} ${req.originalUrl}`,
-          ipAddress: req.ip || req.connection.remoteAddress,
+          ipAddress,
           userAgent: req.get('User-Agent'),
+          location,
           metadata: {
             method: req.method,
             path: req.originalUrl,
@@ -46,7 +53,7 @@ const auditLogger = (action, resource) => {
   };
 };
 
-const auditAction = async (user, action, resource, resourceId, details, metadata = {}, beforeValue = null, afterValue = null) => {
+const auditAction = async (user, action, resource, resourceId, details, metadata = {}, beforeValue = null, afterValue = null, ipAddress = null) => {
   try {
     // Extract field-level changes if before and after values are provided
     let changes = [];
@@ -61,6 +68,12 @@ const auditAction = async (user, action, resource, resourceId, details, metadata
       }
     }
 
+    // Get location from IP address if provided
+    let location = null;
+    if (ipAddress) {
+      location = await geolocationService.getCountryFromIP(ipAddress).catch(() => null);
+    }
+
     const auditLog = new AuditLog({
       organizationId: user.organizationId,
       userId: user.id,
@@ -69,6 +82,8 @@ const auditAction = async (user, action, resource, resourceId, details, metadata
       resource,
       resourceId,
       details: enrichedDetails,
+      ipAddress,
+      location,
       metadata,
       beforeValue,
       afterValue,
