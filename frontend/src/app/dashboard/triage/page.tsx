@@ -292,6 +292,39 @@ export default function TriagePage() {
     }
   };
 
+  // Function to calculate final classification based on AI inference data
+  const getFinalClassification = (study: Study): string | null => {
+    const icsrClassification = study.aiInferenceData?.ICSR_classification || study.ICSR_classification || study.icsrClassification;
+    const aoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+
+    if (!icsrClassification) return null;
+
+    // If ICSR Classification is "Probable ICSR/AOI", return it regardless of AOI Classification
+    if (icsrClassification === "Probable ICSR/AOI") {
+      return "Probable ICSR/AOI";
+    }
+
+    // If ICSR Classification is "Probable ICSR"
+    if (icsrClassification === "Probable ICSR") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (ICSR)") {
+        return "Probable ICSR/AOI";
+      } else {
+        return "Probable ICSR";
+      }
+    }
+
+    // If ICSR Classification is "No Case"
+    if (icsrClassification === "No Case") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (AOI)") {
+        return "Probable AOI";
+      } else {
+        return "No Case";
+      }
+    }
+
+    return null;
+  };
+
   const detailsRef = useRef<HTMLDivElement>(null);
 
   // Scroll to details section on mobile when study is selected
@@ -843,6 +876,20 @@ export default function TriagePage() {
                         </div>
                       )}
                     </div>
+
+                    {/* AI Final Classification */}
+                    {getFinalClassification(selectedStudy) && (
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-6 border-2 border-indigo-200">
+                        <div className="flex items-center justify-center">
+                          <div className="text-center">
+                            <p className="text-sm font-medium text-gray-600 mb-2">AI Classification Result</p>
+                            <p className="text-2xl font-bold text-indigo-900">
+                              {getFinalClassification(selectedStudy)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Enhanced Abstract Display */}
                     {(selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract) && (
