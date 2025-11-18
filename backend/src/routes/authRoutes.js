@@ -95,12 +95,17 @@ router.post('/login', [
         error: 'Invalid credentials'
       });
     }
+    
+    // Fetch user with populated role permissions using userService
+    const userService = require('../services/userService');
+    const userWithPermissions = await userService.getUserById(user.id, user.organizationId);
+    console.log('User permissions populated:', userWithPermissions ? 'Yes' : 'No');
 
     // Update last login
-    userInstance.updateLastLogin();
+    userWithPermissions.updateLastLogin();
     await cosmosService.updateItem('users', user.id, user.organizationId, {
-      lastLogin: userInstance.lastLogin,
-      updatedAt: userInstance.updatedAt
+      lastLogin: userWithPermissions.lastLogin,
+      updatedAt: userWithPermissions.updatedAt
     });
 
     // Create JWT token
@@ -118,7 +123,7 @@ router.post('/login', [
     const location = await geolocationService.getCountryFromIP(req.ip).catch(() => null);
     
     // Create successful login audit log
-    const auditLog = AuditLog.createLoginLog(userInstance, req.ip, req.get('User-Agent'), true, location);
+    const auditLog = AuditLog.createLoginLog(userWithPermissions, req.ip, req.get('User-Agent'), true, location);
     await cosmosService.createItem('audit-logs', auditLog.toJSON()).catch(console.error);
 
     // Get organization details
@@ -127,7 +132,7 @@ router.post('/login', [
     res.json({
       message: 'Login successful',
       token,
-      user: userInstance.toSafeJSON(),
+      user: userWithPermissions.toSafeJSON(),
       organization: organization ? {
         id: organization.id,
         name: organization.name,
