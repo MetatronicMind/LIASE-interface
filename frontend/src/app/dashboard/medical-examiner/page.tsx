@@ -127,6 +127,9 @@ export default function MedicalExaminerPage() {
   // Revocation state
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revocationReason, setRevocationReason] = useState('');
+  
+  // Listedness state
+  const [listedness, setListedness] = useState<'Yes' | 'No' | null>(null);
 
   useEffect(() => {
     fetchStudies();
@@ -811,6 +814,46 @@ export default function MedicalExaminerPage() {
                               })}
                           </div>
                         </div>
+                      )}
+                    </div>
+
+                    {/* Listedness Selection */}
+                    <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Listedness
+                      </h4>
+                      <p className="text-sm text-gray-700 mb-4">
+                        Is this adverse event listed in the product label?
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setListedness('Yes')}
+                          className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                            listedness === 'Yes'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-green-500'
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => setListedness('No')}
+                          className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                            listedness === 'No'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-red-500'
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+                      {listedness && (
+                        <p className="mt-3 text-sm text-gray-600 text-center">
+                          Selected: <span className="font-semibold">{listedness}</span>
+                        </p>
                       )}
                     </div>
 
