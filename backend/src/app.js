@@ -16,6 +16,7 @@ if (process.env.NODE_ENV === 'development') {
 const cosmosService = require('./services/cosmosService');
 const drugSearchScheduler = require('./services/drugSearchScheduler');
 const schedulerService = require('./services/schedulerService');
+const azureSchedulerService = require('./services/azureSchedulerService');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -337,6 +338,13 @@ async function startServer() {
     await schedulerService.initialize();
     console.log('✅ Job scheduler initialized successfully');
     
+    // Initialize Azure scheduler for notifications and reports
+    console.log('🔄 Initializing notification scheduler...');
+    await azureSchedulerService.initialize();
+    console.log('✅ Notification scheduler initialized successfully');
+    console.log('📧 Daily reports will be sent at 9:00 AM UTC');
+    console.log('🔔 Notification queue processor active');
+    
   } catch (error) {
     console.error('⚠️  Warning: Some services failed to initialize:', error);
     console.error('📝 Server will continue running but some features may not work');
@@ -495,6 +503,14 @@ function gracefulShutdown(signal) {
         console.log('🛑 Drug search scheduler stopped');
       } catch (error) {
         console.error('❌ Error stopping scheduler:', error);
+      }
+      
+      // Stop Azure notification scheduler
+      try {
+        azureSchedulerService.shutdown();
+        console.log('🛑 Notification scheduler stopped');
+      } catch (error) {
+        console.error('❌ Error stopping notification scheduler:', error);
       }
       
       console.log('✅ Graceful shutdown complete');

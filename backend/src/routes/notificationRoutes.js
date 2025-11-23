@@ -3,10 +3,13 @@ const router = express.Router();
 const { body, param, query, validationResult } = require('express-validator');
 const authenticateToken = require('../middleware/auth');
 const notificationManagementService = require('../services/notificationManagementService');
+const dailyReportsService = require('../services/dailyReportsService');
+const notificationQueueService = require('../services/notificationQueueService');
+const azureSchedulerService = require('../services/azureSchedulerService');
 
 /**
  * Notification Routes
- * Handles notification management and delivery
+ * Handles notification management, delivery, and scheduling
  */
 
 // Validation middleware
@@ -164,13 +167,14 @@ router.get(
   '/stats/summary',
   authenticateToken,
   [
-    query('startDate').isISO8601(),
-    query('endDate').isISO8601()
+    query('startDate').optional().isISO8601(),
+    query('endDate').optional().isISO8601()
   ],
   validate,
   async (req, res) => {
     try {
-      const { startDate, endDate } = req.query;
+      const startDate = req.query.startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const endDate = req.query.endDate || new Date().toISOString();
       
       const stats = await notificationManagementService.getNotificationStats(
         req.user.organizationId,
@@ -178,9 +182,98 @@ router.get(
         endDate
       );
 
-      res.json(stats);
+      res.json({ stats });
     } catch (error) {
       console.error('Error getting notification stats:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Get queue statistics
+router.get(
+  '/queue/stats',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const stats = await notificationQueueService.getQueueStats(req.user.organizationId);
+      res.json({ stats });
+    } catch (error) {
+      console.error('Error getting queue stats:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// ========== Daily Reports ==========
+
+// Generate daily report
+router.post(
+  '/reports/daily',
+  authenticateToken,
+  [
+    body('recipients').optional().isArray(),
+    body('reportType').optional().isIn(['daily_summary', 'weekly_summary'])
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const recipients = req.body.recipients || [];
+      const reportType = req.body.reportType || 'daily_summary';
+      
+      const result = await dailyReportsService.sendDailyReport(
+        req.user.organizationId,
+        recipients,
+        reportType
+      );
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error generating daily report:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Generate study completion report
+router.post(
+  '/reports/study-completion',
+  authenticateToken,
+  [
+    body('startDate').isISO8601(),
+    body('endDate').isISO8601()
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { startDate, endDate } = req.body;
+      
+      const report = await dailyReportsService.generateStudyCompletionReport(
+        req.user.organizationId,
+        new Date(startDate),
+        new Date(endDate)
+      );
+
+      res.json(report);
+    } catch (error) {
+      console.error('Error generating study completion report:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// ========== Scheduler Management ==========
+
+// Get scheduler status
+router.get(
+  '/scheduler/status',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const status = azureSchedulerService.getJobsStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error getting scheduler status:', error);
       res.status(500).json({ error: error.message });
     }
   }
