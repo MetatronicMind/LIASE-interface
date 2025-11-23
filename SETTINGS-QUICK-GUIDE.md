@@ -3,6 +3,7 @@
 ## 🎯 Quick Access
 
 ### Settings Location
+
 ```
 Dashboard → Settings (in left sidebar)
 ```
@@ -26,6 +27,7 @@ Dashboard → Settings (in left sidebar)
 ## 🛡️ Tab 1: Role Management
 
 **What you can do:**
+
 - ✅ View all user roles
 - ✅ See role permissions
 - ✅ Create new custom roles
@@ -33,6 +35,7 @@ Dashboard → Settings (in left sidebar)
 - ✅ Delete custom roles
 
 **Quick Actions:**
+
 ```
 1. Click "Manage Roles" button
 2. Navigate to full role management page
@@ -46,6 +49,7 @@ Dashboard → Settings (in left sidebar)
 ## 🏢 Tab 2: Organization Management
 
 **What you can do:**
+
 - ✅ View organization details
 - ✅ Edit organization name
 - ✅ Update contact information
@@ -53,6 +57,7 @@ Dashboard → Settings (in left sidebar)
 - ✅ View user count
 
 **Quick Actions:**
+
 ```
 1. Click "Edit Organization" button
 2. Update organization details
@@ -66,12 +71,14 @@ Dashboard → Settings (in left sidebar)
 ## 🔔 Tab 3: Notifications
 
 **What you can do:**
+
 - ✅ View all notifications
 - ✅ Filter by status (all/pending/sent/failed)
 - ✅ See notification statistics
 - ✅ View notification details
 
 **Stats Dashboard:**
+
 ```
 ┌────────┬────────┬─────────┬────────┐
 │ Total  │  Sent  │ Pending │ Failed │
@@ -80,6 +87,7 @@ Dashboard → Settings (in left sidebar)
 ```
 
 **Filter Options:**
+
 - All
 - Pending
 - Sent
@@ -92,17 +100,20 @@ Dashboard → Settings (in left sidebar)
 ## 📧 Tab 4: Email Settings
 
 **What you can do:**
+
 - ✅ View email templates
 - ✅ Check email logs
 - ✅ See SMTP configuration
 - ✅ Track email delivery status
 
 **Sub-sections:**
+
 1. **Templates** - View all email templates
 2. **Email Logs** - Recent email delivery history
 3. **SMTP Config** - Email server settings
 
 **Quick Actions:**
+
 ```
 Templates → View template details
 Logs      → Check delivery status
@@ -116,23 +127,27 @@ SMTP      → View server configuration
 ## ⚙️ Tab 5: Admin Configuration
 
 **What you can do:**
+
 - ✅ Manage scheduled jobs
 - ✅ View system configuration
 - ✅ Start/pause jobs
 - ✅ Trigger jobs manually
 
 **Sub-sections:**
+
 1. **Scheduled Jobs** - Automated tasks management
 2. **System Configs** - System settings
 
 **Job Actions:**
+
 ```
 ▶️ Play   - Activate job
 ⏸️ Pause  - Deactivate job
 ▶️ Trigger - Run job now
 ```
 
-**Requires:** 
+**Requires:**
+
 - `admin_config.read` permission
 - **Admin role** (not just permissions)
 
@@ -140,19 +155,20 @@ SMTP      → View server configuration
 
 ## 🔐 Permission Requirements
 
-| Tab | View | Edit | Delete |
-|-----|------|------|--------|
-| Roles | `roles.read` | `roles.write` | `roles.delete` |
-| Organization | `organizations.read` | `organizations.write` | - |
+| Tab           | View                 | Edit                  | Delete                 |
+| ------------- | -------------------- | --------------------- | ---------------------- |
+| Roles         | `roles.read`         | `roles.write`         | `roles.delete`         |
+| Organization  | `organizations.read` | `organizations.write` | -                      |
 | Notifications | `notifications.read` | `notifications.write` | `notifications.delete` |
-| Email | `email.read` | `email.write` | `email.delete` |
-| Admin Config | `admin_config.read` | `admin_config.write` | - |
+| Email         | `email.read`         | `email.write`         | `email.delete`         |
+| Admin Config  | `admin_config.read`  | `admin_config.write`  | -                      |
 
 ---
 
 ## 🚀 Getting Started
 
 ### Step 1: Login as Admin
+
 ```
 1. Go to login page
 2. Use admin credentials
@@ -160,6 +176,7 @@ SMTP      → View server configuration
 ```
 
 ### Step 2: Navigate to Settings
+
 ```
 1. Look at left sidebar
 2. Find "Settings" (gear icon ⚙️)
@@ -167,6 +184,7 @@ SMTP      → View server configuration
 ```
 
 ### Step 3: Select a Tab
+
 ```
 1. Choose the tab you need
 2. Tab content will load automatically
@@ -178,6 +196,7 @@ SMTP      → View server configuration
 ## 📱 Mobile Access
 
 Settings page is fully responsive:
+
 - ✅ Tabs scroll horizontally on mobile
 - ✅ Content adapts to screen size
 - ✅ All features accessible on mobile
@@ -187,23 +206,30 @@ Settings page is fully responsive:
 ## ❓ Common Questions
 
 ### Q: I don't see the Settings tab?
+
 **A:** You need `settings.read` permission. Contact your admin.
 
 ### Q: Settings page shows "no permissions"?
+
 **A:** You need at least one module permission (roles, organizations, etc.)
 
 ### Q: I can't see Admin Configuration tab?
+
 **A:** This tab requires admin role, not just permissions.
 
 ### Q: How do I create a new role?
-**A:** 
+
+**A:**
+
 1. Go to Role Management tab
 2. Click "Manage Roles"
 3. Click "Create New Role"
 4. Fill in role details
 
 ### Q: How do I edit organization details?
+
 **A:**
+
 1. Go to Organization tab
 2. Click "Edit Organization"
 3. Update details
@@ -214,6 +240,7 @@ Settings page is fully responsive:
 ## 🎨 Visual Guide
 
 ### Settings Navigation
+
 ```
 Dashboard
     ├── Drug Management
@@ -234,6 +261,7 @@ Dashboard
 ```
 
 ### Tab Icons
+
 - 🛡️ **Role Management** - Shield icon
 - 🏢 **Organization** - Building icon
 - 🔔 **Notifications** - Bell icon
@@ -245,6 +273,7 @@ Dashboard
 ## 📞 Support
 
 For issues or questions:
+
 1. Check permission requirements above
 2. Contact your system administrator
 3. Refer to main documentation: `SETTINGS-TAB-IMPLEMENTATION.md`
