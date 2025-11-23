@@ -126,7 +126,10 @@ class Role {
           triage: { read: true, write: true, classify: true, manual_drug_test: true },
           QC: { read: true, write: true, approve: true, reject: true },
           data_entry: { read: true, write: true, r3_form: true },
-          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
+          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true },
+          notifications: { read: true, write: true, delete: true },
+          email: { read: true, write: true, delete: true },
+          admin_config: { read: true, write: true, manage_jobs: true }
         },
         isSystemRole: true
       },
@@ -147,7 +150,10 @@ class Role {
           triage: { read: true, write: true, classify: true, manual_drug_test: true },
           QC: { read: true, write: true, approve: true, reject: true },
           data_entry: { read: true, write: true, r3_form: true },
-          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
+          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true },
+          notifications: { read: true, write: true, delete: true },
+          email: { read: true, write: true, delete: true },
+          admin_config: { read: true, write: true, manage_jobs: true }
         },
         isSystemRole: true
       },
@@ -168,7 +174,10 @@ class Role {
           triage: { read: true, write: true, classify: true, manual_drug_test: true },
           QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: false, write: false, r3_form: false },
-          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false },
+          notifications: { read: false, write: false, delete: false },
+          email: { read: false, write: false, delete: false },
+          admin_config: { read: false, write: false, manage_jobs: false }
         },
         isSystemRole: true
       },
@@ -189,7 +198,10 @@ class Role {
           triage: { read: true, write: false, classify: false, manual_drug_test: false },
           QA: { read: true, write: true, approve: true, reject: true },
           data_entry: { read: false, write: false, r3_form: false },
-          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false },
+          notifications: { read: false, write: false, delete: false },
+          email: { read: false, write: false, delete: false },
+          admin_config: { read: false, write: false, manage_jobs: false }
         },
         isSystemRole: true
       },
@@ -210,7 +222,10 @@ class Role {
           triage: { read: true, write: false, classify: false, manual_drug_test: false },
           QC: { read: true, write: true, approve: true, reject: true },
           data_entry: { read: false, write: false, r3_form: false },
-          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false },
+          notifications: { read: false, write: false, delete: false },
+          email: { read: false, write: false, delete: false },
+          admin_config: { read: false, write: false, manage_jobs: false }
         },
         isSystemRole: true
       },
@@ -231,7 +246,10 @@ class Role {
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
           QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: false, write: false, r3_form: false },
-          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false },
+          notifications: { read: false, write: false, delete: false },
+          email: { read: false, write: false, delete: false },
+          admin_config: { read: false, write: false, manage_jobs: false }
         },
         isSystemRole: true
       },
@@ -252,7 +270,10 @@ class Role {
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
           QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: false, write: false, r3_form: false },
-          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false },
+          notifications: { read: false, write: false, delete: false },
+          email: { read: false, write: false, delete: false },
+          admin_config: { read: false, write: false, manage_jobs: false }
         },
         isSystemRole: true
       },
@@ -273,7 +294,10 @@ class Role {
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
           QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: true, write: true, r3_form: true },
-          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false }
+          medical_examiner: { read: false, write: false, comment_fields: false, edit_fields: false, revoke_studies: false },
+          notifications: { read: false, write: false, delete: false },
+          email: { read: false, write: false, delete: false },
+          admin_config: { read: false, write: false, manage_jobs: false }
         },
         isSystemRole: true
       },
@@ -294,7 +318,10 @@ class Role {
           triage: { read: false, write: false, classify: false, manual_drug_test: false },
           QC: { read: false, write: false, approve: false, reject: false },
           data_entry: { read: true, write: false, r3_form: false },
-          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true }
+          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true },
+          notifications: { read: false, write: false, delete: false },
+          email: { read: false, write: false, delete: false },
+          admin_config: { read: false, write: false, manage_jobs: false }
         },
         isSystemRole: true
       }

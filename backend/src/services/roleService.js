@@ -498,6 +498,33 @@ class RoleService {
           edit_fields: 'Edit R3 form field values',
           revoke_studies: 'Revoke studies back to Data Entry'
         }
+      },
+      notifications: {
+        displayName: 'Notifications Management',
+        description: 'Manage system notifications and notification rules',
+        actions: {
+          read: 'View notifications',
+          write: 'Create and edit notifications',
+          delete: 'Delete notifications'
+        }
+      },
+      email: {
+        displayName: 'Email Management',
+        description: 'Manage email templates, logs, and SMTP configuration',
+        actions: {
+          read: 'View email settings',
+          write: 'Edit email templates and configuration',
+          delete: 'Delete email templates and logs'
+        }
+      },
+      admin_config: {
+        displayName: 'Admin Configuration',
+        description: 'Manage system configuration and scheduled jobs',
+        actions: {
+          read: 'View admin configuration',
+          write: 'Edit system configuration',
+          manage_jobs: 'Manage scheduled jobs'
+        }
       }
     };
   }
