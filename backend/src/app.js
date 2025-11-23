@@ -15,6 +15,7 @@ if (process.env.NODE_ENV === 'development') {
 
 const cosmosService = require('./services/cosmosService');
 const drugSearchScheduler = require('./services/drugSearchScheduler');
+const schedulerService = require('./services/schedulerService');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -24,6 +25,9 @@ const studyRoutes = require('./routes/studyRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const organizationRoutes = require('./routes/organizationRoutes');
 const migrationRoutes = require('./routes/migrationRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const emailRoutes = require('./routes/emailRoutes');
+const adminConfigRoutes = require('./routes/adminConfigRoutes');
 
 console.log('drugRoutes loaded:', typeof drugRoutes);
 console.log('drugRoutes methods:', drugRoutes.stack ? drugRoutes.stack.length : 'no stack');
@@ -260,6 +264,9 @@ app.use('/api/studies', authenticateToken, studyRoutes);
 app.use('/api/audit', authenticateToken, auditRoutes);
 app.use('/api/organizations', authenticateToken, organizationRoutes);
 app.use('/api/migrate', authenticateToken, migrationRoutes);
+app.use('/api/notifications', authenticateToken, notificationRoutes);
+app.use('/api/emails', authenticateToken, emailRoutes);
+app.use('/api/admin-config', authenticateToken, adminConfigRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -324,6 +331,11 @@ async function startServer() {
     console.log('✅ Drug search scheduler started');
     console.log(`⏰ Drug search scheduler: Running every 12 hours`);
     console.log(`🔍 Queue status: http://localhost:${PORT}/api/drugs/queue-status`);
+    
+    // Initialize notification and job scheduler
+    console.log('🔄 Initializing job scheduler...');
+    await schedulerService.initialize();
+    console.log('✅ Job scheduler initialized successfully');
     
   } catch (error) {
     console.error('⚠️  Warning: Some services failed to initialize:', error);
