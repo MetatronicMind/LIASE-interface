@@ -505,7 +505,7 @@ export default function QCPage() {
                       )}
 
                       {/* Clinical Data */}
-                      {selectedStudy.administeredDrugs && selectedStudy.administeredDrugs.length > 0 && (
+                      {selectedStudy.administeredDrugs && Array.isArray(selectedStudy.administeredDrugs) && selectedStudy.administeredDrugs.length > 0 && (
                         <div>
                           <span className="font-medium text-gray-700">Administered Drugs:</span>
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -517,7 +517,7 @@ export default function QCPage() {
                           </div>
                         </div>
                       )}
-                      {selectedStudy.keyEvents && selectedStudy.keyEvents.length > 0 && (
+                      {selectedStudy.keyEvents && Array.isArray(selectedStudy.keyEvents) && selectedStudy.keyEvents.length > 0 && (
                         <div>
                           <span className="font-medium text-gray-700">Key Events:</span>
                           <div className="mt-1 flex flex-wrap gap-1">

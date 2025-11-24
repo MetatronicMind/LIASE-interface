@@ -374,7 +374,7 @@ export default function AOIAssessmentPage() {
                         </div>
                       )}
 
-                      {selectedStudy.administeredDrugs && selectedStudy.administeredDrugs.length > 0 && (
+                      {selectedStudy.administeredDrugs && Array.isArray(selectedStudy.administeredDrugs) && selectedStudy.administeredDrugs.length > 0 && (
                         <div>
                           <span className="font-medium text-gray-700">Administered Drugs:</span>
                           <div className="mt-1 flex flex-wrap gap-1">
