@@ -70,6 +70,11 @@ class Study {
     qcR3RejectedBy = null,
     qcR3RejectedAt = null,
     qcR3Comments = null,
+    // AOI Assessment fields
+    listedness = null, // 'Yes', 'No'
+    seriousness = null, // 'Yes', 'No'
+    aoiAssessedBy = null,
+    aoiAssessedAt = null,
     // Medical Reviewer fields
     medicalReviewStatus = 'not_started', // not_started, in_progress, completed, revoked
     medicalReviewedBy = null,
@@ -160,6 +165,12 @@ class Study {
     this.qcR3RejectedBy = qcR3RejectedBy;
     this.qcR3RejectedAt = qcR3RejectedAt;
     this.qcR3Comments = qcR3Comments;
+    
+    // AOI Assessment fields
+    this.listedness = listedness;
+    this.seriousness = seriousness;
+    this.aoiAssessedBy = aoiAssessedBy;
+    this.aoiAssessedAt = aoiAssessedAt;
     
     // Medical Reviewer fields
     this.medicalReviewStatus = medicalReviewStatus;
@@ -590,6 +601,12 @@ class Study {
       qcR3RejectedBy: this.qcR3RejectedBy,
       qcR3RejectedAt: this.qcR3RejectedAt,
       qcR3Comments: this.qcR3Comments,
+      
+      // AOI Assessment fields
+      listedness: this.listedness,
+      seriousness: this.seriousness,
+      aoiAssessedBy: this.aoiAssessedBy,
+      aoiAssessedAt: this.aoiAssessedAt,
       
       // Medical Reviewer fields
       medicalReviewStatus: this.medicalReviewStatus,

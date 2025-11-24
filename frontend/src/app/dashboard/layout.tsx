@@ -41,6 +41,12 @@ const permissionBasedNavItems = [
     permission: { resource: 'triage', action: 'write' } // Requires triage.write permission
   },
   { 
+    name: "AOI Assessment", 
+    href: "/dashboard/aoi-assessment", 
+    icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'studies', action: 'read' } // Requires studies.read permission
+  },
+  { 
     name: "QC Triage", 
     href: "/dashboard/qa", 
     icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 

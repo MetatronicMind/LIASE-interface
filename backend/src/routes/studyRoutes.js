@@ -1871,3 +1871,76 @@ router.post('/ingest/pubmed',
     }
   }
 );
+
+// AOI Assessment endpoint
+router.put('/:id/aoi-assessment',
+  authorizePermission('studies', 'write'),
+  [
+    body('listedness').isIn(['Yes', 'No']).withMessage('Listedness must be Yes or No'),
+    body('seriousness').isIn(['Yes', 'No']).withMessage('Seriousness must be Yes or No')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { listedness, seriousness } = req.body;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      // Verify it's an AOI case
+      if (studyData.userTag !== 'AOI') {
+        return res.status(400).json({ error: 'Study must be classified as AOI for assessment' });
+      }
+
+      const beforeValue = { 
+        listedness: studyData.listedness,
+        seriousness: studyData.seriousness
+      };
+
+      // Update AOI assessment fields
+      studyData.listedness = listedness;
+      studyData.seriousness = seriousness;
+      studyData.aoiAssessedBy = req.user.id;
+      studyData.aoiAssessedAt = new Date().toISOString();
+      studyData.updatedAt = new Date().toISOString();
+
+      const afterValue = {
+        listedness: studyData.listedness,
+        seriousness: studyData.seriousness
+      };
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, studyData);
+
+      // Log to audit trail
+      await auditAction(
+        req.user,
+        'update',
+        'study',
+        id,
+        `AOI Assessment: Listedness=${listedness}, Seriousness=${seriousness}`,
+        { pmid: studyData.pmid },
+        beforeValue,
+        afterValue
+      );
+
+      return res.json({
+        success: true,
+        message: 'AOI assessment saved successfully',
+        study: studyData
+      });
+    } catch (error) {
+      console.error('AOI assessment error:', error);
+      return res.status(500).json({ error: 'Failed to save AOI assessment', message: error.message });
+    }
+  }
+);
+
