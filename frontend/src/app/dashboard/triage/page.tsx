@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { MagnifyingGlassIcon, ExclamationTriangleIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
 import { getApiBaseUrl } from "@/config/api";
 import { PmidLink } from "@/components/PmidLink";
+import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 
 interface Study {
   id: string;
@@ -19,6 +20,13 @@ interface Study {
   updatedAt: string;
   createdBy: string;
   comments?: any[];
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    fileSize: number;
+    uploadedAt: string;
+    uploadedByName?: string;
+  }>;
   qaApprovalStatus?: 'pending' | 'approved' | 'rejected';
   qaComments?: string;
   
@@ -1140,6 +1148,16 @@ export default function TriagePage() {
                         </div>
                       )}
                     </div>
+
+                    {/* PDF Attachments */}
+                    <PDFAttachmentUpload
+                      studyId={selectedStudy.id}
+                      attachments={selectedStudy.attachments || []}
+                      onUploadComplete={() => {
+                        // Refresh the selected study to show new attachments
+                        fetchStudies();
+                      }}
+                    />
 
                     {/* Comments */}
                     <div>

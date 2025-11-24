@@ -9,6 +9,7 @@ const pubmedService = require('../services/pubmedService');
 const studyCreationService = require('../services/studyCreationService');
 const { authorizePermission } = require('../middleware/authorization');
 const { auditLogger, auditAction } = require('../middleware/audit');
+const upload = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -1943,4 +1944,170 @@ router.put('/:id/aoi-assessment',
     }
   }
 );
+
+// Upload PDF attachment to a study
+router.post('/:id/attachments',
+  authorizePermission('studies', 'write'),
+  upload.array('files', 5), // Allow up to 5 PDF files
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const files = req.files;
+
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: 'No files uploaded' });
+      }
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      const uploadedAttachments = [];
+
+      // Process each file
+      for (const file of files) {
+        // Convert buffer to base64 for storage in Cosmos DB
+        const base64Data = file.buffer.toString('base64');
+        
+        const attachment = {
+          id: uuidv4(),
+          fileName: file.originalname,
+          fileSize: file.size,
+          fileType: file.mimetype,
+          uploadedBy: req.user.id,
+          uploadedByName: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.username,
+          uploadedAt: new Date().toISOString(),
+          data: base64Data // Store as base64 blob
+        };
+
+        // Initialize attachments array if it doesn't exist
+        if (!studyData.attachments) {
+          studyData.attachments = [];
+        }
+
+        studyData.attachments.push(attachment);
+        uploadedAttachments.push({
+          id: attachment.id,
+          fileName: attachment.fileName,
+          fileSize: attachment.fileSize,
+          uploadedAt: attachment.uploadedAt
+        });
+      }
+
+      studyData.updatedAt = new Date().toISOString();
+
+      // Save updated study with attachments
+      await cosmosService.updateItem('studies', id, req.user.organizationId, studyData);
+
+      // Log to audit trail
+      await auditAction(
+        req.user,
+        'upload',
+        'study_attachment',
+        id,
+        `Uploaded ${files.length} PDF attachment(s)`,
+        { pmid: studyData.pmid, files: uploadedAttachments.map(a => a.fileName) }
+      );
+
+      return res.json({
+        success: true,
+        message: `${files.length} file(s) uploaded successfully`,
+        attachments: uploadedAttachments
+      });
+    } catch (error) {
+      console.error('PDF upload error:', error);
+      if (error.message === 'Only PDF files are allowed') {
+        return res.status(400).json({ error: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to upload attachments', message: error.message });
+    }
+  }
+);
+
+// Get attachment by ID
+router.get('/:id/attachments/:attachmentId',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const { id, attachmentId } = req.params;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      // Find the attachment
+      const attachment = studyData.attachments?.find(a => a.id === attachmentId);
+      if (!attachment) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      // Convert base64 back to buffer
+      const buffer = Buffer.from(attachment.data, 'base64');
+
+      // Set response headers
+      res.setHeader('Content-Type', attachment.fileType);
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.fileName}"`);
+      res.setHeader('Content-Length', buffer.length);
+
+      return res.send(buffer);
+    } catch (error) {
+      console.error('Download attachment error:', error);
+      return res.status(500).json({ error: 'Failed to download attachment', message: error.message });
+    }
+  }
+);
+
+// Delete attachment by ID
+router.delete('/:id/attachments/:attachmentId',
+  authorizePermission('studies', 'write'),
+  async (req, res) => {
+    try {
+      const { id, attachmentId } = req.params;
+
+      // Get the study
+      const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
+      if (!studyData) {
+        return res.status(404).json({ error: 'Study not found' });
+      }
+
+      // Find the attachment
+      const attachmentIndex = studyData.attachments?.findIndex(a => a.id === attachmentId);
+      if (attachmentIndex === -1 || attachmentIndex === undefined) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      const deletedAttachment = studyData.attachments[attachmentIndex];
+
+      // Remove the attachment
+      studyData.attachments.splice(attachmentIndex, 1);
+      studyData.updatedAt = new Date().toISOString();
+
+      // Save updated study
+      await cosmosService.updateItem('studies', id, req.user.organizationId, studyData);
+
+      // Log to audit trail
+      await auditAction(
+        req.user,
+        'delete',
+        'study_attachment',
+        id,
+        `Deleted PDF attachment: ${deletedAttachment.fileName}`,
+        { pmid: studyData.pmid, fileName: deletedAttachment.fileName }
+      );
+
+      return res.json({
+        success: true,
+        message: 'Attachment deleted successfully'
+      });
+    } catch (error) {
+      console.error('Delete attachment error:', error);
+      return res.status(500).json({ error: 'Failed to delete attachment', message: error.message });
+    }
+  }
+);
+
 

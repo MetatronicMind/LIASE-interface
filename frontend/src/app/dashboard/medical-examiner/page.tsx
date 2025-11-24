@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
+import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 
 interface Study {
   id: string;
@@ -17,6 +18,13 @@ interface Study {
   r3FormCompletedAt?: string;
   medicalReviewStatus: 'not_started' | 'in_progress' | 'completed' | 'revoked';
   fieldComments?: FieldComment[];
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    fileSize: number;
+    uploadedAt: string;
+    uploadedByName?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
   
@@ -982,6 +990,15 @@ export default function MedicalExaminerPage() {
                         </p>
                       )}
                     </div>
+
+                    {/* PDF Attachments */}
+                    <PDFAttachmentUpload
+                      studyId={selectedStudy.id}
+                      attachments={selectedStudy.attachments || []}
+                      onUploadComplete={() => {
+                        fetchStudies();
+                      }}
+                    />
 
                     {/* Action Buttons */}
                     <div className="flex space-x-3 pt-4 border-t border-gray-200">

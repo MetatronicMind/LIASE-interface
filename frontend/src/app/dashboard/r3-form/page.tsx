@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
 import { useSearchParams, useRouter } from "next/navigation";
 import { PmidLink } from "@/components/PmidLink";
+import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 
 interface FieldComment {
   id: string;
@@ -25,6 +26,13 @@ interface Study {
   r3FormData?: any;
   createdAt: string;
   fieldComments?: FieldComment[];
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    fileSize: number;
+    uploadedAt: string;
+    uploadedByName?: string;
+  }>;
   revokedBy?: string;
   revokedAt?: string;
   revocationReason?: string;
@@ -869,6 +877,17 @@ export default function R3FormPage() {
                 </div>
               </div>
             )}
+            
+            {/* PDF Attachments Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <PDFAttachmentUpload
+                studyId={study.id}
+                attachments={study.attachments || []}
+                onUploadComplete={() => {
+                  fetchStudyDetails();
+                }}
+              />
+            </div>
             
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               {/* Reporter Information Section */}

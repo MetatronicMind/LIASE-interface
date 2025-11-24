@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import { PmidLink } from "@/components/PmidLink";
+import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 
 interface Study {
   id: string;
@@ -16,6 +17,13 @@ interface Study {
   userTag: 'ICSR' | 'AOI' | 'No Case';
   qaApprovalStatus: 'pending' | 'approved' | 'rejected';
   qaComments?: string;
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    fileSize: number;
+    uploadedAt: string;
+    uploadedByName?: string;
+  }>;
   r3FormStatus?: string;
   qcR3Status?: string;
   r3FormData?: any;
@@ -574,6 +582,15 @@ export default function QCPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* PDF Attachments */}
+                  <PDFAttachmentUpload
+                    studyId={selectedStudy.id}
+                    attachments={selectedStudy.attachments || []}
+                    onUploadComplete={() => {
+                      fetchStudies();
+                    }}
+                  />
 
                   {/* Comments */}
                   <div>
