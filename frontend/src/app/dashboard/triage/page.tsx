@@ -889,7 +889,7 @@ export default function TriagePage() {
                           )}
                           {(selectedStudy.Serious || selectedStudy.serious !== undefined) && (
                             <div>
-                              <span className="font-medium text-gray-700">Serious Event:</span>
+                              <span className="font-medium text-gray-700">Serious:</span>
                               <p className="mt-1 text-gray-900">
                                 {typeof selectedStudy.serious === 'boolean' 
                                   ? (selectedStudy.serious ? 'Yes' : 'No')
