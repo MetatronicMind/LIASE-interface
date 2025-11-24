@@ -847,12 +847,6 @@ export default function TriagePage() {
                             <p className="mt-1 text-gray-900">{selectedStudy.authorPerspective}</p>
                           </div>
                         )}
-                        {selectedStudy.clientName && (
-                          <div>
-                            <span className="font-medium text-gray-700">Client:</span>
-                            <p className="mt-1 text-gray-900">{selectedStudy.clientName}</p>
-                          </div>
-                        )}
                         {selectedStudy.sponsor && (
                           <div>
                             <span className="font-medium text-gray-700">Sponsor:</span>
