@@ -71,6 +71,9 @@ export default function PDFAttachmentUpload({
       });
 
       const token = localStorage.getItem("auth_token");
+      
+      console.log(`Uploading ${files.length} file(s) to study ${studyId}`);
+      
       const response = await fetch(
         `${getApiBaseUrl()}/studies/${studyId}/attachments`,
         {
@@ -83,11 +86,19 @@ export default function PDFAttachmentUpload({
       );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to upload files");
+        let errorMessage = "Failed to upload files";
+        try {
+          const error = await response.json();
+          errorMessage = error.error || error.message || errorMessage;
+          console.error('Upload error response:', error);
+        } catch (e) {
+          console.error('Failed to parse error response');
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
+      console.log('Upload successful:', result);
       onUploadComplete();
       
       // Reset file input

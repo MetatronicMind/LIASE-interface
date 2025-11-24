@@ -1948,11 +1948,35 @@ router.put('/:id/aoi-assessment',
 // Upload PDF attachment to a study
 router.post('/:id/attachments',
   authorizePermission('studies', 'write'),
-  upload.array('files', 5), // Allow up to 5 PDF files
+  (req, res, next) => {
+    // Wrap multer middleware with error handling
+    upload.array('files', 5)(req, res, (err) => {
+      if (err) {
+        console.error('Multer error:', err);
+        if (err.message === 'Only PDF files are allowed') {
+          return res.status(400).json({ error: 'Only PDF files are allowed' });
+        }
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 10MB per file' });
+        }
+        if (err.code === 'LIMIT_FILE_COUNT') {
+          return res.status(400).json({ error: 'Too many files. Maximum is 5 files per upload' });
+        }
+        return res.status(400).json({ error: err.message || 'File upload error' });
+      }
+      next();
+    });
+  },
   async (req, res) => {
     try {
       const { id } = req.params;
       const files = req.files;
+
+      console.log(`Upload request for study ${id}:`, {
+        filesCount: files?.length || 0,
+        userId: req.user?.id,
+        organizationId: req.user?.organizationId
+      });
 
       if (!files || files.length === 0) {
         return res.status(400).json({ error: 'No files uploaded' });
@@ -1961,6 +1985,7 @@ router.post('/:id/attachments',
       // Get the study
       const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
       if (!studyData) {
+        console.error(`Study not found: ${id} for organization ${req.user.organizationId}`);
         return res.status(404).json({ error: 'Study not found' });
       }
 
@@ -1968,6 +1993,8 @@ router.post('/:id/attachments',
 
       // Process each file
       for (const file of files) {
+        console.log(`Processing file: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`);
+        
         // Convert buffer to base64 for storage in Cosmos DB
         const base64Data = file.buffer.toString('base64');
         
@@ -1999,6 +2026,7 @@ router.post('/:id/attachments',
       studyData.updatedAt = new Date().toISOString();
 
       // Save updated study with attachments
+      console.log(`Saving ${files.length} attachments to study ${id}`);
       await cosmosService.updateItem('studies', id, req.user.organizationId, studyData);
 
       // Log to audit trail
@@ -2011,17 +2039,24 @@ router.post('/:id/attachments',
         { pmid: studyData.pmid, files: uploadedAttachments.map(a => a.fileName) }
       );
 
+      console.log(`Successfully uploaded ${files.length} files to study ${id}`);
       return res.json({
         success: true,
         message: `${files.length} file(s) uploaded successfully`,
         attachments: uploadedAttachments
       });
     } catch (error) {
-      console.error('PDF upload error:', error);
-      if (error.message === 'Only PDF files are allowed') {
-        return res.status(400).json({ error: error.message });
-      }
-      return res.status(500).json({ error: 'Failed to upload attachments', message: error.message });
+      console.error('PDF upload error details:', {
+        message: error.message,
+        stack: error.stack,
+        studyId: req.params.id,
+        userId: req.user?.id
+      });
+      return res.status(500).json({ 
+        error: 'Failed to upload attachments', 
+        message: error.message,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   }
 );
