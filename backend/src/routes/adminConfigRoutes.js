@@ -510,4 +510,184 @@ router.get(
   }
 );
 
+// ========== Super Admin System Configuration ==========
+
+// Middleware to check super admin permissions
+const requireSuperAdmin = (req, res, next) => {
+  if (req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Super admin permissions required' });
+  }
+  next();
+};
+
+// Get system configuration
+router.get(
+  '/system-config',
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      // Fetch system configuration from environment variables and database
+      const systemConfig = {
+        aiInferenceEndpoints: {
+          primary: process.env.AI_INFERENCE_URL_1 || '',
+          secondary: process.env.AI_INFERENCE_URL_2 || '',
+          tertiary: process.env.AI_INFERENCE_URL_3 || '',
+        },
+        r3XmlEndpoint: process.env.R3_XML_ENDPOINT || '',
+        pubmedApiEndpoint: process.env.PUBMED_API_ENDPOINT || 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/',
+        backendPort: parseInt(process.env.PORT) || 8000,
+        frontendPort: 3000,
+        backendUrl: process.env.BACKEND_URL || 'http://localhost:8000',
+        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        aiProcessing: {
+          maxConcurrentRequests: parseInt(process.env.AI_MAX_CONCURRENT) || 5,
+          requestTimeout: parseInt(process.env.AI_REQUEST_TIMEOUT) || 30000,
+          retryAttempts: parseInt(process.env.AI_RETRY_ATTEMPTS) || 3,
+          batchSize: parseInt(process.env.AI_BATCH_SIZE) || 10,
+          enableCircuitBreaker: process.env.AI_CIRCUIT_BREAKER !== 'false',
+          circuitBreakerThreshold: parseInt(process.env.AI_CIRCUIT_BREAKER_THRESHOLD) || 5,
+        },
+        database: {
+          cosmosDbEndpoint: process.env.COSMOS_DB_ENDPOINT || '',
+          databaseId: process.env.COSMOS_DB_DATABASE_ID || 'LIASE-DB',
+          maxConnectionPoolSize: parseInt(process.env.DB_MAX_POOL_SIZE) || 100,
+          requestTimeout: parseInt(process.env.DB_REQUEST_TIMEOUT) || 30000,
+        },
+        rateLimiting: {
+          enabled: process.env.RATE_LIMIT_ENABLED !== 'false',
+          windowMs: parseInt(process.env.RATE_LIMIT_WINDOW) || 900000,
+          maxRequests: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+        },
+        email: {
+          smtpHost: process.env.SMTP_HOST || '',
+          smtpPort: parseInt(process.env.SMTP_PORT) || 587,
+          smtpSecure: process.env.SMTP_SECURE === 'true',
+          fromName: process.env.SMTP_FROM_NAME || 'LIASE Notifications',
+          fromEmail: process.env.SMTP_FROM_EMAIL || '',
+        },
+        scheduler: {
+          drugSearchInterval: process.env.DRUG_SEARCH_CRON || '0 */6 * * *',
+          dailyReportsTime: process.env.DAILY_REPORTS_CRON || '0 9 * * *',
+          notificationProcessingInterval: parseInt(process.env.NOTIFICATION_INTERVAL) || 10,
+        },
+        security: {
+          jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+          passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH) || 8,
+          enableMfa: process.env.ENABLE_MFA === 'true',
+          sessionTimeout: parseInt(process.env.SESSION_TIMEOUT) || 60,
+          maxLoginAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5,
+        },
+        maintenance: {
+          enabled: process.env.MAINTENANCE_MODE === 'true',
+          message: process.env.MAINTENANCE_MESSAGE || 'System is under maintenance. Please try again later.',
+          allowedIps: (process.env.MAINTENANCE_ALLOWED_IPS || '').split(',').filter(ip => ip.trim()),
+        },
+      };
+
+      res.json(systemConfig);
+    } catch (error) {
+      console.error('Error getting system config:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Update system configuration (saves to database for runtime changes)
+router.post(
+  '/system-config',
+  authenticateToken,
+  requireSuperAdmin,
+  [
+    body('aiInferenceEndpoints').optional().isObject(),
+    body('r3XmlEndpoint').optional().isURL(),
+    body('backendPort').optional().isInt({ min: 1000, max: 65535 }),
+    body('frontendPort').optional().isInt({ min: 1000, max: 65535 }),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      // Store system configuration in AdminConfig collection
+      const config = await adminConfigService.updateConfig(
+        req.user.organizationId,
+        'system_config',
+        req.body,
+        req.user.id
+      );
+
+      res.json({
+        success: true,
+        message: 'System configuration saved successfully. Note: Environment variable changes require server restart.',
+        config
+      });
+    } catch (error) {
+      console.error('Error saving system config:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Test endpoint connectivity
+router.post(
+  '/test-endpoint',
+  authenticateToken,
+  requireSuperAdmin,
+  [
+    body('type').notEmpty(),
+    body('url').isURL()
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { type, url } = req.body;
+      const fetch = require('node-fetch');
+
+      // Test the endpoint with a simple GET or POST request
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'LIASE-System-Test/1.0'
+          }
+        });
+
+        clearTimeout(timeout);
+
+        res.json({
+          success: response.ok,
+          message: response.ok 
+            ? `Connection successful (Status: ${response.status})` 
+            : `Connection failed (Status: ${response.status})`,
+          statusCode: response.status,
+          responseTime: response.headers.get('x-response-time') || 'N/A'
+        });
+      } catch (fetchError) {
+        clearTimeout(timeout);
+        
+        if (fetchError.name === 'AbortError') {
+          res.json({
+            success: false,
+            message: 'Connection timeout (>10 seconds)'
+          });
+        } else {
+          res.json({
+            success: false,
+            message: `Connection error: ${fetchError.message}`
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error testing endpoint:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message 
+      });
+    }
+  }
+);
+
 module.exports = router;

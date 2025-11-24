@@ -5,7 +5,8 @@ import {
   BuildingOfficeIcon, 
   Cog6ToothIcon,
   BellIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  ServerStackIcon
 } from "@heroicons/react/24/outline";
 import { usePermissions } from "@/components/PermissionProvider";
 import dynamic from 'next/dynamic';
@@ -16,8 +17,9 @@ const OrganizationManagementTab = dynamic(() => import('@/components/settings/Or
 const AdminConfigTab = dynamic(() => import('@/components/settings/AdminConfigTab'), { ssr: false });
 const NotificationsTab = dynamic(() => import('@/components/settings/NotificationsTab'), { ssr: false });
 const EmailSettingsTab = dynamic(() => import('@/components/settings/EmailSettingsTab'), { ssr: false });
+const SuperAdminConfigTab = dynamic(() => import('@/components/settings/SuperAdminConfigTab'), { ssr: false });
 
-type TabName = 'roles' | 'organization' | 'admin-config' | 'notifications' | 'email';
+type TabName = 'roles' | 'organization' | 'admin-config' | 'notifications' | 'email' | 'super-admin';
 
 interface Tab {
   id: TabName;
@@ -25,6 +27,7 @@ interface Tab {
   icon: React.ReactNode;
   requiredPermission?: { resource: string; action: string };
   requireAdmin?: boolean;
+  requireSuperAdmin?: boolean;
 }
 
 export default function SettingsPage() {
@@ -61,11 +64,18 @@ export default function SettingsPage() {
       name: 'Admin Configuration',
       icon: <Cog6ToothIcon className="w-5 h-5" />,
       requireAdmin: true
+    },
+    {
+      id: 'super-admin',
+      name: 'System Configuration',
+      icon: <ServerStackIcon className="w-5 h-5" />,
+      requireSuperAdmin: true
     }
   ];
 
   // Filter tabs based on permissions
   const visibleTabs = tabs.filter(tab => {
+    if (tab.requireSuperAdmin && !isSuperAdmin()) return false;
     if (tab.requireAdmin && !isAdmin()) return false;
     if (tab.requiredPermission) {
       return hasPermission(tab.requiredPermission.resource, tab.requiredPermission.action);
@@ -90,6 +100,8 @@ export default function SettingsPage() {
         return <NotificationsTab />;
       case 'email':
         return <EmailSettingsTab />;
+      case 'super-admin':
+        return <SuperAdminConfigTab />;
       default:
         return <div className="p-8 text-center text-gray-500">Select a tab to view settings</div>;
     }
