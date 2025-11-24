@@ -16,6 +16,35 @@ const router = express.Router();
 // Apply audit logging to all routes
 router.use(auditLogger());
 
+// Test endpoint for multer
+router.post('/test-upload',
+  authorizePermission('studies', 'write'),
+  (req, res, next) => {
+    console.log('Test upload endpoint hit');
+    const multerUpload = upload.single('file');
+    multerUpload(req, res, (err) => {
+      if (err) {
+        console.error('Test upload multer error:', err);
+        return res.status(400).json({ error: err.message, multerWorking: false });
+      }
+      console.log('Test upload multer success, file:', req.file);
+      next();
+    });
+  },
+  async (req, res) => {
+    res.json({
+      success: true,
+      multerWorking: true,
+      fileReceived: !!req.file,
+      fileDetails: req.file ? {
+        originalname: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      } : null
+    });
+  }
+);
+
 // Helper function to get only changed fields between two objects
 function getChangedFields(beforeObj, afterObj) {
   const changes = {};
@@ -1949,10 +1978,21 @@ router.put('/:id/aoi-assessment',
 router.post('/:id/attachments',
   authorizePermission('studies', 'write'),
   (req, res, next) => {
+    console.log('Upload endpoint hit - Before multer');
+    console.log('Request headers:', req.headers);
+    console.log('Request params:', req.params);
+    
     // Wrap multer middleware with error handling
-    upload.array('files', 5)(req, res, (err) => {
+    const multerUpload = upload.array('files', 5);
+    multerUpload(req, res, (err) => {
       if (err) {
-        console.error('Multer error:', err);
+        console.error('Multer error occurred:', {
+          message: err.message,
+          code: err.code,
+          field: err.field,
+          stack: err.stack
+        });
+        
         if (err.message === 'Only PDF files are allowed') {
           return res.status(400).json({ error: 'Only PDF files are allowed' });
         }
@@ -1962,8 +2002,14 @@ router.post('/:id/attachments',
         if (err.code === 'LIMIT_FILE_COUNT') {
           return res.status(400).json({ error: 'Too many files. Maximum is 5 files per upload' });
         }
+        if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+          return res.status(400).json({ error: 'Unexpected field in file upload' });
+        }
         return res.status(400).json({ error: err.message || 'File upload error' });
       }
+      
+      console.log('Multer processed successfully');
+      console.log('Files received:', req.files?.length || 0);
       next();
     });
   },
@@ -1974,11 +2020,13 @@ router.post('/:id/attachments',
 
       console.log(`Upload request for study ${id}:`, {
         filesCount: files?.length || 0,
+        fileDetails: files?.map(f => ({ name: f.originalname, size: f.size, type: f.mimetype })),
         userId: req.user?.id,
         organizationId: req.user?.organizationId
       });
 
       if (!files || files.length === 0) {
+        console.error('No files in request');
         return res.status(400).json({ error: 'No files uploaded' });
       }
 
@@ -2048,6 +2096,7 @@ router.post('/:id/attachments',
     } catch (error) {
       console.error('PDF upload error details:', {
         message: error.message,
+        name: error.name,
         stack: error.stack,
         studyId: req.params.id,
         userId: req.user?.id

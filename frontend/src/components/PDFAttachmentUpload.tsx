@@ -89,8 +89,30 @@ export default function PDFAttachmentUpload({
         let errorMessage = "Failed to upload files";
         try {
           const error = await response.json();
-          errorMessage = error.error || error.message || errorMessage;
           console.error('Upload error response:', error);
+          
+          // Extract specific error from Cosmos DB error messages
+          if (error.message) {
+            try {
+              // Try to parse Cosmos DB error JSON
+              const cosmosMatch = error.message.match(/Message: ({.*?})/);
+              if (cosmosMatch) {
+                const cosmosError = JSON.parse(cosmosMatch[1]);
+                if (cosmosError.Errors && cosmosError.Errors.length > 0) {
+                  errorMessage = cosmosError.Errors.join(', ');
+                } else {
+                  errorMessage = error.message;
+                }
+              } else {
+                errorMessage = error.message;
+              }
+            } catch (parseErr) {
+              // If parsing fails, use the whole message
+              errorMessage = error.message;
+            }
+          } else if (error.error) {
+            errorMessage = error.error;
+          }
         } catch (e) {
           console.error('Failed to parse error response');
         }

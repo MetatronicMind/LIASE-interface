@@ -883,8 +883,9 @@ export default function R3FormPage() {
               <PDFAttachmentUpload
                 studyId={study.id}
                 attachments={study.attachments || []}
-                onUploadComplete={() => {
-                  fetchStudyDetails();
+                onUploadComplete={async () => {
+                  // Fetch the updated study with new attachments
+                  fetchStudyData();
                 }}
               />
             </div>

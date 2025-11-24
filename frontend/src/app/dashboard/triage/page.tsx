@@ -1157,9 +1157,28 @@ export default function TriagePage() {
                     <PDFAttachmentUpload
                       studyId={selectedStudy.id}
                       attachments={selectedStudy.attachments || []}
-                      onUploadComplete={() => {
-                        // Refresh the selected study to show new attachments
-                        fetchStudies();
+                      onUploadComplete={async () => {
+                        // Fetch the updated study with new attachments
+                        try {
+                          const token = localStorage.getItem('auth_token');
+                          const response = await fetch(`${API_BASE}/studies/${selectedStudy.id}`, {
+                            headers: {
+                              'Authorization': `Bearer ${token}`
+                            }
+                          });
+                          
+                          if (response.ok) {
+                            const updatedStudy = await response.json();
+                            // Update the selected study to show new attachments immediately
+                            setSelectedStudy(updatedStudy);
+                            // Also refresh the full studies list
+                            fetchStudies();
+                          }
+                        } catch (error) {
+                          console.error('Failed to refresh study:', error);
+                          // Fallback: just refresh the full list
+                          fetchStudies();
+                        }
                       }}
                     />
                   </div>

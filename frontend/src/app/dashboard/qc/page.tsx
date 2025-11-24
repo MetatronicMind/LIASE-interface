@@ -587,8 +587,25 @@ export default function QCPage() {
                   <PDFAttachmentUpload
                     studyId={selectedStudy.id}
                     attachments={selectedStudy.attachments || []}
-                    onUploadComplete={() => {
-                      fetchStudies();
+                    onUploadComplete={async () => {
+                      // Fetch the updated study with new attachments
+                      try {
+                        const token = localStorage.getItem('auth_token');
+                        const response = await fetch(`${getApiBaseUrl()}/studies/${selectedStudy.id}`, {
+                          headers: {
+                            'Authorization': `Bearer ${token}`
+                          }
+                        });
+                        
+                        if (response.ok) {
+                          const updatedStudy = await response.json();
+                          setSelectedStudy(updatedStudy);
+                          fetchStudies();
+                        }
+                      } catch (error) {
+                        console.error('Failed to refresh study:', error);
+                        fetchStudies();
+                      }
                     }}
                   />
 
