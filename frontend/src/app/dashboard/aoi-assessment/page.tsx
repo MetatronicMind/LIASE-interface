@@ -86,8 +86,10 @@ export default function AOIAssessmentPage() {
 
       if (response.ok) {
         const data = await response.json();
+        // Handle different possible response structures
+        const studiesData = data.studies || data.data || (Array.isArray(data) ? data : []);
         // Filter for AOI cases only
-        const aoiStudies = data.data.filter((study: Study) => study.userTag === 'AOI');
+        const aoiStudies = studiesData.filter((study: Study) => study.userTag === 'AOI');
         setStudies(aoiStudies);
       } else {
         throw new Error("Failed to fetch AOI studies");
