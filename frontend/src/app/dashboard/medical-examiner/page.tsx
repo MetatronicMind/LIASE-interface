@@ -53,6 +53,12 @@ interface Study {
   drugEffect?: string;
   summary?: string;
   specialCase?: string;
+  
+  // Additional AI Inference fields
+  aiInferenceData?: any;
+  clientName?: string;
+  sponsor?: string;
+  aoiClassification?: string;
 }
 
 interface FieldComment {
@@ -526,12 +532,13 @@ export default function MedicalExaminerPage() {
                       </div>
                     </div>
 
-                    {/* AI Inference / Triage Information */}
-                    {(selectedStudy.serious || selectedStudy.identifiableHumanSubject || selectedStudy.textType || selectedStudy.summary) && (
+                    {/* AI Inference / Triage Information - ALL AI PROCESSING FIELDS */}
+                    {(selectedStudy.serious || selectedStudy.identifiableHumanSubject || selectedStudy.textType || selectedStudy.summary || selectedStudy.doi || selectedStudy.specialCase) && (
                       <div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-3">Triage Assessment</h3>
-                        <div className="bg-blue-50 rounded-lg p-4 space-y-3">
-                          <div className="grid grid-cols-2 gap-3 text-sm">
+                        <h3 className="text-lg font-medium text-gray-900 mb-3">AI Processing Data (Complete)</h3>
+                        <div className="bg-blue-50 rounded-lg p-4 space-y-4">
+                          {/* Grid of AI Fields */}
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                             {selectedStudy.serious !== undefined && (
                               <div>
                                 <span className="font-medium text-gray-700">Serious:</span>
@@ -546,6 +553,14 @@ export default function MedicalExaminerPage() {
                                 <p className="text-gray-900">{selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}</p>
                               </div>
                             )}
+                            {selectedStudy.confirmedPotentialICSR !== undefined && (
+                              <div>
+                                <span className="font-medium text-gray-700">Confirmed ICSR:</span>
+                                <p className={`font-semibold ${selectedStudy.confirmedPotentialICSR ? 'text-green-600' : 'text-yellow-600'}`}>
+                                  {selectedStudy.confirmedPotentialICSR ? 'Yes' : 'No'}
+                                </p>
+                              </div>
+                            )}
                             {selectedStudy.textType && (
                               <div>
                                 <span className="font-medium text-gray-700">Text Type:</span>
@@ -556,6 +571,12 @@ export default function MedicalExaminerPage() {
                               <div>
                                 <span className="font-medium text-gray-700">Author Perspective:</span>
                                 <p className="text-gray-900">{selectedStudy.authorPerspective}</p>
+                              </div>
+                            )}
+                            {selectedStudy.icsrClassification && (
+                              <div>
+                                <span className="font-medium text-gray-700">ICSR Classification:</span>
+                                <p className="text-gray-900">{selectedStudy.icsrClassification}</p>
                               </div>
                             )}
                             {selectedStudy.testSubject && (
@@ -570,26 +591,104 @@ export default function MedicalExaminerPage() {
                                 <p className="text-gray-900">{selectedStudy.specialCase}</p>
                               </div>
                             )}
+                            {selectedStudy.attributability && (
+                              <div>
+                                <span className="font-medium text-gray-700">Attributability:</span>
+                                <p className="text-gray-900">{selectedStudy.attributability}</p>
+                              </div>
+                            )}
+                            {selectedStudy.drugEffect && (
+                              <div>
+                                <span className="font-medium text-gray-700">Drug Effect:</span>
+                                <p className="text-gray-900">{selectedStudy.drugEffect}</p>
+                              </div>
+                            )}
+                            {selectedStudy.aoiDrugEffect && (
+                              <div>
+                                <span className="font-medium text-gray-700">AOI Drug Effect:</span>
+                                <p className="text-gray-900">{selectedStudy.aoiDrugEffect}</p>
+                              </div>
+                            )}
+                            {selectedStudy.approvedIndication && (
+                              <div>
+                                <span className="font-medium text-gray-700">Approved Indication:</span>
+                                <p className="text-gray-900">{selectedStudy.approvedIndication}</p>
+                              </div>
+                            )}
+                            {selectedStudy.aoiClassification && (
+                              <div>
+                                <span className="font-medium text-gray-700">AOI Classification:</span>
+                                <p className="text-gray-900">{selectedStudy.aoiClassification}</p>
+                              </div>
+                            )}
+                            {selectedStudy.substanceGroup && (
+                              <div>
+                                <span className="font-medium text-gray-700">Substance Group:</span>
+                                <p className="text-gray-900">{selectedStudy.substanceGroup}</p>
+                              </div>
+                            )}
+                            {selectedStudy.leadAuthor && (
+                              <div>
+                                <span className="font-medium text-gray-700">Lead Author:</span>
+                                <p className="text-gray-900">{selectedStudy.leadAuthor}</p>
+                              </div>
+                            )}
+                            {selectedStudy.countryOfFirstAuthor && (
+                              <div>
+                                <span className="font-medium text-gray-700">Country (First Author):</span>
+                                <p className="text-gray-900">{selectedStudy.countryOfFirstAuthor}</p>
+                              </div>
+                            )}
+                            {selectedStudy.countryOfOccurrence && (
+                              <div>
+                                <span className="font-medium text-gray-700">Country (Occurrence):</span>
+                                <p className="text-gray-900">{selectedStudy.countryOfOccurrence}</p>
+                              </div>
+                            )}
+                            {selectedStudy.sponsor && (
+                              <div>
+                                <span className="font-medium text-gray-700">Sponsor:</span>
+                                <p className="text-gray-900">{selectedStudy.sponsor}</p>
+                              </div>
+                            )}
+                            {selectedStudy.clientName && (
+                              <div>
+                                <span className="font-medium text-gray-700">Client Name:</span>
+                                <p className="text-gray-900">{selectedStudy.clientName}</p>
+                              </div>
+                            )}
                           </div>
                           
+                          {/* Complex Fields - Full Width */}
                           {selectedStudy.summary && (
                             <div className="pt-2 border-t border-gray-200">
-                              <span className="font-medium text-gray-700 text-sm">Summary:</span>
-                              <p className="text-sm text-gray-800 mt-1">{selectedStudy.summary}</p>
+                              <span className="font-medium text-gray-700 text-sm">AI Summary:</span>
+                              <p className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">{selectedStudy.summary}</p>
                             </div>
                           )}
                           
                           {selectedStudy.justification && (
                             <div className="pt-2 border-t border-gray-200">
                               <span className="font-medium text-gray-700 text-sm">Justification:</span>
-                              <p className="text-sm text-gray-800 mt-1">{selectedStudy.justification}</p>
+                              <p className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">{selectedStudy.justification}</p>
+                            </div>
+                          )}
+                          
+                          {selectedStudy.patientDetails && (
+                            <div className="pt-2 border-t border-gray-200">
+                              <span className="font-medium text-gray-700 text-sm">Patient Details:</span>
+                              <div className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">
+                                {typeof selectedStudy.patientDetails === 'object' 
+                                  ? JSON.stringify(selectedStudy.patientDetails, null, 2)
+                                  : selectedStudy.patientDetails}
+                              </div>
                             </div>
                           )}
                           
                           {selectedStudy.keyEvents && Array.isArray(selectedStudy.keyEvents) && selectedStudy.keyEvents.length > 0 && (
                             <div className="pt-2 border-t border-gray-200">
                               <span className="font-medium text-gray-700 text-sm">Key Events:</span>
-                              <ul className="list-disc list-inside text-sm text-gray-800 mt-1 space-y-1">
+                              <ul className="list-disc list-inside text-sm text-gray-800 mt-1 bg-white p-2 rounded border space-y-1">
                                 {selectedStudy.keyEvents.map((event, idx) => (
                                   <li key={idx}>{event}</li>
                                 ))}
@@ -600,7 +699,34 @@ export default function MedicalExaminerPage() {
                           {selectedStudy.administeredDrugs && Array.isArray(selectedStudy.administeredDrugs) && selectedStudy.administeredDrugs.length > 0 && (
                             <div className="pt-2 border-t border-gray-200">
                               <span className="font-medium text-gray-700 text-sm">Administered Drugs:</span>
-                              <p className="text-sm text-gray-800 mt-1">{selectedStudy.administeredDrugs.join(', ')}</p>
+                              <p className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">{selectedStudy.administeredDrugs.join(', ')}</p>
+                            </div>
+                          )}
+                          
+                          {selectedStudy.relevantDates && (
+                            <div className="pt-2 border-t border-gray-200">
+                              <span className="font-medium text-gray-700 text-sm">Relevant Dates:</span>
+                              <div className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">
+                                {typeof selectedStudy.relevantDates === 'object' 
+                                  ? JSON.stringify(selectedStudy.relevantDates, null, 2)
+                                  : selectedStudy.relevantDates}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Raw AI Data Expandable */}
+                          {selectedStudy.aiInferenceData && (
+                            <div className="pt-2 border-t border-gray-200">
+                              <details className="cursor-pointer">
+                                <summary className="text-sm font-medium text-blue-600 hover:text-blue-800">
+                                  View Raw AI Inference Data (Click to expand)
+                                </summary>
+                                <div className="text-xs text-gray-800 mt-2 bg-white p-3 rounded border max-h-96 overflow-y-auto">
+                                  <pre className="whitespace-pre-wrap">
+                                    {JSON.stringify(selectedStudy.aiInferenceData, null, 2)}
+                                  </pre>
+                                </div>
+                              </details>
                             </div>
                           )}
                         </div>

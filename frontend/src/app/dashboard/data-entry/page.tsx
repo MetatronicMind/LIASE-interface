@@ -19,6 +19,40 @@ interface Study {
   revokedBy?: string;
   revokedAt?: string;
   revocationReason?: string;
+  
+  // AI Inference Data - Complete fields from AI Processing
+  aiInferenceData?: any;
+  doi?: string;
+  specialCase?: string;
+  countryOfFirstAuthor?: string;
+  countryOfOccurrence?: string;
+  patientDetails?: any;
+  keyEvents?: string[] | string;
+  relevantDates?: any;
+  administeredDrugs?: string[] | string;
+  attributability?: string;
+  drugEffect?: string;
+  summary?: string;
+  identifiableHumanSubject?: boolean | string;
+  textType?: string;
+  authorPerspective?: string;
+  confirmedPotentialICSR?: boolean;
+  icsrClassification?: string;
+  substanceGroup?: string;
+  vancouverCitation?: string;
+  leadAuthor?: string;
+  serious?: boolean;
+  testSubject?: string;
+  aoiDrugEffect?: string;
+  approvedIndication?: string;
+  aoiClassification?: string;
+  justification?: string;
+  clientName?: string;
+  sponsor?: string;
+  abstract?: string;
+  publicationDate?: string;
+  authors?: string;
+  journal?: string;
 }
 
 export default function DataEntryPage() {

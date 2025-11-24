@@ -98,6 +98,7 @@ interface StudyAIData {
   Justification: string;
   Client_name: string;
   Drugname: string;
+  Sponsor: string;
 }
 
 interface R3FormData {
@@ -584,7 +585,7 @@ export default function R3FormPage() {
                 </div>
               </div>
 
-              {/* AI Inference Data */}
+              {/* AI Inference Data - COMPLETE AI PROCESSING FIELDS */}
               {loadingAIData ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -592,54 +593,225 @@ export default function R3FormPage() {
                 </div>
               ) : studyAIData && (
                 <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">AI Inference Data</h4>
+                  <h4 className="font-medium text-gray-900 text-base border-b pb-2">AI Processing Data (Complete)</h4>
                   
-                  {studyAIData.Lead_author && (
-                    <div>
-                      <span className="font-medium text-gray-600 text-sm">Lead Author:</span>
-                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Lead_author}</p>
+                  {/* Classification Fields */}
+                  {(studyAIData.Serious || studyAIData.Confirmed_potential_ICSR || studyAIData.ICSR_classification) && (
+                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                      <h5 className="font-semibold text-gray-900 text-xs mb-2 uppercase">Classification</h5>
+                      {studyAIData.Serious && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Serious:</span>
+                          <p className={`mt-0.5 text-sm font-semibold ${studyAIData.Serious.toLowerCase() === 'yes' ? 'text-red-600' : 'text-green-600'}`}>
+                            {studyAIData.Serious}
+                          </p>
+                        </div>
+                      )}
+                      {studyAIData.Confirmed_potential_ICSR && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Confirmed ICSR:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Confirmed_potential_ICSR}</p>
+                        </div>
+                      )}
+                      {studyAIData.ICSR_classification && (
+                        <div>
+                          <span className="font-medium text-gray-600 text-sm">ICSR Classification:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.ICSR_classification}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  {studyAIData.Country_of_first_author && (
-                    <div>
-                      <span className="font-medium text-gray-600 text-sm">Country:</span>
-                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Country_of_first_author}</p>
+                  {/* Identification Fields */}
+                  {(studyAIData.DOI || studyAIData.special_case || studyAIData.Lead_author || studyAIData.Vancouver_citation) && (
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <h5 className="font-semibold text-gray-900 text-xs mb-2 uppercase">Identification</h5>
+                      {studyAIData.DOI && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">DOI:</span>
+                          <p className="mt-0.5 text-sm text-gray-900 break-all">{studyAIData.DOI}</p>
+                        </div>
+                      )}
+                      {studyAIData.special_case && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Special Case:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.special_case}</p>
+                        </div>
+                      )}
+                      {studyAIData.Lead_author && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Lead Author:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Lead_author}</p>
+                        </div>
+                      )}
+                      {studyAIData.Vancouver_citation && (
+                        <div>
+                          <span className="font-medium text-gray-600 text-sm">Vancouver Citation:</span>
+                          <p className="mt-0.5 text-xs text-gray-800 italic">{studyAIData.Vancouver_citation}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  {studyAIData.Patient_details && (
-                    <div>
-                      <span className="font-medium text-gray-600 text-sm">Patient Details:</span>
-                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Patient_details}</p>
+                  {/* Geographic Fields */}
+                  {(studyAIData.Country_of_first_author || studyAIData.Country_of_occurrence) && (
+                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                      <h5 className="font-semibold text-gray-900 text-xs mb-2 uppercase">Geographic</h5>
+                      {studyAIData.Country_of_first_author && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Country (First Author):</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Country_of_first_author}</p>
+                        </div>
+                      )}
+                      {studyAIData.Country_of_occurrence && (
+                        <div>
+                          <span className="font-medium text-gray-600 text-sm">Country (Occurrence):</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Country_of_occurrence}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  {studyAIData.Key_events && (
-                    <div>
-                      <span className="font-medium text-gray-600 text-sm">Key Events:</span>
-                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Key_events}</p>
+                  {/* Medical Analysis Fields */}
+                  {(studyAIData.Patient_details || studyAIData.Key_events || studyAIData.Administered_drugs || studyAIData.Relevant_dates) && (
+                    <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                      <h5 className="font-semibold text-gray-900 text-xs mb-2 uppercase">Medical Analysis</h5>
+                      {studyAIData.Patient_details && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Patient Details:</span>
+                          <p className="mt-0.5 text-sm text-gray-900 bg-white p-2 rounded border border-purple-100">{studyAIData.Patient_details}</p>
+                        </div>
+                      )}
+                      {studyAIData.Key_events && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Key Events:</span>
+                          <p className="mt-0.5 text-sm text-gray-900 bg-white p-2 rounded border border-purple-100">{studyAIData.Key_events}</p>
+                        </div>
+                      )}
+                      {studyAIData.Administered_drugs && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Administered Drugs:</span>
+                          <p className="mt-0.5 text-sm text-gray-900 bg-white p-2 rounded border border-purple-100">{studyAIData.Administered_drugs}</p>
+                        </div>
+                      )}
+                      {studyAIData.Relevant_dates && (
+                        <div>
+                          <span className="font-medium text-gray-600 text-sm">Relevant Dates:</span>
+                          <p className="mt-0.5 text-sm text-gray-900 bg-white p-2 rounded border border-purple-100">{studyAIData.Relevant_dates}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  {studyAIData.Administered_drugs && (
-                    <div>
-                      <span className="font-medium text-gray-600 text-sm">Administered Drugs:</span>
-                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Administered_drugs}</p>
+                  {/* Drug Effect & Assessment */}
+                  {(studyAIData.Attributability || studyAIData.Drug_effect || studyAIData.AOI_drug_effect || studyAIData.Approved_indication || studyAIData.AOI_classification) && (
+                    <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                      <h5 className="font-semibold text-gray-900 text-xs mb-2 uppercase">Drug Effect & Assessment</h5>
+                      {studyAIData.Attributability && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Attributability:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Attributability}</p>
+                        </div>
+                      )}
+                      {studyAIData.Drug_effect && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Drug Effect:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Drug_effect}</p>
+                        </div>
+                      )}
+                      {studyAIData.AOI_drug_effect && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">AOI Drug Effect:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.AOI_drug_effect}</p>
+                        </div>
+                      )}
+                      {studyAIData.Approved_indication && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Approved Indication:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Approved_indication}</p>
+                        </div>
+                      )}
+                      {studyAIData.AOI_classification && (
+                        <div>
+                          <span className="font-medium text-gray-600 text-sm">AOI Classification:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.AOI_classification}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  {studyAIData.Summary && (
-                    <div>
-                      <span className="font-medium text-gray-600 text-sm">Summary:</span>
-                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Summary}</p>
+                  {/* Content Classification */}
+                  {(studyAIData.Text_type || studyAIData.Author_perspective || studyAIData.Identifiable_human_subject || studyAIData.Test_subject) && (
+                    <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                      <h5 className="font-semibold text-gray-900 text-xs mb-2 uppercase">Content Classification</h5>
+                      {studyAIData.Text_type && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Text Type:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Text_type}</p>
+                        </div>
+                      )}
+                      {studyAIData.Author_perspective && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Author Perspective:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Author_perspective}</p>
+                        </div>
+                      )}
+                      {studyAIData.Identifiable_human_subject && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Identifiable Human Subject:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Identifiable_human_subject}</p>
+                        </div>
+                      )}
+                      {studyAIData.Test_subject && (
+                        <div>
+                          <span className="font-medium text-gray-600 text-sm">Test Subject:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Test_subject}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
-                  {studyAIData.Vancouver_citation && (
-                    <div>
-                      <span className="font-medium text-gray-600 text-sm">Vancouver Citation:</span>
-                      <p className="mt-1 text-sm text-gray-900">{studyAIData.Vancouver_citation}</p>
+                  {/* Business Information */}
+                  {(studyAIData.Substance_group || studyAIData.Client_name || studyAIData.Sponsor) && (
+                    <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+                      <h5 className="font-semibold text-gray-900 text-xs mb-2 uppercase">Business Information</h5>
+                      {studyAIData.Substance_group && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Substance Group:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Substance_group}</p>
+                        </div>
+                      )}
+                      {studyAIData.Client_name && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">Client Name:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Client_name}</p>
+                        </div>
+                      )}
+                      {studyAIData.Sponsor && (
+                        <div>
+                          <span className="font-medium text-gray-600 text-sm">Sponsor:</span>
+                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Sponsor}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Summary & Justification */}
+                  {(studyAIData.Summary || studyAIData.Justification) && (
+                    <div className="bg-teal-50 p-3 rounded-lg border border-teal-200">
+                      <h5 className="font-semibold text-gray-900 text-xs mb-2 uppercase">Analysis Summary</h5>
+                      {studyAIData.Summary && (
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-600 text-sm">AI Summary:</span>
+                          <p className="mt-0.5 text-sm text-gray-900 bg-white p-2 rounded border border-teal-100">{studyAIData.Summary}</p>
+                        </div>
+                      )}
+                      {studyAIData.Justification && (
+                        <div>
+                          <span className="font-medium text-gray-600 text-sm">Justification:</span>
+                          <p className="mt-0.5 text-sm text-gray-900 bg-white p-2 rounded border border-teal-100">{studyAIData.Justification}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
