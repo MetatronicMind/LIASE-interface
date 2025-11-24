@@ -22,6 +22,45 @@ interface Study {
   createdAt: string;
   updatedAt: string;
   r3FormCompletedAt?: string;
+  abstract?: string;
+  
+  // AI Inference Data - All fields from Triage
+  aiInferenceData?: any;
+  doi?: string;
+  specialCase?: string;
+  countryOfFirstAuthor?: string;
+  countryOfOccurrence?: string;
+  patientDetails?: any;
+  keyEvents?: string[];
+  relevantDates?: any;
+  administeredDrugs?: string[];
+  attributability?: string;
+  drugEffect?: string;
+  summary?: string;
+  identifiableHumanSubject?: boolean;
+  textType?: string;
+  leadAuthor?: string;
+  vancouverCitation?: string;
+  serious?: boolean;
+  confirmedPotentialICSR?: boolean;
+  icsrClassification?: string;
+  aoiClassification?: string;
+  substanceGroup?: string;
+  authorPerspective?: string;
+  testSubject?: string;
+  aoiDrugEffect?: string;
+  approvedIndication?: string;
+  justification?: string;
+  clientName?: string;
+  sponsor?: string;
+  effectiveClassification?: string;
+  
+  // Legacy fields for backward compatibility
+  Drugname?: string;
+  Serious?: string;
+  special_case?: string;
+  ICSR_classification?: string;
+  Text_type?: string;
 }
 
 export default function QAPage() {
@@ -278,20 +317,248 @@ export default function QAPage() {
                     </div>
                   </div>
 
-                  {/* R3 Form Data Preview */}
-                  {selectedStudy.r3FormData && (
+                  {/* Abstract */}
+                  {(selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract) && (
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Study Details</h4>
-                      <div className="bg-gray-50 rounded-md p-3 text-xs space-y-1">
-                        {Object.entries(selectedStudy.r3FormData).slice(0, 5).map(([key, value]) => (
-                          <div key={key} className="flex">
-                            <span className="font-medium text-gray-600 w-40">{key}:</span>
-                            <span className="text-gray-900">{String(value)}</span>
-                          </div>
-                        ))}
+                      <h4 className="text-sm font-medium text-gray-500 mb-2">Abstract</h4>
+                      <div className="bg-gray-50 rounded-md p-3 text-sm">
+                        <p className="text-gray-900 leading-relaxed">{selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract}</p>
                       </div>
                     </div>
                   )}
+
+                  {/* Study Metadata */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-2">Study Metadata</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                      {selectedStudy.authors && (
+                        <div>
+                          <span className="font-medium text-gray-700">Authors:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.authors}</p>
+                        </div>
+                      )}
+                      {selectedStudy.journal && (
+                        <div>
+                          <span className="font-medium text-gray-700">Journal:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.journal}</p>
+                        </div>
+                      )}
+                      {selectedStudy.doi && (
+                        <div>
+                          <span className="font-medium text-gray-700">DOI:</span>
+                          <p className="mt-1 text-gray-900 break-all">{selectedStudy.doi}</p>
+                        </div>
+                      )}
+                      {selectedStudy.vancouverCitation && (
+                        <div className="sm:col-span-2">
+                          <span className="font-medium text-gray-700">Vancouver Citation:</span>
+                          <p className="mt-1 text-gray-900 text-xs">{selectedStudy.vancouverCitation}</p>
+                        </div>
+                      )}
+                      {selectedStudy.leadAuthor && (
+                        <div>
+                          <span className="font-medium text-gray-700">Lead Author:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.leadAuthor}</p>
+                        </div>
+                      )}
+                      {selectedStudy.countryOfFirstAuthor && (
+                        <div>
+                          <span className="font-medium text-gray-700">Country (First Author):</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.countryOfFirstAuthor}</p>
+                        </div>
+                      )}
+                      {selectedStudy.countryOfOccurrence && (
+                        <div>
+                          <span className="font-medium text-gray-700">Country of Occurrence:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.countryOfOccurrence}</p>
+                        </div>
+                      )}
+                      {selectedStudy.substanceGroup && (
+                        <div>
+                          <span className="font-medium text-gray-700">Substance Group:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.substanceGroup}</p>
+                        </div>
+                      )}
+                      {selectedStudy.authorPerspective && (
+                        <div>
+                          <span className="font-medium text-gray-700">Author Perspective:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.authorPerspective}</p>
+                        </div>
+                      )}
+                      {selectedStudy.clientName && (
+                        <div>
+                          <span className="font-medium text-gray-700">Client:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.clientName}</p>
+                        </div>
+                      )}
+                      {selectedStudy.sponsor && (
+                        <div>
+                          <span className="font-medium text-gray-700">Sponsor:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.sponsor}</p>
+                        </div>
+                      )}
+                      {selectedStudy.testSubject && (
+                        <div>
+                          <span className="font-medium text-gray-700">Test Subject:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.testSubject}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* AI Analysis & Clinical Data */}
+                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      AI Analysis & Clinical Data
+                    </h4>
+                    <div className="space-y-4">
+                      {/* Grid Layout for Analysis Fields */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                        {(selectedStudy.special_case || selectedStudy.specialCase) && (
+                          <div>
+                            <span className="font-medium text-gray-700">Special Case:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.special_case || selectedStudy.specialCase}</p>
+                          </div>
+                        )}
+                        {(selectedStudy.Serious || selectedStudy.serious !== undefined) && (
+                          <div>
+                            <span className="font-medium text-gray-700">Serious Event:</span>
+                            <p className="mt-1 text-gray-900">
+                              {typeof selectedStudy.serious === 'boolean' 
+                                ? (selectedStudy.serious ? 'Yes' : 'No')
+                                : selectedStudy.Serious || 'Unknown'
+                              }
+                            </p>
+                          </div>
+                        )}
+                        {(selectedStudy.Text_type || selectedStudy.textType) && (
+                          <div>
+                            <span className="font-medium text-gray-700">Text Type:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.Text_type || selectedStudy.textType}</p>
+                          </div>
+                        )}
+                        {selectedStudy.identifiableHumanSubject !== undefined && (
+                          <div>
+                            <span className="font-medium text-gray-700">Human Subject:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}</p>
+                          </div>
+                        )}
+                        {selectedStudy.confirmedPotentialICSR !== undefined && (
+                          <div>
+                            <span className="font-medium text-gray-700">Confirmed ICSR:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.confirmedPotentialICSR ? 'Yes' : 'No'}</p>
+                          </div>
+                        )}
+                        {selectedStudy.icsrClassification && (
+                          <div>
+                            <span className="font-medium text-gray-700">ICSR Classification:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.icsrClassification}</p>
+                          </div>
+                        )}
+                        {selectedStudy.aoiClassification && (
+                          <div>
+                            <span className="font-medium text-gray-700">AOI Classification:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.aoiClassification}</p>
+                          </div>
+                        )}
+                        {selectedStudy.approvedIndication && (
+                          <div>
+                            <span className="font-medium text-gray-700">Approved Indication:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.approvedIndication}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Text-based Fields */}
+                      {selectedStudy.attributability && (
+                        <div>
+                          <span className="font-medium text-gray-700">Attributability:</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.attributability}</p>
+                        </div>
+                      )}
+                      {selectedStudy.drugEffect && (
+                        <div>
+                          <span className="font-medium text-gray-700">Drug Effect:</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.drugEffect}</p>
+                        </div>
+                      )}
+                      {selectedStudy.aoiDrugEffect && (
+                        <div>
+                          <span className="font-medium text-gray-700">AOI Drug Effect:</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.aoiDrugEffect}</p>
+                        </div>
+                      )}
+                      {selectedStudy.justification && (
+                        <div>
+                          <span className="font-medium text-gray-700">Justification:</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.justification}</p>
+                        </div>
+                      )}
+                      {selectedStudy.summary && (
+                        <div>
+                          <span className="font-medium text-gray-700">Summary:</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.summary}</p>
+                        </div>
+                      )}
+
+                      {/* Clinical Data */}
+                      {selectedStudy.administeredDrugs && selectedStudy.administeredDrugs.length > 0 && (
+                        <div>
+                          <span className="font-medium text-gray-700">Administered Drugs:</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {selectedStudy.administeredDrugs.map((drug, index) => (
+                              <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                                {drug}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {selectedStudy.keyEvents && selectedStudy.keyEvents.length > 0 && (
+                        <div>
+                          <span className="font-medium text-gray-700">Key Events:</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {selectedStudy.keyEvents.map((event, index) => (
+                              <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                {event}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {selectedStudy.patientDetails && (
+                        <div>
+                          <span className="font-medium text-gray-700">Patient Details:</span>
+                          <div className="mt-1 bg-white rounded p-3 border">
+                            {typeof selectedStudy.patientDetails === 'object' ? (
+                              <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                                {JSON.stringify(selectedStudy.patientDetails, null, 2)}
+                              </pre>
+                            ) : (
+                              <p className="text-gray-900 text-sm">{selectedStudy.patientDetails}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {selectedStudy.relevantDates && (
+                        <div>
+                          <span className="font-medium text-gray-700">Relevant Dates:</span>
+                          <div className="mt-1 bg-white rounded p-3 border">
+                            {typeof selectedStudy.relevantDates === 'object' ? (
+                              <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                                {JSON.stringify(selectedStudy.relevantDates, null, 2)}
+                              </pre>
+                            ) : (
+                              <p className="text-gray-900 text-sm">{selectedStudy.relevantDates}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Comments */}
                   <div>
