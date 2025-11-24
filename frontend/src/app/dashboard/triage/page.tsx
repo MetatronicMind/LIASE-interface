@@ -164,8 +164,20 @@ export default function TriagePage() {
           // No sample data shown as requested by user
           setStudies([]);
         } else {
-          setStudies(normalizeApiStudies(studiesData));
-          console.log(`Successfully loaded ${studiesData.length} studies`);
+          // Deduplicate studies by PMID to prevent duplicate articles in triage
+          const uniqueStudies = studiesData.reduce((acc: any[], study: any) => {
+            if (!acc.some(s => s.pmid === study.pmid)) {
+              acc.push(study);
+            }
+            return acc;
+          }, []);
+          
+          if (uniqueStudies.length < studiesData.length) {
+            console.warn(`Removed ${studiesData.length - uniqueStudies.length} duplicate studies`);
+          }
+          
+          setStudies(normalizeApiStudies(uniqueStudies));
+          console.log(`Successfully loaded ${uniqueStudies.length} unique studies`);
         }
       } else {
         const errorText = await response.text();

@@ -58,7 +58,7 @@ router.get('/',
         sortOrder = 'desc' 
       } = req.query;
       
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId';
+      let query = 'SELECT DISTINCT * FROM c WHERE c.organizationId = @orgId';
       const parameters = [{ name: '@orgId', value: req.user.organizationId }];
 
       // Add filters
