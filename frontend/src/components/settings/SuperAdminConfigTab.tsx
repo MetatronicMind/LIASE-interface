@@ -134,8 +134,8 @@ export default function SuperAdminConfigTab() {
     pubmedApiEndpoint: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/",
     backendPort: 8000,
     frontendPort: 3000,
-    backendUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
-    frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3000",
+    backendUrl: process.env.NEXT_PUBLIC_API_URL || "https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api",
+    frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL || "https://liase-interface.azurewebsites.net",
     aiProcessing: {
       maxConcurrentRequests: 5,
       requestTimeout: 30000,
@@ -451,7 +451,7 @@ export default function SuperAdminConfigTab() {
                   value={config.backendUrl}
                   onChange={(e) => updateConfig(["backendUrl"], e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="http://localhost:8000"
+                  placeholder="https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api"
                 />
               </div>
               <div className="space-y-2">
@@ -461,7 +461,7 @@ export default function SuperAdminConfigTab() {
                   value={config.frontendUrl}
                   onChange={(e) => updateConfig(["frontendUrl"], e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="http://localhost:3000"
+                  placeholder="https://liase-interface.azurewebsites.net"
                 />
               </div>
             </div>
