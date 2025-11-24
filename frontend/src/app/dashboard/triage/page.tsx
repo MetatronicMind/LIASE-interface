@@ -84,7 +84,6 @@ export default function TriagePage() {
   const [status, setStatus] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [caseType, setCaseType] = useState("");
   const [classificationType, setClassificationType] = useState("");
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
   const [comment, setComment] = useState("");
@@ -285,16 +284,11 @@ export default function TriagePage() {
     const matchesDateFrom = !dateFrom || studyDate >= dateFrom;
     const matchesDateTo = !dateTo || studyDate <= dateTo;
     
-    // Case Type filter (serious/non-serious)
-    const matchesCaseType = caseType === "" || 
-      (caseType === "Serious" && study.serious) ||
-      (caseType === "Non-Serious" && !study.serious);
-    
     // Classification Type filter
     const finalClassification = getFinalClassification(study);
     const matchesClassificationType = classificationType === "" || finalClassification === classificationType;
     
-    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo && matchesCaseType && matchesClassificationType;
+    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo && matchesClassificationType;
   });
 
   // Pagination logic
@@ -415,19 +409,6 @@ export default function TriagePage() {
             </div>
             
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Case Type</label>
-              <select
-                value={caseType}
-                onChange={e => setCaseType(e.target.value)}
-                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
-              >
-                <option value="">All Case Types</option>
-                <option value="Serious">Serious</option>
-                <option value="Non-Serious">Non-Serious</option>
-              </select>
-            </div>
-            
-            <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Classification Type</label>
               <select
                 value={classificationType}
@@ -472,7 +453,6 @@ export default function TriagePage() {
                 setStatus("");
                 setDateFrom("");
                 setDateTo("");
-                setCaseType("");
                 setClassificationType("");
                 setPage(1);
               }}
