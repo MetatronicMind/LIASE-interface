@@ -72,7 +72,7 @@ export default function PDFAttachmentUpload({
 
       const token = localStorage.getItem("auth_token");
       const response = await fetch(
-        `${getApiBaseUrl()}/api/studies/${studyId}/attachments`,
+        `${getApiBaseUrl()}/studies/${studyId}/attachments`,
         {
           method: "POST",
           headers: {
@@ -104,7 +104,7 @@ export default function PDFAttachmentUpload({
     try {
       const token = localStorage.getItem("auth_token");
       const response = await fetch(
-        `${getApiBaseUrl()}/api/studies/${studyId}/attachments/${attachmentId}`,
+        `${getApiBaseUrl()}/studies/${studyId}/attachments/${attachmentId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -141,7 +141,7 @@ export default function PDFAttachmentUpload({
     try {
       const token = localStorage.getItem("auth_token");
       const response = await fetch(
-        `${getApiBaseUrl()}/api/studies/${studyId}/attachments/${attachmentId}`,
+        `${getApiBaseUrl()}/studies/${studyId}/attachments/${attachmentId}`,
         {
           method: "DELETE",
           headers: {
