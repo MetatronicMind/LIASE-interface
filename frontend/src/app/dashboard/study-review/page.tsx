@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { MagnifyingGlassIcon, UserGroupIcon, ExclamationTriangleIcon, ChartBarIcon, ChatBubbleLeftEllipsisIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon, UserGroupIcon, ExclamationTriangleIcon, ChartBarIcon } from "@heroicons/react/24/outline";
 import { getApiBaseUrl } from "@/config/api";
 import { PmidLink } from "@/components/PmidLink";
 
@@ -87,7 +87,6 @@ export default function StudyReviewPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
-  const [comment, setComment] = useState("");
   
   // Pagination state
   const [page, setPage] = useState(1);
@@ -219,12 +218,7 @@ useEffect(() => {
     alert(`${action} action applied to PMID ${selectedStudy?.pmid}`);
   };
 
-  const handleCommentSubmit = () => {
-    if (!comment.trim()) return;
-    // TODO: Replace with backend call
-    alert(`Comment added to PMID ${selectedStudy?.pmid}: ${comment}`);
-    setComment("");
-  };
+
 
   const detailsRef = useRef<HTMLDivElement>(null);
 
@@ -451,15 +445,6 @@ useEffect(() => {
                             <div className="flex items-center">
                               <span className="font-medium w-16">Created:</span>
                               <span>{new Date(study.createdAt).toLocaleDateString('en-CA')}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <span className="font-medium w-16">Comments:</span>
-                              <span className="flex items-center">
-                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                </svg>
-                                {study.comments?.length || 0}
-                              </span>
                             </div>
                           </div>
 
@@ -900,34 +885,6 @@ useEffect(() => {
                       </div>
                     </div>
 
-                    {/* Comments */}
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                        <ChatBubbleLeftEllipsisIcon className="w-5 h-5 mr-2 text-gray-600" />
-                        Add Comment
-                      </h4>
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <textarea
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            placeholder="Add your review comments here..."
-                            className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-700 transition-colors"
-                            rows={4}
-                          />
-                        </div>
-                        <button
-                          onClick={handleCommentSubmit}
-                          disabled={!comment.trim()}
-                          className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium transition-colors"
-                        >
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                          </svg>
-                          Submit Comment
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </>
               ) : (
