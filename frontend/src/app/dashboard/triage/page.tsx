@@ -94,7 +94,6 @@ export default function TriagePage() {
   const [dateTo, setDateTo] = useState("");
   const [classificationType, setClassificationType] = useState("");
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
-  const [comment, setComment] = useState("");
   
   // Pagination state
   const [page, setPage] = useState(1);
@@ -318,13 +317,6 @@ export default function TriagePage() {
   const handleAction = (action: string) => {
     // TODO: Replace with backend call
     alert(`${action} action applied to PMID ${selectedStudy?.pmid}`);
-  };
-
-  const handleCommentSubmit = () => {
-    if (!comment.trim()) return;
-    // TODO: Replace with backend call
-    alert(`Comment added to PMID ${selectedStudy?.pmid}: ${comment}`);
-    setComment("");
   };
 
   const getClassificationColor = (classification?: string) => {
@@ -1158,29 +1150,6 @@ export default function TriagePage() {
                         fetchStudies();
                       }}
                     />
-
-                    {/* Comments */}
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                        <ChatBubbleLeftEllipsisIcon className="w-5 h-5 mr-2 text-gray-600" />
-                        Add Classification Notes
-                      </h4>
-                      <div className="space-y-4">
-                        <textarea
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          placeholder="Add notes about your classification decision..."
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                          rows={4}
-                        />
-                        <button
-                          onClick={handleCommentSubmit}
-                          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                        >
-                          Add Comment
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </div>
               ) : (
