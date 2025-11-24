@@ -186,7 +186,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             />
           </div>
         </div>
-        <nav className="flex-1">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-blue-400/50 scrollbar-track-blue-900/20 hover:scrollbar-thumb-blue-300/70">
           <ul className="space-y-2">
             {navItems.map((item) => (
               <li key={item.name}>
