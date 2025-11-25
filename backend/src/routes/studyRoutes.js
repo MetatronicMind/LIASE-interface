@@ -1022,6 +1022,8 @@ router.get('/:id/r3-form-data',
       const { id } = req.params;
       const { pmid, drug_code, drugname } = req.query;
 
+      console.log('R3 form data request:', { id, pmid, drug_code, drugname });
+
       if (!pmid || !drug_code || !drugname) {
         return res.status(400).json({ 
           error: 'Missing required parameters: pmid, drug_code, drugname' 
@@ -1032,7 +1034,11 @@ router.get('/:id/r3-form-data',
       const axios = require('axios');
       const apiUrl = `http://20.242.200.176/get_r3_fields/?PMID=${pmid}&drug_code=${drug_code}&drugname=${drugname}`;
       
-      const response = await axios.get(apiUrl);
+      console.log('Calling external R3 API:', apiUrl);
+      
+      const response = await axios.get(apiUrl, { timeout: 10000 });
+      
+      console.log('R3 API response received:', response.data ? 'Data received' : 'No data');
       
       await auditAction(
         req.user,
@@ -1048,7 +1054,10 @@ router.get('/:id/r3-form-data',
         data: response.data
       });
     } catch (error) {
-      console.error('R3 form data fetch error:', error);
+      console.error('R3 form data fetch error:', error.message);
+      if (error.response) {
+        console.error('External API error response:', error.response.status, error.response.data);
+      }
       res.status(500).json({ 
         error: 'Failed to fetch R3 form data', 
         message: error.message 
