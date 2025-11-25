@@ -146,29 +146,6 @@ const R3_FORM_FIELDS = [
   // Case Narrative (Category H)
   { key: "H.1", label: "Case Narrative Including Clinical Course, Therapeutic Measures, Outcome and Additional Relevant Information", category: "C" },
 ];
-  { key: "D.4", label: "Height (cm)", category: "C" },
-  { key: "D.5", label: "Sex", category: "C" },
-  { key: "D.7", label: "Relevant Medical History and Concurrent Conditions", category: "C" },
-  { key: "D.7.1.r", label: "Structured Information - Patient History", category: "C" },
-  { key: "D.7.1.r.2", label: "Start Date of Medical History", category: "C" },
-  { key: "D.7.1.r.3", label: "Continuing Medical History", category: "C" },
-  { key: "D.7.1.r.4", label: "End Date of Medical History", category: "C" },
-  { key: "D.7.3", label: "Structured Information Available", category: "C" },
-  { key: "D.9.1", label: "Case Death", category: "C" },
-  { key: "D.9.2.r", label: "Death Details", category: "C" },
-  
-  // Reaction/Event Information (Category E)
-  { key: "E.i.1.1a", label: "Reaction/Event (MedDRA terminology)", category: "C" },
-  { key: "E.i.3.2a", label: "Outcome - Recovered/Resolved", category: "C" },
-  { key: "E.i.3.2b", label: "Outcome - Recovering/Resolving", category: "C" },
-  { key: "E.i.3.2c", label: "Outcome - Not Recovered/Not Resolved", category: "C" },
-  { key: "E.i.3.2d", label: "Outcome - Recovered/Resolved with Sequelae", category: "C" },
-  { key: "E.i.3.2e", label: "Outcome - Fatal", category: "C" },
-  { key: "E.i.3.2f", label: "Outcome - Unknown", category: "C" },
-  { key: "E.i.4", label: "Date of Start of Reaction/Event", category: "C" },
-  { key: "E.i.5", label: "Date of End of Reaction/Event", category: "C" },
-  { key: "E.i.7", label: "Medical Confirmation by Healthcare Professional", category: "C" },
-];
 
 export default function MedicalExaminerPage() {
   const { user } = useAuth();
