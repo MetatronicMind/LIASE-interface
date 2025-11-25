@@ -1030,7 +1030,7 @@ router.get('/:id/r3-form-data',
 
       // Call external API to get R3 field data
       const axios = require('axios');
-      const apiUrl = `http://52.191.200.41/get_r3_fields/?PMID=${pmid}&drug_code=${drug_code}&drugname=${drugname}`;
+      const apiUrl = `http://20.242.200.176/get_r3_fields/?PMID=${pmid}&drug_code=${drug_code}&drugname=${drugname}`;
       
       const response = await axios.get(apiUrl);
       
