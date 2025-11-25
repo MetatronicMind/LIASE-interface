@@ -298,6 +298,7 @@ export default function R3FormPage() {
 
       // Merge and populate form fields from all sources
       const prefilledFormData = mergeDataSources(externalR3Data, completeStudyData.aiInferenceData || null, completeStudyData);
+      console.log('Setting prefilled data with', Object.keys(prefilledFormData).length, 'fields');
       setPrefilledData(prefilledFormData);
       
     } catch (error) {
@@ -310,12 +311,20 @@ export default function R3FormPage() {
   const mergeDataSources = (externalR3Data: any, studyAIInfo: StudyAIData | null, studyData: Study): R3FormData => {
     const merged: R3FormData = {};
     
+    console.log('Merging data sources - External R3 Data:', externalR3Data);
+    
     // First, populate from external R3 API data (highest priority)
+    // Keep all values except "NA" - "False" and "No" are valid responses
     Object.keys(externalR3Data).forEach(key => {
-      if (externalR3Data[key] && externalR3Data[key] !== "NA" && externalR3Data[key] !== "False") {
-        merged[key] = externalR3Data[key];
+      const value = externalR3Data[key];
+      // Only skip if value is "NA" or empty, keep everything else including "False", "No", "0"
+      if (value && value !== "NA" && value !== "") {
+        merged[key] = value;
+        console.log(`Pre-filled from R3 API: ${key} = ${value}`);
       }
     });
+    
+    console.log('After R3 API merge, merged fields:', Object.keys(merged).length);
     
     // Then, populate from study's normalized AI inference fields (these are stored directly on study object)
     
@@ -458,6 +467,9 @@ export default function R3FormPage() {
         merged["C.2.r.2.1"] = `Institution in ${studyAIInfo.Country_of_first_author}`;
       }
     }
+    
+    console.log('Final merged data - Total fields:', Object.keys(merged).length);
+    console.log('Final merged data:', merged);
     
     return merged;
   };
@@ -908,6 +920,25 @@ export default function R3FormPage() {
                         </p>
                       )}
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Debug Info - Prefilled Data Status */}
+            {Object.keys(prefilledData).length > 0 && (
+              <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg p-4">
+                <div className="flex items-start">
+                  <svg className="h-5 w-5 text-blue-400 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                      ℹ️ Pre-filled Data Available
+                    </h3>
+                    <p className="text-xs text-blue-800">
+                      {Object.keys(prefilledData).length} fields have been pre-filled from the R3 API. These fields are highlighted in blue.
+                    </p>
                   </div>
                 </div>
               </div>
