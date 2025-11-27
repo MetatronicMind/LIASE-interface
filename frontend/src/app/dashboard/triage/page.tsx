@@ -63,6 +63,7 @@ interface Study {
   sponsor?: string;
   userTag?: 'ICSR' | 'AOI' | 'No Case' | null;
   effectiveClassification?: string;
+  requiresManualReview?: boolean;
   
   // Legacy fields for backward compatibility
   Drugname?: string;
@@ -248,13 +249,32 @@ export default function TriagePage() {
     }
   };
 
+  // Helper function to normalize classification values from backend
+  // Handles formats like "Classification:" or "4. Classification" -> "Classification"
+  const normalizeClassification = (value?: string): string | undefined => {
+    if (!value) return value;
+    // Remove "Classification:" prefix if present
+    let normalized = value.replace(/^Classification:\s*/i, '').trim();
+    // Also remove number prefix patterns like "1. ", "2. ", "3. ", "4. ", etc.
+    normalized = normalized.replace(/^\d+\.\s*/, '').trim();
+    return normalized;
+  };
+
   // Function to calculate final classification based on AI inference data
   // (Defined before filteredStudies to avoid hoisting issues)
   const getFinalClassification = (study: Study): string | null => {
-    const icsrClassification = study.aiInferenceData?.ICSR_classification || study.ICSR_classification || study.icsrClassification;
-    const aoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+    const rawIcsrClassification = study.aiInferenceData?.ICSR_classification || study.ICSR_classification || study.icsrClassification;
+    const rawAoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+    
+    const icsrClassification = normalizeClassification(rawIcsrClassification);
+    const aoiClassification = normalizeClassification(rawAoiClassification);
 
     if (!icsrClassification) return null;
+
+    // If ICSR Classification is "Article requires manual review"
+    if (icsrClassification === "Article requires manual review") {
+      return "Manual Review";
+    }
 
     // If ICSR Classification is "Probable ICSR/AOI", return it regardless of AOI Classification
     if (icsrClassification === "Probable ICSR/AOI") {
@@ -331,6 +351,17 @@ export default function TriagePage() {
     alert(`${action} action applied to PMID ${selectedStudy?.pmid}`);
   };
 
+  const getClassificationLabel = (study: Study) => {
+    if (study.userTag === "No Case") {
+      const textType = study.Text_type || study.textType;
+      if (textType === "Animal Study" || textType === "In Vitro") {
+        return textType;
+      }
+      return "No Case";
+    }
+    return study.userTag;
+  };
+
   const getClassificationColor = (classification?: string) => {
     switch (classification) {
       case "ICSR":
@@ -339,6 +370,8 @@ export default function TriagePage() {
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "No Case":
         return "bg-gray-100 text-gray-800 border-gray-200";
+      case "Manual Review":
+        return "bg-indigo-100 text-indigo-800 border-indigo-200";
       default:
         return "bg-blue-100 text-blue-800 border-blue-200";
     }
@@ -605,14 +638,17 @@ export default function TriagePage() {
                                 QC Rejected
                               </span>
                             )}
-                            {study.userTag && (
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getClassificationColor(study.userTag)}`}>
-                                {study.userTag}
+                            {(study.requiresManualReview || getFinalClassification(study) === "Manual Review") && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 border border-indigo-300">
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Manual Review
                               </span>
                             )}
-                            {study.identifiableHumanSubject && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                                Human Subject
+                            {study.userTag && (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getClassificationColor(study.userTag)}`}>
+                                {getClassificationLabel(study)}
                               </span>
                             )}
                             {!study.userTag && study.qaApprovalStatus !== 'rejected' && (
@@ -904,14 +940,8 @@ export default function TriagePage() {
                           )}
                           {(selectedStudy.Text_type || selectedStudy.textType) && (
                             <div>
-                              <span className="font-medium text-gray-700">Text Type:</span>
+                              <span className="font-medium text-gray-700">Article Type:</span>
                               <p className="mt-1 text-gray-900">{selectedStudy.Text_type || selectedStudy.textType}</p>
-                            </div>
-                          )}
-                          {selectedStudy.identifiableHumanSubject !== undefined && (
-                            <div>
-                              <span className="font-medium text-gray-700">Human Subject:</span>
-                              <p className="mt-1 text-gray-900">{selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}</p>
                             </div>
                           )}
                           {selectedStudy.approvedIndication && (
@@ -1120,7 +1150,7 @@ export default function TriagePage() {
                             <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
-                            <span className="text-green-700 font-medium">Study classified as: {selectedStudy.userTag}</span>
+                            <span className="text-green-700 font-medium">Study classified as: {getClassificationLabel(selectedStudy)}</span>
                           </div>
                           <p className="text-sm text-gray-600 mb-4">
                             This study has been classified. You can reclassify it if needed:
