@@ -139,26 +139,37 @@ export default function QCPage() {
   const [addingCommentToField, setAddingCommentToField] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('QC Page mounted, fetching studies...');
     fetchPendingR3Studies();
   }, []);
 
   const fetchPendingR3Studies = async () => {
     try {
       setLoading(true);
+      setError(null);
       const token = localStorage.getItem("auth_token");
+      
+      console.log('Fetching QC pending R3 studies...');
+      
       const response = await fetch(`${getApiBaseUrl()}/studies/QC-r3-pending`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log('QC API response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('QC API response data:', data);
         setStudies(data.data || []);
       } else {
-        throw new Error("Failed to fetch pending R3 studies");
+        const errorText = await response.text();
+        console.error('QC API error:', response.status, errorText);
+        throw new Error(`Failed to fetch pending R3 studies: ${response.status}`);
       }
     } catch (err) {
+      console.error('Error in fetchPendingR3Studies:', err);
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
@@ -365,6 +376,8 @@ export default function QCPage() {
     );
   }
 
+  console.log('QC Page rendering - Studies:', studies.length, 'Error:', error);
+
   return (
     <PermissionGate resource="QC" action="view">
       <div className="min-h-screen bg-gray-50">
@@ -485,7 +498,6 @@ export default function QCPage() {
                     studyId={selectedStudy.id}
                     attachments={selectedStudy.attachments || []}
                     onUploadComplete={fetchPendingR3Studies}
-                    readOnly={true}
                   />
                 </div>
 
