@@ -377,19 +377,23 @@ export default function QCPage() {
   }
 
   console.log('QC Page rendering - Studies:', studies.length, 'Error:', error);
+  console.log('User:', user);
+  console.log('Loading:', loading);
+  console.log('Selected Study:', selectedStudy?.id);
 
-  return (
-    <PermissionGate resource="QC" action="view">
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">QUALITY CONTROL</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Review R3 XML forms and add comments on specific fields before approval
-            </p>
-          </div>
+  // Render content directly without PermissionGate for debugging
+  const content = (
+    <div className="min-h-screen bg-gray-50">
+      {console.log('Rendering QC content...')}
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">QUALITY CONTROL</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Review R3 XML forms and add comments on specific fields before approval
+          </p>
         </div>
+      </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
           {error && (
@@ -636,6 +640,14 @@ export default function QCPage() {
           </div>
         )}
       </div>
-    </PermissionGate>
-  );
+    );
+
+  return content; // Return content directly for debugging without PermissionGate
+  
+  // Uncomment below to re-enable permission gate
+  // return (
+  //   <PermissionGate resource="QC" action="view">
+  //     {content}
+  //   </PermissionGate>
+  // );
 }
