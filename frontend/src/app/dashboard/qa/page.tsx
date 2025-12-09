@@ -454,18 +454,6 @@ export default function QAPage() {
                             <p className="mt-1 text-gray-900">{selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}</p>
                           </div>
                         )}
-                        {selectedStudy.confirmedPotentialICSR !== undefined && (
-                          <div>
-                            <span className="font-medium text-gray-700">Confirmed ICSR:</span>
-                            <p className="mt-1 text-gray-900">{selectedStudy.confirmedPotentialICSR ? 'Yes' : 'No'}</p>
-                          </div>
-                        )}
-                        {selectedStudy.icsrClassification && (
-                          <div>
-                            <span className="font-medium text-gray-700">ICSR Classification:</span>
-                            <p className="mt-1 text-gray-900">{selectedStudy.icsrClassification}</p>
-                          </div>
-                        )}
                         {selectedStudy.aoiClassification && (
                           <div>
                             <span className="font-medium text-gray-700">AOI Classification:</span>

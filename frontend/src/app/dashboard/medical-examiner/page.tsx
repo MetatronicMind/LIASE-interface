@@ -586,14 +586,6 @@ export default function MedicalExaminerPage() {
                                 <p className="text-gray-900">{selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}</p>
                               </div>
                             )}
-                            {selectedStudy.confirmedPotentialICSR !== undefined && (
-                              <div>
-                                <span className="font-medium text-gray-700">Confirmed ICSR:</span>
-                                <p className={`font-semibold ${selectedStudy.confirmedPotentialICSR ? 'text-green-600' : 'text-yellow-600'}`}>
-                                  {selectedStudy.confirmedPotentialICSR ? 'Yes' : 'No'}
-                                </p>
-                              </div>
-                            )}
                             {selectedStudy.textType && (
                               <div>
                                 <span className="font-medium text-gray-700">Text Type:</span>
@@ -604,12 +596,6 @@ export default function MedicalExaminerPage() {
                               <div>
                                 <span className="font-medium text-gray-700">Author Perspective:</span>
                                 <p className="text-gray-900">{selectedStudy.authorPerspective}</p>
-                              </div>
-                            )}
-                            {selectedStudy.icsrClassification && (
-                              <div>
-                                <span className="font-medium text-gray-700">ICSR Classification:</span>
-                                <p className="text-gray-900">{selectedStudy.icsrClassification}</p>
                               </div>
                             )}
                             {selectedStudy.testSubject && (

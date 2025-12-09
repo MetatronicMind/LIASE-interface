@@ -276,7 +276,7 @@ class EmailSenderService {
 
     // Update usage statistics
     templateObj.markAsUsed();
-    await cosmosService.updateItem(this.containerName, templateObj.toJSON());
+    await cosmosService.updateItem(this.containerName, templateObj.id, templateObj.toJSON());
 
     return rendered;
   }
@@ -323,7 +323,7 @@ class EmailSenderService {
       SELECT * FROM c 
       WHERE c.organizationId = @organizationId
       AND c.type_doc = 'smtp_config'
-      ORDER BY c.isDefault DESC, c.createdAt DESC
+      ORDER BY c.createdAt DESC
     `;
 
     const parameters = [
@@ -336,17 +336,28 @@ class EmailSenderService {
       parameters
     );
 
-    // Sanitize passwords
-    return results.map(config => {
-      const smtpConfig = new SMTPConfig(config);
-      return smtpConfig.getSanitized();
-    });
+    // Sanitize passwords and sort: default first, then by creation date
+    return results
+      .map(config => {
+        const smtpConfig = new SMTPConfig(config);
+        return smtpConfig.getSanitized();
+      })
+      .sort((a, b) => {
+        // Sort by isDefault first (true before false)
+        if (a.isDefault && !b.isDefault) return -1;
+        if (!a.isDefault && b.isDefault) return 1;
+        // Then by createdAt (newest first)
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
   }
 
   /**
    * Get default SMTP config for organization
    */
   async getDefaultSMTPConfig(organizationId) {
+    console.log('🔍 Getting default SMTP config for organization:', organizationId);
+    console.log('📦 Using container:', this.containerName);
+    
     const query = `
       SELECT * FROM c 
       WHERE c.organizationId = @organizationId
@@ -364,6 +375,29 @@ class EmailSenderService {
       query,
       parameters
     );
+
+    console.log('📧 SMTP configs found:', results.length);
+    if (results.length > 0) {
+      console.log('✅ Using SMTP config:', results[0].name);
+    } else {
+      console.log('❌ No default SMTP config found. Checking all configs...');
+      
+      // Debug: Check if ANY SMTP configs exist
+      const allConfigsQuery = `
+        SELECT * FROM c 
+        WHERE c.organizationId = @organizationId
+        AND c.type_doc = 'smtp_config'
+      `;
+      const allConfigs = await cosmosService.queryItems(
+        this.containerName,
+        allConfigsQuery,
+        parameters
+      );
+      console.log('📋 Total SMTP configs in container:', allConfigs.length);
+      allConfigs.forEach((config, i) => {
+        console.log(`   Config ${i + 1}: ${config.name} | isDefault: ${config.isDefault} | isActive: ${config.isActive}`);
+      });
+    }
 
     return results[0] || null;
   }
@@ -435,13 +469,13 @@ class EmailSenderService {
 
       // Mark test as successful
       smtpConfig.markTestResult(true, 'Test email sent successfully');
-      await cosmosService.updateItem(this.containerName, smtpConfig.toJSON());
+      await cosmosService.updateItem(this.containerName, smtpConfig.id, smtpConfig.toJSON());
 
       return { success: true, message: 'Test email sent successfully' };
     } catch (error) {
       // Mark test as failed
       smtpConfig.markTestResult(false, error.message);
-      await cosmosService.updateItem(this.containerName, smtpConfig.toJSON());
+      await cosmosService.updateItem(this.containerName, smtpConfig.id, smtpConfig.toJSON());
 
       throw new Error(`SMTP test failed: ${error.message}`);
     }
@@ -535,8 +569,8 @@ class EmailSenderService {
       // Get transporter
       const transporter = await this._getTransporter(smtpConfigObj);
 
-      // Send email
-      const info = await transporter.sendMail({
+      // Prepare email options
+      const mailOptions = {
         from: `"${smtpConfigObj.fromName}" <${smtpConfigObj.fromEmail}>`,
         to: emailData.to,
         cc: emailData.cc || [],
@@ -545,21 +579,29 @@ class EmailSenderService {
         text: emailData.bodyPlain,
         html: emailData.bodyHtml,
         replyTo: smtpConfigObj.replyTo
-      });
+      };
+
+      // Add attachments if provided
+      if (emailData.attachments && emailData.attachments.length > 0) {
+        mailOptions.attachments = emailData.attachments;
+      }
+
+      // Send email
+      const info = await transporter.sendMail(mailOptions);
 
       // Update log as sent
       emailLog.markAsSent(info);
-      await cosmosService.updateItem(this.containerName, emailLog.toJSON());
+      await cosmosService.updateItem(this.containerName, emailLog.id, emailLog.toJSON());
 
       // Increment SMTP usage
       smtpConfigObj.incrementUsage();
-      await cosmosService.updateItem(this.containerName, smtpConfigObj.toJSON());
+      await cosmosService.updateItem(this.containerName, smtpConfigObj.id, smtpConfigObj.toJSON());
 
       return savedLog;
     } catch (error) {
       // Update log as failed
       emailLog.markAsFailed(error.message);
-      await cosmosService.updateItem(this.containerName, emailLog.toJSON());
+      await cosmosService.updateItem(this.containerName, emailLog.id, emailLog.toJSON());
 
       throw error;
     }
@@ -575,13 +617,12 @@ class EmailSenderService {
 
     try {
       const query = `
-        SELECT * FROM c 
+        SELECT TOP ${batchSize} * FROM c 
         WHERE c.organizationId = @organizationId
         AND c.type_doc = 'email_log'
         AND c.status IN ('queued', 'failed')
         AND (c.scheduledAt = null OR c.scheduledAt <= @now)
         ORDER BY c.priority DESC, c.createdAt ASC
-        OFFSET 0 ROWS FETCH NEXT ${batchSize} ROWS ONLY
       `;
 
       const parameters = [
@@ -662,8 +703,7 @@ class EmailSenderService {
       SELECT * FROM c 
       WHERE ${conditions.join(' AND ')}
       ORDER BY c.createdAt DESC
-      OFFSET ${offset} ROWS
-      FETCH NEXT ${limit} ROWS ONLY
+      OFFSET ${offset} LIMIT ${limit}
     `;
 
     const results = await cosmosService.queryItems(
@@ -702,7 +742,7 @@ class EmailSenderService {
       return this.transportCache.get(smtpConfig.id);
     }
 
-    const transporter = nodemailer.createTransporter(
+    const transporter = nodemailer.createTransport(
       smtpConfig.getConnectionOptions()
     );
 
@@ -763,7 +803,89 @@ class EmailSenderService {
     for (const config of configs) {
       const smtpConfig = new SMTPConfig(config);
       smtpConfig.isDefault = false;
-      await cosmosService.updateItem(this.containerName, smtpConfig.toJSON());
+      await cosmosService.updateItem(this.containerName, smtpConfig.id, smtpConfig.toJSON());
+    }
+  }
+
+  /**
+   * Send archival notification email with attachments
+   */
+  async sendArchivalNotification(organizationId, emailData, smtpConfigId = null) {
+    console.log(`📧 Sending archival notification to: ${emailData.to.join(', ')}`);
+
+    const smtpConfig = smtpConfigId 
+      ? await this._getSMTPConfigById(smtpConfigId, organizationId)
+      : await this.getDefaultSMTPConfig(organizationId);
+
+    if (!smtpConfig) {
+      throw new Error('No SMTP configuration found');
+    }
+
+    const smtpConfigObj = new SMTPConfig(smtpConfig);
+
+    if (!smtpConfigObj.isActive) {
+      throw new Error('SMTP configuration is not active');
+    }
+
+    // Check rate limit
+    if (!smtpConfigObj.canSendEmail()) {
+      throw new Error('Rate limit exceeded for SMTP configuration');
+    }
+
+    try {
+      // Get transporter
+      const transporter = await this._getTransporter(smtpConfigObj);
+
+      // Prepare email options
+      const mailOptions = {
+        from: `"${smtpConfigObj.fromName}" <${smtpConfigObj.fromEmail}>`,
+        to: emailData.to,
+        cc: emailData.cc || [],
+        bcc: emailData.bcc || [],
+        subject: emailData.subject,
+        text: emailData.bodyPlain,
+        html: emailData.bodyHtml,
+        replyTo: smtpConfigObj.replyTo,
+        attachments: emailData.attachments || []
+      };
+
+      // Send email
+      const info = await transporter.sendMail(mailOptions);
+
+      console.log(`✅ Archival notification sent successfully: ${info.messageId}`);
+
+      // Increment SMTP usage
+      smtpConfigObj.incrementUsage();
+      await cosmosService.updateItem(this.containerName, smtpConfigObj.id, smtpConfigObj.toJSON());
+
+      // Create email log
+      const emailLog = new EmailLog({
+        organizationId,
+        ...emailData,
+        smtpConfig: { id: smtpConfig.id, name: smtpConfig.name }
+      });
+      emailLog.markAsSent(info);
+      await cosmosService.createItem(this.containerName, emailLog.toJSON());
+
+      return {
+        success: true,
+        messageId: info.messageId,
+        response: info.response
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to send archival notification:', error);
+      
+      // Create failed email log
+      const emailLog = new EmailLog({
+        organizationId,
+        ...emailData,
+        smtpConfig: { id: smtpConfig.id, name: smtpConfig.name }
+      });
+      emailLog.markAsFailed(error.message);
+      await cosmosService.createItem(this.containerName, emailLog.toJSON());
+
+      throw error;
     }
   }
 

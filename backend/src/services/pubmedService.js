@@ -936,23 +936,61 @@ class PubMedService {
           publicationDate = '';
         }
 
+        // Get abstract
+        let abstract = '';
+        try {
+          const abstractNode = article.MedlineCitation[0].Article[0].Abstract;
+          if (abstractNode && abstractNode[0] && abstractNode[0].AbstractText) {
+            const abstractText = abstractNode[0].AbstractText;
+            if (Array.isArray(abstractText)) {
+              abstract = abstractText.map(t => (typeof t === 'string' ? t : t._ || '')).join('\n');
+            } else {
+              abstract = typeof abstractText === 'string' ? abstractText : (abstractText._ || '');
+            }
+          }
+        } catch (e) {
+          abstract = '';
+        }
+
+        // Get authors
+        let authors = [];
+        try {
+          const authorList = article.MedlineCitation[0].Article[0].AuthorList;
+          if (authorList && authorList[0] && authorList[0].Author) {
+            authors = authorList[0].Author.map(x => {
+              const last = x?.LastName?.[0] || '';
+              const fore = x?.ForeName?.[0] || x?.Initials?.[0] || '';
+              return `${fore} ${last}`.trim();
+            }).filter(Boolean);
+          }
+        } catch (e) {
+          authors = [];
+        }
+
         return { 
           PMID: pmid.toString(), 
           DrugName: drugName.toString(), 
           Sponsor: sponsor.toString(),
           Title: title.toString(),
           Journal: journal.toString(),
-          PublicationDate: publicationDate.toString()
+          PublicationDate: publicationDate.toString(),
+          Abstract: abstract.toString(),
+          Authors: authors
         };
       });
 
       console.log('🔍 Processed articles:', drugArticles.length);
 
-      // Process articles into format with PMID, title, and drug name
+      // Process articles into format with PMID, title, drug name, and ALL article data
       const processedDrugs = drugArticles.map(article => ({
         pmid: article.PMID.toString(),
         title: article.Title.toString(),
-        drugName: query // Always use the search query as the drug name
+        drugName: query, // Always use the search query as the drug name
+        journal: article.Journal.toString(),
+        publicationDate: article.PublicationDate.toString(),
+        abstract: article.Abstract.toString(),
+        authors: article.Authors,
+        sponsor: article.Sponsor.toString()
       }));
       
       console.log('=== 🧪 Drug Discovery Results ===');
@@ -960,7 +998,10 @@ class PubMedService {
       console.log('📋 Sample results:', processedDrugs.slice(0, 3).map(d => ({
         pmid: d.pmid,
         drugName: d.drugName,
-        titlePreview: d.title.substring(0, 100) + '...'
+        titlePreview: d.title.substring(0, 100) + '...',
+        journal: d.journal,
+        authorsCount: d.authors?.length || 0,
+        hasAbstract: !!d.abstract
       })));
       
       const result = {

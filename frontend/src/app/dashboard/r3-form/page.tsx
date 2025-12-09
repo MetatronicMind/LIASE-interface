@@ -662,18 +662,6 @@ export default function R3FormPage() {
                           </p>
                         </div>
                       )}
-                      {studyAIData.Confirmed_potential_ICSR && (
-                        <div className="mb-2">
-                          <span className="font-medium text-gray-600 text-sm">Confirmed ICSR:</span>
-                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.Confirmed_potential_ICSR}</p>
-                        </div>
-                      )}
-                      {studyAIData.ICSR_classification && (
-                        <div>
-                          <span className="font-medium text-gray-600 text-sm">ICSR Classification:</span>
-                          <p className="mt-0.5 text-sm text-gray-900">{studyAIData.ICSR_classification}</p>
-                        </div>
-                      )}
                     </div>
                   )}
                   

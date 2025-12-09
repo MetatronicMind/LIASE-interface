@@ -121,39 +121,30 @@ class NotificationManagementService {
       parameters.push({ name: '@recipientEmail', value: recipientEmail });
     }
 
-    const offset = (page - 1) * limit;
-    const query = `
+    // Get all matching results (Cosmos DB doesn't support OFFSET...FETCH in older versions)
+    const allQuery = `
       SELECT * FROM c 
       WHERE ${conditions.join(' AND ')}
       ORDER BY c.createdAt DESC
-      OFFSET ${offset} ROWS
-      FETCH NEXT ${limit} ROWS ONLY
     `;
 
-    const results = await cosmosService.queryItems(
+    const allResults = await cosmosService.queryItems(
       this.containerName,
-      query,
+      allQuery,
       parameters
     );
 
-    // Get total count
-    const countQuery = `
-      SELECT VALUE COUNT(1) FROM c 
-      WHERE ${conditions.join(' AND ')}
-    `;
-    const countResult = await cosmosService.queryItems(
-      this.containerName,
-      countQuery,
-      parameters
-    );
+    // Manual pagination
+    const offset = (page - 1) * limit;
+    const paginatedResults = allResults.slice(offset, offset + limit);
 
     return {
-      notifications: results,
+      notifications: paginatedResults,
       pagination: {
         page,
         limit,
-        total: countResult[0] || 0,
-        pages: Math.ceil((countResult[0] || 0) / limit)
+        total: allResults.length,
+        pages: Math.ceil(allResults.length / limit)
       }
     };
   }
@@ -171,6 +162,9 @@ class NotificationManagementService {
     const notificationObj = new Notification(notification);
 
     switch (status) {
+      case 'queued':
+        notificationObj.status = 'queued';
+        break;
       case 'sent':
         notificationObj.markAsSent();
         break;
@@ -182,9 +176,20 @@ class NotificationManagementService {
         break;
     }
 
+    // Pass partition key explicitly to avoid lookup issues
     const updated = await cosmosService.updateItem(
       this.containerName,
-      notificationObj.toJSON()
+      notificationObj.id,
+      organizationId, // Explicitly pass partition key
+      {
+        status: notificationObj.status,
+        sentAt: notificationObj.sentAt,
+        deliveredAt: notificationObj.deliveredAt,
+        retryCount: notificationObj.retryCount,
+        lastRetryAt: notificationObj.lastRetryAt,
+        deliveryAttempts: notificationObj.deliveryAttempts,
+        updatedAt: notificationObj.updatedAt
+      }
     );
 
     return updated;
@@ -194,14 +199,14 @@ class NotificationManagementService {
    * Get pending notifications for delivery
    */
   async getPendingNotifications(organizationId, limit = 50) {
+    // Remove ORDER BY to avoid composite index requirement
+    // Sorting will be done in JavaScript instead
     const query = `
-      SELECT * FROM c 
+      SELECT TOP ${limit} * FROM c 
       WHERE c.organizationId = @organizationId
       AND c.type_doc = 'notification'
       AND c.status IN ('pending', 'retrying')
       AND (c.scheduledAt = null OR c.scheduledAt <= @now)
-      ORDER BY c.priority DESC, c.createdAt ASC
-      OFFSET 0 ROWS FETCH NEXT ${limit} ROWS ONLY
     `;
 
     const parameters = [
@@ -209,7 +214,17 @@ class NotificationManagementService {
       { name: '@now', value: new Date().toISOString() }
     ];
 
-    return await cosmosService.queryItems(this.containerName, query, parameters);
+    const notifications = await cosmosService.queryItems(this.containerName, query, parameters);
+    
+    // Sort by priority (urgent > high > normal > low) and then by createdAt
+    const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
+    notifications.sort((a, b) => {
+      const priorityDiff = (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
+      if (priorityDiff !== 0) return priorityDiff;
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+    
+    return notifications.slice(0, limit);
   }
 
   /**
@@ -239,7 +254,7 @@ class NotificationManagementService {
       const notificationObj = new Notification(notif);
       if (notificationObj.shouldRetry()) {
         notificationObj.status = 'pending';
-        await cosmosService.updateItem(this.containerName, notificationObj.toJSON());
+        await cosmosService.updateItem(this.containerName, notificationObj.id, notificationObj.toJSON());
         retried.push(notificationObj.id);
       }
     }
@@ -328,6 +343,7 @@ class NotificationManagementService {
 
     const updated = await cosmosService.updateItem(
       this.containerName,
+      ruleObj.id,
       ruleObj.toJSON()
     );
 
@@ -400,6 +416,12 @@ class NotificationManagementService {
 
     const ruleObj = new NotificationRule(rule);
 
+    console.log('Triggering notification rule:', {
+      ruleId,
+      ruleName: ruleObj.name,
+      recipientConfig: ruleObj.recipientConfig
+    });
+
     // Evaluate conditions
     if (!ruleObj.evaluateConditions(context)) {
       throw new Error('Rule conditions not met');
@@ -410,6 +432,8 @@ class NotificationManagementService {
       organizationId,
       ruleObj.recipientConfig
     );
+    
+    console.log('Resolved recipients:', recipients);
 
     // Create notification from rule
     const notification = await this.createNotification({
@@ -418,6 +442,7 @@ class NotificationManagementService {
       title: ruleObj.notificationTemplate.title,
       message: ruleObj.notificationTemplate.message,
       templateId: ruleObj.notificationTemplate.templateId,
+      templateData: context, // Pass context as templateData for variable replacement
       recipients,
       channels: ruleObj.notificationTemplate.channels,
       priority: ruleObj.priority,
@@ -429,8 +454,16 @@ class NotificationManagementService {
     }, userId);
 
     // Update rule's last triggered time
-    ruleObj.markAsTriggered();
-    await cosmosService.updateItem(this.containerName, ruleObj.toJSON());
+    try {
+      ruleObj.markAsTriggered();
+      await cosmosService.updateItem(this.containerName, ruleObj.id, {
+        lastTriggeredAt: ruleObj.lastTriggeredAt,
+        updatedAt: ruleObj.updatedAt
+      });
+    } catch (error) {
+      console.error('Failed to update notification rule lastTriggeredAt:', error.message);
+      // Non-critical error, continue with notification delivery
+    }
 
     return notification;
   }
@@ -443,12 +476,13 @@ class NotificationManagementService {
 
     // Add users by role
     if (recipientConfig.roles && recipientConfig.roles.length > 0) {
+      // Query by role name (stored in 'role' field for backwards compatibility)
       const query = `
         SELECT c.id, c.email, c.firstName, c.lastName 
         FROM c 
         WHERE c.organizationId = @organizationId
         AND c.type = 'user'
-        AND c.roleId IN (${recipientConfig.roles.map((_, i) => `@role${i}`).join(',')})
+        AND c.role IN (${recipientConfig.roles.map((_, i) => `@role${i}`).join(',')})
         AND c.isActive = true
       `;
 
@@ -460,7 +494,8 @@ class NotificationManagementService {
         }))
       ];
 
-      const users = await cosmosService.queryItems('Users', query, parameters);
+      const users = await cosmosService.queryItems('users', query, parameters);
+      console.log('Users found by role:', users.length);
       recipients.push(...users.map(u => ({
         userId: u.id,
         email: u.email,
@@ -487,7 +522,7 @@ class NotificationManagementService {
         }))
       ];
 
-      const users = await cosmosService.queryItems('Users', query, parameters);
+      const users = await cosmosService.queryItems('users', query, parameters);
       recipients.push(...users.map(u => ({
         userId: u.id,
         email: u.email,
@@ -594,7 +629,7 @@ class NotificationManagementService {
         details
       });
 
-      await cosmosService.createItem('AuditLogs', auditLog.toJSON());
+      await cosmosService.createItem('audit-logs', auditLog.toJSON());
     } catch (error) {
       console.error('Failed to create audit log:', error);
     }

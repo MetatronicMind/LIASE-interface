@@ -14,6 +14,7 @@ const pubmedService = require('../services/pubmedService');
 const clinicalTrialsService = require('../services/clinicalTrialsService');
 const externalApiService = require('../services/externalApiService');
 const drugSearchScheduler = require('../services/drugSearchScheduler');
+const articleRetryQueueService = require('../services/articleRetryQueueService');
 
 const router = express.Router();
 
@@ -97,6 +98,86 @@ router.get('/jobs',
       console.error('Error getting user jobs:', error);
       res.status(500).json({
         error: 'Failed to get jobs',
+        message: error.message
+      });
+    }
+  }
+);
+
+// ===============================
+// ARTICLE RETRY QUEUE ROUTES
+// ===============================
+
+// Get retry queue status
+router.get('/retry-queue/status',
+  authorizePermission('drugs', 'read'),
+  async (req, res) => {
+    try {
+      const status = articleRetryQueueService.getStatus();
+      res.json({
+        success: true,
+        ...status
+      });
+    } catch (error) {
+      console.error('Error getting retry queue status:', error);
+      res.status(500).json({
+        error: 'Failed to get retry queue status',
+        message: error.message
+      });
+    }
+  }
+);
+
+// Manually trigger retry for all failed articles
+router.post('/retry-queue/retry-all',
+  authorizePermission('drugs', 'write'),
+  async (req, res) => {
+    try {
+      const result = await articleRetryQueueService.retryAllFailed(req.user.organizationId);
+      
+      await auditAction(req, 'retry_queue_trigger', 'success', {
+        jobsRetried: result.jobsRetried
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error triggering retry:', error);
+      
+      await auditAction(req, 'retry_queue_trigger', 'failed', {
+        error: error.message
+      });
+      
+      res.status(500).json({
+        error: 'Failed to trigger retry',
+        message: error.message
+      });
+    }
+  }
+);
+
+// Manually trigger retry for a specific job
+router.post('/retry-queue/retry/:jobId',
+  authorizePermission('drugs', 'write'),
+  async (req, res) => {
+    try {
+      const result = await articleRetryQueueService.manualRetry(req.params.jobId);
+      
+      await auditAction(req, 'retry_queue_manual_trigger', 'success', {
+        jobId: req.params.jobId,
+        result
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error triggering manual retry:', error);
+      
+      await auditAction(req, 'retry_queue_manual_trigger', 'failed', {
+        jobId: req.params.jobId,
+        error: error.message
+      });
+      
+      res.status(500).json({
+        error: 'Failed to trigger manual retry',
         message: error.message
       });
     }
@@ -525,94 +606,98 @@ router.get('/discover',
           });
 
           // Process AI inference results and create studies
-          if (externalApiResponse.success && externalApiResponse.results && externalApiResponse.results.length > 0) {
-            console.log(`=== Processing AI Inference Results ===`);
-            const totalAiResults = externalApiResponse.results.length;
-            
-            for (let i = 0; i < externalApiResponse.results.length; i++) {
-              const aiResult = externalApiResponse.results[i];
-              try {
-                console.log(`Processing PMID: ${aiResult.pmid} (${i + 1}/${totalAiResults})`);
-                
-                // Update progress for each study being processed
-                const studyProgress = 70 + Math.round((i / totalAiResults) * 25);
-                await jobTrackingService.updateJob(jobId, {
-                  progress: studyProgress,
-                  currentStep: 4,
-                  message: `Processing study ${i + 1}/${totalAiResults} (PMID: ${aiResult.pmid})...`,
-                  metadata: { 
-                    ...job.metadata, 
-                    phase: 'creating_studies',
-                    currentStudy: i + 1,
-                    totalStudies: totalAiResults
-                  }
-                });
-                
-                // Check for duplicate PMID in the database
-                const duplicateQuery = 'SELECT * FROM c WHERE c.pmid = @pmid AND c.organizationId = @organizationId';
-                const duplicateParams = [
-                  { name: '@pmid', value: aiResult.pmid },
-                  { name: '@organizationId', value: req.user.organizationId }
-                ];
-                const existingStudies = await cosmosService.queryItems('studies', duplicateQuery, duplicateParams);
-                
-                if (existingStudies && existingStudies.length > 0) {
-                  console.log(`Skipping duplicate PMID: ${aiResult.pmid} - already exists in database`);
-                  continue; // Skip processing this PMID as it already exists
-                }
-                
-                console.log(`Creating new study for PMID: ${aiResult.pmid}`);
-                
-                // Handle different result formats from different API services
-                const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
-                
-                // Create study from AI inference data
-                const study = Study.fromAIInference(
-                  aiResult.aiInference,
-                  originalDrug,
-                  req.user.organizationId,
-                  req.user.id
-                );
-                
-                // Update status based on ICSR classification or confirmed potential ICSR
-                if (study.icsrClassification || study.confirmedPotentialICSR) {
-                  study.status = 'Study in Process';
-                  console.log(`Setting status to 'Study in Process' for PMID ${aiResult.pmid} due to ICSR classification`);
-                }
-                
-                // Store study in database
-                const createdStudy = await cosmosService.createItem('studies', study.toJSON());
-                studiesCreated++;
-                console.log(`Successfully created study in database for PMID: ${aiResult.pmid}, ID: ${createdStudy.id} with status: ${createdStudy.status}`);
-                
-              } catch (studyError) {
-                console.error(`Error processing study for PMID ${aiResult.pmid}:`, studyError);
-                // Continue with other studies
-              }
-            }
-            
-            console.log(`=== Study Creation Complete ===`);
-            console.log(`Successfully created ${studiesCreated} studies from AI inference data`);
+          // STRICT MODE: ALL articles MUST have AI inference
+          if (!externalApiResponse.success || !externalApiResponse.results || externalApiResponse.results.length === 0) {
+            throw new Error(`AI inference failed or returned no results. Cannot create studies without AI data.`);
           }
+          
+          const totalAiResults = externalApiResponse.results.length;
+          
+          // Verify 100% AI inference coverage
+          if (totalAiResults < results.drugs.length) {
+            const missingCount = results.drugs.length - totalAiResults;
+            throw new Error(`AI inference incomplete: Only ${totalAiResults}/${results.drugs.length} articles processed. Missing ${missingCount} AI inferences. Cannot proceed.`);
+          }
+          
+          console.log(`=== Processing ${totalAiResults} AI inference results (100% coverage) ===`);
+          
+          for (let i = 0; i < externalApiResponse.results.length; i++) {
+            const aiResult = externalApiResponse.results[i];
+            try {
+              if (!aiResult || !aiResult.pmid || !aiResult.aiInference) {
+                throw new Error(`Invalid AI result at index ${i}: Missing pmid or aiInference data`);
+              }
+              
+              console.log(`Processing PMID: ${aiResult.pmid} (${i + 1}/${totalAiResults})`);
+              
+              // Update progress for each study being processed
+              const studyProgress = 70 + Math.round((i / totalAiResults) * 25);
+              await jobTrackingService.updateJob(jobId, {
+                progress: studyProgress,
+                currentStep: 4,
+                message: `Creating study ${i + 1}/${totalAiResults} (PMID: ${aiResult.pmid})...`,
+                metadata: { 
+                  ...job.metadata, 
+                  phase: 'creating_studies',
+                  currentStudy: i + 1,
+                  totalStudies: totalAiResults
+                }
+              });
+              
+              // Check for duplicate PMID in the database
+              const duplicateQuery = 'SELECT * FROM c WHERE c.pmid = @pmid AND c.organizationId = @organizationId';
+              const duplicateParams = [
+                { name: '@pmid', value: aiResult.pmid },
+                { name: '@organizationId', value: req.user.organizationId }
+              ];
+              const existingStudies = await cosmosService.queryItems('studies', duplicateQuery, duplicateParams);
+              
+              if (existingStudies && existingStudies.length > 0) {
+                console.log(`Skipping duplicate PMID: ${aiResult.pmid} - already exists in database`);
+                continue;
+              }
+              
+              console.log(`✓ Creating study WITH AI inference for PMID: ${aiResult.pmid}`);
+              
+              // Handle different result formats from different API services
+              const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
+              
+              // Create study from AI inference data
+              const study = Study.fromAIInference(
+                aiResult.aiInference,
+                originalDrug,
+                req.user.organizationId,
+                req.user.id
+              );
+              
+              // Update status based on ICSR classification or confirmed potential ICSR
+              if (study.icsrClassification || study.confirmedPotentialICSR) {
+                study.status = 'Study in Process';
+                console.log(`Setting status to 'Study in Process' for PMID ${aiResult.pmid} due to ICSR classification`);
+              }
+              
+              // Store study in database
+              const createdStudy = await cosmosService.createItem('studies', study.toJSON());
+              studiesCreated++;
+              console.log(`✅ Successfully created study with AI data for PMID: ${aiResult.pmid}, ID: ${createdStudy.id}`);
+              
+            } catch (studyError) {
+              console.error(`❌ Error creating study for PMID ${aiResult.pmid}:`, studyError);
+              throw new Error(`Failed to create study for PMID ${aiResult.pmid}: ${studyError.message}`);
+            }
+          }
+          
+          console.log(`=== Study Creation Complete ===`);
+          console.log(`✅ Successfully created ${studiesCreated} studies with 100% AI inference coverage`);
 
         } catch (error) {
-          console.error('External API call failed:', error);
-          // Don't fail the whole request if external API fails
-          results.externalApiError = error.message;
-          
-          await jobTrackingService.updateJob(jobId, {
-            progress: 90,
-            message: `AI inference failed: ${error.message}`,
-            metadata: { ...job.metadata, phase: 'ai_inference_failed' }
-          });
+          console.error('❌ External API call failed:', error);
+          // FAIL THE ENTIRE JOB - DO NOT CREATE FALLBACK STUDIES
+          throw new Error(`AI inference failed: ${error.message}. Cannot create studies without AI data.`);
         }
       } else {
-        // No studies found - still successful
-        await jobTrackingService.updateJob(jobId, {
-          progress: 90,
-          message: 'No studies found to process with AI inference',
-          metadata: { ...job.metadata, phase: 'no_studies_found' }
-        });
+        // No drugs to process
+        throw new Error('No drugs found to process');
       }
 
       // Complete the job successfully
@@ -1685,7 +1770,7 @@ router.get('/test-no-auth', (req, res) => {
 
 // Test route to verify drug routes are working (with auth but no permission check)
 
-// Async function to process drug discovery job
+// Async function to process drug discovery job - NOW WITH GUARANTEED ARTICLE PROCESSING
 async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
   try {
     const {
@@ -1699,7 +1784,9 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
       includeSafety = true
     } = searchParams;
 
-    console.log(`Processing discovery job ${jobId} asynchronously`);
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`[DrugDiscovery] Processing job ${jobId} with GUARANTEED article processing`);
+    console.log(`${'='.repeat(70)}\n`);
 
     // Validate date parameters if provided
     if (dateFrom && !/^\d{4}\/\d{2}\/\d{2}$/.test(dateFrom)) {
@@ -1720,201 +1807,141 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
     });
 
     // Call the improved discoverDrugs method with new parameters
-    console.log('About to call pubmedService.discoverDrugs');
+    console.log('[DrugDiscovery] Calling pubmedService.discoverDrugs...');
     
     const results = await pubmedService.discoverDrugs(searchParams);
 
-    console.log('Discovery completed successfully, returning results:', {
+    console.log('[DrugDiscovery] PubMed search completed:', {
       totalFound: results.totalFound,
       drugsLength: results.drugs?.length || 0
     });
 
     // Update job progress - PubMed search completed
     await jobTrackingService.updateJob(jobId, {
-      progress: 30,
+      progress: 25,
       currentStep: 2,
-      message: `Found ${results.totalFound} studies from PubMed`,
+      message: `Found ${results.totalFound} articles from PubMed. Starting AI processing...`,
       metadata: { 
         phase: 'pubmed_completed',
         studiesFound: results.totalFound
       }
     });
 
-    // Send PMIDs and titles to external API if we have results
-    let studiesCreated = 0;
+    // Process articles with GUARANTEED study creation using retry queue
+    let processResult = { studiesCreated: 0, failedArticles: [] };
+    
     if (results.drugs && results.drugs.length > 0) {
-      try {
-        // Update job - starting AI inference
-        await jobTrackingService.updateJob(jobId, {
-          progress: 40,
-          currentStep: 3,
-          message: `Starting AI inference for ${results.drugs.length} studies...`,
-          metadata: { phase: 'ai_inference' }
-        });
+      // Update job - starting AI inference with guaranteed processing
+      await jobTrackingService.updateJob(jobId, {
+        progress: 30,
+        currentStep: 3,
+        message: `Processing ${results.drugs.length} articles with AI inference (guaranteed mode)...`,
+        metadata: { phase: 'ai_inference_guaranteed' }
+      });
 
-        console.log('Sending drug data to external API with batch processing...');
-        
-        // Create progress callback for real-time updates
-        const progressCallback = async (progress) => {
-          const aiProgress = 40 + Math.round((progress.percentage / 100) * 30); // AI takes 40-70% of total progress
-          
-          await jobTrackingService.updateJob(jobId, {
-            progress: aiProgress,
-            currentStep: 3,
-            message: `AI inference: ${progress.processed}/${progress.total} studies (${progress.percentage}%)...`,
-            metadata: { 
-              phase: 'ai_inference',
-              aiProgress: progress
-            }
-          });
-        };
-
-        const externalApiResponse = await externalApiService.sendDrugData(
-          results.drugs, 
-          { query, sponsor, frequency },
-          { 
-            enableDetailedLogging: true,
-            progressCallback: progressCallback,
-            batchSize: 16, // Process in batches of 16 for optimal performance
-            maxConcurrency: 16 // Use increased concurrency limit
-          }
-        );
-        
-        console.log('External API batch processing response:', {
-          success: externalApiResponse.success,
-          method: externalApiResponse.processingMethod || 'sequential',
-          processedCount: externalApiResponse.processedCount,
-          totalCount: externalApiResponse.totalCount,
-          performance: externalApiResponse.performance
-        });
-        
-        // Add external API response to results
-        results.externalApiResponse = externalApiResponse;
-
-        // Update job - AI inference completed
-        await jobTrackingService.updateJob(jobId, {
-          progress: 70,
-          currentStep: 4,
-          message: `AI inference completed. Processing ${externalApiResponse.results?.length || 0} results...`,
-          metadata: { 
-            phase: 'processing_ai_results',
-            aiResultsCount: externalApiResponse.results?.length || 0
-          }
-        });
-
-        // Process AI inference results and create studies
-        if (externalApiResponse.success && externalApiResponse.results && externalApiResponse.results.length > 0) {
-          console.log(`=== Processing AI Inference Results ===`);
-          const totalAiResults = externalApiResponse.results.length;
-          
-          for (let i = 0; i < externalApiResponse.results.length; i++) {
-            const aiResult = externalApiResponse.results[i];
-            try {
-              console.log(`Processing PMID: ${aiResult.pmid} (${i + 1}/${totalAiResults})`);
-              
-              // Update progress for each study being processed
-              const studyProgress = 70 + Math.round((i / totalAiResults) * 25);
-              await jobTrackingService.updateJob(jobId, {
-                progress: studyProgress,
-                currentStep: 4,
-                message: `Processing study ${i + 1}/${totalAiResults} (PMID: ${aiResult.pmid})...`,
-                metadata: { 
-                  phase: 'creating_studies',
-                  currentStudy: i + 1,
-                  totalStudies: totalAiResults
-                }
-              });
-              
-              // Check for duplicate PMID in the database
-              const duplicateQuery = 'SELECT * FROM c WHERE c.pmid = @pmid AND c.organizationId = @organizationId';
-              const duplicateParams = [
-                { name: '@pmid', value: aiResult.pmid },
-                { name: '@organizationId', value: user.organizationId }
-              ];
-              const existingStudies = await cosmosService.queryItems('studies', duplicateQuery, duplicateParams);
-              
-              if (existingStudies && existingStudies.length > 0) {
-                console.log(`Skipping duplicate PMID: ${aiResult.pmid} - already exists in database`);
-                continue; // Skip processing this PMID as it already exists
+      console.log(`[DrugDiscovery] Using ArticleRetryQueue for GUARANTEED processing of ${results.drugs.length} articles`);
+      
+      // Use the retry queue service for guaranteed processing
+      processResult = await articleRetryQueueService.processArticlesWithGuarantee(
+        results.drugs,
+        { query, sponsor, frequency },
+        user.organizationId,
+        user.id,
+        {
+          enableDetailedLogging: true,
+          batchSize: 16,
+          maxConcurrency: 16,
+          progressCallback: async (progress) => {
+            const progressPercent = 30 + Math.round((progress.processed / progress.total) * 60);
+            await jobTrackingService.updateJob(jobId, {
+              progress: progressPercent,
+              currentStep: 3,
+              message: `AI processing: ${progress.processed}/${progress.total} articles (${Math.round((progress.processed / progress.total) * 100)}%)...`,
+              metadata: { 
+                phase: 'ai_inference',
+                aiProgress: progress
               }
-              
-              console.log(`Creating new study for PMID: ${aiResult.pmid}`);
-              
-              // Handle different result formats from different API services
-              const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
-              
-              // Create study from AI inference data
-              const study = Study.fromAIInference(
-                aiResult.aiInference,
-                originalDrug,
-                user.organizationId,
-                user.id
-              );
-              
-              // Update status based on ICSR classification or confirmed potential ICSR
-              if (study.icsrClassification || study.confirmedPotentialICSR) {
-                study.status = 'Study in Process';
-                console.log(`Setting status to 'Study in Process' for PMID ${aiResult.pmid} due to ICSR classification`);
-              }
-              
-              // Store study in database
-              const savedStudy = await cosmosService.createItem('studies', study.toJSON());
-              studiesCreated++;
-              
-              console.log(`Successfully created study ${savedStudy.id} for PMID ${aiResult.pmid} with status: ${savedStudy.status}`);
-              
-            } catch (studyError) {
-              console.error(`Error processing study for PMID ${aiResult.pmid}:`, studyError);
-              // Continue with other studies
-            }
+            });
           }
-        } else {
-          console.log('No valid AI inference results to process');
         }
-      } catch (apiError) {
-        console.error('Error in AI inference or study creation:', apiError);
-      }
+      );
+
+      console.log(`[DrugDiscovery] Guaranteed processing result:`, {
+        totalArticles: processResult.totalArticles,
+        studiesCreated: processResult.studiesCreated,
+        duplicatesSkipped: processResult.duplicatesSkipped,
+        failedArticles: processResult.failedArticles.length,
+        successRate: processResult.successRate
+      });
+
+      // Update job with processing results
+      await jobTrackingService.updateJob(jobId, {
+        progress: 95,
+        currentStep: 4,
+        message: `Created ${processResult.studiesCreated} studies. ${processResult.failedArticles.length > 0 ? `${processResult.failedArticles.length} articles queued for background retry.` : 'All articles processed successfully!'}`,
+        metadata: { 
+          phase: 'processing_complete',
+          studiesCreated: processResult.studiesCreated,
+          failedArticles: processResult.failedArticles.length,
+          successRate: processResult.successRate
+        }
+      });
+
     } else {
       // Update job - no studies found
       await jobTrackingService.updateJob(jobId, {
         progress: 90,
         currentStep: 4,
-        message: 'No studies found to process with AI inference',
+        message: 'No articles found to process with AI inference',
         metadata: { phase: 'no_studies_found' }
       });
     }
 
-    // Complete the job successfully
+    // Complete the job
+    const finalMessage = processResult.failedArticles.length > 0
+      ? `Discovery completed: Found ${results.totalFound} articles, created ${processResult.studiesCreated} studies. ${processResult.failedArticles.length} articles queued for background retry.`
+      : `Discovery completed: Found ${results.totalFound} articles, created ${processResult.studiesCreated} studies. 100% success rate!`;
+
     await jobTrackingService.completeJob(jobId, {
       totalFound: results.totalFound,
-      studiesCreated,
-      externalApiSuccess: results.externalApiResponse?.success || false,
-      searchParams
-    }, `Discovery completed: Found ${results.totalFound} studies, created ${studiesCreated} study records`);
+      studiesCreated: processResult.studiesCreated,
+      duplicatesSkipped: processResult.duplicatesSkipped || 0,
+      failedArticles: processResult.failedArticles.length,
+      successRate: processResult.successRate,
+      searchParams,
+      queuedForRetry: processResult.failedArticles.length > 0
+    }, finalMessage);
 
-    // Audit action would be called here if we had the request object
-    console.log(`Audit: job ${jobId} completed successfully`);
-
-    console.log(`Job ${jobId} completed successfully: ${studiesCreated} studies created`);
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`[DrugDiscovery] Job ${jobId} COMPLETED`);
+    console.log(`[DrugDiscovery] Articles found: ${results.totalFound}`);
+    console.log(`[DrugDiscovery] Studies created: ${processResult.studiesCreated}`);
+    console.log(`[DrugDiscovery] Success rate: ${processResult.successRate}%`);
+    if (processResult.failedArticles.length > 0) {
+      console.log(`[DrugDiscovery] Queued for retry: ${processResult.failedArticles.length} articles`);
+    }
+    console.log(`${'='.repeat(70)}\n`);
 
   } catch (error) {
-    console.error(`Job ${jobId} failed:`, error);
+    console.error(`[DrugDiscovery] Job ${jobId} failed:`, error);
     
     try {
       await jobTrackingService.failJob(jobId, error.message);
     } catch (jobError) {
-      console.error('Error updating job status:', jobError);
+      console.error('[DrugDiscovery] Error updating job status:', jobError);
     }
     
-    // Audit action would be called here if we had the request object  
-    console.log(`Audit: job ${jobId} failed:`, error.message);
+    console.log(`[DrugDiscovery] Audit: job ${jobId} failed:`, error.message);
   }
 }
 
-// Async function to process search config job in background
+// Async function to process search config job in background - NOW WITH GUARANTEED PROCESSING
 async function processSearchConfigJob(jobId, configObject, user, auditAction) {
   try {
-    console.log(`🔄 Processing search config job ${jobId} asynchronously`);
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`[SearchConfig] Processing job ${jobId} with GUARANTEED article processing`);
+    console.log(`[SearchConfig] Config: ${configObject.name}`);
+    console.log(`${'='.repeat(70)}\n`);
 
     // Update job progress - starting search
     await jobTrackingService.updateJob(jobId, {
@@ -1925,11 +1952,13 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
     });
 
     // Run the actual drug search using the configuration parameters
-    console.log('Running drug search with config:', {
+    console.log('[SearchConfig] Running drug search with config:', {
       name: configObject.name,
       query: configObject.query,
       sponsor: configObject.sponsor,
-      frequency: configObject.frequency
+      frequency: configObject.frequency,
+      dateFrom: configObject.dateFrom,
+      dateTo: configObject.dateTo
     });
 
     const results = await pubmedService.discoverDrugs({
@@ -1938,227 +1967,94 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
       frequency: configObject.frequency,
       maxResults: configObject.maxResults || 50,
       includeAdverseEvents: configObject.includeAdverseEvents,
-      includeSafety: configObject.includeSafety
+      includeSafety: configObject.includeSafety,
+      dateFrom: configObject.dateFrom,
+      dateTo: configObject.dateTo
     });
 
     // Update job progress - PubMed search completed
     await jobTrackingService.updateJob(jobId, {
-      progress: 30,
+      progress: 25,
       currentStep: 2,
-      message: `Found ${results.totalFound} studies from PubMed`,
+      message: `Found ${results.totalFound} articles from PubMed. Starting AI processing...`,
       metadata: { 
         phase: 'pubmed_completed',
         studiesFound: results.totalFound
       }
     });
 
-    // Send to external API if configured and process AI inference
-    let externalApiSuccess = null;
-    let studiesCreated = 0;
+    // Process articles with GUARANTEED study creation
+    let processResult = { studiesCreated: 0, failedArticles: [], duplicatesSkipped: 0 };
+    let externalApiSuccess = false;
     
     if (configObject.sendToExternalApi && results.drugs && results.drugs.length > 0) {
-      try {
-        // Update job - starting AI inference
-        await jobTrackingService.updateJob(jobId, {
-          progress: 40,
-          currentStep: 3,
-          message: `Starting AI inference for ${results.drugs.length} studies...`,
-          metadata: { phase: 'ai_inference' }
-        });
+      // Update job - starting AI inference with guaranteed processing
+      await jobTrackingService.updateJob(jobId, {
+        progress: 30,
+        currentStep: 3,
+        message: `Processing ${results.drugs.length} articles with AI inference (guaranteed mode)...`,
+        metadata: { phase: 'ai_inference_guaranteed' }
+      });
 
-        console.log('=== Starting AI Inference Process ===');
-        console.log('Drugs to send to AI API:', results.drugs.map(d => ({ pmid: d.pmid, drugName: d.drugName, title: d.title })));
-        console.log('Search parameters:', {
+      console.log(`[SearchConfig] Using ArticleRetryQueue for GUARANTEED processing of ${results.drugs.length} articles`);
+      
+      // Use the retry queue service for guaranteed processing
+      processResult = await articleRetryQueueService.processArticlesWithGuarantee(
+        results.drugs,
+        {
           query: configObject.query,
           sponsor: configObject.sponsor,
           frequency: configObject.frequency
-        });
-
-        // Create progress callback for real-time updates
-        const progressCallback = async (progress) => {
-          const aiProgress = 40 + Math.round((progress.percentage / 100) * 30); // AI takes 40-70% of total progress
-          
-          await jobTrackingService.updateJob(jobId, {
-            progress: aiProgress,
-            currentStep: 3,
-            message: `AI inference: ${progress.processed}/${progress.total} studies (${progress.percentage}%)...`,
-            metadata: { 
-              phase: 'ai_inference',
-              aiProgress: progress
-            }
-          });
-        };
-        
-        const aiResponse = await externalApiService.sendDrugData(results.drugs, {
-          query: configObject.query,
-          sponsor: configObject.sponsor,
-          frequency: configObject.frequency
-        }, {
+        },
+        user.organizationId,
+        user.id,
+        {
           enableDetailedLogging: true,
-          progressCallback: progressCallback,
-          batchSize: 16, // Process in batches of 16 for optimal performance
-          maxConcurrency: 16 // Use increased concurrency limit
-        });
-        
-        console.log('AI API Batch Processing Response:', {
-          success: aiResponse.success,
-          method: aiResponse.processingMethod || 'sequential',
-          processedCount: aiResponse.processedCount,
-          totalCount: aiResponse.totalCount,
-          performance: aiResponse.performance
-        });
-        externalApiSuccess = aiResponse.success;
-
-        // Update job - AI inference completed
-        await jobTrackingService.updateJob(jobId, {
-          progress: 70,
-          currentStep: 4,
-          message: `AI inference completed. Processing ${aiResponse.results?.length || 0} results...`,
-          metadata: { 
-            phase: 'processing_ai_results',
-            aiResultsCount: aiResponse.results?.length || 0
-          }
-        });
-        
-        // Process AI inference results and create studies
-        if (aiResponse.success && aiResponse.results && aiResponse.results.length > 0) {
-          console.log(`=== Processing AI Inference Results ===`);
-          console.log(`Processing ${aiResponse.results.length} AI inference results...`);
-          const totalAiResults = aiResponse.results.length;
-          
-          for (let i = 0; i < aiResponse.results.length; i++) {
-            const aiResult = aiResponse.results[i];
-            try {
-              console.log(`Creating study for PMID: ${aiResult.pmid} (${i + 1}/${totalAiResults})`);
-
-              // Update progress for each study being created
-              const studyProgress = 70 + Math.round((i / totalAiResults) * 25);
-              await jobTrackingService.updateJob(jobId, {
-                progress: studyProgress,
-                currentStep: 4,
-                message: `Creating study ${i + 1}/${totalAiResults} (PMID: ${aiResult.pmid})...`,
-                metadata: { 
-                  phase: 'creating_studies',
-                  currentStudy: i + 1,
-                  totalStudies: totalAiResults
-                }
-              });
-              
-              console.log(`AI inference data:`, JSON.stringify(aiResult.aiInference, null, 2));
-              
-              // Handle different result formats from different API services
-              const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
-              
-              // Create study from AI inference data
-              const study = Study.fromAIInference(
-                aiResult.aiInference,
-                originalDrug,
-                user.organizationId,
-                user.id
-              );
-              
-              console.log(`Study object created:`, JSON.stringify(study.toJSON(), null, 2));
-              
-              // Store study in database
-              const createdStudy = await cosmosService.createItem('studies', study.toJSON());
-              studiesCreated++;
-              console.log(`Successfully created study in database for PMID: ${aiResult.pmid}, ID: ${createdStudy.id}`);
-              
-            } catch (studyError) {
-              console.error(`Error creating study for PMID ${aiResult.pmid}:`, studyError);
-              console.error(`Study error stack:`, studyError.stack);
-              // Continue with other studies
-            }
-          }
-          
-          console.log(`=== Study Creation Complete ===`);
-          console.log(`Successfully created ${studiesCreated} studies from AI inference data`);
-        } else {
-          console.log('=== No AI Results to Process ===');
-          console.log('AI Response success:', aiResponse.success);
-          console.log('AI Results length:', aiResponse.results ? aiResponse.results.length : 'undefined');
-          
-          // Fallback: Create basic studies from PubMed data when AI inference fails
-          if (results.drugs && results.drugs.length > 0) {
-            console.log(`=== Creating Fallback Studies from PubMed Data ===`);
-            console.log(`Creating ${results.drugs.length} basic studies without AI inference...`);
-            
-            for (let i = 0; i < results.drugs.length; i++) {
-              const drug = results.drugs[i];
-              try {
-                console.log(`Processing basic study for PMID: ${drug.pmid} (${i + 1}/${results.drugs.length})`);
-                
-                // Update progress for each study being processed
-                const studyProgress = 70 + Math.round((i / results.drugs.length) * 25);
-                await jobTrackingService.updateJob(jobId, {
-                  progress: studyProgress,
-                  currentStep: 4,
-                  message: `Processing basic study ${i + 1}/${results.drugs.length} (PMID: ${drug.pmid})...`,
-                  metadata: { 
-                    phase: 'creating_basic_studies',
-                    currentStudy: i + 1,
-                    totalStudies: results.drugs.length
-                  }
-                });
-                
-                // Check for duplicate PMID in the database
-                const duplicateQuery = 'SELECT * FROM c WHERE c.pmid = @pmid AND c.organizationId = @organizationId';
-                const duplicateParams = [
-                  { name: '@pmid', value: drug.pmid },
-                  { name: '@organizationId', value: user.organizationId }
-                ];
-                const existingStudies = await cosmosService.queryItems('studies', duplicateQuery, duplicateParams);
-                
-                if (existingStudies && existingStudies.length > 0) {
-                  console.log(`Skipping duplicate PMID: ${drug.pmid} - already exists in database`);
-                  continue; // Skip processing this PMID as it already exists
-                }
-                
-                console.log(`Creating new basic study for PMID: ${drug.pmid}`);
-                
-                // Create basic study with PubMed data only
-                const study = new Study({
-                  organizationId: user.organizationId,
-                  createdBy: user.id,
-                  pmid: drug.pmid,
-                  title: drug.title || 'Title not available',
-                  drugName: drug.drugName || configObject.query,
-                  adverseEvent: 'Not analyzed (AI inference failed)',
-                  abstract: drug.abstract || '',
-                  publicationDate: drug.publicationDate || '',
-                  journal: drug.journal || '',
-                  authors: drug.authors || [],
-                  status: 'Pending Review'
-                });
-                
-                // Store study in database
-                const createdStudy = await cosmosService.createItem('studies', study.toJSON());
-                studiesCreated++;
-                console.log(`Successfully created basic study in database for PMID: ${drug.pmid}, ID: ${createdStudy.id}`);
-                
-              } catch (studyError) {
-                console.error(`Error creating basic study for PMID ${drug.pmid}:`, studyError);
-                console.error(`Study error stack:`, studyError.stack);
-                // Continue with other studies
-              }
-            }
-            
-            console.log(`=== Basic Study Creation Complete ===`);
-            console.log(`Successfully created ${studiesCreated} basic studies from PubMed data`);
-          }
+          batchSize: 16,
+          maxConcurrency: 16
         }
-        
-      } catch (error) {
-        console.error('External API call failed:', error);
-        externalApiSuccess = false;
-      }
-    } else {
-      // Update job - no AI processing needed
+      );
+
+      externalApiSuccess = processResult.success;
+
+      console.log(`[SearchConfig] Guaranteed processing result:`, {
+        totalArticles: processResult.totalArticles,
+        studiesCreated: processResult.studiesCreated,
+        duplicatesSkipped: processResult.duplicatesSkipped,
+        failedArticles: processResult.failedArticles.length,
+        successRate: processResult.successRate
+      });
+
+      // Update job with processing results
+      await jobTrackingService.updateJob(jobId, {
+        progress: 95,
+        currentStep: 4,
+        message: `Created ${processResult.studiesCreated} studies. ${processResult.failedArticles.length > 0 ? `${processResult.failedArticles.length} articles queued for background retry.` : 'All articles processed successfully!'}`,
+        metadata: { 
+          phase: 'processing_complete',
+          studiesCreated: processResult.studiesCreated,
+          failedArticles: processResult.failedArticles.length,
+          successRate: processResult.successRate
+        }
+      });
+
+    } else if (results.drugs && results.drugs.length > 0) {
+      // No external API configured, but we have drugs
+      console.log('[SearchConfig] External API not configured, skipping AI processing');
       await jobTrackingService.updateJob(jobId, {
         progress: 90,
         currentStep: 4,
-        message: 'Skipping AI inference (not configured or no studies found)',
-        metadata: { phase: 'skipping_ai' }
+        message: 'External API not configured for this search config',
+        metadata: { phase: 'no_external_api' }
+      });
+    } else {
+      // No drugs to process
+      console.log('[SearchConfig] No articles found to process');
+      await jobTrackingService.updateJob(jobId, {
+        progress: 90,
+        currentStep: 4,
+        message: 'No articles found to process',
+        metadata: { phase: 'no_articles_found' }
       });
     }
     
@@ -2166,12 +2062,11 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
     configObject.updateAfterRun(results.totalFound, externalApiSuccess);
     
     try {
-      console.log('About to update config with ID:', configObject.id);
+      console.log('[SearchConfig] Updating config with ID:', configObject.id);
       await cosmosService.updateItem('drugSearchConfigs', configObject.id, configObject.toObject());
-      console.log('Successfully updated configuration stats');
+      console.log('[SearchConfig] Successfully updated configuration stats');
     } catch (updateError) {
-      console.error('Failed to update configuration stats:', updateError.message);
-      // Continue execution even if update fails - the search was successful
+      console.error('[SearchConfig] Failed to update configuration stats:', updateError.message);
     }
 
     // Audit the successful execution
@@ -2185,28 +2080,46 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
         configId: configObject.id,
         resultsFound: results.totalFound,
         externalApiSuccess,
-        studiesCreated
+        studiesCreated: processResult.studiesCreated,
+        failedArticles: processResult.failedArticles.length
       }
     );
 
-    // Complete the job successfully
+    // Complete the job
+    const finalMessage = processResult.failedArticles.length > 0
+      ? `Config "${configObject.name}" completed: Found ${results.totalFound} articles, created ${processResult.studiesCreated} studies. ${processResult.failedArticles.length} articles queued for background retry.`
+      : `Config "${configObject.name}" completed: Found ${results.totalFound} articles, created ${processResult.studiesCreated} studies. 100% success rate!`;
+
     await jobTrackingService.completeJob(jobId, {
       totalFound: results.totalFound,
-      studiesCreated,
+      studiesCreated: processResult.studiesCreated,
+      duplicatesSkipped: processResult.duplicatesSkipped || 0,
+      failedArticles: processResult.failedArticles.length,
+      successRate: processResult.successRate,
       externalApiSuccess,
       configId: configObject.id,
-      configName: configObject.name
-    }, `Config "${configObject.name}" completed: Found ${results.totalFound} studies, created ${studiesCreated} study records`);
+      configName: configObject.name,
+      queuedForRetry: processResult.failedArticles.length > 0
+    }, finalMessage);
 
-    console.log(`Search config job ${jobId} completed successfully: ${studiesCreated} studies created`);
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`[SearchConfig] Job ${jobId} COMPLETED`);
+    console.log(`[SearchConfig] Config: ${configObject.name}`);
+    console.log(`[SearchConfig] Articles found: ${results.totalFound}`);
+    console.log(`[SearchConfig] Studies created: ${processResult.studiesCreated}`);
+    console.log(`[SearchConfig] Success rate: ${processResult.successRate}%`);
+    if (processResult.failedArticles.length > 0) {
+      console.log(`[SearchConfig] Queued for retry: ${processResult.failedArticles.length} articles`);
+    }
+    console.log(`${'='.repeat(70)}\n`);
 
   } catch (error) {
-    console.error(`Search config job ${jobId} failed:`, error);
+    console.error(`[SearchConfig] Job ${jobId} failed:`, error);
     
     try {
       await jobTrackingService.failJob(jobId, error.message);
     } catch (jobError) {
-      console.error('Error updating job status:', jobError);
+      console.error('[SearchConfig] Error updating job status:', jobError);
     }
 
     // Audit the failed execution
@@ -2223,7 +2136,7 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
         }
       );
     } catch (auditError) {
-      console.error('Error auditing failed job:', auditError);
+      console.error('[SearchConfig] Error auditing failed job:', auditError);
     }
   }
 }

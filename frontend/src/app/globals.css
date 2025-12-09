@@ -5,29 +5,63 @@
 
 
 :root {
-  --background: #2b6cc1; /* blue-50 */
-  --foreground: #1e3a8a; /* blue-900 */
+  --background: #f5f8fb; /* light gray-blue */
+  --foreground: #1f2937; /* gray-800 - dark readable text */
   --primary: #2563eb;    /* blue-600 */
   --primary-light: #3b82f6; /* blue-500 */
   --primary-dark: #1e40af;  /* blue-800 */
+  color-scheme: light; /* Force light color scheme */
 }
 
-
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1e293b; /* blue-gray-800 */
-    --foreground: #e0e7ff; /* blue-100 */
-    --primary: #3b82f6;    /* blue-500 */
-    --primary-light: #60a5fa; /* blue-400 */
-    --primary-dark: #1e40af;  /* blue-800 */
-  }
+/* Force light mode everywhere - ignore system dark mode preference */
+html {
+  color-scheme: light;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Override light gray text colors to be more readable */
+@layer utilities {
+  .text-gray-300 {
+    color: #6b7280 !important; /* gray-500 */
+  }
+  .text-gray-400 {
+    color: #4b5563 !important; /* gray-600 */
+  }
+  .text-gray-500 {
+    color: #374151 !important; /* gray-700 */
+  }
+}
+
+/* Force all form inputs to have white background and dark text */
+input,
+textarea,
+select {
+  background-color: #ffffff !important;
+  color: #111827 !important; /* gray-900 - very dark text */
+}
+
+/* Make placeholder text more readable/darker */
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important; /* gray-500 - darker and more readable */
+  opacity: 1 !important;
+}
+
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder {
+  color: #6b7280 !important;
+  opacity: 1 !important;
+}
+
+input::-moz-placeholder,
+textarea::-moz-placeholder {
+  color: #6b7280 !important;
+  opacity: 1 !important;
 }
 
 /* Utility classes for blue theme */

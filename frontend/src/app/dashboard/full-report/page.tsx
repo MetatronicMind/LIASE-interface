@@ -5,6 +5,13 @@ import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import { PmidLink } from "@/components/PmidLink";
 
+// Helper function to format dates for XML (removes hyphens, colons, and T)
+const formatDateForXML = (dateStr: string, maxLength?: number): string => {
+  if (!dateStr) return '';
+  const formatted = dateStr.split('').filter(c => c !== '-' && c !== ':' && c !== 'T').join('');
+  return maxLength ? formatted.substring(0, maxLength) : formatted;
+};
+
 interface Study {
   id: string;
   pmid: string;
@@ -322,7 +329,7 @@ export default function FullReportPage() {
     <messagesenderidentifier>LIASE-SYSTEM</messagesenderidentifier>
     <messagereceiveridentifier>REGULATORY-AUTHORITY</messagereceiveridentifier>
     <messagedateformat>204</messagedateformat>
-    <messagedate>${timestamp.replace(/[-:T]/g, '').substring(0, 14)}</messagedate>
+    <messagedate>${formatDateForXML(timestamp, 14)}</messagedate>
   </ichicsrmessageheader>
   
   <safetyreport>
@@ -400,8 +407,8 @@ export default function FullReportPage() {
     </primarysource>
     
     <!-- Report dates -->
-    <receiptdate>${selectedStudy.createdAt ? selectedStudy.createdAt.replace(/[-:T]/g, '').substring(0, 8) : ''}</receiptdate>
-    <receivedate>${selectedStudy.r3FormCompletedAt ? selectedStudy.r3FormCompletedAt.replace(/[-:T]/g, '').substring(0, 8) : ''}</receivedate>
+    <receiptdate>${selectedStudy.createdAt ? formatDateForXML(selectedStudy.createdAt, 8) : ''}</receiptdate>
+    <receivedate>${selectedStudy.r3FormCompletedAt ? formatDateForXML(selectedStudy.r3FormCompletedAt, 8) : ''}</receivedate>
     
     <!-- Additional form data as narrative -->
     <narrative>
@@ -490,11 +497,9 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
     if (selectedStudy.drugEffect) csvData.push(['AI', 'AI.DrugEffect', 'Drug Effect', 'AI', selectedStudy.drugEffect]);
     if (selectedStudy.textType) csvData.push(['AI', 'AI.TextType', 'Text Type', 'AI', selectedStudy.textType]);
     if (selectedStudy.authorPerspective) csvData.push(['AI', 'AI.AuthorPerspective', 'Author Perspective', 'AI', selectedStudy.authorPerspective]);
-    if (selectedStudy.icsrClassification) csvData.push(['AI', 'AI.ICSRClassification', 'ICSR Classification', 'AI', selectedStudy.icsrClassification]);
     if (selectedStudy.substanceGroup) csvData.push(['AI', 'AI.SubstanceGroup', 'Substance Group', 'AI', selectedStudy.substanceGroup]);
     if (selectedStudy.leadAuthor) csvData.push(['AI', 'AI.LeadAuthor', 'Lead Author', 'AI', selectedStudy.leadAuthor]);
     if (selectedStudy.serious !== undefined) csvData.push(['AI', 'AI.Serious', 'Serious', 'AI', selectedStudy.serious ? 'Yes' : 'No']);
-    if (selectedStudy.confirmedPotentialICSR !== undefined) csvData.push(['AI', 'AI.ConfirmedPotentialICSR', 'Confirmed Potential ICSR', 'AI', selectedStudy.confirmedPotentialICSR ? 'Yes' : 'No']);
     if (selectedStudy.identifiableHumanSubject !== undefined) csvData.push(['AI', 'AI.IdentifiableHumanSubject', 'Identifiable Human Subject', 'AI', selectedStudy.identifiableHumanSubject ? 'Yes' : 'No']);
     if (selectedStudy.testSubject) csvData.push(['AI', 'AI.TestSubject', 'Test Subject', 'AI', selectedStudy.testSubject]);
     if (selectedStudy.sponsor) csvData.push(['AI', 'AI.Sponsor', 'Sponsor', 'AI', selectedStudy.sponsor]);
@@ -981,12 +986,6 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                         <p className="text-sm text-black">{selectedStudy.authorPerspective}</p>
                       </div>
                     )}
-                    {selectedStudy?.icsrClassification && (
-                      <div>
-                        <p className="text-sm font-medium text-black">ICSR Classification:</p>
-                        <p className="text-sm text-black">{selectedStudy.icsrClassification}</p>
-                      </div>
-                    )}
                     {selectedStudy?.substanceGroup && (
                       <div>
                         <p className="text-sm font-medium text-black">Substance Group:</p>
@@ -1006,16 +1005,6 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                           selectedStudy.serious ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                         }`}>
                           {selectedStudy.serious ? 'Yes' : 'No'}
-                        </span>
-                      </div>
-                    )}
-                    {selectedStudy?.confirmedPotentialICSR !== undefined && (
-                      <div>
-                        <p className="text-sm font-medium text-black">Confirmed Potential ICSR:</p>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          selectedStudy.confirmedPotentialICSR ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {selectedStudy.confirmedPotentialICSR ? 'Yes' : 'No'}
                         </span>
                       </div>
                     )}

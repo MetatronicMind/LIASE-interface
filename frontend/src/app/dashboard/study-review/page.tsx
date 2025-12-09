@@ -627,19 +627,6 @@ useEffect(() => {
                           AI Analysis Results
                         </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {selectedStudy.ICSR_classification && (
-                            <div className="flex items-center space-x-2">
-                              <div className={`w-3 h-3 rounded-full ${
-                                selectedStudy.ICSR_classification.toLowerCase().includes('probable') ? 'bg-orange-500' :
-                                selectedStudy.ICSR_classification.toLowerCase().includes('possible') ? 'bg-yellow-500' :
-                                'bg-gray-500'
-                              }`}></div>
-                              <div>
-                                <p className="text-sm font-medium text-purple-900">ICSR Classification</p>
-                                <p className="text-sm font-semibold text-gray-800">{selectedStudy.ICSR_classification}</p>
-                              </div>
-                            </div>
-                          )}
                           {selectedStudy.special_case && (
                             <div className="flex items-center space-x-2">
                               <ExclamationTriangleIcon className="w-4 h-4 text-amber-600" />

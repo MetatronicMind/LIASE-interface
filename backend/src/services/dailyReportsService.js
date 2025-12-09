@@ -9,7 +9,7 @@ const AuditLog = require('../models/AuditLog');
  */
 class DailyReportsService {
   constructor() {
-    this.containerName = 'Studies';
+    this.containerName = 'studies';  // Use lowercase to match cosmosService container definition
   }
 
   /**
@@ -190,13 +190,30 @@ class DailyReportsService {
           throw new Error(`Unknown report type: ${reportType}`);
       }
 
+      // If no recipients provided, get admin users from the organization
+      let finalRecipients = recipients;
+      if (!finalRecipients || finalRecipients.length === 0) {
+        finalRecipients = await this._getAdminEmails(organizationId);
+      }
+
+      // If still no recipients, skip notification but return the report
+      if (!finalRecipients || finalRecipients.length === 0) {
+        console.log('No recipients found for daily report, skipping notification');
+        return {
+          report,
+          notification: null,
+          sentTo: [],
+          message: 'Report generated but not sent (no recipients configured)'
+        };
+      }
+
       // Create notification for the report
       const notification = await notificationManagementService.createNotification({
         organizationId,
         type: 'report',
         title: `${reportType === 'daily_summary' ? 'Daily' : 'Weekly'} Summary Report`,
         message: report.summary || 'Report has been generated successfully.',
-        recipients: recipients.map(email => ({ email, name: email })),
+        recipients: finalRecipients.map(email => ({ email, name: email })),
         channels: ['email'],
         priority: 'normal',
         metadata: {
@@ -225,36 +242,47 @@ class DailyReportsService {
    */
   async _getStudyMetrics(organizationId, startDate, endDate) {
     const query = `
-      SELECT 
-        COUNT(1) as total,
-        SUM(CASE WHEN c.status = 'completed' THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN c.status = 'in_progress' THEN 1 ELSE 0 END) as inProgress,
-        SUM(CASE WHEN c.status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN c.createdAt >= @startDate AND c.createdAt <= @endDate THEN 1 ELSE 0 END) as newStudies
-      FROM c 
+      SELECT * FROM c 
       WHERE c.organizationId = @organizationId
       AND c.type_doc = 'study'
     `;
 
     const parameters = [
-      { name: '@organizationId', value: organizationId },
-      { name: '@startDate', value: startDate.toISOString() },
-      { name: '@endDate', value: endDate.toISOString() }
+      { name: '@organizationId', value: organizationId }
     ];
 
-    const results = await cosmosService.queryItems(
+    const studies = await cosmosService.queryItems(
       this.containerName,
       query,
       parameters
     );
 
-    return results[0] || {
-      total: 0,
+    // Calculate metrics in code
+    const metrics = {
+      total: studies.length,
       completed: 0,
       inProgress: 0,
       pending: 0,
       newStudies: 0
     };
+
+    const startTime = startDate.getTime();
+    const endTime = endDate.getTime();
+
+    studies.forEach(study => {
+      if (study.status === 'completed') metrics.completed++;
+      if (study.status === 'in_progress') metrics.inProgress++;
+      if (study.status === 'pending') metrics.pending++;
+      
+      if (study.createdAt) {
+        const createdTime = new Date(study.createdAt).getTime();
+        if (createdTime >= startTime && createdTime <= endTime) {
+          metrics.newStudies++;
+        }
+      }
+    });
+
+    return metrics;
   }
 
   /**
@@ -262,10 +290,7 @@ class DailyReportsService {
    */
   async _getUserActivityMetrics(organizationId, startDate, endDate) {
     const query = `
-      SELECT 
-        COUNT(DISTINCT c.userId) as activeUsers,
-        COUNT(1) as totalActions
-      FROM c 
+      SELECT c.userId FROM c 
       WHERE c.organizationId = @organizationId
       AND c.type_doc = 'audit_log'
       AND c.timestamp >= @startDate
@@ -279,12 +304,18 @@ class DailyReportsService {
     ];
 
     const results = await cosmosService.queryItems(
-      'AuditLogs',
+      'audit-logs',
       query,
       parameters
     );
 
-    return results[0] || { activeUsers: 0, totalActions: 0 };
+    // Calculate unique users in code
+    const uniqueUsers = new Set(results.map(r => r.userId).filter(Boolean));
+
+    return {
+      activeUsers: uniqueUsers.size,
+      totalActions: results.length
+    };
   }
 
   /**
@@ -293,11 +324,7 @@ class DailyReportsService {
   async _getSystemMetrics(organizationId, startDate, endDate) {
     // Get notification metrics
     const notificationQuery = `
-      SELECT 
-        COUNT(1) as totalNotifications,
-        SUM(CASE WHEN c.status = 'delivered' THEN 1 ELSE 0 END) as delivered,
-        SUM(CASE WHEN c.status = 'failed' THEN 1 ELSE 0 END) as failed
-      FROM c 
+      SELECT * FROM c 
       WHERE c.organizationId = @organizationId
       AND c.type_doc = 'notification'
       AND c.createdAt >= @startDate
@@ -310,18 +337,26 @@ class DailyReportsService {
       { name: '@endDate', value: endDate.toISOString() }
     ];
 
-    const notificationResults = await cosmosService.queryItems(
+    const notifications = await cosmosService.queryItems(
       'Notifications',
       notificationQuery,
       parameters
     );
 
+    // Calculate metrics in code
+    const metrics = {
+      totalNotifications: notifications.length,
+      delivered: 0,
+      failed: 0
+    };
+
+    notifications.forEach(notif => {
+      if (notif.status === 'delivered') metrics.delivered++;
+      if (notif.status === 'failed') metrics.failed++;
+    });
+
     return {
-      notifications: notificationResults[0] || {
-        totalNotifications: 0,
-        delivered: 0,
-        failed: 0
-      }
+      notifications: metrics
     };
   }
 
@@ -330,12 +365,9 @@ class DailyReportsService {
    */
   async _getErrorMetrics(organizationId, startDate, endDate) {
     const query = `
-      SELECT 
-        COUNT(1) as totalErrors
-      FROM c 
+      SELECT c.action FROM c 
       WHERE c.organizationId = @organizationId
       AND c.type_doc = 'audit_log'
-      AND c.action LIKE '%error%'
       AND c.timestamp >= @startDate
       AND c.timestamp <= @endDate
     `;
@@ -347,12 +379,17 @@ class DailyReportsService {
     ];
 
     const results = await cosmosService.queryItems(
-      'AuditLogs',
+      'audit-logs',
       query,
       parameters
     );
 
-    return { totalErrors: results[0]?.totalErrors || 0 };
+    // Count errors in code (filter for actions containing 'error')
+    const errorCount = results.filter(r => 
+      r.action && r.action.toLowerCase().includes('error')
+    ).length;
+
+    return { totalErrors: errorCount };
   }
 
   /**
@@ -459,6 +496,43 @@ System Health:
       } catch (error) {
         console.error(`Failed to send report email to ${email}:`, error);
       }
+    }
+  }
+
+  /**
+   * Private: Get admin user emails for an organization
+   */
+  async _getAdminEmails(organizationId) {
+    try {
+      // Query users with admin role
+      const query = `
+        SELECT c.email, c.username, c.role
+        FROM c 
+        WHERE c.organizationId = @organizationId 
+        AND c.type = 'user'
+        AND (
+          c.role = 'Admin' OR
+          c.role = 'admin' OR
+          c.role = 'superadmin' OR
+          c.role = 'Super Admin'
+        )
+      `;
+      
+      const parameters = [
+        { name: '@organizationId', value: organizationId }
+      ];
+
+      console.log('Querying admin emails with:', { organizationId, query });
+      const adminUsers = await cosmosService.queryItems('users', query, parameters);
+      console.log('Found admin users:', adminUsers);
+      
+      // Return email addresses
+      const emails = adminUsers.map(user => user.email).filter(email => email);
+      console.log('Admin emails found:', emails);
+      return emails;
+    } catch (error) {
+      console.error('Error fetching admin emails:', error);
+      return [];
     }
   }
 }

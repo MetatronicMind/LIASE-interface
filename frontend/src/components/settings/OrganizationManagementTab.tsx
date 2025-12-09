@@ -41,8 +41,15 @@ export default function OrganizationManagementTab() {
 
   const fetchOrganization = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${getApiBaseUrl()}/organizations/${user?.organizationId}`, {
+      const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        setError('No authentication token found. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${getApiBaseUrl()}/organizations/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -60,7 +67,18 @@ export default function OrganizationManagementTab() {
         });
         setError(null);
       } else {
-        throw new Error('Failed to fetch organization');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Organization fetch failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        if (response.status === 401) {
+          setError(`Authentication failed: ${errorData.error || 'Unauthorized'}. Please log in again.`);
+        } else {
+          setError(errorData.error || 'Failed to fetch organization');
+        }
       }
     } catch (err: any) {
       console.error('Organization fetch error:', err);
@@ -79,8 +97,8 @@ export default function OrganizationManagementTab() {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${getApiBaseUrl()}/organizations/${user?.organizationId}`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${getApiBaseUrl()}/organizations/me`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

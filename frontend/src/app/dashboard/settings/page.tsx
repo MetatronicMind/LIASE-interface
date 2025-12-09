@@ -6,7 +6,8 @@ import {
   Cog6ToothIcon,
   BellIcon,
   EnvelopeIcon,
-  ServerStackIcon
+  ServerStackIcon,
+  ArchiveBoxIcon
 } from "@heroicons/react/24/outline";
 import { usePermissions } from "@/components/PermissionProvider";
 import dynamic from 'next/dynamic';
@@ -18,8 +19,9 @@ const AdminConfigTab = dynamic(() => import('@/components/settings/AdminConfigTa
 const NotificationsTab = dynamic(() => import('@/components/settings/NotificationsTab'), { ssr: false });
 const EmailSettingsTab = dynamic(() => import('@/components/settings/EmailSettingsTab'), { ssr: false });
 const SuperAdminConfigTab = dynamic(() => import('@/components/settings/SuperAdminConfigTab'), { ssr: false });
+const ArchivalSettingsTab = dynamic(() => import('@/components/settings/ArchivalSettingsTab'), { ssr: false });
 
-type TabName = 'roles' | 'organization' | 'admin-config' | 'notifications' | 'email' | 'super-admin';
+type TabName = 'roles' | 'organization' | 'admin-config' | 'notifications' | 'email' | 'archival' | 'super-admin';
 
 interface Tab {
   id: TabName;
@@ -58,6 +60,12 @@ export default function SettingsPage() {
       name: 'Email Settings',
       icon: <EnvelopeIcon className="w-5 h-5" />,
       requiredPermission: { resource: 'email', action: 'read' }
+    },
+    {
+      id: 'archival',
+      name: 'Archival Settings',
+      icon: <ArchiveBoxIcon className="w-5 h-5" />,
+      requireAdmin: true
     },
     {
       id: 'admin-config',
@@ -100,6 +108,8 @@ export default function SettingsPage() {
         return <NotificationsTab />;
       case 'email':
         return <EmailSettingsTab />;
+      case 'archival':
+        return <ArchivalSettingsTab />;
       case 'super-admin':
         return <SuperAdminConfigTab />;
       default:

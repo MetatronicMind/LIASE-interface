@@ -64,18 +64,23 @@ class NotificationQueueService {
    */
   async processQueue() {
     if (this.isProcessing) {
+      console.log('Queue processor already running, skipping...');
       return; // Already processing
     }
 
     this.isProcessing = true;
 
     try {
+      console.log('Starting queue processing...');
       // Get all organizations to process their queues
       const organizations = await this._getAllOrganizations();
+      console.log(`Found ${organizations.length} organizations to process`);
 
       for (const org of organizations) {
         await this._processOrganizationQueue(org.id);
       }
+      
+      console.log('Queue processing completed');
     } catch (error) {
       console.error('Error processing notification queue:', error);
     } finally {
@@ -220,16 +225,18 @@ class NotificationQueueService {
   async _sendEmail(notification) {
     try {
       for (const recipient of notification.recipients) {
-        await emailSenderService.sendEmail({
-          to: recipient.email,
-          subject: notification.title,
-          html: this._formatEmailContent(notification),
-          organizationId: notification.organizationId,
-          metadata: {
-            notificationId: notification.id,
-            notificationType: notification.type
+        await emailSenderService.sendEmail(
+          notification.organizationId,
+          {
+            to: recipient.email,
+            subject: notification.title,
+            bodyHtml: this._formatEmailContent(notification),
+            metadata: {
+              notificationId: notification.id,
+              notificationType: notification.type
+            }
           }
-        });
+        );
       }
       return true;
     } catch (error) {
@@ -302,6 +309,11 @@ class NotificationQueueService {
    * Format email content
    */
   _formatEmailContent(notification) {
+    console.log('📧 Formatting email content:');
+    console.log('   Title:', notification.title);
+    console.log('   Message:', notification.message);
+    console.log('   Template Data:', JSON.stringify(notification.templateData));
+    
     const priorityColors = {
       urgent: '#dc2626',
       high: '#ea580c',
@@ -310,6 +322,17 @@ class NotificationQueueService {
     };
 
     const color = priorityColors[notification.priority] || '#2563eb';
+
+    // Replace template variables in the message
+    let message = notification.message;
+    if (notification.templateData && typeof notification.templateData === 'object') {
+      Object.entries(notification.templateData).forEach(([key, value]) => {
+        const regex = new RegExp(`{{${key}}}`, 'g');
+        message = message.replace(regex, value);
+      });
+    }
+    
+    console.log('   Final message:', message);
 
     return `
       <!DOCTYPE html>
@@ -332,7 +355,7 @@ class NotificationQueueService {
               <span class="priority">${notification.priority.toUpperCase()}</span>
             </div>
             <div class="content">
-              <p>${notification.message}</p>
+              <p>${message}</p>
               ${notification.metadata && Object.keys(notification.metadata).length > 0 ? `
                 <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 5px;">
                   <strong>Additional Information:</strong>
@@ -368,8 +391,10 @@ class NotificationQueueService {
    */
   async _getAllOrganizations() {
     try {
-      const query = 'SELECT c.id FROM c WHERE c.type_doc = "organization"';
-      const organizations = await cosmosService.queryItems('Organizations', query, []);
+      // Query without type_doc filter in case organizations don't have it
+      const query = 'SELECT c.id FROM c';
+      const organizations = await cosmosService.queryItems('organizations', query, []);
+      console.log(`Retrieved ${organizations.length} organizations from database`);
       return organizations;
     } catch (error) {
       console.error('Error fetching organizations:', error);
@@ -382,15 +407,9 @@ class NotificationQueueService {
    */
   async getQueueStats(organizationId) {
     try {
+      // Cosmos DB doesn't support CASE in aggregations, so we need to fetch and count in JS
       const query = `
-        SELECT 
-          COUNT(1) as total,
-          SUM(CASE WHEN c.status = 'pending' THEN 1 ELSE 0 END) as pending,
-          SUM(CASE WHEN c.status = 'queued' THEN 1 ELSE 0 END) as queued,
-          SUM(CASE WHEN c.status = 'retrying' THEN 1 ELSE 0 END) as retrying,
-          SUM(CASE WHEN c.status = 'sent' THEN 1 ELSE 0 END) as sent,
-          SUM(CASE WHEN c.status = 'delivered' THEN 1 ELSE 0 END) as delivered,
-          SUM(CASE WHEN c.status = 'failed' THEN 1 ELSE 0 END) as failed
+        SELECT c.status
         FROM c 
         WHERE c.organizationId = @organizationId
         AND c.type_doc = 'notification'
@@ -400,10 +419,11 @@ class NotificationQueueService {
         { name: '@organizationId', value: organizationId }
       ];
 
-      const results = await cosmosService.queryItems('Notifications', query, parameters);
+      const notifications = await cosmosService.queryItems('Notifications', query, parameters);
       
-      return results[0] || {
-        total: 0,
+      // Count by status in JavaScript
+      const stats = {
+        total: notifications.length,
         pending: 0,
         queued: 0,
         retrying: 0,
@@ -411,6 +431,14 @@ class NotificationQueueService {
         delivered: 0,
         failed: 0
       };
+
+      notifications.forEach(n => {
+        if (stats.hasOwnProperty(n.status)) {
+          stats[n.status]++;
+        }
+      });
+      
+      return stats;
     } catch (error) {
       console.error('Error getting queue stats:', error);
       throw error;

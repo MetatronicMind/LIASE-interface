@@ -14,6 +14,7 @@ import {
   ChartBarIcon
 } from "@heroicons/react/24/solid";
 import { getApiBaseUrl } from '@/config/api';
+import NotificationRuleModal from './NotificationRuleModal';
 
 interface Notification {
   id: string;
@@ -93,7 +94,7 @@ export default function NotificationsTab() {
 
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       let url = `${getApiBaseUrl()}/notifications`;
       if (filter !== 'all') {
         url += `?status=${filter}`;
@@ -117,7 +118,7 @@ export default function NotificationsTab() {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${getApiBaseUrl()}/notifications/stats/summary`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -157,7 +158,7 @@ export default function NotificationsTab() {
 
   const fetchRules = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${getApiBaseUrl()}/notifications/rules/list`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -190,7 +191,7 @@ export default function NotificationsTab() {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${getApiBaseUrl()}/notifications/rules/${ruleId}`, {
         method: 'DELETE',
         headers: {
@@ -212,7 +213,7 @@ export default function NotificationsTab() {
 
   const handleTriggerRule = async (ruleId: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${getApiBaseUrl()}/notifications/rules/${ruleId}/trigger`, {
         method: 'POST',
         headers: {
@@ -234,7 +235,7 @@ export default function NotificationsTab() {
 
   const handleGenerateReport = async (reportType: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${getApiBaseUrl()}/notifications/reports/daily`, {
         method: 'POST',
         headers: {
@@ -245,9 +246,30 @@ export default function NotificationsTab() {
       });
 
       if (response.ok) {
-        alert(`${reportType} report generated successfully`);
+        const result = await response.json();
+        
+        // Show report summary in a more user-friendly way
+        if (result.report) {
+          const reportSummary = result.report.summary || JSON.stringify(result.report.data, null, 2);
+          const message = result.message 
+            ? `${result.message}\n\n${reportSummary}` 
+            : reportSummary;
+          
+          // Create a modal-like display for the report
+          const modalContent = `
+Report Generated Successfully!
+${result.message ? '\nNote: ' + result.message : ''}
+
+${reportSummary}
+          `.trim();
+          
+          alert(modalContent);
+        } else {
+          alert(`${reportType} report generated successfully`);
+        }
       } else {
-        throw new Error('Failed to generate report');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate report');
       }
     } catch (err: any) {
       alert(err.message || 'Failed to generate report');
@@ -562,37 +584,15 @@ export default function NotificationsTab() {
         </>
       )}
 
-      {/* Rule Modal would go here - simplified for now */}
-      {showRuleModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-bold mb-4">
-                {editingRule ? 'Edit' : 'Create'} Notification Rule
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Configure notification rules to automate alerts based on schedules or events.
-              </p>
-              <div className="text-center py-8 text-gray-500">
-                Rule configuration form would be implemented here
-              </div>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setShowRuleModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-                >
-                  Save Rule
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Rule Modal - User-Friendly Form */}
+      {showRuleModal && <NotificationRuleModal 
+        rule={editingRule}
+        onClose={() => setShowRuleModal(false)}
+        onSave={() => {
+          setShowRuleModal(false);
+          fetchRules();
+        }}
+      />}
     </div>
   );
 }

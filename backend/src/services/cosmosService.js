@@ -154,6 +154,39 @@ class CosmosService {
         id: 'audit-logs',
         partitionKey: '/organizationId',
         defaultTtl: 2592000 // 30 days in seconds
+      },
+      {
+        id: 'ScheduledJobs',
+        partitionKey: '/organizationId'
+      },
+      {
+        id: 'Notifications',
+        partitionKey: '/organizationId'
+      },
+      {
+        id: 'Emails',
+        partitionKey: '/organizationId'
+      },
+      {
+        id: 'EmailTemplates',
+        partitionKey: '/organizationId'
+      },
+      {
+        id: 'SMTPConfigs',
+        partitionKey: '/organizationId'
+      },
+      {
+        id: 'Reports',
+        partitionKey: '/organizationId',
+        defaultTtl: 7776000 // 90 days in seconds - auto-delete old reports
+      },
+      {
+        id: 'Settings',
+        partitionKey: '/organizationId'
+      },
+      {
+        id: 'Archives',
+        partitionKey: '/organizationId'
       }
     ];
 
@@ -194,6 +227,14 @@ class CosmosService {
       case 'drugSearchConfigs':
       case 'jobs':
       case 'audit-logs':
+      case 'ScheduledJobs':
+      case 'Notifications':
+      case 'Emails':
+      case 'EmailTemplates':
+      case 'SMTPConfigs':
+      case 'Reports':
+      case 'Settings':
+      case 'Archives':
         return item.organizationId || item;
       default:
         return item.id || item;
@@ -269,8 +310,8 @@ class CosmosService {
         actualUpdates = updates;
       }
 
-      // Determine the correct partition key
-      const actualPartitionKey = this.getPartitionKey(containerName, id, partitionKey);
+      // Determine the correct partition key using the updates object
+      const actualPartitionKey = this.getPartitionKey(containerName, actualUpdates, partitionKey);
 
       const { resource: existingItem } = await container.item(id, actualPartitionKey).read();
       
@@ -331,7 +372,18 @@ class CosmosService {
 
   async queryItems(containerName, query, parameters = []) {
     try {
+      // Ensure database is initialized
+      if (!this.initialized) {
+        console.log('Database not initialized, initializing now...');
+        await this.initializeDatabase();
+      }
+
       const container = this.getContainer(containerName);
+      
+      if (!container) {
+        throw new Error(`Container '${containerName}' not found. Available containers: ${Object.keys(this.containers).join(', ')}`);
+      }
+
       const { resources } = await container.items.query({
         query,
         parameters

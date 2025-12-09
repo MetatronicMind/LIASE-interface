@@ -19,7 +19,7 @@ interface Study {
   id: string;
   pmid: string;
   title: string;
-  authors: string;
+  authors: string | string[];
   journal: string;
   drugName: string;
   adverseEvent: string;
@@ -41,8 +41,9 @@ interface Study {
   updatedAt: string;
   r3FormCompletedAt?: string;
   abstract?: string;
+  publicationDate?: string;
   
-  // AI Inference Data
+  // AI Inference Data - All fields from Triage/QC Triage
   aiInferenceData?: any;
   doi?: string;
   specialCase?: string;
@@ -72,8 +73,9 @@ interface Study {
   clientName?: string;
   sponsor?: string;
   effectiveClassification?: string;
+  requiresManualReview?: boolean;
   
-  // Legacy fields
+  // Legacy fields for backward compatibility
   Drugname?: string;
   Serious?: string;
   special_case?: string;
@@ -217,7 +219,7 @@ export default function QCPage() {
     try {
       setActionInProgress(studyId);
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/qc-approve`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QC/r3/approve`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -249,7 +251,7 @@ export default function QCPage() {
     try {
       setActionInProgress(studyId);
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/qc-reject`, {
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QC/r3/reject`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -496,6 +498,235 @@ export default function QCPage() {
                   </div>
                 </div>
 
+                {/* Abstract - From Triage */}
+                {(selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract) && (
+                  <div className="mb-6 bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Abstract
+                    </h4>
+                    <div className="bg-white rounded p-4 border">
+                      <p className="text-gray-900 leading-relaxed text-sm">{selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Study Metadata - From Triage/QC Triage */}
+                <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                    </svg>
+                    Study Metadata
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                    {selectedStudy.doi && (
+                      <div>
+                        <span className="font-medium text-gray-700">DOI:</span>
+                        <p className="mt-1 text-gray-900 break-all">{selectedStudy.doi}</p>
+                      </div>
+                    )}
+                    {selectedStudy.leadAuthor && (
+                      <div>
+                        <span className="font-medium text-gray-700">Lead Author:</span>
+                        <p className="mt-1 text-gray-900">{selectedStudy.leadAuthor}</p>
+                      </div>
+                    )}
+                    {selectedStudy.countryOfFirstAuthor && (
+                      <div>
+                        <span className="font-medium text-gray-700">Country (First Author):</span>
+                        <p className="mt-1 text-gray-900">{selectedStudy.countryOfFirstAuthor}</p>
+                      </div>
+                    )}
+                    {selectedStudy.countryOfOccurrence && (
+                      <div>
+                        <span className="font-medium text-gray-700">Country of Occurrence:</span>
+                        <p className="mt-1 text-gray-900">{selectedStudy.countryOfOccurrence}</p>
+                      </div>
+                    )}
+                    {selectedStudy.substanceGroup && (
+                      <div>
+                        <span className="font-medium text-gray-700">Substance Group:</span>
+                        <p className="mt-1 text-gray-900">{selectedStudy.substanceGroup}</p>
+                      </div>
+                    )}
+                    {selectedStudy.authorPerspective && (
+                      <div>
+                        <span className="font-medium text-gray-700">Author Perspective:</span>
+                        <p className="mt-1 text-gray-900">{selectedStudy.authorPerspective}</p>
+                      </div>
+                    )}
+                    {selectedStudy.clientName && (
+                      <div>
+                        <span className="font-medium text-gray-700">Client:</span>
+                        <p className="mt-1 text-gray-900">{selectedStudy.clientName}</p>
+                      </div>
+                    )}
+                    {selectedStudy.sponsor && (
+                      <div>
+                        <span className="font-medium text-gray-700">Sponsor:</span>
+                        <p className="mt-1 text-gray-900">{selectedStudy.sponsor}</p>
+                      </div>
+                    )}
+                    {selectedStudy.testSubject && (
+                      <div>
+                        <span className="font-medium text-gray-700">Test Subject:</span>
+                        <p className="mt-1 text-gray-900">{selectedStudy.testSubject}</p>
+                      </div>
+                    )}
+                    {selectedStudy.vancouverCitation && (
+                      <div className="md:col-span-2 lg:col-span-3">
+                        <span className="font-medium text-gray-700">Vancouver Citation:</span>
+                        <p className="mt-1 text-gray-900 text-xs italic">{selectedStudy.vancouverCitation}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* AI Analysis & Clinical Data - From Triage/QC Triage */}
+                <div className="mb-6 bg-purple-50 rounded-lg p-4 border border-purple-200">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    AI Analysis & Clinical Data
+                  </h4>
+                  <div className="space-y-4">
+                    {/* Grid Layout for Analysis Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                      {(selectedStudy.specialCase || selectedStudy.aiInferenceData?.special_case) && (
+                        <div>
+                          <span className="font-medium text-gray-700">Special Case:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.specialCase || selectedStudy.aiInferenceData?.special_case}</p>
+                        </div>
+                      )}
+                      {(selectedStudy.serious !== undefined || selectedStudy.aiInferenceData?.Serious) && (
+                        <div>
+                          <span className="font-medium text-gray-700">Serious Event:</span>
+                          <p className="mt-1 text-gray-900">
+                            {typeof selectedStudy.serious === 'boolean' 
+                              ? (selectedStudy.serious ? 'Yes' : 'No')
+                              : selectedStudy.aiInferenceData?.Serious || 'Unknown'
+                            }
+                          </p>
+                        </div>
+                      )}
+                      {(selectedStudy.textType || selectedStudy.aiInferenceData?.Text_type) && (
+                        <div>
+                          <span className="font-medium text-gray-700">Text Type:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.textType || selectedStudy.aiInferenceData?.Text_type}</p>
+                        </div>
+                      )}
+                      {selectedStudy.identifiableHumanSubject !== undefined && (
+                        <div>
+                          <span className="font-medium text-gray-700">Human Subject:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}</p>
+                        </div>
+                      )}
+                      {(selectedStudy.aoiClassification || selectedStudy.aiInferenceData?.AOI_classification) && (
+                        <div>
+                          <span className="font-medium text-gray-700">AOI Classification:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.aoiClassification || selectedStudy.aiInferenceData?.AOI_classification}</p>
+                        </div>
+                      )}
+                      {selectedStudy.approvedIndication && (
+                        <div>
+                          <span className="font-medium text-gray-700">Approved Indication:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.approvedIndication}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Text-based Fields */}
+                    {selectedStudy.attributability && (
+                      <div>
+                        <span className="font-medium text-gray-700">Attributability:</span>
+                        <p className="mt-1 text-gray-900 text-sm">{selectedStudy.attributability}</p>
+                      </div>
+                    )}
+                    {selectedStudy.drugEffect && (
+                      <div>
+                        <span className="font-medium text-gray-700">Drug Effect:</span>
+                        <p className="mt-1 text-gray-900 text-sm">{selectedStudy.drugEffect}</p>
+                      </div>
+                    )}
+                    {(selectedStudy.aoiDrugEffect || selectedStudy.aiInferenceData?.AOI_drug_effect) && (
+                      <div>
+                        <span className="font-medium text-gray-700">AOI Drug Effect:</span>
+                        <p className="mt-1 text-gray-900 text-sm">{selectedStudy.aoiDrugEffect || selectedStudy.aiInferenceData?.AOI_drug_effect}</p>
+                      </div>
+                    )}
+                    {selectedStudy.justification && (
+                      <div>
+                        <span className="font-medium text-gray-700">Justification:</span>
+                        <p className="mt-1 text-gray-900 text-sm">{selectedStudy.justification}</p>
+                      </div>
+                    )}
+                    {selectedStudy.summary && (
+                      <div>
+                        <span className="font-medium text-gray-700">Summary:</span>
+                        <p className="mt-1 text-gray-900 text-sm">{selectedStudy.summary}</p>
+                      </div>
+                    )}
+
+                    {/* Clinical Data */}
+                    {selectedStudy.administeredDrugs && Array.isArray(selectedStudy.administeredDrugs) && selectedStudy.administeredDrugs.length > 0 && (
+                      <div>
+                        <span className="font-medium text-gray-700">Administered Drugs:</span>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {selectedStudy.administeredDrugs.map((drug, index) => (
+                            <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                              {drug}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {selectedStudy.keyEvents && Array.isArray(selectedStudy.keyEvents) && selectedStudy.keyEvents.length > 0 && (
+                      <div>
+                        <span className="font-medium text-gray-700">Key Events:</span>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {selectedStudy.keyEvents.map((event, index) => (
+                            <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                              {event}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {selectedStudy.patientDetails && (
+                      <div>
+                        <span className="font-medium text-gray-700">Patient Details:</span>
+                        <div className="mt-1 bg-white rounded p-3 border">
+                          {typeof selectedStudy.patientDetails === 'object' ? (
+                            <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                              {JSON.stringify(selectedStudy.patientDetails, null, 2)}
+                            </pre>
+                          ) : (
+                            <p className="text-gray-900 text-sm">{selectedStudy.patientDetails}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {selectedStudy.relevantDates && (
+                      <div>
+                        <span className="font-medium text-gray-700">Relevant Dates:</span>
+                        <div className="mt-1 bg-white rounded p-3 border">
+                          {typeof selectedStudy.relevantDates === 'object' ? (
+                            <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                              {JSON.stringify(selectedStudy.relevantDates, null, 2)}
+                            </pre>
+                          ) : (
+                            <p className="text-gray-900 text-sm">{selectedStudy.relevantDates}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* PDF Attachments */}
                 <div className="mb-6">
                   <PDFAttachmentUpload
@@ -503,6 +734,17 @@ export default function QCPage() {
                     attachments={selectedStudy.attachments || []}
                     onUploadComplete={fetchPendingR3Studies}
                   />
+                </div>
+
+                {/* R3 XML Form Section Header */}
+                <div className="mb-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                  <h4 className="font-semibold text-gray-900 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    R3 XML Form Fields
+                  </h4>
+                  <p className="mt-1 text-sm text-gray-600">Review and add comments to the R3 XML form fields below</p>
                 </div>
 
                 {/* R3 Form Fields with Comments */}

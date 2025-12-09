@@ -679,21 +679,45 @@ class Study {
    * @returns {Study} Study instance
    */
   static fromAIInference(aiData, originalDrug, organizationId, createdBy) {
-    // Ensure originalDrug has default values if not provided or missing properties
-    const safeDrug = originalDrug || {};
+    // Create study from AI inference data ONLY
     const safeAiData = aiData || {};
+    
+    // Extract authors from Vancouver citation if available
+    let authors = [];
+    if (safeAiData.Vancouver_citation) {
+      // Vancouver citation format: "Author1 A, Author2 B, Author3 C. Title. Journal. Year..."
+      const citationParts = safeAiData.Vancouver_citation.split('.');
+      if (citationParts.length > 0) {
+        const authorsPart = citationParts[0];
+        authors = authorsPart.split(',').map(a => a.trim()).filter(a => a);
+      }
+    }
+    // Fallback to Lead_author if no Vancouver citation
+    if (authors.length === 0 && safeAiData.Lead_author) {
+      authors = [safeAiData.Lead_author];
+    }
+    
+    // Extract journal from Vancouver citation
+    let journal = '';
+    if (safeAiData.Vancouver_citation) {
+      const citationParts = safeAiData.Vancouver_citation.split('.');
+      if (citationParts.length >= 2) {
+        journal = citationParts[citationParts.length - 2].trim(); // Journal is usually second to last
+      }
+    }
     
     return new Study({
       organizationId,
       createdBy,
-      pmid: safeAiData.PMID || safeDrug.pmid || 'Unknown PMID',
-      title: safeDrug.title || safeAiData.Title || safeAiData.title || 'Title not available',
-      drugName: safeAiData.Drugname || safeAiData.drugName || safeDrug.drugName || 'Drug name not available',
+      pmid: safeAiData.PMID || 'Unknown PMID',
+      title: originalDrug?.title || safeAiData.Title || safeAiData.title || 'Title not available',
+      drugName: safeAiData.Drugname || safeAiData.drugName || 'Drug name not available',
       adverseEvent: safeAiData.Adverse_event || 'Not specified',
-      abstract: aiData.Summary || '',
-      publicationDate: aiData.pubdate,
-      journal: aiData.Vancouver_citation ? aiData.Vancouver_citation.split('.').pop() : '',
-      authors: aiData.Lead_author ? [aiData.Lead_author] : [],
+      abstract: safeAiData.Summary || '',
+      publicationDate: safeAiData.pubdate || new Date().toISOString(),
+      journal: journal,
+      authors: authors,
+      sponsor: safeAiData.Client_name || 'Unknown',
       
       // AI Inference specific fields
       aiInferenceData: aiData,
@@ -722,8 +746,7 @@ class Study {
       approvedIndication: aiData.Approved_indication,
       aoiClassification: aiData.AOI_classification,
       justification: aiData.Justification,
-      clientName: aiData.Client_name,
-      sponsor: aiData.Client_name // Using Client_name as sponsor
+      clientName: aiData.Client_name
     });
   }
 }

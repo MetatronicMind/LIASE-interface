@@ -26,12 +26,12 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = (): boolean => {
     if (!user || !isAuthenticated) return false;
-    return hasRole('admin') || hasRole('superadmin');
+    return user.role === 'Admin' || user.role === 'Super Admin';
   };
 
   const isSuperAdmin = (): boolean => {
     if (!user || !isAuthenticated) return false;
-    return hasRole('superadmin');
+    return user.role === 'Super Admin';
   };
 
   const value = {

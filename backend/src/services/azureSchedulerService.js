@@ -446,7 +446,7 @@ class AzureSchedulerService {
   async _getAllOrganizations() {
     try {
       const query = 'SELECT c.id, c.name FROM c WHERE c.type_doc = "organization"';
-      return await cosmosService.queryItems('Organizations', query, []);
+      return await cosmosService.queryItems('organizations', query, []);
     } catch (error) {
       console.error('Error fetching organizations:', error);
       return [];
@@ -469,7 +469,7 @@ class AzureSchedulerService {
         { name: '@organizationId', value: organizationId }
       ];
 
-      const admins = await cosmosService.queryItems('Users', query, parameters);
+      const admins = await cosmosService.queryItems('users', query, parameters);
       return admins.map(a => a.email);
     } catch (error) {
       console.error(`Error fetching admin emails for org ${organizationId}:`, error);

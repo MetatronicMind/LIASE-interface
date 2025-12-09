@@ -352,7 +352,7 @@ class SchedulerService {
     console.log(`Executing job: ${jobObj.name} (${jobObj.id})`);
 
     jobObj.markAsStarted();
-    await cosmosService.updateItem(this.containerName, jobObj.toJSON());
+    await cosmosService.updateItem(this.containerName, jobObj.id, jobObj.toJSON());
 
     try {
       let result;
@@ -396,7 +396,7 @@ class SchedulerService {
     }
 
     // Save updated job status
-    await cosmosService.updateItem(this.containerName, jobObj.toJSON());
+    await cosmosService.updateItem(this.containerName, jobObj.id, jobObj.toJSON());
 
     return jobObj.toJSON();
   }
@@ -733,7 +733,7 @@ class SchedulerService {
           return new Date(exec.executedAt) >= cutoffDate;
         });
         
-        await cosmosService.updateItem(this.containerName, jobObj.toJSON());
+        await cosmosService.updateItem(this.containerName, jobObj.id, jobObj.toJSON());
       }
     }
   }

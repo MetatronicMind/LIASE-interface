@@ -47,7 +47,7 @@ export default function AdminConfigTab() {
 
   const fetchJobs = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${getApiBaseUrl()}/admin-config/jobs`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -66,7 +66,7 @@ export default function AdminConfigTab() {
 
   const fetchConfigs = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${getApiBaseUrl()}/admin-config`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -85,7 +85,7 @@ export default function AdminConfigTab() {
 
   const toggleJob = async (jobId: string, currentStatus: boolean) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${getApiBaseUrl()}/admin-config/jobs/${jobId}/toggle`, {
         method: 'POST',
         headers: {
@@ -108,7 +108,7 @@ export default function AdminConfigTab() {
 
   const triggerJob = async (jobId: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${getApiBaseUrl()}/admin-config/jobs/${jobId}/trigger`, {
         method: 'POST',
         headers: {

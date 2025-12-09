@@ -434,4 +434,39 @@ router.post(
   }
 );
 
+// Process notification queue manually
+router.post(
+  '/queue/process',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      await notificationQueueService.processQueue();
+      const stats = await notificationQueueService.getQueueStats(req.user.organizationId);
+      
+      res.json({
+        message: 'Queue processed successfully',
+        stats
+      });
+    } catch (error) {
+      console.error('Error processing notification queue:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Get queue statistics
+router.get(
+  '/queue/stats',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const stats = await notificationQueueService.getQueueStats(req.user.organizationId);
+      res.json(stats);
+    } catch (error) {
+      console.error('Error getting queue stats:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
 module.exports = router;

@@ -17,6 +17,7 @@ const cosmosService = require('./services/cosmosService');
 const drugSearchScheduler = require('./services/drugSearchScheduler');
 const schedulerService = require('./services/schedulerService');
 const azureSchedulerService = require('./services/azureSchedulerService');
+const archivalScheduler = require('./schedulers/archivalScheduler');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -29,6 +30,7 @@ const migrationRoutes = require('./routes/migrationRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const emailRoutes = require('./routes/emailRoutes');
 const adminConfigRoutes = require('./routes/adminConfigRoutes');
+const archivalRoutes = require('./routes/archivalRoutes');
 
 console.log('drugRoutes loaded:', typeof drugRoutes);
 console.log('drugRoutes methods:', drugRoutes.stack ? drugRoutes.stack.length : 'no stack');
@@ -268,6 +270,7 @@ app.use('/api/migrate', authenticateToken, migrationRoutes);
 app.use('/api/notifications', authenticateToken, notificationRoutes);
 app.use('/api/emails', authenticateToken, emailRoutes);
 app.use('/api/admin-config', authenticateToken, adminConfigRoutes);
+app.use('/api/archival', authenticateToken, archivalRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -344,6 +347,12 @@ async function startServer() {
     console.log('✅ Notification scheduler initialized successfully');
     console.log('📧 Daily reports will be sent at 9:00 AM UTC');
     console.log('🔔 Notification queue processor active');
+    
+    // Initialize archival scheduler
+    console.log('🔄 Initializing archival scheduler...');
+    await archivalScheduler.initialize();
+    console.log('✅ Archival scheduler initialized successfully');
+    console.log('🗄️ Auto-archival will run daily at 2:00 AM UTC');
     
   } catch (error) {
     console.error('⚠️  Warning: Some services failed to initialize:', error);

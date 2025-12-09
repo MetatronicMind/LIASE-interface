@@ -30,6 +30,7 @@
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
+    "googleapis": "^144.0.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
@@ -37,6 +38,7 @@
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.10",
+    "puppeteer": "^24.31.0",
     "uuid": "^9.0.1",
     "xml2js": "^0.6.2"
   },

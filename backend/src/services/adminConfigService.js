@@ -311,7 +311,7 @@ class AdminConfigService {
       { name: '@organizationId', value: organizationId }
     ];
 
-    const results = await cosmosService.queryItems('Users', query, parameters);
+    const results = await cosmosService.queryItems('users', query, parameters);
     
     if (!results[0] || !results[0].lastPasswordChange) {
       return true; // Force change if no record

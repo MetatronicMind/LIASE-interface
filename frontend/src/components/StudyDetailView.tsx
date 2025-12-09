@@ -301,16 +301,8 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
                 <div className="bg-gray-50 rounded-lg p-4 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-700">ICSR Classification</label>
-                      <p className="text-gray-900">{formatValue(study.icsrClassification)}</p>
-                    </div>
-                    <div>
                       <label className="text-sm font-medium text-gray-700">Article of Interest Classification</label>
                       <p className="text-gray-900">{formatValue(study.aoiClassification)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Confirmed Potential ICSR</label>
-                      <p className="text-gray-900">{formatValue(study.confirmedPotentialICSR)}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-700">Text Type</label>

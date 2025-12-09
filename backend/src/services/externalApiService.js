@@ -321,9 +321,53 @@ class ExternalApiService {
           }
 
           if (!response || !response.ok) {
-            console.error(`All AI inference endpoints failed for PMID ${pmid}. Last error: ${lastError}`);
-            // Continue with other drugs even if one fails
-            continue;
+            console.error(`❌ All AI inference endpoints failed for PMID ${pmid}. Last error: ${lastError}`);
+            console.log(`⚠️ CRITICAL: Retrying PMID ${pmid} with exponential backoff...`);
+            
+            // AGGRESSIVE RETRY: Try up to 5 more times with exponential backoff
+            let retrySuccess = false;
+            for (let retryAttempt = 1; retryAttempt <= 5; retryAttempt++) {
+              const backoffMs = Math.min(1000 * Math.pow(2, retryAttempt), 10000);
+              console.log(`Retry attempt ${retryAttempt}/5 for PMID ${pmid} (waiting ${backoffMs}ms)...`);
+              await new Promise(resolve => setTimeout(resolve, backoffMs));
+              
+              // Try all endpoints again
+              for (const endpoint of prioritizedEndpoints) {
+                try {
+                  const apiUrl = `${endpoint.url}?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(drugName)}`;
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), this.config.requestTimeout * 2); // Double timeout for retries
+                  
+                  const retryResponse = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                      'Accept': 'application/json',
+                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                      'Connection': 'keep-alive'
+                    },
+                    signal: controller.signal
+                  });
+                  
+                  clearTimeout(timeoutId);
+                  
+                  if (retryResponse.ok) {
+                    response = retryResponse;
+                    retrySuccess = true;
+                    console.log(`✅ Retry successful for PMID ${pmid} on attempt ${retryAttempt}`);
+                    break;
+                  }
+                } catch (retryError) {
+                  console.log(`Retry ${retryAttempt} failed for PMID ${pmid}:`, retryError.message);
+                }
+              }
+              
+              if (retrySuccess) break;
+            }
+            
+            if (!retrySuccess || !response || !response.ok) {
+              console.error(`❌❌❌ FATAL: Could not get AI inference for PMID ${pmid} after all retries`);
+              throw new Error(`Failed to get AI inference for PMID ${pmid} after all retry attempts. Last error: ${lastError}`);
+            }
           }
 
           const responseText = await response.text();
@@ -332,11 +376,11 @@ class ExternalApiService {
           let aiResult;
           try {
             aiResult = JSON.parse(responseText);
-            console.log(`Parsed AI inference result for PMID ${pmid}:`, JSON.stringify(aiResult, null, 2));
+            console.log(`✅ Parsed AI inference result for PMID ${pmid}`);
           } catch (parseError) {
-            console.error(`Failed to parse JSON response for PMID ${pmid}:`, parseError);
+            console.error(`❌ Failed to parse JSON response for PMID ${pmid}:`, parseError);
             console.error(`Response was:`, responseText);
-            continue;
+            throw new Error(`Invalid JSON response for PMID ${pmid}: ${parseError.message}`);
           }
           
           aiInferenceResults.push({
@@ -348,9 +392,9 @@ class ExternalApiService {
           });
 
         } catch (error) {
-          console.error(`Error getting AI inference for PMID ${drug.pmid}:`, error);
-          // Continue with other drugs
-          continue;
+          console.error(`❌ Error getting AI inference for PMID ${drug.pmid}:`, error);
+          console.error(`Error stack:`, error.stack);
+          throw new Error(`Failed to process PMID ${drug.pmid}: ${error.message}`);
         }
       }
 

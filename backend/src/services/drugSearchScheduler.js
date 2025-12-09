@@ -158,67 +158,83 @@ class DrugSearchScheduler {
               externalApiSuccess = true;
               console.log(`✅ External API call successful for ${config.name}`);
 
-              // Create studies from AI inference results (if any)
+              // Create a map of successful AI results by PMID
+              const aiResultsMap = new Map();
               if (apiResults && apiResults.results && apiResults.results.length > 0) {
-                console.log(`🔄 Creating ${apiResults.results.length} studies from AI inference results`);
-                
-                for (const aiResult of apiResults.results) {
-                  try {
-                    if (!aiResult.pmid || !aiResult.aiInference) {
-                      console.log(`Skipping result without PMID or AI inference data`);
-                      continue;
-                    }
-
-                    // Check if study already exists
-                    const existingStudies = await cosmosService.queryItems('studies', 
-                      'SELECT * FROM c WHERE c.pmid = @pmid AND c.organizationId = @orgId',
-                      [
-                        { name: '@pmid', value: aiResult.pmid },
-                        { name: '@orgId', value: config.organizationId }
-                      ]
-                    );
-
-                    if (existingStudies.length > 0) {
-                      console.log(`Skipping duplicate PMID: ${aiResult.pmid} - already exists in database`);
-                      continue;
-                    }
-
-                    console.log(`Creating new study for PMID: ${aiResult.pmid}`);
-
-                    // Handle different result formats from different API services
-                    const originalDrug = aiResult.originalDrug || aiResult.originalItem || {};
-
-                    // Create study from AI inference data
-                    const study = Study.fromAIInference(
-                      aiResult.aiInference,
-                      originalDrug,
-                      config.organizationId,
-                      config.userId
-                    );
-
-                    // Update status based on ICSR classification or confirmed potential ICSR
-                    if (study.icsrClassification || study.confirmedPotentialICSR) {
-                      study.status = 'Study in Process';
-                      console.log(`Setting status to 'Study in Process' for PMID ${aiResult.pmid} due to ICSR classification`);
-                    }
-
-                    // Store study in database
-                    const createdStudy = await cosmosService.createItem('studies', study.toJSON());
-                    studiesCreated++;
-                    console.log(`✅ Successfully created study in database for PMID: ${aiResult.pmid}, ID: ${createdStudy.id} with status: ${createdStudy.status}`);
-
-                  } catch (studyError) {
-                    console.error(`❌ Error creating study for PMID ${aiResult.pmid}:`, studyError);
-                    // Continue with other studies
+                apiResults.results.forEach(result => {
+                  if (result.pmid && result.aiInference) {
+                    aiResultsMap.set(result.pmid, result);
                   }
-                }
-
-                console.log(`📚 Created ${studiesCreated} studies from scheduled search for ${config.name}`);
+                });
+                console.log(`🔄 Creating studies for ${filteredDrugs.length} drugs (${aiResultsMap.size} with AI inference)`);
+              } else {
+                console.log(`⚠ No AI inference results returned, will create studies with PubMed data only`);
               }
+              
+              // Process ALL filtered drugs and create studies (with or without AI inference)
+              for (const drug of filteredDrugs) {
+                try {
+                  if (!drug.pmid) {
+                    console.log(`Skipping drug without PMID: ${drug.drugName || 'Unknown'}`);
+                    continue;
+                  }
+
+                  // Double-check for duplicates
+                  const existingStudies = await cosmosService.queryItems('studies', 
+                    'SELECT * FROM c WHERE c.pmid = @pmid AND c.organizationId = @orgId',
+                    [
+                      { name: '@pmid', value: drug.pmid },
+                      { name: '@orgId', value: config.organizationId }
+                    ]
+                  );
+
+                  if (existingStudies.length > 0) {
+                    console.log(`Skipping duplicate PMID: ${drug.pmid}`);
+                    continue;
+                  }
+
+                  console.log(`Creating study for PMID: ${drug.pmid}`);
+
+                  // Check if we have AI inference for this drug
+                  const aiResult = aiResultsMap.get(drug.pmid);
+
+                  if (!aiResult || !aiResult.aiInference) {
+                    throw new Error(`No AI inference data available for PMID: ${drug.pmid}`);
+                  }
+
+                  console.log(`✓ Creating study WITH AI inference for PMID: ${drug.pmid}`);
+                  // Create study from AI inference data
+                  const originalDrug = aiResult.originalDrug || aiResult.originalItem || drug;
+                  const study = Study.fromAIInference(
+                    aiResult.aiInference,
+                    originalDrug,
+                    config.organizationId,
+                    config.userId
+                  );
+
+                  // Update status based on ICSR classification or confirmed potential ICSR
+                  if (study.icsrClassification || study.confirmedPotentialICSR) {
+                    study.status = 'Study in Process';
+                    console.log(`Setting status to 'Study in Process' for PMID ${drug.pmid} due to ICSR classification`);
+                  }
+
+                  // Store study in database
+                  const createdStudy = await cosmosService.createItem('studies', study.toJSON());
+                  studiesCreated++;
+                  console.log(`✅ Successfully created study in database for PMID: ${drug.pmid}, ID: ${createdStudy.id} with status: ${createdStudy.status}`);
+
+                } catch (studyError) {
+                  console.error(`❌ Error creating study for PMID ${drug.pmid}:`, studyError);
+                  throw studyError; // Fail fast - no fallback studies
+                }
+              }
+
+              console.log(`📚 Created ${studiesCreated} studies from scheduled search for ${config.name}`);
               
             } catch (error) {
               console.error(`❌ External API call failed for ${config.name}:`, error);
-              externalApiSuccess = false;
+              // FAIL THE ENTIRE JOB - DO NOT CREATE FALLBACK STUDIES
+              throw new Error(`AI inference failed: ${error.message}. Cannot create studies without AI data.`);
             }
           } else if (config.sendToExternalApi && results.drugs && results.drugs.length > 0 && filteredDrugs.length === 0) {
             console.log(`⏭️ All ${results.drugs.length} drugs are duplicates - skipping external API call for ${config.name}`);

@@ -268,6 +268,24 @@ router.get(
   }
 );
 
+// Alias for /smtp-config (compatibility with frontend)
+router.get(
+  '/smtp-config',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const configs = await emailSenderService.getSMTPConfigs(
+        req.user.organizationId
+      );
+
+      res.json(configs);
+    } catch (error) {
+      console.error('Error getting SMTP configs:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
 // Create SMTP configuration
 router.post(
   '/smtp',
@@ -277,7 +295,7 @@ router.post(
     body('host').notEmpty().trim(),
     body('port').isInt({ min: 1, max: 65535 }),
     body('secure').optional().isBoolean(),
-    body('username').notEmpty().trim(),
+    body('user').notEmpty().trim(),
     body('password').notEmpty(),
     body('fromEmail').isEmail(),
     body('fromName').notEmpty().trim(),
@@ -288,7 +306,8 @@ router.post(
     try {
       const configData = {
         ...req.body,
-        organizationId: req.user.organizationId
+        organizationId: req.user.organizationId,
+        username: req.body.user || req.body.username
       };
 
       const config = await emailSenderService.createSMTPConfig(
@@ -300,6 +319,103 @@ router.post(
     } catch (error) {
       console.error('Error creating SMTP config:', error);
       res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Alias for /smtp-config (compatibility with frontend)
+router.post(
+  '/smtp-config',
+  authenticateToken,
+  [
+    body('name').notEmpty().trim(),
+    body('host').notEmpty().trim(),
+    body('port').isInt({ min: 1, max: 65535 }),
+    body('secure').optional().isBoolean(),
+    body('user').notEmpty().trim(),
+    body('password').notEmpty(),
+    body('fromEmail').isEmail(),
+    body('fromName').notEmpty().trim(),
+    body('provider').optional().isIn(['gmail', 'sendgrid', 'ses', 'custom'])
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const configData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        username: req.body.user || req.body.username
+      };
+
+      const config = await emailSenderService.createSMTPConfig(
+        configData,
+        req.user.id
+      );
+
+      res.status(201).json(config);
+    } catch (error) {
+      console.error('Error creating SMTP config:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Test SMTP configuration (before saving)
+router.post(
+  '/smtp-config/test',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      console.log('Received test request body:', JSON.stringify(req.body, null, 2));
+      
+      // Manual validation with better error messages
+      const { host, port, secure, user, password, fromEmail } = req.body;
+      
+      if (!host || !host.trim()) {
+        return res.status(400).json({ error: 'Host is required' });
+      }
+      if (!port || port < 1 || port > 65535) {
+        return res.status(400).json({ error: 'Valid port (1-65535) is required' });
+      }
+      if (!user || !user.trim()) {
+        return res.status(400).json({ error: 'Username is required' });
+      }
+      if (!password) {
+        return res.status(400).json({ error: 'Password is required' });
+      }
+      if (!fromEmail || !fromEmail.includes('@')) {
+        return res.status(400).json({ error: 'Valid from email is required' });
+      }
+
+      const nodemailer = require('nodemailer');
+      
+      console.log('Creating transporter with:', { host, port, secure, user });
+      
+      // Create a test transporter with the provided config
+      const transporter = nodemailer.createTransport({
+        host: host.trim(),
+        port: parseInt(port),
+        secure: secure || false,
+        auth: {
+          user: user.trim(),
+          pass: password
+        }
+      });
+
+      // Verify the connection
+      await transporter.verify();
+      
+      console.log('SMTP test successful');
+      res.json({ 
+        success: true, 
+        message: 'SMTP configuration is valid and connection successful' 
+      });
+    } catch (error) {
+      console.error('SMTP test failed:', error);
+      res.status(400).json({ 
+        success: false, 
+        error: error.message 
+      });
     }
   }
 );

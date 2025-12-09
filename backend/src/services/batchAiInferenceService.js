@@ -295,21 +295,33 @@ class BatchAiInferenceService {
         console.error(`[BatchAI:${requestId}] Failed for PMID ${item.pmid} after ${duration}ms:`, error.message);
       }
 
-      // Retry logic if enabled
-      if (options.enableRetries && !error.message.includes('No healthy endpoints')) {
-        const retryDelay = Math.min(
-          this.config.baseBackoffMs * Math.pow(this.config.backoffMultiplier, 1),
-          this.config.maxBackoffMs
-        ) + Math.random() * this.config.jitterMs;
-
-        await this.delay(retryDelay);
+      // Retry logic if enabled - AGGRESSIVE RETRY
+      if (options.enableRetries !== false) {
+        console.error(`[BatchAI:${requestId}] ⚠️ First attempt failed for PMID ${item.pmid}. Starting aggressive retry...`);
         
-        if (options.enableDetailedLogging) {
-          console.log(`[BatchAI:${requestId}] Retrying PMID ${item.pmid} after ${retryDelay}ms delay`);
-        }
+        // Try up to 3 more times with exponential backoff
+        for (let retryAttempt = 1; retryAttempt <= 3; retryAttempt++) {
+          const retryDelay = Math.min(
+            this.config.baseBackoffMs * Math.pow(this.config.backoffMultiplier, retryAttempt),
+            this.config.maxBackoffMs
+          ) + Math.random() * this.config.jitterMs;
 
-        // Recursive retry (only once to prevent infinite loops)
-        return this.processSingleItem(item, searchParams, { ...options, enableRetries: false });
+          console.log(`[BatchAI:${requestId}] Retry ${retryAttempt}/3 for PMID ${item.pmid} after ${retryDelay}ms delay`);
+          await this.delay(retryDelay);
+          
+          try {
+            // Retry with fresh endpoint selection
+            const retryResult = await this.processSingleItem(item, searchParams, { ...options, enableRetries: false });
+            console.log(`[BatchAI:${requestId}] ✅ Retry ${retryAttempt} SUCCESS for PMID ${item.pmid}`);
+            return retryResult;
+          } catch (retryError) {
+            console.error(`[BatchAI:${requestId}] Retry ${retryAttempt} failed for PMID ${item.pmid}:`, retryError.message);
+            if (retryAttempt === 3) {
+              console.error(`[BatchAI:${requestId}] ❌❌❌ FATAL: All 3 retries exhausted for PMID ${item.pmid}`);
+              throw new Error(`Failed to process PMID ${item.pmid} after 3 retry attempts: ${retryError.message}`);
+            }
+          }
+        }
       }
 
       throw error;
