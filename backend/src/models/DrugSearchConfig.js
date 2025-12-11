@@ -8,7 +8,8 @@ class DrugSearchConfig {
     this.name = data.name; // User-friendly name for the search
     this.query = data.query; // Drug name or search term
     this.sponsor = data.sponsor || ''; // Manufacturer/sponsor
-    this.frequency = data.frequency || 'custom'; // daily, weekly, monthly, custom
+    this.brandName = data.brandName || ''; // Brand/Product name
+    this.frequency = data.frequency || 'custom'; // weekly, custom
     this.customFrequencyHours = data.customFrequencyHours || 12; // For custom frequency
     this.isActive = data.isActive !== undefined ? data.isActive : true;
     this.lastRunAt = data.lastRunAt || null;

@@ -8,6 +8,7 @@ interface DrugSearchConfig {
   name: string;
   query: string;
   sponsor: string;
+  brandName?: string;
   frequency: string;
   isActive: boolean;
   lastRunAt: string | null;
@@ -23,12 +24,18 @@ export default function DrugManagementPage() {
   const [configName, setConfigName] = useState('');
   const [query, setQuery] = useState('');
   const [sponsor, setSponsor] = useState('');
+  const [brandName, setBrandName] = useState('');
   const [frequency, setFrequency] = useState('custom');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   // Keep HTML date format for the input fields
   const [dateFromInput, setDateFromInput] = useState('');
   const [dateToInput, setDateToInput] = useState('');
+  
+  // Weekly schedule fields
+  const [weeklyDate, setWeeklyDate] = useState('');
+  const [weeklyTime, setWeeklyTime] = useState('00:00');
+
   const [saving, setSaving] = useState(false);
   const [runningConfigs, setRunningConfigs] = useState<Set<string>>(new Set());
   
@@ -195,9 +202,20 @@ export default function DrugManagementPage() {
   };
 
   const createSearchConfig = async () => {
-    if (!configName.trim() || !query.trim()) {
-      alert('Please enter both name and query.');
+    if (!configName.trim() || !query.trim() || !sponsor.trim()) {
+      alert('Please enter INN, Literature Search String, and Sponsor.');
       return;
+    }
+
+    let nextRunAt = null;
+    if (frequency === 'weekly') {
+      if (!weeklyDate) {
+        alert('Please select a start date for the weekly schedule.');
+        return;
+      }
+      // Combine date and time
+      const scheduleDate = new Date(`${weeklyDate}T${weeklyTime}:00`);
+      nextRunAt = scheduleDate.toISOString();
     }
 
     setSaving(true);
@@ -212,8 +230,10 @@ export default function DrugManagementPage() {
         body: JSON.stringify({
           name: configName.trim(),
           query: query.trim(),
-          sponsor: sponsor.trim() || '',
+          sponsor: sponsor.trim(),
+          brandName: brandName.trim(),
           frequency: frequency,
+          nextRunAt: nextRunAt,
           maxResults: 1000,
           includeAdverseEvents: true,
           includeSafety: true,
@@ -228,11 +248,14 @@ export default function DrugManagementPage() {
         setConfigName('');
         setQuery('');
         setSponsor('');
+        setBrandName('');
         setFrequency('custom');
         setDateFrom('');
         setDateTo('');
         setDateFromInput('');
         setDateToInput('');
+        setWeeklyDate('');
+        setWeeklyTime('00:00');
         fetchSearchConfigs();
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -291,27 +314,34 @@ export default function DrugManagementPage() {
               
               {/* Create Form */}
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <h3 className="text-lg font-medium mb-4">Create New Search Configuration</h3>
+                <h3 className="text-lg font-medium mb-4">Literature Search Configuration</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     type="text"
                     value={configName}
                     onChange={(e) => setConfigName(e.target.value)}
-                    placeholder="Configuration Name"
+                    placeholder="INN"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                   <input
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Query (Drug Name)"
+                    placeholder="Literature Search String Configuration"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                   <input
                     type="text"
                     value={sponsor}
                     onChange={(e) => setSponsor(e.target.value)}
-                    placeholder="Sponsor (Optional)"
+                    placeholder="Sponsor"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                  <input
+                    type="text"
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    placeholder="Brand/Product name (Optional)"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                   <select
@@ -319,10 +349,8 @@ export default function DrugManagementPage() {
                     onChange={(e) => setFrequency(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
-                    <option value="custom">Custom Date Range</option>
-                    <option value="daily">Last One Day (Daily)</option>
-                    <option value="weekly">Last One Week (Weekly)</option>
-                    <option value="monthly">Last One Month (Monthly)</option>
+                    <option value="custom">Custom Date Search</option>
+                    <option value="weekly">Weekly</option>
                   </select>
                   {frequency === 'custom' && (
                     <>
@@ -362,14 +390,34 @@ export default function DrugManagementPage() {
                       </div>
                     </>
                   )}
+                  {frequency === 'weekly' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          value={weeklyDate}
+                          onChange={(e) => setWeeklyDate(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                        <input
+                          type="time"
+                          value={weeklyTime}
+                          onChange={(e) => setWeeklyTime(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                      </div>
+                    </>
+                  )}
                   {frequency !== 'custom' && (
                     <div className="md:col-span-2">
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                         <p className="text-sm text-blue-800">
                           <strong>{frequency.charAt(0).toUpperCase() + frequency.slice(1)} Search:</strong> 
-                          {frequency === 'daily' && ' Will search articles from the last 24 hours and run every 24 hours'}
-                          {frequency === 'weekly' && ' Will search articles from the last 7 days and run every week'}
-                          {frequency === 'monthly' && ' Will search articles from the last 30 days and run every month'}
+                          {frequency === 'weekly' && ' Will search articles from the last 7 days and run every week starting from the selected date/time'}
                         </p>
                         <p className="text-xs text-blue-600 mt-1">
                           <strong>Scheduler runs every 12 hours</strong> - your search will be automatically executed when due
@@ -382,7 +430,7 @@ export default function DrugManagementPage() {
                 <div className="mt-4 flex gap-2">
                   <button
                     onClick={createSearchConfig}
-                    disabled={saving || !configName.trim() || !query.trim()}
+                    disabled={saving || !configName.trim() || !query.trim() || !sponsor.trim()}
                     className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Configuration'}

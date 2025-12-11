@@ -846,14 +846,11 @@ router.post('/search-configs',
   [
     body('name').isLength({ min: 1, max: 100 }).withMessage('Name must be 1-100 characters'),
     body('query').isLength({ min: 1, max: 200 }).withMessage('Query must be 1-200 characters'),
-    body('sponsor').optional({ nullable: true }).custom(value => {
-      if (value && value.length > 100) {
-        throw new Error('Sponsor must be max 100 characters');
-      }
-      return true;
-    }),
-    body('frequency').isIn(['daily', 'weekly', 'monthly', 'custom']).withMessage('Invalid frequency'),
+    body('sponsor').notEmpty().withMessage('Sponsor is required').isLength({ max: 100 }).withMessage('Sponsor must be max 100 characters'),
+    body('brandName').optional().isLength({ max: 100 }).withMessage('Brand name must be max 100 characters'),
+    body('frequency').isIn(['weekly', 'custom']).withMessage('Invalid frequency'),
     body('customFrequencyHours').optional().isInt({ min: 1, max: 8760 }).withMessage('Custom frequency must be 1-8760 hours'),
+    body('nextRunAt').optional().isISO8601().withMessage('Next run at must be a valid ISO 8601 date'),
     body('maxResults').optional().isInt({ min: 1, max: 10000 }).withMessage('Max results must be 1-10000'),
     body('includeAdverseEvents').optional().isBoolean().withMessage('Include adverse events must be boolean'),
     body('includeSafety').optional().isBoolean().withMessage('Include safety must be boolean'),
