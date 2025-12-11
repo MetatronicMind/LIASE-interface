@@ -112,6 +112,8 @@ class AdminConfigService {
 
     const updated = await cosmosService.updateItem(
       this.containerName,
+      configObj.id,
+      configObj.organizationId,
       configObj.toJSON()
     );
 

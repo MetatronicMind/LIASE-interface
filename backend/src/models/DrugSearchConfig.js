@@ -16,6 +16,7 @@ class DrugSearchConfig {
     this.nextRunAt = data.nextRunAt || null;
     this.totalRuns = data.totalRuns || 0;
     this.lastResultCount = data.lastResultCount || 0;
+    this.lastRunPmids = data.lastRunPmids || [];
     this.createdAt = data.createdAt || new Date().toISOString();
     this.updatedAt = data.updatedAt || new Date().toISOString();
     this.createdBy = data.createdBy;
@@ -116,10 +117,11 @@ class DrugSearchConfig {
   }
 
   // Update after a search run
-  updateAfterRun(resultCount, externalApiSuccess = null) {
+  updateAfterRun(resultCount, externalApiSuccess = null, pmids = []) {
     this.lastRunAt = new Date().toISOString();
     this.totalRuns += 1;
     this.lastResultCount = resultCount;
+    this.lastRunPmids = pmids;
     this.nextRunAt = this.calculateNextRun();
     this.updatedAt = new Date().toISOString();
     
@@ -189,6 +191,7 @@ class DrugSearchConfig {
       nextRunAt: this.nextRunAt,
       totalRuns: this.totalRuns,
       lastResultCount: this.lastResultCount,
+      lastRunPmids: this.lastRunPmids,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       createdBy: this.createdBy,

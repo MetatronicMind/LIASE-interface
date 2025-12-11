@@ -2056,7 +2056,8 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
     }
     
     // Update the configuration with run stats
-    configObject.updateAfterRun(results.totalFound, externalApiSuccess);
+    const pmids = results.drugs ? results.drugs.map(d => d.pmid).filter(p => p) : [];
+    configObject.updateAfterRun(results.totalFound, externalApiSuccess, pmids);
     
     try {
       console.log('[SearchConfig] Updating config with ID:', configObject.id);

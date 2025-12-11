@@ -181,6 +181,10 @@ class CosmosService {
         defaultTtl: 7776000 // 90 days in seconds - auto-delete old reports
       },
       {
+        id: 'AdminConfigs',
+        partitionKey: '/organizationId'
+      },
+      {
         id: 'Settings',
         partitionKey: '/organizationId'
       },

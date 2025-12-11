@@ -21,7 +21,8 @@ const validate = (req, res, next) => {
 
 // Middleware to check admin permissions
 const requireAdmin = (req, res, next) => {
-  if (!req.user.permissions?.admin_config?.manage) {
+  // Check for manage permission OR write permission
+  if (!req.user.permissions?.admin_config?.manage && !req.user.permissions?.admin_config?.write) {
     return res.status(403).json({ error: 'Admin permissions required' });
   }
   next();

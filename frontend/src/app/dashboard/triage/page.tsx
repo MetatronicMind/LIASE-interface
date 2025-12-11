@@ -59,6 +59,8 @@ interface Study {
   approvedIndication?: string;
   aoiClassification?: string;
   justification?: string;
+  listedness?: string;
+  seriousness?: string;
   clientName?: string;
   sponsor?: string;
   userTag?: 'ICSR' | 'AOI' | 'No Case' | null;
@@ -102,6 +104,10 @@ export default function TriagePage() {
   
   // Classification state
   const [classifying, setClassifying] = useState<string | null>(null);
+  const [selectedClassification, setSelectedClassification] = useState<string | null>(null);
+  const [justification, setJustification] = useState<string>("");
+  const [listedness, setListedness] = useState<string>("");
+  const [seriousness, setSeriousness] = useState<string>("");
   
   // UI state
   const [showRawData, setShowRawData] = useState(false);
@@ -208,10 +214,20 @@ export default function TriagePage() {
   };
 
   // Classification function
-  const classifyStudy = async (studyId: string, classification: string) => {
+  const classifyStudy = async (studyId: string, classification: string, details?: { justification?: string, listedness?: string, seriousness?: string }) => {
     try {
       setClassifying(studyId);
       const token = localStorage.getItem("auth_token");
+      
+      const body: any = {
+        userTag: classification
+      };
+
+      if (details) {
+        if (details.justification) body.justification = details.justification;
+        if (details.listedness) body.listedness = details.listedness;
+        if (details.seriousness) body.seriousness = details.seriousness;
+      }
       
       const response = await fetch(`${API_BASE}/studies/${studyId}`, {
         method: "PUT",
@@ -219,9 +235,7 @@ export default function TriagePage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          userTag: classification
-        }),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) {
@@ -230,13 +244,34 @@ export default function TriagePage() {
         // This ensures qaApprovalStatus is set to 'pending'
         setStudies(prev => prev.map(study => 
           study.id === studyId 
-            ? { ...study, userTag: classification as any, qaApprovalStatus: 'pending' }
+            ? { 
+                ...study, 
+                userTag: classification as any, 
+                qaApprovalStatus: 'pending',
+                justification: details?.justification || study.justification,
+                listedness: details?.listedness || study.listedness,
+                seriousness: details?.seriousness || study.seriousness
+              }
             : study
         ));
         // Also update selected study if it's the one being classified
         if (selectedStudy && selectedStudy.id === studyId) {
-          setSelectedStudy(prev => prev ? { ...prev, userTag: classification as any, qaApprovalStatus: 'pending' } : null);
+          setSelectedStudy(prev => prev ? { 
+            ...prev, 
+            userTag: classification as any, 
+            qaApprovalStatus: 'pending',
+            justification: details?.justification || prev.justification,
+            listedness: details?.listedness || prev.listedness,
+            seriousness: details?.seriousness || prev.seriousness
+          } : null);
         }
+        
+        // Reset classification state
+        setSelectedClassification(null);
+        setJustification("");
+        setListedness("");
+        setSeriousness("");
+        
         alert(`Study classified as ${classification}. Awaiting QC approval.`);
       } else {
         throw new Error("Failed to classify study");
@@ -612,7 +647,7 @@ export default function TriagePage() {
                           
                           <div className="space-y-1 text-xs text-gray-600">
                             <div>
-                              <span className="font-medium">Drug:</span> {study.drugName}
+                              <span className="font-medium">INN & Brand Name:</span> {study.drugName}
                             </div>
                             <div>
                               <span className="font-medium">Adverse Event:</span> {study.adverseEvent}
@@ -649,6 +684,11 @@ export default function TriagePage() {
                             {study.userTag && (
                               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getClassificationColor(study.userTag)}`}>
                                 {getClassificationLabel(study)}
+                              </span>
+                            )}
+                            {study.justification && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                {study.justification}
                               </span>
                             )}
                             {!study.userTag && study.qaApprovalStatus !== 'rejected' && (
@@ -767,14 +807,14 @@ export default function TriagePage() {
                     
                     {/* Basic Information */}
                     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                      <h4 className="font-semibold text-gray-900 mb-3">Study Information</h4>
+                      <h4 className="font-semibold text-gray-900 mb-3">Literature Information</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="font-medium text-gray-700">PMID:</span>
                           <p className="mt-1"><PmidLink pmid={selectedStudy.pmid} showIcon={true} /></p>
                         </div>
                         <div>
-                          <span className="font-medium text-gray-700">Drug:</span>
+                          <span className="font-medium text-gray-700">INN & Brand Name:</span>
                           <p className="mt-1 text-gray-900">{selectedStudy.drugName}</p>
                         </div>
                         <div>
@@ -856,13 +896,22 @@ export default function TriagePage() {
                         <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                         </svg>
-                        Study Metadata
+                        Literature Metadata
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                         {selectedStudy.doi && (
                           <div>
                             <span className="font-medium text-gray-700">DOI:</span>
-                            <p className="mt-1 text-gray-900 break-all">{selectedStudy.doi}</p>
+                            <p className="mt-1 text-gray-900 break-all">
+                              <a 
+                                href={selectedStudy.doi.startsWith('http') ? selectedStudy.doi : `https://doi.org/${selectedStudy.doi}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-600 hover:underline"
+                              >
+                                {selectedStudy.doi}
+                              </a>
+                            </p>
                           </div>
                         )}
                         {selectedStudy.leadAuthor && (
@@ -873,7 +922,7 @@ export default function TriagePage() {
                         )}
                         {selectedStudy.countryOfFirstAuthor && (
                           <div>
-                            <span className="font-medium text-gray-700">Author Country:</span>
+                            <span className="font-medium text-gray-700">Country of first author:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.countryOfFirstAuthor}</p>
                           </div>
                         )}
@@ -897,13 +946,13 @@ export default function TriagePage() {
                         )}
                         {selectedStudy.sponsor && (
                           <div>
-                            <span className="font-medium text-gray-700">Sponsor:</span>
+                            <span className="font-medium text-gray-700">Client:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.sponsor}</p>
                           </div>
                         )}
                         {selectedStudy.testSubject && (
                           <div>
-                            <span className="font-medium text-gray-700">Test Subject:</span>
+                            <span className="font-medium text-gray-700">Subject/Participant/Patient:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.testSubject}</p>
                           </div>
                         )}
@@ -927,17 +976,6 @@ export default function TriagePage() {
                               <p className="mt-1 text-gray-900">{selectedStudy.special_case || selectedStudy.specialCase}</p>
                             </div>
                           )}
-                          {(selectedStudy.Serious || selectedStudy.serious !== undefined) && (
-                            <div>
-                              <span className="font-medium text-gray-700">Serious:</span>
-                              <p className="mt-1 text-gray-900">
-                                {typeof selectedStudy.serious === 'boolean' 
-                                  ? (selectedStudy.serious ? 'Yes' : 'No')
-                                  : selectedStudy.Serious || 'Unknown'
-                                }
-                              </p>
-                            </div>
-                          )}
                           {(selectedStudy.Text_type || selectedStudy.textType) && (
                             <div>
                               <span className="font-medium text-gray-700">Article Type:</span>
@@ -946,7 +984,7 @@ export default function TriagePage() {
                           )}
                           {selectedStudy.approvedIndication && (
                             <div>
-                              <span className="font-medium text-gray-700">Approved Indication:</span>
+                              <span className="font-medium text-gray-700">AI assessment of label use:</span>
                               <p className="mt-1 text-gray-900">{selectedStudy.approvedIndication}</p>
                             </div>
                           )}
@@ -955,13 +993,13 @@ export default function TriagePage() {
                         {/* Text-based Fields */}
                         {selectedStudy.attributability && (
                           <div>
-                            <span className="font-medium text-gray-700">Attributability:</span>
+                            <span className="font-medium text-gray-700">AI assessment of attributability:</span>
                             <p className="mt-1 text-gray-900 text-sm">{selectedStudy.attributability}</p>
                           </div>
                         )}
                         {selectedStudy.drugEffect && (
                           <div>
-                            <span className="font-medium text-gray-700">Drug Effect:</span>
+                            <span className="font-medium text-gray-700">AI identified drug response:</span>
                             <p className="mt-1 text-gray-900 text-sm">{selectedStudy.drugEffect}</p>
                           </div>
                         )}
@@ -1070,87 +1108,199 @@ export default function TriagePage() {
                         Classify Study
                       </h4>
                       
-                      {!selectedStudy.userTag ? (
+                      {selectedClassification ? (
+                        <div className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm animate-fadeIn">
+                          <div className="flex items-center justify-between mb-4">
+                            <h5 className="font-medium text-gray-900">
+                              Classifying as <span className={`font-bold ${
+                                selectedClassification === 'ICSR' ? 'text-red-600' : 
+                                selectedClassification === 'AOI' ? 'text-yellow-600' : 'text-gray-600'
+                              }`}>{selectedClassification}</span>
+                            </h5>
+                            <button 
+                              onClick={() => setSelectedClassification(null)}
+                              className="text-gray-400 hover:text-gray-600"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Justification</label>
+                              <select
+                                value={justification}
+                                onChange={(e) => setJustification(e.target.value)}
+                                className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
+                              >
+                                <option value="">Select justification...</option>
+                                {selectedClassification === 'ICSR' && (
+                                  <>
+                                    <option value="Valid Case">Valid Case</option>
+                                    <option value="Potential Valid case">Potential Valid case</option>
+                                  </>
+                                )}
+                                {selectedClassification === 'AOI' && (
+                                  <>
+                                    <option value="Adverse Event">Adverse Event</option>
+                                    <option value="Special Situations">Special Situations</option>
+                                    <option value="Not applicable">Not applicable</option>
+                                  </>
+                                )}
+                                {selectedClassification === 'No Case' && (
+                                  <>
+                                    <option value="In Vitro Study">In Vitro Study</option>
+                                    <option value="Pre-Clinical study">Pre-Clinical study</option>
+                                    <option value="Treatment Medication">Treatment Medication</option>
+                                    <option value="Secondary analysis">Secondary analysis</option>
+                                    <option value="Not applicable">Not applicable</option>
+                                  </>
+                                )}
+                              </select>
+                            </div>
+
+                            {selectedClassification === 'ICSR' && (
+                              <div className="bg-red-50 p-3 rounded-md border border-red-100">
+                                <p className="text-sm font-medium text-red-800 mb-2">Additional ICSR Options</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Listedness</label>
+                                    <div className="flex gap-2">
+                                      <label className="inline-flex items-center">
+                                        <input type="radio" className="form-radio text-red-600" name="listedness" value="Listed" checked={listedness === 'Listed'} onChange={(e) => setListedness(e.target.value)} />
+                                        <span className="ml-2 text-xs text-gray-700">Listed</span>
+                                      </label>
+                                      <label className="inline-flex items-center">
+                                        <input type="radio" className="form-radio text-red-600" name="listedness" value="Unlisted" checked={listedness === 'Unlisted'} onChange={(e) => setListedness(e.target.value)} />
+                                        <span className="ml-2 text-xs text-gray-700">Unlisted</span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Seriousness</label>
+                                    <div className="flex gap-2">
+                                      <label className="inline-flex items-center">
+                                        <input type="radio" className="form-radio text-red-600" name="seriousness" value="Serious" checked={seriousness === 'Serious'} onChange={(e) => setSeriousness(e.target.value)} />
+                                        <span className="ml-2 text-xs text-gray-700">Serious</span>
+                                      </label>
+                                      <label className="inline-flex items-center">
+                                        <input type="radio" className="form-radio text-red-600" name="seriousness" value="Non-Serious" checked={seriousness === 'Non-Serious'} onChange={(e) => setSeriousness(e.target.value)} />
+                                        <span className="ml-2 text-xs text-gray-700">Non-Serious</span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex justify-end gap-2 pt-2">
+                              <button
+                                onClick={() => setSelectedClassification(null)}
+                                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => classifyStudy(selectedStudy.id, selectedClassification, { justification, listedness, seriousness })}
+                                disabled={!justification || classifying === selectedStudy.id}
+                                className={`px-4 py-2 text-white rounded-md text-sm font-medium flex items-center ${
+                                  !justification ? 'bg-gray-400 cursor-not-allowed' :
+                                  selectedClassification === 'ICSR' ? 'bg-red-600 hover:bg-red-700' :
+                                  selectedClassification === 'AOI' ? 'bg-yellow-600 hover:bg-yellow-700' :
+                                  'bg-gray-600 hover:bg-gray-700'
+                                }`}
+                              >
+                                {classifying === selectedStudy.id ? (
+                                  <>
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Saving...
+                                  </>
+                                ) : (
+                                  'Confirm Classification'
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : !selectedStudy.userTag ? (
                         <>
                           <p className="text-sm text-gray-700 mb-4">
                             Review the study details below and classify this study for pharmacovigilance processing:
                           </p>
                           <div className="flex flex-col sm:flex-row gap-3">
                             <button
-                              onClick={() => classifyStudy(selectedStudy.id, "ICSR")}
-                              disabled={classifying === selectedStudy.id}
-                              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center"
+                              onClick={() => {
+                                setSelectedClassification("ICSR");
+                                setJustification("");
+                                setListedness("");
+                                setSeriousness("");
+                              }}
+                              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors flex items-center justify-center"
                             >
-                              {classifying === selectedStudy.id ? (
-                                <>
-                                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  Classifying...
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                  </svg>
-                                  ICSR (Individual Case Safety Report)
-                                </>
-                              )}
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                              </svg>
+                              ICSR (Individual Case Safety Report)
                             </button>
                             <button
-                              onClick={() => classifyStudy(selectedStudy.id, "AOI")}
-                              disabled={classifying === selectedStudy.id}
-                              className="flex-1 px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center"
+                              onClick={() => {
+                                setSelectedClassification("AOI");
+                                setJustification("");
+                                setListedness("");
+                                setSeriousness("");
+                              }}
+                              className="flex-1 px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-medium transition-colors flex items-center justify-center"
                             >
-                              {classifying === selectedStudy.id ? (
-                                <>
-                                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  Classifying...
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  Article of Interest
-                                </>
-                              )}
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Article of Interest
                             </button>
                             <button
-                              onClick={() => classifyStudy(selectedStudy.id, "No Case")}
-                              disabled={classifying === selectedStudy.id}
-                              className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center"
+                              onClick={() => {
+                                setSelectedClassification("No Case");
+                                setJustification("");
+                                setListedness("");
+                                setSeriousness("");
+                              }}
+                              className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium transition-colors flex items-center justify-center"
                             >
-                              {classifying === selectedStudy.id ? (
-                                <>
-                                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  Classifying...
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                  No Case
-                                </>
-                              )}
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              No Case
                             </button>
                           </div>
                         </>
                       ) : (
                         <div>
-                          <div className="flex items-center mb-4">
-                            <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span className="text-green-700 font-medium">Study classified as: {getClassificationLabel(selectedStudy)}</span>
+                          <div className="flex items-center mb-4 flex-wrap gap-2">
+                            <div className="flex items-center">
+                              <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span className="text-green-700 font-medium mr-2">Study classified as: {getClassificationLabel(selectedStudy)}</span>
+                            </div>
+                            {selectedStudy.justification && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                {selectedStudy.justification}
+                              </span>
+                            )}
+                            {selectedStudy.listedness && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                                {selectedStudy.listedness}
+                              </span>
+                            )}
+                            {selectedStudy.seriousness && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                                {selectedStudy.seriousness}
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-gray-600 mb-4">
                             This study has been classified. You can reclassify it if needed:
@@ -1158,23 +1308,35 @@ export default function TriagePage() {
                           <div className="flex flex-col sm:flex-row gap-2">
                             <span className="text-sm text-gray-600 mr-2 flex items-center">Re-classify:</span>
                             <button
-                              onClick={() => classifyStudy(selectedStudy.id, "ICSR")}
-                              disabled={classifying === selectedStudy.id}
-                              className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50 text-sm transition-colors"
+                              onClick={() => {
+                                setSelectedClassification("ICSR");
+                                setJustification(selectedStudy.justification || "");
+                                setListedness(selectedStudy.listedness || "");
+                                setSeriousness(selectedStudy.seriousness || "");
+                              }}
+                              className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 text-sm transition-colors"
                             >
                               ICSR
                             </button>
                             <button
-                              onClick={() => classifyStudy(selectedStudy.id, "AOI")}
-                              disabled={classifying === selectedStudy.id}
-                              className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200 disabled:opacity-50 text-sm transition-colors"
+                              onClick={() => {
+                                setSelectedClassification("AOI");
+                                setJustification(selectedStudy.justification || "");
+                                setListedness("");
+                                setSeriousness("");
+                              }}
+                              className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200 text-sm transition-colors"
                             >
                               Article of Interest
                             </button>
                             <button
-                              onClick={() => classifyStudy(selectedStudy.id, "No Case")}
-                              disabled={classifying === selectedStudy.id}
-                              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 text-sm transition-colors"
+                              onClick={() => {
+                                setSelectedClassification("No Case");
+                                setJustification(selectedStudy.justification || "");
+                                setListedness("");
+                                setSeriousness("");
+                              }}
+                              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm transition-colors"
                             >
                               No Case
                             </button>

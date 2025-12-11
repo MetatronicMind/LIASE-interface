@@ -28,7 +28,13 @@ export default function AdminConfigTab() {
   const [configs, setConfigs] = useState<AdminConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'jobs' | 'configs'>('jobs');
+  const [activeSection, setActiveSection] = useState<'jobs' | 'configs' | 'scheduler-settings'>('jobs');
+  const [allowedDays, setAllowedDays] = useState<string[]>([]);
+  const [savingScheduler, setSavingScheduler] = useState(false);
+
+  const DAYS_OF_WEEK = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+  ];
 
   useEffect(() => {
     fetchData();
@@ -36,13 +42,78 @@ export default function AdminConfigTab() {
 
   const fetchData = async () => {
     try {
-      await Promise.all([fetchJobs(), fetchConfigs()]);
+      await Promise.all([fetchJobs(), fetchConfigs(), fetchSchedulerSettings()]);
     } catch (err: any) {
       console.error('Fetch error:', err);
       setError(err.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchSchedulerSettings = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${getApiBaseUrl()}/admin-config/scheduler`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // configData.allowedWeeklyDays
+        if (data && data.configData && Array.isArray(data.configData.allowedWeeklyDays)) {
+          setAllowedDays(data.configData.allowedWeeklyDays);
+        } else {
+          // Default to all days if not configured
+          setAllowedDays(DAYS_OF_WEEK);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching scheduler settings:', err);
+    }
+  };
+
+  const saveSchedulerSettings = async () => {
+    setSavingScheduler(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${getApiBaseUrl()}/admin-config/scheduler`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          configData: {
+            allowedWeeklyDays: allowedDays
+          }
+        })
+      });
+
+      if (response.ok) {
+        alert('Scheduler settings saved successfully');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save scheduler settings');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingScheduler(false);
+    }
+  };
+
+  const toggleDay = (day: string) => {
+    setAllowedDays(prev => {
+      if (prev.includes(day)) {
+        return prev.filter(d => d !== day);
+      } else {
+        return [...prev, day];
+      }
+    });
   };
 
   const fetchJobs = async () => {
@@ -179,6 +250,16 @@ export default function AdminConfigTab() {
         >
           System Configs
         </button>
+        <button
+          onClick={() => setActiveSection('scheduler-settings')}
+          className={`px-4 py-2 font-semibold transition-all ${
+            activeSection === 'scheduler-settings'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Scheduler Settings
+        </button>
       </div>
 
       {/* Scheduled Jobs Section */}
@@ -290,6 +371,48 @@ export default function AdminConfigTab() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* Scheduler Settings Section */}
+      {activeSection === 'scheduler-settings' && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Weekly Search Allowed Days</h3>
+          <p className="text-sm text-gray-600 mb-6">
+            Select the days of the week that users are allowed to schedule weekly drug searches.
+            Users will only see these days in the dropdown when configuring a weekly search.
+          </p>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {DAYS_OF_WEEK.map((day) => (
+              <label key={day} className="flex items-center space-x-3 p-3 border rounded-md hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowedDays.includes(day)}
+                  onChange={() => toggleDay(day)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="text-gray-700 font-medium">{day}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={saveSchedulerSettings}
+              disabled={savingScheduler}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            >
+              {savingScheduler ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                'Save Settings'
+              )}
+            </button>
+          </div>
         </div>
       )}
     </div>

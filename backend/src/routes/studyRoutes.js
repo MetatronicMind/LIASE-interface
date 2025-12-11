@@ -596,6 +596,11 @@ router.put('/:studyId',
         const study = new Study(existingStudy);
         study.updateUserTag(updates.userTag, req.user.id, req.user.name);
         
+        // Update additional classification fields if provided
+        if (updates.justification !== undefined) study.justification = updates.justification;
+        if (updates.listedness !== undefined) study.listedness = updates.listedness;
+        if (updates.seriousness !== undefined) study.seriousness = updates.seriousness;
+        
         const afterValue = { userTag: study.userTag };
         
         // Save updated study with qaApprovalStatus set to pending
@@ -1925,8 +1930,9 @@ router.post('/ingest/pubmed',
 router.put('/:id/aoi-assessment',
   authorizePermission('studies', 'write'),
   [
-    body('listedness').isIn(['Yes', 'No']).withMessage('Listedness must be Yes or No'),
-    body('seriousness').isIn(['Yes', 'No']).withMessage('Seriousness must be Yes or No')
+    body('listedness').optional().isIn(['Yes', 'No']).withMessage('Listedness must be Yes or No'),
+    body('seriousness').optional().isIn(['Yes', 'No']).withMessage('Seriousness must be Yes or No'),
+    body('comments').optional().isString()
   ],
   async (req, res) => {
     try {
@@ -1936,7 +1942,7 @@ router.put('/:id/aoi-assessment',
       }
 
       const { id } = req.params;
-      const { listedness, seriousness } = req.body;
+      const { listedness, seriousness, comments } = req.body;
 
       // Get the study
       const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
@@ -1951,19 +1957,23 @@ router.put('/:id/aoi-assessment',
 
       const beforeValue = { 
         listedness: studyData.listedness,
-        seriousness: studyData.seriousness
+        seriousness: studyData.seriousness,
+        aoiComments: studyData.aoiComments
       };
 
       // Update AOI assessment fields
-      studyData.listedness = listedness;
-      studyData.seriousness = seriousness;
+      if (listedness) studyData.listedness = listedness;
+      if (seriousness) studyData.seriousness = seriousness;
+      if (comments) studyData.aoiComments = comments;
+      
       studyData.aoiAssessedBy = req.user.id;
       studyData.aoiAssessedAt = new Date().toISOString();
       studyData.updatedAt = new Date().toISOString();
 
       const afterValue = {
         listedness: studyData.listedness,
-        seriousness: studyData.seriousness
+        seriousness: studyData.seriousness,
+        aoiComments: studyData.aoiComments
       };
 
       // Save updated study

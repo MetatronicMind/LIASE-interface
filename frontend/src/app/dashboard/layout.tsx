@@ -15,7 +15,8 @@ import {
   DocumentCheckIcon,
   CheckCircleIcon,
   UserIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  BeakerIcon
 } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,8 +32,8 @@ const permissionBasedNavItems = [
   { 
     name: "Drug Management", 
     href: "/dashboard/drug-management", 
-    icon: <TableCellsIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'drugs', action: 'write' } // Requires drugs.write permission (includes running tests)
+    icon: <BeakerIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'drugs', action: 'read' } // Requires drugs.read permission
   },
   { 
     name: "Triage", 
@@ -41,22 +42,10 @@ const permissionBasedNavItems = [
     permission: { resource: 'triage', action: 'write' } // Requires triage.write permission
   },
   { 
-    name: "AOI Assessment", 
-    href: "/dashboard/aoi-assessment", 
-    icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'studies', action: 'read' } // Requires studies.read permission
-  },
-  { 
     name: "QC Triage", 
     href: "/dashboard/qa", 
     icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'QA', action: 'read' } // Requires QA.read permission
-  },
-  { 
-    name: "QC Data Entry", 
-    href: "/dashboard/qc", 
-    icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'QC', action: 'read' } // Requires QC.read permission
   },
   { 
     name: "Data Entry", 
@@ -65,16 +54,28 @@ const permissionBasedNavItems = [
     permission: { resource: 'data_entry', action: 'read' } // Requires data_entry.read permission
   },
   { 
-    name: "Medical Reviewer", 
+    name: "QC Data Entry", 
+    href: "/dashboard/qc", 
+    icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'QC', action: 'read' } // Requires QC.read permission
+  },
+  { 
+    name: "Medical Review", 
     href: "/dashboard/medical-examiner", 
     icon: <UserIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'medical_examiner', action: 'read' } // Requires medical_examiner.read permission
   },
   { 
-    name: "Full Report", 
+    name: "ICSR Reports", 
     href: "/dashboard/full-report", 
     icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'reports', action: 'read' } // Requires reports.read permission
+  },
+  { 
+    name: "AOI Assessment", 
+    href: "/dashboard/aoi-assessment", 
+    icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'studies', action: 'read' } // Requires studies.read permission
   },
   { 
     name: "Reports", 

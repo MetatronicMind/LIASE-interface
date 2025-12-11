@@ -51,6 +51,7 @@ interface Study {
   // AOI Assessment fields
   listedness?: 'Yes' | 'No' | null;
   seriousness?: 'Yes' | 'No' | null;
+  aoiComments?: string;
   
   // Legacy fields
   Drugname?: string;
@@ -68,6 +69,9 @@ export default function AOIAssessmentPage() {
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
   const [listedness, setListedness] = useState<'Yes' | 'No' | ''>('');
   const [seriousness, setSeriousness] = useState<'Yes' | 'No' | ''>('');
+  const [comments, setComments] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
+  const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -106,27 +110,35 @@ export default function AOIAssessmentPage() {
     setSelectedStudy(study);
     setListedness(study.listedness || '');
     setSeriousness(study.seriousness || '');
+    setComments(study.aoiComments || '');
+    setShowDetails(!!(study.listedness || study.seriousness));
   };
 
   const handleSaveAssessment = async () => {
-    if (!selectedStudy || !listedness || !seriousness) {
-      alert("Please select both Listedness and Seriousness values");
+    if (showDetails && (!listedness || !seriousness)) {
+      alert("Please select both Listedness and Seriousness values when adding detailed assessment");
       return;
     }
 
     setSaving(true);
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/${selectedStudy.id}/aoi-assessment`, {
+      const body: any = {
+        comments
+      };
+      
+      if (showDetails) {
+        body.listedness = listedness;
+        body.seriousness = seriousness;
+      }
+
+      const response = await fetch(`${getApiBaseUrl()}/studies/${selectedStudy!.id}/aoi-assessment`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          listedness,
-          seriousness,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) {
@@ -134,14 +146,21 @@ export default function AOIAssessmentPage() {
         // Update local state
         setStudies(prev => 
           prev.map(s => 
-            s.id === selectedStudy.id 
-              ? { ...s, listedness: listedness as 'Yes' | 'No', seriousness: seriousness as 'Yes' | 'No' }
+            s.id === selectedStudy!.id 
+              ? { 
+                  ...s, 
+                  listedness: showDetails ? listedness as 'Yes' | 'No' : null, 
+                  seriousness: showDetails ? seriousness as 'Yes' | 'No' : null,
+                  aoiComments: comments
+                }
               : s
           )
         );
         setSelectedStudy(null);
         setListedness('');
         setSeriousness('');
+        setComments('');
+        setShowDetails(false);
         fetchAOIStudies();
       } else {
         throw new Error("Failed to save AOI assessment");
@@ -153,6 +172,13 @@ export default function AOIAssessmentPage() {
       setSaving(false);
     }
   };
+
+  const filteredStudies = studies.filter(study => 
+    search === '' || 
+    study.title.toLowerCase().includes(search.toLowerCase()) ||
+    study.drugName.toLowerCase().includes(search.toLowerCase()) ||
+    study.pmid.includes(search)
+  );
 
   if (loading) {
     return (
@@ -187,25 +213,39 @@ export default function AOIAssessmentPage() {
 
           {/* Studies List */}
           <div className="bg-white shadow rounded-lg">
-            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h2 className="text-lg font-semibold text-gray-900">
-                AOI Cases ({studies.length})
+                AOI Cases ({filteredStudies.length})
               </h2>
+              <div className="relative max-w-xs w-full">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                  placeholder="Search studies..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
             </div>
 
-            {studies.length === 0 ? (
+            {filteredStudies.length === 0 ? (
               <div className="text-center py-12">
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No AOI studies</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No studies found</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  No studies classified as AOI are available for assessment.
+                  {studies.length === 0 ? "No studies classified as AOI are available for assessment." : "Try adjusting your search terms."}
                 </p>
               </div>
             ) : (
               <ul className="divide-y divide-gray-200">
-                {studies.map((study) => (
+                {filteredStudies.map((study) => (
                   <li
                     key={study.id}
                     onClick={() => handleStudySelect(study)}
@@ -394,35 +434,63 @@ export default function AOIAssessmentPage() {
                   {/* AOI Assessment Form */}
                   <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
                     <h4 className="font-semibold text-gray-900 mb-4">Assessment</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Listedness <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          value={listedness}
-                          onChange={(e) => setListedness(e.target.value as 'Yes' | 'No' | '')}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-sm"
-                        >
-                          <option value="">Select...</option>
-                          <option value="Yes">Yes</option>
-                          <option value="No">No</option>
-                        </select>
+                    
+                    <div className="mb-4">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showDetails}
+                          onChange={(e) => setShowDetails(e.target.checked)}
+                          className="form-checkbox h-4 w-4 text-orange-600 transition duration-150 ease-in-out"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Add detailed assessment (Listedness/Seriousness)</span>
+                      </label>
+                    </div>
+
+                    {showDetails && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 animate-fadeIn">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Listedness <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={listedness}
+                            onChange={(e) => setListedness(e.target.value as 'Yes' | 'No' | '')}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-sm"
+                          >
+                            <option value="">Select...</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Seriousness <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={seriousness}
+                            onChange={(e) => setSeriousness(e.target.value as 'Yes' | 'No' | '')}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-sm"
+                          >
+                            <option value="">Select...</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                          </select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Seriousness <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          value={seriousness}
-                          onChange={(e) => setSeriousness(e.target.value as 'Yes' | 'No' | '')}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-sm"
-                        >
-                          <option value="">Select...</option>
-                          <option value="Yes">Yes</option>
-                          <option value="No">No</option>
-                        </select>
-                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Comments (Optional)
+                      </label>
+                      <textarea
+                        value={comments}
+                        onChange={(e) => setComments(e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-sm"
+                        placeholder="Add any additional comments here..."
+                      />
                     </div>
                   </div>
 
@@ -430,7 +498,7 @@ export default function AOIAssessmentPage() {
                   <div className="flex justify-end">
                     <button
                       onClick={handleSaveAssessment}
-                      disabled={!listedness || !seriousness || saving}
+                      disabled={(showDetails && (!listedness || !seriousness)) || saving}
                       className="px-6 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors flex items-center"
                     >
                       {saving ? (

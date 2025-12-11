@@ -245,7 +245,8 @@ class DrugSearchScheduler {
           }
 
           // Update the configuration with run stats
-          config.updateAfterRun(results.totalFound, externalApiSuccess);
+          const pmids = results.drugs ? results.drugs.map(d => d.pmid).filter(p => p) : [];
+          config.updateAfterRun(results.totalFound, externalApiSuccess, pmids);
           await cosmosService.updateItem('drugSearchConfigs', config.id, config.organizationId, config.toObject());
 
           console.log(`✅ Successfully completed search for ${config.name}`);
