@@ -35,6 +35,7 @@ export interface AuthResponse {
     plan: string;
     settings?: any;
   } | null;
+  passwordWarning?: boolean;
 }
 
 export interface ApiError {

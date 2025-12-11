@@ -32,6 +32,7 @@ export interface UpdateUserRequest {
   email?: string;
   role?: string;
   isActive?: boolean;
+  password?: string;
 }
 
 class UserService {

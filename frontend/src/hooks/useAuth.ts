@@ -19,6 +19,7 @@ export const useAuth = () => {
     isAuthenticated,
     isLoading,
     error,
+    passwordWarning,
   } = useSelector((state: RootState) => state.auth);
 
   const login = useCallback(async (credentials: LoginRequest) => {
@@ -57,6 +58,7 @@ export const useAuth = () => {
     isAuthenticated,
     isLoading,
     error,
+    passwordWarning,
     
     // Actions
     login,

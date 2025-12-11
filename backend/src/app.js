@@ -18,6 +18,7 @@ const drugSearchScheduler = require('./services/drugSearchScheduler');
 const schedulerService = require('./services/schedulerService');
 const azureSchedulerService = require('./services/azureSchedulerService');
 const archivalScheduler = require('./schedulers/archivalScheduler');
+const passwordExpirationScheduler = require('./schedulers/passwordExpirationScheduler');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');

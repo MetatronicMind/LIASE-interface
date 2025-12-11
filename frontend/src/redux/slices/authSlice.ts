@@ -26,6 +26,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  passwordWarning: boolean;
 }
 
 const initialState: AuthState = {
@@ -35,6 +36,7 @@ const initialState: AuthState = {
   isAuthenticated: false,
   isLoading: false,
   error: null,
+  passwordWarning: false,
 };
 
 // Async thunks
@@ -137,6 +139,7 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.isAuthenticated = true;
         state.error = null;
+        state.passwordWarning = !!action.payload.passwordWarning;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;

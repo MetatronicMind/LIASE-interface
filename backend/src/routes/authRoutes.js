@@ -15,7 +15,7 @@ const router = express.Router();
 router.post('/login', [
   body('email').optional().isEmail().normalizeEmail(),
   body('username').optional().isLength({ min: 3 }),
-  body('password').isLength({ min: 6 })
+  body('password').isLength({ min: 8 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -129,6 +129,20 @@ router.post('/login', [
     // Get organization details
     const organization = await cosmosService.getItem('organizations', user.organizationId, user.organizationId);
 
+    // Check for password expiration warning
+    let passwordWarning = false;
+    // Check if user is within the 1 week warning period before 3 months expiration
+    const passwordChangedAt = new Date(userWithPermissions.passwordChangedAt || userWithPermissions.createdAt);
+    const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
+    const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+    const expiryDate = new Date(passwordChangedAt.getTime() + threeMonthsMs);
+    const warningDate = new Date(expiryDate.getTime() - oneWeekMs);
+    
+    // If current time is past the warning date (1 week before expiry)
+    if (Date.now() >= warningDate.getTime()) {
+      passwordWarning = true;
+    }
+
     res.json({
       message: 'Login successful',
       token,
@@ -138,7 +152,8 @@ router.post('/login', [
         name: organization.name,
         plan: organization.plan,
         settings: organization.settings
-      } : null
+      } : null,
+      passwordWarning
     });
 
   } catch (error) {
@@ -154,7 +169,7 @@ router.post('/login', [
 router.post('/register', [
   body('organizationName').isLength({ min: 2 }),
   body('adminEmail').isEmail().normalizeEmail(),
-  body('adminPassword').isLength({ min: 8 }),
+  body('adminPassword').isLength({ min: 8, max: 12 }),
   body('adminFirstName').isLength({ min: 1 }),
   body('adminLastName').isLength({ min: 1 })
 ], async (req, res) => {

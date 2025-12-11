@@ -15,6 +15,7 @@ class User {
     permissions = {}, // Role permissions will be loaded separately
     isActive = true,
     lastLogin = null,
+    passwordChangedAt = null,
     createdAt = new Date().toISOString(),
     updatedAt = new Date().toISOString(),
     createdBy = null
@@ -37,6 +38,7 @@ class User {
     this.permissions = permissions; // Will be populated from role
     this.isActive = isActive;
     this.lastLogin = lastLogin;
+    this.passwordChangedAt = passwordChangedAt || createdAt;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
     this.createdBy = createdBy;
@@ -195,8 +197,8 @@ class User {
     }
 
     if (!isUpdate || data.password) {
-      if (!isUpdate && (!data.password || data.password.length < 8)) {
-        errors.push('Password must be at least 8 characters long');
+      if (!data.password || data.password.length < 8 || data.password.length > 12) {
+        errors.push('Password must be between 8 and 12 characters long');
       }
       if (data.password && !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(data.password)) {
         errors.push('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character');

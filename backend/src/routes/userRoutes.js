@@ -123,7 +123,7 @@ router.put('/:userId',
   [
     body('username').optional().isLength({ min: 3 }).matches(/^[a-zA-Z0-9_]+$/),
     body('email').optional().isEmail().normalizeEmail(),
-    body('password').optional().isLength({ min: 8 }),
+    body('password').optional().isLength({ min: 8, max: 12 }),
     body('firstName').optional().isLength({ min: 1 }),
     body('lastName').optional().isLength({ min: 1 }),
     body('roleId').optional().isUUID().withMessage('Role ID must be a valid UUID'),
@@ -141,6 +141,19 @@ router.put('/:userId',
 
       const { userId } = req.params;
       const updates = req.body;
+
+      // Check password update restriction for non-admin users
+      if (updates.password && !req.user.isAdmin()) {
+        const passwordChangedAt = new Date(req.user.passwordChangedAt || req.user.createdAt);
+        const threeMonths = 90 * 24 * 60 * 60 * 1000;
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        const expiryDate = new Date(passwordChangedAt.getTime() + threeMonths);
+        const windowStart = new Date(expiryDate.getTime() - oneWeek);
+        
+        if (Date.now() < windowStart.getTime()) {
+             return res.status(403).json({ error: 'Password can only be changed 1 week before expiration (3 months)' });
+        }
+      }
 
       // Remove sensitive fields that shouldn't be updated this way
       delete updates.id;
@@ -297,7 +310,9 @@ router.put('/profile/me',
   [
     body('firstName').optional().isLength({ min: 1 }),
     body('lastName').optional().isLength({ min: 1 }),
-    body('email').optional().isEmail().normalizeEmail()
+    body('email').optional().isEmail().normalizeEmail(),
+    body('password').optional().isLength({ min: 8, max: 12 }),
+    body('currentPassword').optional()
   ],
   async (req, res) => {
     try {
@@ -317,6 +332,19 @@ router.put('/profile/me',
       delete updates.organizationId;
       delete updates.isActive;
 
+      // Check password update restriction for non-admin users
+      if (updates.password && !req.user.isAdmin()) {
+        const passwordChangedAt = new Date(req.user.passwordChangedAt || req.user.createdAt);
+        const threeMonths = 90 * 24 * 60 * 60 * 1000;
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        const expiryDate = new Date(passwordChangedAt.getTime() + threeMonths);
+        const windowStart = new Date(expiryDate.getTime() - oneWeek);
+        
+        if (Date.now() < windowStart.getTime()) {
+             return res.status(403).json({ error: 'Password can only be changed 1 week before expiration (3 months)' });
+        }
+      }
+
       // Check email uniqueness if being changed
       if (updates.email && updates.email !== req.user.email) {
         const existingUser = await cosmosService.getUserByEmail(updates.email);
@@ -325,6 +353,23 @@ router.put('/profile/me',
             error: 'Email already exists'
           });
         }
+      }
+
+      // Handle password hashing if password is being updated
+      if (updates.password) {
+        // Verify current password if provided (recommended)
+        if (updates.currentPassword) {
+          const isValid = await req.user.validatePassword(updates.currentPassword);
+          if (!isValid) {
+            return res.status(400).json({ error: 'Invalid current password' });
+          }
+        }
+
+        const tempUser = new User({ ...req.user, password: updates.password });
+        await tempUser.hashPassword();
+        updates.password = tempUser.password;
+        updates.passwordChangedAt = new Date().toISOString();
+        delete updates.currentPassword; // Don't save this
       }
 
       const updatedUser = await cosmosService.updateItem(

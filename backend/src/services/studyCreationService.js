@@ -155,13 +155,18 @@ class StudyCreationService {
       return;
     }
 
-    // Check if study already exists
+    const drugName = params.drugName || 'Unknown';
+    const sponsor = params.sponsor || 'Unknown';
+
+    // Check if study already exists (checking PMID + Drug + Sponsor combination)
     const existing = await cosmosService.queryItems(
       'studies',
-      'SELECT VALUE COUNT(1) FROM c WHERE c.organizationId = @orgId AND c.pmid = @pmid',
+      'SELECT VALUE COUNT(1) FROM c WHERE c.organizationId = @orgId AND c.pmid = @pmid AND c.drugName = @drugName AND c.sponsor = @sponsor',
       [
         { name: '@orgId', value: organizationId },
-        { name: '@pmid', value: article.pmid }
+        { name: '@pmid', value: article.pmid },
+        { name: '@drugName', value: drugName },
+        { name: '@sponsor', value: sponsor }
       ]
     );
 
@@ -195,8 +200,15 @@ class StudyCreationService {
       // Continue without AI data
     }
 
+    // Generate custom ID: PMID-Drug-Sponsor-Random
+    const randomDigits = Math.floor(1000 + Math.random() * 9000); // 4 random digits
+    const sanitizedDrug = drugName.replace(/[^a-zA-Z0-9]/g, '');
+    const sanitizedSponsor = sponsor.replace(/[^a-zA-Z0-9]/g, '');
+    const customId = `${article.pmid}-${sanitizedDrug}-${sanitizedSponsor}-${randomDigits}`;
+
     // Map AI inference data to study fields
     const studyData = {
+      id: customId,
       organizationId,
       pmid: article.pmid,
       title: article.title || 'Untitled',

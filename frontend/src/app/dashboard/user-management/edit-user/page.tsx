@@ -21,7 +21,8 @@ export default function EditUserPage() {
     lastName: '',
     email: '',
     role: '',
-    isActive: true
+    isActive: true,
+    password: ''
   });
 
   useEffect(() => {
@@ -48,12 +49,25 @@ export default function EditUserPage() {
       setUser(userData);
       setRoles(rolesData);
       
+      // Ensure role matches one of the available roles (handle case sensitivity)
+      let userRole = userData.role || '';
+      if (userRole && Array.isArray(rolesData)) {
+        const exactMatch = rolesData.find((r: Role) => r.name === userRole);
+        if (!exactMatch) {
+          const caseMatch = rolesData.find((r: Role) => r.name.toLowerCase() === userRole.toLowerCase());
+          if (caseMatch) {
+            userRole = caseMatch.name;
+          }
+        }
+      }
+
       setFormData({
         firstName: userData.firstName || '',
         lastName: userData.lastName || '',
         email: userData.email || '',
-        role: userData.role || '',
-        isActive: userData.isActive !== false
+        role: userRole,
+        isActive: userData.isActive !== false,
+        password: ''
       });
       
       setError(null);
@@ -77,7 +91,20 @@ export default function EditUserPage() {
     setError(null);
 
     try {
-      await userService.updateUser(userId, formData);
+      // Create a clean object with only non-empty values
+      const cleanData: any = { ...formData };
+      
+      // Remove password if empty
+      if (!cleanData.password) {
+        delete cleanData.password;
+      }
+      
+      // Remove role if empty
+      if (!cleanData.role) {
+        delete cleanData.role;
+      }
+
+      await userService.updateUser(userId, cleanData);
       router.push('/dashboard/user-management');
     } catch (err: any) {
       setError(err.message || 'Failed to update user');
@@ -215,25 +242,48 @@ export default function EditUserPage() {
               </p>
             </div>
 
+            {/* Password Reset */}
+            <PermissionGate resource="users" action="write">
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Reset Password</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password || ''}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Leave blank to keep current password"
+                    autoComplete="new-password"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Min 8 characters. Must contain uppercase, lowercase, number, and special character.
+                  </p>
+                </div>
+              </div>
+            </PermissionGate>
+
             {/* Role Selection */}
             <PermissionGate resource="users" action="write">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Role *
+                  Role
                 </label>
                 <select
-                  required
                   value={formData.role}
                   onChange={(e) => handleInputChange('role', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">Select a role</option>
+                  <option value="">Select a role (Optional)</option>
                   {roles.map((role) => (
                     <option key={role.id} value={role.name}>
                       {role.displayName || role.name}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">If no role is selected, the user's existing role will be preserved.</p>
               </div>
             </PermissionGate>
 

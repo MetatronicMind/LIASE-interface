@@ -1874,13 +1874,23 @@ router.post('/ingest/pubmed',
 
       // 2) Start asynchronous study creation job
       const jobId = uuidv4();
-      const drugName = drugId ? (await cosmosService.getItem('drugs', drugId, req.user.organizationId))?.name : 'Unknown';
+      let drugName = 'Unknown';
+      let sponsor = 'Unknown';
+
+      if (drugId) {
+        const drug = await cosmosService.getItem('drugs', drugId, req.user.organizationId);
+        if (drug) {
+          drugName = drug.name;
+          sponsor = drug.manufacturer || 'Unknown';
+        }
+      }
       
       await studyCreationService.startStudyCreationJob(
         jobId,
         ids,
         {
           drugName: drugName,
+          sponsor: sponsor,
           adverseEvent: adverseEvent || 'Not specified'
         },
         req.user.id,

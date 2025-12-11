@@ -68,8 +68,12 @@ export default function AddUserPage() {
         throw new Error('All fields are required');
       }
 
-      if (formData.password.length < 6) {
-        throw new Error('Password must be at least 6 characters long');
+      if (formData.password.length < 8 || formData.password.length > 12) {
+        throw new Error('Password must be 8-12 characters long');
+      }
+
+      if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(formData.password)) {
+        throw new Error('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character');
       }
 
       // Create user
@@ -215,9 +219,10 @@ export default function AddUserPage() {
                 value={formData.password}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter password (min 6 characters)"
+                placeholder="Enter password (8-12 chars, 1 special char)"
                 required
-                minLength={6}
+                minLength={8}
+                maxLength={12}
               />
             </div>
 

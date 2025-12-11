@@ -158,6 +158,7 @@ class UserService {
         ...userData,
         roleId: role.id,
         role: role.name,
+        passwordChangedAt: new Date().toISOString(),
         createdBy: createdBy.id
       });
 
@@ -232,6 +233,7 @@ class UserService {
       // Hash password if being changed
       if (updateData.password) {
         await updatedUser.hashPassword();
+        updatedUser.passwordChangedAt = new Date().toISOString();
       }
 
       await cosmosService.updateItem('users', userId, organizationId, updatedUser.toJSON());
