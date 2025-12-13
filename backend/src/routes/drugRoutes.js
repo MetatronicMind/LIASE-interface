@@ -1095,7 +1095,7 @@ router.put('/search-configs/:configId',
     body('frequency').optional().isIn(['daily', 'weekly', 'monthly', 'custom', 'manual']).withMessage('Invalid frequency'),
     body('customFrequencyHours').optional().isInt({ min: 1, max: 8760 }).withMessage('Custom frequency must be 1-8760 hours')
   ],
-  authorizePermission('drugs', 'update'),
+  authorizePermission('drugs', 'write'),
   async (req, res) => {
     try {
       const errors = validationResult(req);
@@ -2097,7 +2097,8 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
       externalApiSuccess,
       configId: configObject.id,
       configName: configObject.name,
-      queuedForRetry: processResult.failedArticles.length > 0
+      queuedForRetry: processResult.failedArticles.length > 0,
+      lastRunPmids: pmids
     }, finalMessage);
 
     console.log(`\n${'='.repeat(70)}`);

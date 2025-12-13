@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useDateTime } from '@/hooks/useDateTime';
 import { EnvelopeIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
 import { getApiBaseUrl } from '@/config/api';
 
@@ -32,6 +33,7 @@ interface SMTPConfig {
 }
 
 export default function EmailSettingsTab() {
+  const { formatDate, formatDateTime } = useDateTime();
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [logs, setLogs] = useState<EmailLog[]>([]);
   const [smtpConfig, setSmtpConfig] = useState<SMTPConfig | null>(null);
@@ -238,7 +240,7 @@ export default function EmailSettingsTab() {
                       </span>
                     </div>
                     <p className="text-sm font-semibold text-gray-700 mb-1">Subject: {template.subject}</p>
-                    <p className="text-xs text-gray-500">Created: {new Date(template.createdAt).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500">Created: {formatDate(template.createdAt)}</p>
                   </div>
                 </div>
               </div>
@@ -276,7 +278,7 @@ export default function EmailSettingsTab() {
                 </div>
                 <p className="text-sm text-gray-600 mb-1">Subject: {log.subject}</p>
                 {log.sentAt && (
-                  <p className="text-xs text-gray-500">Sent: {new Date(log.sentAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">Sent: {formatDateTime(log.sentAt)}</p>
                 )}
                 {log.error && (
                   <p className="text-xs text-red-600 mt-2">Error: {log.error}</p>

@@ -256,8 +256,14 @@ class ExternalApiService {
           
           for (let i = 0; i < prioritizedEndpoints.length; i++) {
             const endpoint = prioritizedEndpoints[i];
+            // Format drug name as INN(BrandName) if BrandName is available
+            let apiDrugName = drugName;
+            if (drug && drug.brandName) {
+              apiDrugName = `${drugName}(${drug.brandName})`;
+            }
+
             // Include sponsor and drugname by default for compatibility
-            let apiUrl = `${endpoint.url}?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(drugName)}`;
+            let apiUrl = `${endpoint.url}?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(apiDrugName)}`;
             const startTime = Date.now();
             
             try {

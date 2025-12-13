@@ -9,6 +9,7 @@ import {
   CubeIcon
 } from "@heroicons/react/24/outline";
 import { API_CONFIG } from "@/config/api";
+import { useDateTime } from '@/hooks/useDateTime';
 import { useAuth } from "@/hooks/useAuth";
 
 interface Stats {
@@ -31,6 +32,7 @@ interface AuditLog {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { formatDate: formatDateGlobal } = useDateTime();
   const [processing, setProcessing] = useState(false);
   const [stats, setStats] = useState<Stats>({
     total: 0,
@@ -101,12 +103,8 @@ export default function DashboardPage() {
   };
 
   const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleDateString('en-GB', { 
-      day: '2-digit', 
-      month: 'short', 
-      year: 'numeric' 
-    });
+    // Use global formatter for consistency
+    return formatDateGlobal(isoString);
   };
 
   const formatAction = (log: AuditLog) => {
@@ -164,15 +162,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* AI Processing Section */}
-            <div className="bg-cyan-50 rounded-xl shadow border border-cyan-100 mb-8 p-6">
-              <div className="font-bold text-lg mb-2 text-cyan-900">AI Processing</div>
-              <div className="text-cyan-800 mb-2">Process new studies from PubMed databases for all active drugs.</div>
-              <div className="bg-blue-100 border-l-4 border-blue-400 p-3 mb-4 text-sm text-blue-900">
+              {/*
                 <span className="font-semibold">Note:</span> AI processing typically runs automatically at midnight. Use this button for manual processing or testing.
-              </div>
+              */}
               <button
                 className="bg-blue-600 text-white px-5 py-2 rounded font-semibold hover:bg-blue-700 transition disabled:opacity-60"
                 onClick={handleAIProcessing}
@@ -180,10 +172,10 @@ export default function DashboardPage() {
               >
                 {processing ? "Processing..." : "Start AI Processing"}
               </button>
-            </div>
+            </div> 
 
             {/* Recent Activity Section */}
-            <div className="bg-white/90 rounded-xl shadow border border-blue-100 p-6">
+            {/* <div className="bg-white/90 rounded-xl shadow border border-blue-100 p-6">
               <div className="font-bold text-lg mb-4 text-blue-900">Recent Activity</div>
               {recentActivity.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">No recent activity</div>
@@ -202,7 +194,7 @@ export default function DashboardPage() {
                   </table>
                 </div>
               )}
-            </div>
+            </div> */}
           </>
         )}
       </div>

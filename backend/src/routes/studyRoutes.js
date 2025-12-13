@@ -7,6 +7,7 @@ const Study = require('../models/Study');
 const Drug = require('../models/Drug');
 const pubmedService = require('../services/pubmedService');
 const studyCreationService = require('../services/studyCreationService');
+const adminConfigService = require('../services/adminConfigService');
 const { authorizePermission } = require('../middleware/authorization');
 const { auditLogger, auditAction } = require('../middleware/audit');
 const upload = require('../middleware/upload');
@@ -142,13 +143,14 @@ router.get('/QA-pending',
       const { 
         page = 1, 
         limit = 50, 
-        search
+        search,
+        status = 'pending'
       } = req.query;
       
       let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag != null AND c.qaApprovalStatus = @status';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
-        { name: '@status', value: 'pending' }
+        { name: '@status', value: status }
       ];
 
       if (search) {
@@ -176,6 +178,161 @@ router.get('/QA-pending',
       res.status(500).json({ 
         error: 'Failed to fetch QC pending studies', 
         message: error.message 
+      });
+    }
+  }
+);
+
+// Bulk process QC items
+router.post('/QA/bulk-process',
+  authorizePermission('QA', 'approve'),
+  async (req, res) => {
+    try {
+      // Find all studies pending QA approval (matches the QA page view)
+      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.qaApprovalStatus = @status';
+      const parameters = [
+        { name: '@orgId', value: req.user.organizationId },
+        { name: '@status', value: 'pending' }
+      ];
+      
+      const studies = await cosmosService.queryItems('studies', query, parameters);
+      
+      // Fetch workflow config to get the QC percentage
+      let targetPercentage = 100; // Default to 100% if not found
+      try {
+        const workflowConfig = await adminConfigService.getConfig(req.user.organizationId, 'workflow');
+        if (workflowConfig && workflowConfig.configData && workflowConfig.configData.transitions) {
+          // Find the transition that feeds into QC (Triage -> QC Triage)
+          // We use this same percentage to determine how many to RELEASE from QC
+          const transition = workflowConfig.configData.transitions.find(t => t.to === 'qc_triage');
+          if (transition && transition.qcPercentage) {
+            targetPercentage = parseFloat(transition.qcPercentage);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch workflow config for bulk process:', err);
+      }
+
+      // Calculate how many items to process (MOVE OUT) based on the percentage
+      // The QC Percentage (e.g. 25%) is the amount to KEEP in QC.
+      // So we want to process (100 - 25) = 75% of the items.
+      const percentageToMove = Math.max(0, 100 - targetPercentage);
+      const countToProcess = Math.ceil(studies.length * (percentageToMove / 100));
+      
+      // Randomly select the items to process (move out of QC)
+      // We shuffle the array and take the first N items
+      const shuffledStudies = studies.sort(() => 0.5 - Math.random());
+      const studiesToProcess = shuffledStudies.slice(0, countToProcess);
+      const studiesToKeep = shuffledStudies.slice(countToProcess);
+
+      console.log(`Bulk Process: Found ${studies.length} pending items. QC % (Keep): ${targetPercentage}%. Moving: ${percentageToMove}%. Processing ${studiesToProcess.length} items. Keeping ${studiesToKeep.length} items for manual QC.`);
+
+      const results = {
+        processed: 0,
+        kept: 0,
+        errors: 0,
+        skipped: 0,
+        details: []
+      };
+
+      // Process the items to be auto-approved
+      for (const studyData of studiesToProcess) {
+        try {
+          const study = new Study(studyData);
+          let nextStageId = null;
+          
+          // Determine next stage based on tag
+          if (study.userTag === 'ICSR') {
+            nextStageId = 'data_entry';
+          } else if (study.userTag === 'AOI') {
+            nextStageId = 'aoi_assessment';
+          } else if (study.userTag === 'No Case') {
+            nextStageId = 'reporting';
+          }
+
+          if (nextStageId) {
+            const beforeValue = { status: study.status, qaApprovalStatus: study.qaApprovalStatus };
+            
+            study.status = nextStageId;
+            study.qaApprovalStatus = 'approved'; // Mark as approved since we are moving it out of QC
+            study.qaApprovedBy = req.user.id;
+            study.qaApprovedAt = new Date().toISOString();
+            study.qaComments = 'Auto approved QC';
+            
+            const afterValue = { status: study.status, qaApprovalStatus: study.qaApprovalStatus };
+            
+            await cosmosService.updateItem('studies', study.id, req.user.organizationId, study.toJSON());
+            
+            await auditAction(
+              req.user,
+              'bulk_approve',
+              'study',
+              study.id,
+              `Auto approved QC - moved to ${nextStageId}`,
+              { studyId: study.id, classification: study.userTag, nextStage: nextStageId },
+              beforeValue,
+              afterValue
+            );
+            
+            results.processed++;
+            results.details.push({ id: study.id, status: 'success', nextStage: nextStageId, action: 'auto_approved' });
+          } else {
+             // Skip if no tag or unknown tag
+             results.errors++;
+             results.details.push({ id: study.id, status: 'skipped', reason: 'Unknown tag or no tag' });
+          }
+        } catch (err) {
+          console.error(`Error processing study ${studyData.id}:`, err);
+          results.errors++;
+          results.details.push({ id: studyData.id, status: 'error', message: err.message });
+        }
+      }
+
+      // Process the items to be kept for manual QC
+      for (const studyData of studiesToKeep) {
+        try {
+          const study = new Study(studyData);
+          const beforeValue = { qaApprovalStatus: study.qaApprovalStatus };
+          
+          // Update status to manual_qc so they show up in QC Triage page
+          study.qaApprovalStatus = 'manual_qc';
+          study.qaComments = 'Selected for QC Triage';
+          
+          const afterValue = { qaApprovalStatus: study.qaApprovalStatus };
+          
+          await cosmosService.updateItem('studies', study.id, req.user.organizationId, study.toJSON());
+          
+          await auditAction(
+            req.user,
+            'update',
+            'study',
+            study.id,
+            `Selected for QC Triage (Manual QC)`,
+            { studyId: study.id, classification: study.userTag },
+            beforeValue,
+            afterValue
+          );
+          
+          results.kept++;
+          results.details.push({ id: study.id, status: 'kept', action: 'manual_qc' });
+        } catch (err) {
+          console.error(`Error updating study for manual QC ${studyData.id}:`, err);
+          results.errors++;
+          results.details.push({ id: studyData.id, status: 'error', message: err.message });
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Processed ${results.processed} studies (Auto Approved). Kept ${results.kept} studies for Manual QC.`,
+        results
+      });
+
+    } catch (error) {
+      console.error('Error in bulk QC process:', error);
+      res.status(500).json({
+        error: 'Failed to process QC items',
+        message: error.message
       });
     }
   }
@@ -257,9 +414,12 @@ router.get('/data-entry',
       
       // Query for studies that are manually tagged as ICSR, QC approved, AND have incomplete R3 forms
       // INCLUDES revoked studies (they need to be fixed by Data Entry)
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND (c.r3FormStatus = @statusNotStarted OR c.r3FormStatus = @statusInProgress) AND (c.medicalReviewStatus != @completed OR c.medicalReviewStatus = @revoked OR NOT IS_DEFINED(c.medicalReviewStatus))';
+      // ALSO INCLUDES studies with status = 'data_entry' (New Workflow)
+      // EXCLUDES studies that have been revoked to Triage (qaApprovalStatus = 'pending')
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND (c.status = @statusDataEntry OR (c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND (c.r3FormStatus = @statusNotStarted OR c.r3FormStatus = @statusInProgress) AND (c.medicalReviewStatus != @completed OR c.medicalReviewStatus = @revoked OR NOT IS_DEFINED(c.medicalReviewStatus))))';
       const parameters = [
         { name: '@orgId', value: req.user.organizationId },
+        { name: '@statusDataEntry', value: 'data_entry' },
         { name: '@userTag', value: 'ICSR' },
         { name: '@qaStatus', value: 'approved' },
         { name: '@statusNotStarted', value: 'not_started' },
@@ -594,7 +754,52 @@ router.put('/:studyId',
         const beforeValue = { userTag: existingStudy.userTag };
         
         const study = new Study(existingStudy);
-        study.updateUserTag(updates.userTag, req.user.id, req.user.name);
+
+        let debugInfo = {};
+        let nextStage = null;
+        try {
+          const workflowConfig = await adminConfigService.getConfig(req.user.organizationId, 'workflow');
+          
+          debugInfo.hasConfig = !!workflowConfig;
+          debugInfo.orgId = req.user.organizationId;
+
+          if (workflowConfig && workflowConfig.configData && workflowConfig.configData.transitions) {
+            // Determine current status ID
+            let currentStatus = study.status;
+            
+            // Handle legacy statuses - map them to the initial workflow stage
+            const legacyStatuses = ['Pending Review', 'Pending', 'Study in Process'];
+            if (legacyStatuses.includes(currentStatus)) {
+              currentStatus = 'triage'; // Default fallback
+              const initialStage = workflowConfig.configData.stages.find(s => s.type === 'initial');
+              if (initialStage) {
+                currentStatus = initialStage.id;
+              }
+            }
+            
+            debugInfo.currentStatus = currentStatus;
+            debugInfo.originalStatus = study.status;
+            debugInfo.availableTransitions = workflowConfig.configData.transitions.map(t => `${t.from} -> ${t.to}`);
+            
+            // Find transition from current status
+            // We search in reverse order to prioritize the most recently added transition
+            const transition = [...workflowConfig.configData.transitions].reverse().find(t => t.from === currentStatus);
+            
+            debugInfo.transition = transition;
+
+            if (transition) {
+              // Standard transition logic - always follow the configured transition
+              // The QC Sampling logic is now handled in the bulk process endpoint
+              nextStage = workflowConfig.configData.stages.find(s => s.id === transition.to);
+              debugInfo.nextStage = nextStage;
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch workflow config during classification:', err);
+          debugInfo.error = err.message;
+        }
+
+        study.updateUserTag(updates.userTag, req.user.id, req.user.name, nextStage);
         
         // Update additional classification fields if provided
         if (updates.justification !== undefined) study.justification = updates.justification;
@@ -625,7 +830,8 @@ router.put('/:studyId',
         return res.json({
           success: true,
           message: 'Study classification updated successfully',
-          study: updatedStudy
+          study: updatedStudy,
+          debug: debugInfo
         });
       }
 
@@ -752,11 +958,88 @@ router.post('/:studyId/comments',
   }
 );
 
+// Add field comment to study
+router.post('/:studyId/field-comments',
+  authorizePermission('studies', 'write'),
+  [
+    body('fieldKey').isLength({ min: 1 }),
+    body('comment').isLength({ min: 1 })
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: errors.array()
+        });
+      }
+
+      const { studyId } = req.params;
+      const { fieldKey, comment } = req.body;
+
+      // Get existing study
+      const study = await cosmosService.getItem('studies', studyId, req.user.organizationId);
+      if (!study) {
+        return res.status(404).json({
+          error: 'Study not found'
+        });
+      }
+
+      // Create study instance and add field comment
+      const studyInstance = new Study(study);
+      const newFieldComment = studyInstance.addFieldComment(
+        fieldKey,
+        comment,
+        req.user.id,
+        new (require('../models/User'))(req.user).getFullName()
+      );
+
+      // Update study in database
+      const updatedStudy = await cosmosService.updateItem(
+        'studies',
+        studyId,
+        req.user.organizationId,
+        {
+          fieldComments: studyInstance.fieldComments,
+          comments: studyInstance.comments, // Also update general comments as addFieldComment adds a system comment
+          updatedAt: studyInstance.updatedAt
+        }
+      );
+
+      // Create audit log
+      await auditAction(
+        req.user,
+        'comment',
+        'study',
+        studyId,
+        `Added field comment to study PMID ${study.pmid} for field ${fieldKey}: "${comment}"`,
+        { fieldKey, pmid: study.pmid },
+        null,
+        { commentText: comment, fieldKey }
+      );
+
+      res.status(201).json({
+        message: 'Field comment added successfully',
+        fieldComment: newFieldComment,
+        study: updatedStudy
+      });
+
+    } catch (error) {
+      console.error('Error adding field comment:', error);
+      res.status(500).json({
+        error: 'Failed to add field comment',
+        message: error.message
+      });
+    }
+  }
+);
+
 // Update study status
 router.patch('/:studyId/status',
   authorizePermission('studies', 'write'),
   [
-    body('status').isIn(['Pending Review', 'Under Review', 'Approved', 'Rejected']),
+    body('status').isString(),
     body('reviewDetails').optional().isObject()
   ],
   async (req, res) => {
@@ -886,6 +1169,8 @@ router.get('/stats/summary',
         // Count by status
         switch (study.status) {
           case 'Pending Review':
+          case 'Pending':
+          case 'Study in Process':
             stats.pendingReview++;
             break;
           case 'Under Review':
@@ -1025,23 +1310,24 @@ router.get('/:id/r3-form-data',
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { pmid, drug_code, drugname } = req.query;
+      const { pmid, drug_code, drugname, client } = req.query;
 
-      console.log('R3 form data request:', { id, pmid, drug_code, drugname });
+      console.log('R3 form data request:', { id, pmid, drug_code, drugname, client });
 
-      if (!pmid || !drug_code || !drugname) {
+      if (!pmid || !drugname) {
         return res.status(400).json({ 
-          error: 'Missing required parameters: pmid, drug_code, drugname' 
+          error: 'Missing required parameters: pmid, drugname' 
         });
       }
 
       // Call external API to get R3 field data
       const axios = require('axios');
-      const apiUrl = `http://20.242.200.176/get_r3_fields/?PMID=${pmid}&drug_code=${drug_code}&drugname=${drugname}`;
+      // Removed drug_code and client from external API call as requested
+      let apiUrl = `http://20.246.204.3/get_r3_fields/?PMID=${pmid}&drugname=${drugname}`;
       
       console.log('Calling external R3 API:', apiUrl);
       
-      const response = await axios.get(apiUrl, { timeout: 10000 });
+      const response = await axios.get(apiUrl, { timeout: 50000 });
       
       console.log('R3 API response received:', response.data ? 'Data received' : 'No data');
       
@@ -1051,7 +1337,7 @@ router.get('/:id/r3-form-data',
         'study',
         'r3_form_data',
         `Fetched R3 form data for study ${id}`,
-        { pmid, drug_code, drugname }
+        { pmid, drug_code, drugname, client }
       );
 
       res.json({
@@ -1153,6 +1439,12 @@ router.post('/:id/r3-form/complete',
         return res.status(404).json({ error: 'Study not found' });
       }
 
+      // Get workflow settings
+      const workflowConfig = await adminConfigService.getConfig(req.user.organizationId, 'workflow');
+      const workflowSettings = workflowConfig && workflowConfig.configData 
+        ? workflowConfig.configData 
+        : { qcDataEntry: true, medicalReview: true };
+
       // Capture before R3 form data (deep copy)
       const beforeR3FormData = studyData.r3FormData ? JSON.parse(JSON.stringify(studyData.r3FormData)) : null;
       const beforeStatus = {
@@ -1163,7 +1455,7 @@ router.post('/:id/r3-form/complete',
       };
 
       const study = new Study(studyData);
-      study.completeR3Form(req.user.id, req.user.name);
+      study.completeR3Form(req.user.id, req.user.name, workflowSettings);
 
       // Capture after R3 form data (deep copy)
       const afterR3FormData = study.r3FormData ? JSON.parse(JSON.stringify(study.r3FormData)) : null;
@@ -1231,7 +1523,7 @@ router.put('/:id',
       }
 
       const { id } = req.params;
-      const { userTag } = req.body;
+      const { userTag, justification, listedness, seriousness, fullTextAvailability } = req.body;
 
       // Get the study
       const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
@@ -1239,15 +1531,80 @@ router.put('/:id',
         return res.status(404).json({ error: 'Study not found' });
       }
 
-      const beforeValue = { userTag: studyData.userTag };
+      const beforeValue = { 
+        userTag: studyData.userTag,
+        justification: studyData.justification,
+        listedness: studyData.listedness,
+        seriousness: studyData.seriousness,
+        fullTextAvailability: studyData.fullTextAvailability
+      };
       
       const study = new Study(studyData);
       
+      // Update additional fields if provided
+      if (justification !== undefined) study.justification = justification;
+      if (listedness !== undefined) study.listedness = listedness;
+      if (seriousness !== undefined) study.seriousness = seriousness;
+      if (fullTextAvailability !== undefined) study.fullTextAvailability = fullTextAvailability;
+      
+      let debugInfo = {};
+
       if (userTag) {
-        study.updateUserTag(userTag, req.user.id, req.user.name);
+        // Fetch workflow config to determine next stage
+        let nextStage = null;
+        try {
+          const workflowConfig = await adminConfigService.getConfig(req.user.organizationId, 'workflow');
+          
+          debugInfo.hasConfig = !!workflowConfig;
+          debugInfo.orgId = req.user.organizationId;
+
+          if (workflowConfig && workflowConfig.configData && workflowConfig.configData.transitions) {
+            // Determine current status ID
+            let currentStatus = study.status;
+            
+            // Handle legacy statuses - map them to the initial workflow stage
+            const legacyStatuses = ['Pending Review', 'Pending', 'Study in Process'];
+            if (legacyStatuses.includes(currentStatus)) {
+              currentStatus = 'triage'; // Default fallback
+              const initialStage = workflowConfig.configData.stages.find(s => s.type === 'initial');
+              if (initialStage) {
+                currentStatus = initialStage.id;
+              }
+            }
+            
+            debugInfo.currentStatus = currentStatus;
+            debugInfo.originalStatus = study.status;
+            debugInfo.availableTransitions = workflowConfig.configData.transitions.map(t => `${t.from} -> ${t.to}`);
+            
+            // Find transition from current status
+            // We search in reverse order to prioritize the most recently added transition
+            const transition = [...workflowConfig.configData.transitions].reverse().find(t => t.from === currentStatus);
+            
+            debugInfo.transition = transition;
+
+            if (transition) {
+              // Standard transition logic - always follow the configured transition
+              // The QC Sampling logic is now handled in the bulk process endpoint
+              nextStage = workflowConfig.configData.stages.find(s => s.id === transition.to);
+              debugInfo.nextStage = nextStage;
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch workflow config during classification:', err);
+          debugInfo.error = err.message;
+        }
+
+        study.updateUserTag(userTag, req.user.id, req.user.name, nextStage);
       }
 
-      const afterValue = { userTag: study.userTag };
+      const afterValue = { 
+        userTag: study.userTag, 
+        status: study.status,
+        justification: study.justification,
+        listedness: study.listedness,
+        seriousness: study.seriousness,
+        fullTextAvailability: study.fullTextAvailability
+      };
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
@@ -1266,7 +1623,8 @@ router.put('/:id',
       res.json({
         success: true,
         message: 'Study updated successfully',
-        study: study.toJSON()
+        study: study.toJSON(),
+        debug: debugInfo
       });
     } catch (error) {
       console.error('Study update error:', error);
@@ -1280,7 +1638,7 @@ router.put('/:id',
 
 // Update existing studies with ICSR classification from Pending to Study in Process
 router.put('/update-icsr-status',
-  authorizePermission('studies', 'update'),
+  authorizePermission('studies', 'write'),
   async (req, res) => {
     try {
       // Query for studies with ICSR classification but still in Pending status
@@ -1452,7 +1810,8 @@ router.post('/:id/QA/approve',
 router.post('/:id/QA/reject',
   authorizePermission('QA', 'reject'),
   [
-    body('reason').isString().isLength({ min: 1 }).withMessage('Rejection reason is required')
+    body('reason').isString().isLength({ min: 1 }).withMessage('Rejection reason is required'),
+    body('targetStage').optional().isString()
   ],
   async (req, res) => {
     try {
@@ -1462,7 +1821,7 @@ router.post('/:id/QA/reject',
       }
 
       const { id } = req.params;
-      const { reason } = req.body;
+      const { reason, targetStage } = req.body;
 
       // Get the study
       const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
@@ -1471,7 +1830,7 @@ router.post('/:id/QA/reject',
       }
 
       const study = new Study(studyData);
-      study.rejectClassification(req.user.id, req.user.name, reason);
+      study.rejectClassification(req.user.id, req.user.name, reason, targetStage);
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
@@ -1482,7 +1841,7 @@ router.post('/:id/QA/reject',
         'study',
         'QC_classification',
         `Rejected classification for study ${id}`,
-        { studyId: id, classification: study.userTag, reason }
+        { studyId: id, classification: study.userTag, reason, targetStage }
       );
 
       res.json({
@@ -1522,6 +1881,12 @@ router.post('/:id/QC/r3/approve',
         return res.status(404).json({ error: 'Study not found' });
       }
 
+      // Get workflow settings
+      const workflowConfig = await adminConfigService.getConfig(req.user.organizationId, 'workflow');
+      const workflowSettings = workflowConfig && workflowConfig.configData 
+        ? workflowConfig.configData 
+        : { qcDataEntry: true, medicalReview: true };
+
       const beforeValue = { 
         qcR3Status: studyData.qcR3Status,
         qcR3ApprovedBy: studyData.qcR3ApprovedBy,
@@ -1529,7 +1894,7 @@ router.post('/:id/QC/r3/approve',
       };
 
       const study = new Study(studyData);
-      study.approveR3Form(req.user.id, req.user.name, comments);
+      study.approveR3Form(req.user.id, req.user.name, comments, workflowSettings);
 
       const afterValue = {
         qcR3Status: study.qcR3Status,
@@ -1742,9 +2107,24 @@ router.put('/:id/field-value',
 );
 
 router.post('/:id/revoke',
-  authorizePermission('medical_examiner', 'revoke_studies'),
+  (req, res, next) => {
+    // Allow if user has medical_examiner revoke permission OR data_entry write permission
+    // This allows both Medical Examiners to revoke to Data Entry, and Data Entry to revoke to Triage
+    const hasMedicalRevoke = req.user.hasPermission && req.user.hasPermission('medical_examiner', 'revoke_studies');
+    const hasDataEntryWrite = req.user.hasPermission && req.user.hasPermission('data_entry', 'write');
+    
+    if (hasMedicalRevoke || hasDataEntryWrite) {
+      return next();
+    }
+    
+    return res.status(403).json({ 
+      error: 'Permission denied. Requires medical_examiner.revoke_studies OR data_entry.write',
+      code: 'PERMISSION_DENIED'
+    });
+  },
   [
-    body('reason').isString().isLength({ min: 1 }).withMessage('Revocation reason is required')
+    body('reason').isString().isLength({ min: 1 }).withMessage('Revocation reason is required'),
+    body('targetStage').optional().isString()
   ],
   async (req, res) => {
     try {
@@ -1754,7 +2134,9 @@ router.post('/:id/revoke',
       }
 
       const { id } = req.params;
-      const { reason } = req.body;
+      const { reason, targetStage } = req.body;
+
+      console.log(`[Revoke] Request for study ${id}. Reason: ${reason}, Target: ${targetStage}`);
 
       // Get the study
       const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
@@ -1763,7 +2145,7 @@ router.post('/:id/revoke',
       }
 
       const study = new Study(studyData);
-      study.revokeStudy(req.user.id, req.user.name, reason);
+      study.revokeStudy(req.user.id, req.user.name, reason, targetStage);
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
@@ -1773,13 +2155,13 @@ router.post('/:id/revoke',
         'revoke',
         'study',
         'medical_revocation',
-        `Revoked study ${id} back to Data Entry`,
-        { studyId: id, reason }
+        `Revoked study ${id} back to ${targetStage || 'Data Entry'}`,
+        { studyId: id, reason, targetStage }
       );
 
       res.json({
         success: true,
-        message: 'Study revoked successfully and returned to Data Entry'
+        message: `Study revoked successfully and returned to ${targetStage || 'Data Entry'}`
       });
     } catch (error) {
       console.error('Study revocation error:', error);

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { useDateTime } from '@/hooks/useDateTime';
 import {
   ArchiveBoxIcon,
   CloudIcon,
@@ -92,6 +93,7 @@ interface ArchivalConfig {
 }
 
 export default function ArchivalSettingsTab() {
+  const { formatDateTime } = useDateTime();
   const [config, setConfig] = useState<ArchivalConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -469,7 +471,7 @@ export default function ArchivalSettingsTab() {
             <div className="bg-white rounded-lg p-4 shadow-sm">
               <div className="text-sm text-gray-600">Last Archived</div>
               <div className="text-sm font-medium text-gray-900">
-                {config.lastArchivedAt ? new Date(config.lastArchivedAt).toLocaleString() : 'Never'}
+                {config.lastArchivedAt ? formatDateTime(config.lastArchivedAt) : 'Never'}
               </div>
             </div>
           </div>

@@ -2,6 +2,8 @@ const cron = require('node-cron');
 const cosmosService = require('./cosmosService');
 const pubmedService = require('./pubmedService');
 const externalApiService = require('./externalApiService');
+const emailSenderService = require('./emailSenderService');
+const userService = require('./userService');
 const DrugSearchConfig = require('../models/DrugSearchConfig');
 const Study = require('../models/Study');
 
@@ -171,6 +173,13 @@ class DrugSearchScheduler {
                 console.log(`⚠ No AI inference results returned, will create studies with PubMed data only`);
               }
               
+              // Initialize counters for email notification
+              let countProbableICSRs = 0;
+              let countProbableAOIs = 0;
+              let countProbableICSRsOrAOIs = 0;
+              let countNoCase = 0;
+              let successfulPmids = [];
+
               // Process ALL filtered drugs and create studies (with or without AI inference)
               for (const drug of filteredDrugs) {
                 try {
@@ -221,7 +230,17 @@ class DrugSearchScheduler {
                   // Store study in database
                   const createdStudy = await cosmosService.createItem('studies', study.toJSON());
                   studiesCreated++;
+                  successfulPmids.push(drug.pmid);
                   console.log(`✅ Successfully created study in database for PMID: ${drug.pmid}, ID: ${createdStudy.id} with status: ${createdStudy.status}`);
+
+                  // Update counters for email notification
+                  const isICSR = study.icsrClassification && (study.icsrClassification.toLowerCase().includes('yes') || study.icsrClassification.toLowerCase().includes('probable'));
+                  const isAOI = study.aoiClassification && (study.aoiClassification.toLowerCase().includes('yes') || study.aoiClassification.toLowerCase().includes('probable'));
+                  
+                  if (isICSR) countProbableICSRs++;
+                  if (isAOI) countProbableAOIs++;
+                  if (isICSR || isAOI) countProbableICSRsOrAOIs++;
+                  if (!isICSR && !isAOI) countNoCase++;
 
                 } catch (studyError) {
                   console.error(`❌ Error creating study for PMID ${drug.pmid}:`, studyError);
@@ -230,6 +249,65 @@ class DrugSearchScheduler {
               }
 
               console.log(`📚 Created ${studiesCreated} studies from scheduled search for ${config.name}`);
+              
+              // Send email notification
+              if (results.totalFound > 0) {
+                try {
+                  // Get organization name
+                  const organization = await cosmosService.getItem('organizations', config.organizationId, config.organizationId);
+                  const clientName = organization ? organization.name : 'Unknown Client';
+                  
+                  // Get user email
+                  const user = await userService.getUserById(config.userId, config.organizationId);
+                  const userEmail = user ? user.email : null;
+                  
+                  if (userEmail) {
+                    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+                    const subject = `${config.inn || config.query}_${clientName}_${dateStr}_Articles ready for review`;
+                    
+                    const emailBody = `
+Please find attached list of PMIDS for any further information.
+
+Please find below details of Literature articles Reviewed by LIASE tool.
+
+INN Name: ${config.inn || config.query}
+
+Total number of Literature hits in PubMed: ${results.totalFound}
+
+Total number of Literature articles reviewed by LIASE: ${studiesCreated}
+
+Number of Lit. articles categorised as “probable ICSRs/AOI” by LIASE: ${countProbableICSRsOrAOIs}
+
+Number of Lit. articles categorised as “Probable ICSRs” by LIASE: ${countProbableICSRs}
+
+Number of Lit. articles categorised as “Probable AOIs” by LIASE: ${countProbableAOIs}
+
+Number of Lit. articles categorised as “No case” by LIASE: ${countNoCase}
+                    `;
+                    
+                    // Create attachment with PMIDs
+                    const pmidList = successfulPmids.join('\n');
+                    const attachments = [{
+                      filename: 'PMID_List.txt',
+                      content: pmidList
+                    }];
+
+                    await emailSenderService.sendEmail(config.organizationId, {
+                      to: [userEmail],
+                      subject: subject,
+                      bodyPlain: emailBody,
+                      bodyHtml: emailBody.replace(/\n/g, '<br>'),
+                      attachments: attachments,
+                      priority: 'high'
+                    });
+                    console.log(`📧 Notification email sent to ${userEmail}`);
+                  } else {
+                    console.log(`⚠️ Could not find user email for notification: ${config.userId}`);
+                  }
+                } catch (emailError) {
+                  console.error(`❌ Failed to send notification email:`, emailError);
+                }
+              }
               
             } catch (error) {
               console.error(`❌ External API call failed for ${config.name}:`, error);

@@ -22,9 +22,11 @@ class AdminConfigService {
       const cached = this.configCache.get(cacheKey);
       // Cache for 5 minutes
       if (Date.now() - cached.timestamp < 300000) {
+        console.log(`[AdminConfig] Cache HIT for ${cacheKey}`);
         return cached.config;
       }
     }
+    console.log(`[AdminConfig] Cache MISS for ${cacheKey}`);
 
     const query = `
       SELECT * FROM c 
@@ -367,8 +369,10 @@ class AdminConfigService {
   _clearCache(organizationId, configType = null) {
     if (configType) {
       const cacheKey = `${organizationId}_${configType}`;
+      console.log(`[AdminConfig] Clearing cache for ${cacheKey}`);
       this.configCache.delete(cacheKey);
     } else {
+      console.log(`[AdminConfig] Clearing all cache for org ${organizationId}`);
       // Clear all configs for organization
       for (const key of this.configCache.keys()) {
         if (key.startsWith(`${organizationId}_`)) {

@@ -384,7 +384,13 @@ class ImprovedExternalApiService {
         this.currentRequests++;
         endpoint.currentRequests++;
         
-        const url = `${endpoint.url}?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(drugName)}`;
+        // Format drug name as INN(BrandName) if BrandName is available
+        let apiDrugName = drugName;
+        if (originalDrug && originalDrug.brandName) {
+          apiDrugName = `${drugName}(${originalDrug.brandName})`;
+        }
+        
+        const url = `${endpoint.url}?PMID=${encodeURIComponent(pmid)}&sponsor=${encodeURIComponent(sponsor)}&drugname=${encodeURIComponent(apiDrugName)}`;
         
         console.log(`🔄 [Attempt ${attempt + 1}] PMID ${pmid} -> ${endpoint.url} (${endpoint.state})`);
         console.log(`📊 Current load: Global ${this.currentRequests}/${this.config.maxConcurrentRequests}, Endpoint ${endpoint.currentRequests}/${this.config.maxConcurrentPerEndpoint}`);

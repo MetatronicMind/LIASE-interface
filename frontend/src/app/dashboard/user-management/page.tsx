@@ -4,6 +4,7 @@ import { PencilIcon, TrashIcon, UserCircleIcon, PlusIcon } from "@heroicons/reac
 import { useRouter } from "next/navigation";
 import { PermissionGate, useConditionalPermissions } from "@/components/PermissionProvider";
 import { userService, User } from "@/services/userService";
+import { useDateTime } from "@/hooks/useDateTime";
 
 const getRoleColor = (roleName: string) => {
   const colors: Record<string, string> = {
@@ -21,6 +22,7 @@ export default function UserManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { canManageUsers, canDeleteUsers } = useConditionalPermissions();
+  const { formatDate } = useDateTime();
 
   useEffect(() => {
     fetchUsers();
@@ -178,7 +180,7 @@ export default function UserManagementPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 align-top text-gray-700 whitespace-nowrap">
-                      {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+                      {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
                     </td>
                     <td className="py-3 px-4 align-top">
                       <div className="flex gap-2">

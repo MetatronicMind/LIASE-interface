@@ -3,6 +3,7 @@ const Study = require('../models/Study');
 const pubmedService = require('./pubmedService');
 const externalApiService = require('./externalApiService');
 const notificationService = require('./notificationService');
+const adminConfigService = require('./adminConfigService');
 
 class StudyCreationService {
   constructor() {
@@ -40,8 +41,22 @@ class StudyCreationService {
 
     this.activeJobs.set(jobId, jobData);
 
+    // Fetch workflow config to determine initial status
+    let initialStatus = 'Pending Review';
+    try {
+      const workflowConfig = await adminConfigService.getConfig(organizationId, 'workflow');
+      if (workflowConfig && workflowConfig.configData && workflowConfig.configData.stages) {
+        const initialStage = workflowConfig.configData.stages.find(s => s.type === 'initial');
+        if (initialStage) {
+          initialStatus = initialStage.id;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch workflow config, using default status:', error);
+    }
+
     // Start processing asynchronously - don't await
-    this.processStudiesAsync(jobId, pmids, params, userId, organizationId)
+    this.processStudiesAsync(jobId, pmids, params, userId, organizationId, initialStatus)
       .catch(error => {
         console.error(`Study creation job ${jobId} failed:`, error);
         jobData.status = 'failed';
@@ -55,7 +70,7 @@ class StudyCreationService {
   /**
    * Process studies asynchronously in batches
    */
-  async processStudiesAsync(jobId, pmids, params, userId, organizationId) {
+  async processStudiesAsync(jobId, pmids, params, userId, organizationId, initialStatus = 'Pending Review') {
     const jobData = this.activeJobs.get(jobId);
     const batchSize = 10; // Process 10 studies at a time
     const created = [];
@@ -82,7 +97,7 @@ class StudyCreationService {
           // Process each article in the batch
           for (const article of articles) {
             try {
-              await this.processSingleStudy(article, params, userId, organizationId, created, skipped);
+              await this.processSingleStudy(article, params, userId, organizationId, created, skipped, initialStatus);
               jobData.processed++;
             } catch (error) {
               console.error(`Error processing study ${article.pmid}:`, error);
@@ -150,7 +165,7 @@ class StudyCreationService {
   /**
    * Process a single study creation
    */
-  async processSingleStudy(article, params, userId, organizationId, created, skipped) {
+  async processSingleStudy(article, params, userId, organizationId, created, skipped, initialStatus = 'Pending Review') {
     if (!article?.pmid) {
       return;
     }
@@ -218,7 +233,7 @@ class StudyCreationService {
       abstract: article.abstract || '',
       drugName: params.drugName || 'Unknown',
       adverseEvent: params.adverseEvent || 'Not specified',
-      status: 'Pending Review',
+      status: initialStatus,
       createdBy: userId,
       createdAt: new Date().toISOString()
     };
@@ -253,6 +268,8 @@ class StudyCreationService {
       studyData.approvedIndication = aiInferenceData.Approved_indication;
       studyData.aoiClassification = aiInferenceData.AOI_classification;
       studyData.justification = aiInferenceData.Justification;
+      studyData.listedness = aiInferenceData.Listedness;
+      studyData.seriousness = aiInferenceData.Seriousness;
       studyData.clientName = aiInferenceData.Client_name;
       studyData.sponsor = aiInferenceData.Sponsor || params.sponsor;
     }

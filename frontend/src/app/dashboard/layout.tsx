@@ -36,15 +36,21 @@ const permissionBasedNavItems = [
     permission: { resource: 'drugs', action: 'read' } // Requires drugs.read permission
   },
   { 
-    name: "Triage", 
+    name: "Literature Triage", 
     href: "/dashboard/triage", 
     icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'triage', action: 'write' } // Requires triage.write permission
   },
   { 
-    name: "QC Triage", 
+    name: "QC Allocation", 
     href: "/dashboard/qa", 
     icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'QA', action: 'read' } // Requires QA.read permission
+  },
+  { 
+    name: "QC Triage Page", 
+    href: "/dashboard/qc-triage", 
+    icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'QA', action: 'read' } // Requires QA.read permission
   },
   { 

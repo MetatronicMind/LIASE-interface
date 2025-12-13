@@ -7,6 +7,7 @@ import { exportToPDF, exportToExcel } from "@/utils/exportUtils";
 interface DrugSearchConfig {
   id: string;
   name: string;
+  inn?: string;
   query: string;
   sponsor: string;
   brandName?: string;
@@ -30,7 +31,7 @@ export default function DrugManagementPage() {
   const [selectedConfigName, setSelectedConfigName] = useState('');
 
   // Form fields
-  const [configName, setConfigName] = useState('');
+  const [inn, setInn] = useState('');
   const [query, setQuery] = useState('');
   const [sponsor, setSponsor] = useState('');
   const [brandName, setBrandName] = useState('');
@@ -243,7 +244,7 @@ export default function DrugManagementPage() {
 
   const handleEdit = (config: DrugSearchConfig) => {
     setEditingConfigId(config.id);
-    setConfigName(config.name);
+    setInn(config.inn || config.name);
     setQuery(config.query);
     setSponsor(config.sponsor);
     setBrandName(config.brandName || '');
@@ -306,7 +307,7 @@ export default function DrugManagementPage() {
 
   const resetForm = () => {
     setEditingConfigId(null);
-    setConfigName('');
+    setInn('');
     setQuery('');
     setSponsor('');
     setBrandName('');
@@ -321,7 +322,7 @@ export default function DrugManagementPage() {
   };
 
   const saveConfiguration = async () => {
-    if (!configName.trim() || !query.trim() || !sponsor.trim()) {
+    if (!inn.trim() || !query.trim() || !sponsor.trim()) {
       alert('Please enter INN, Literature Search String, and Sponsor.');
       return;
     }
@@ -362,8 +363,15 @@ export default function DrugManagementPage() {
         
       const method = editingConfigId ? 'PUT' : 'POST';
       
+      // Generate config name automatically: INN(brandName)_Client_DateAndTime
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
+      const brandPart = brandName.trim() ? `(${brandName.trim()})` : '';
+      const generatedName = `${inn.trim()}${brandPart}_${sponsor.trim()}_${dateStr}`;
+
       const body: any = {
-        name: configName.trim(),
+        name: generatedName,
+        inn: inn.trim(),
         query: query.trim(),
         sponsor: sponsor.trim(),
         brandName: brandName.trim(),
@@ -478,9 +486,9 @@ export default function DrugManagementPage() {
             <div>
               {/* Header with Scheduler Information */}
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Automated Drug Discovery</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Drug Management</h2>
               </div>
-              <h2 className="text-xl font-semibold mb-4">Search Configurations</h2>
+              {/* <h2 className="text-xl font-semibold mb-4">Search Configurations</h2> */}
               
               {/* Create Form */}
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
@@ -488,8 +496,8 @@ export default function DrugManagementPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     type="text"
-                    value={configName}
-                    onChange={(e) => setConfigName(e.target.value)}
+                    value={inn}
+                    onChange={(e) => setInn(e.target.value)}
                     placeholder="INN"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
@@ -497,7 +505,7 @@ export default function DrugManagementPage() {
                     type="text"
                     value={brandName}
                     onChange={(e) => setBrandName(e.target.value)}
-                    placeholder="Brand/Product name (Optional)"
+                    placeholder="Brand name (Optional)"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                   <input
@@ -511,7 +519,7 @@ export default function DrugManagementPage() {
                     type="text"
                     value={sponsor}
                     onChange={(e) => setSponsor(e.target.value)}
-                    placeholder="Client"
+                    placeholder="Client Name"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                   <select
@@ -595,7 +603,7 @@ export default function DrugManagementPage() {
                 <div className="mt-4 flex gap-2">
                   <button
                     onClick={saveConfiguration}
-                    disabled={saving || !configName.trim() || !query.trim() || !sponsor.trim()}
+                    disabled={saving || !inn.trim() || !query.trim() || !sponsor.trim()}
                     className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : (editingConfigId ? 'Update Configuration' : 'Save Configuration')}
@@ -618,7 +626,8 @@ export default function DrugManagementPage() {
                           ...(token && { 'Authorization': `Bearer ${token}` })
                         },
                         body: JSON.stringify({
-                          name: configName.trim(),
+                          name: `${inn.trim()}_${sponsor.trim()}_${brandName.trim() || 'NoBrand'}_${new Date().toISOString()}`,
+                          inn: inn.trim(),
                           query: query.trim(),
                           sponsor: sponsor.trim() || '',
                           frequency: frequency,

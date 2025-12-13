@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { ArrowTopRightOnSquareIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 interface PmidLinkProps {
   pmid: string;
@@ -21,23 +21,47 @@ export const PmidLink: React.FC<PmidLinkProps> = ({
   showIcon = false,
   iconClassName = 'w-3 h-3 ml-1 inline-block'
 }) => {
+  const [copied, setCopied] = useState(false);
+
   if (!pmid) {
     return <span className="text-gray-400">N/A</span>;
   }
 
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(pmid);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <a
-      href={`https://pubmed.ncbi.nlm.nih.gov/${pmid}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={className}
-      title={`View study on PubMed: ${pmid}`}
-    >
-      {pmid}
-      {showIcon && (
-        <ArrowTopRightOnSquareIcon className={iconClassName} />
-      )}
-    </a>
+    <span className="inline-flex items-center gap-2">
+      <a
+        href={`https://pubmed.ncbi.nlm.nih.gov/${pmid}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={className}
+        title={`View study on PubMed: ${pmid}`}
+      >
+        {pmid}
+        {showIcon && (
+          <ArrowTopRightOnSquareIcon className={iconClassName} />
+        )}
+      </a>
+      <button
+        onClick={handleCopy}
+        className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded hover:bg-gray-100"
+        title="Copy PMID"
+        type="button"
+      >
+        {copied ? (
+          <CheckIcon className="w-4 h-4 text-green-500" />
+        ) : (
+          <ClipboardDocumentIcon className="w-4 h-4" />
+        )}
+      </button>
+    </span>
   );
 };
 

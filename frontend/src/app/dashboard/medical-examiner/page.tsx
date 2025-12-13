@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDateTime } from "@/hooks/useDateTime";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
+import { CommentThread } from "@/components/CommentThread";
 
 interface Study {
   id: string;
@@ -51,6 +53,9 @@ interface Study {
   approvedIndication?: string;
   aoiClassification?: string;
   justification?: string;
+  listedness?: string;
+  seriousness?: string;
+  fullTextAvailability?: string;
   countryOfFirstAuthor?: string;
   countryOfOccurrence?: string;
   patientDetails?: any;
@@ -66,7 +71,8 @@ interface Study {
   aiInferenceData?: any;
   clientName?: string;
   sponsor?: string;
-  aoiClassification?: string;
+  effectiveClassification?: string;
+  requiresManualReview?: boolean;
 }
 
 interface FieldComment {
@@ -149,6 +155,7 @@ const R3_FORM_FIELDS = [
 
 export default function MedicalExaminerPage() {
   const { user } = useAuth();
+  const { formatDate } = useDateTime();
   const [studies, setStudies] = useState<Study[]>([]);
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
   const [loading, setLoading] = useState(true);
@@ -442,7 +449,7 @@ export default function MedicalExaminerPage() {
                           <div className="flex items-center gap-2">
                             {study.r3FormCompletedAt && (
                               <p className="text-xs text-green-600">
-                                R3 Form completed: {new Date(study.r3FormCompletedAt).toLocaleDateString()}
+                                R3 Form completed: {formatDate(study.r3FormCompletedAt)}
                               </p>
                             )}
                             {study.revokedBy && (
@@ -490,7 +497,7 @@ export default function MedicalExaminerPage() {
                               <p className="text-xs text-blue-800 mt-1">{selectedStudy.revocationReason}</p>
                               {selectedStudy.revokedAt && (
                                 <p className="text-xs text-blue-700 mt-1">
-                                  Revoked on: {new Date(selectedStudy.revokedAt).toLocaleDateString()}
+                                  Revoked on: {formatDate(selectedStudy.revokedAt)}
                                 </p>
                               )}
                             </div>
@@ -512,7 +519,7 @@ export default function MedicalExaminerPage() {
                           </div>
                           <div>
                             <span className="font-medium text-gray-700">Classification:</span>
-                            <p className="text-gray-900">
+                            <div className="flex flex-wrap gap-2 mt-1">
                               <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                                 selectedStudy.userTag === 'ICSR' ? 'bg-red-100 text-red-800' :
                                 selectedStudy.userTag === 'AOI' ? 'bg-yellow-100 text-yellow-800' :
@@ -520,7 +527,25 @@ export default function MedicalExaminerPage() {
                               }`}>
                                 {selectedStudy.userTag}
                               </span>
-                            </p>
+                              
+                              {selectedStudy.listedness && (
+                                <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                  {selectedStudy.listedness}
+                                </span>
+                              )}
+
+                              {selectedStudy.seriousness && (
+                                <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                  {selectedStudy.seriousness}
+                                </span>
+                              )}
+
+                              {selectedStudy.fullTextAvailability && (
+                                <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  Full Text: {selectedStudy.fullTextAvailability}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div>
                             <span className="font-medium text-gray-700">Drug:</span>
@@ -565,174 +590,155 @@ export default function MedicalExaminerPage() {
                       </div>
                     </div>
 
-                    {/* AI Inference / Triage Information - ALL AI PROCESSING FIELDS */}
-                    {(selectedStudy.serious || selectedStudy.identifiableHumanSubject || selectedStudy.textType || selectedStudy.summary || selectedStudy.doi || selectedStudy.specialCase) && (
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-3">AI Processing Data (Complete)</h3>
-                        <div className="bg-blue-50 rounded-lg p-4 space-y-4">
-                          {/* Grid of AI Fields */}
-                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                            {selectedStudy.serious !== undefined && (
-                              <div>
-                                <span className="font-medium text-gray-700">Serious:</span>
-                                <p className={`font-semibold ${selectedStudy.serious ? 'text-red-600' : 'text-green-600'}`}>
-                                  {selectedStudy.serious ? 'Yes' : 'No'}
-                                </p>
-                              </div>
-                            )}
-                            {selectedStudy.identifiableHumanSubject !== undefined && (
-                              <div>
-                                <span className="font-medium text-gray-700">Human Subject:</span>
-                                <p className="text-gray-900">{selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}</p>
-                              </div>
-                            )}
-                            {selectedStudy.textType && (
-                              <div>
-                                <span className="font-medium text-gray-700">Text Type:</span>
-                                <p className="text-gray-900">{selectedStudy.textType}</p>
-                              </div>
-                            )}
-                            {selectedStudy.authorPerspective && (
-                              <div>
-                                <span className="font-medium text-gray-700">Author Perspective:</span>
-                                <p className="text-gray-900">{selectedStudy.authorPerspective}</p>
-                              </div>
-                            )}
-                            {selectedStudy.testSubject && (
-                              <div>
-                                <span className="font-medium text-gray-700">Test Subject:</span>
-                                <p className="text-gray-900">{selectedStudy.testSubject}</p>
-                              </div>
-                            )}
-                            {selectedStudy.specialCase && (
-                              <div>
-                                <span className="font-medium text-gray-700">Special Case:</span>
-                                <p className="text-gray-900">{selectedStudy.specialCase}</p>
-                              </div>
-                            )}
-                            {selectedStudy.attributability && (
-                              <div>
-                                <span className="font-medium text-gray-700">Attributability:</span>
-                                <p className="text-gray-900">{selectedStudy.attributability}</p>
-                              </div>
-                            )}
-                            {selectedStudy.drugEffect && (
-                              <div>
-                                <span className="font-medium text-gray-700">Drug Effect:</span>
-                                <p className="text-gray-900">{selectedStudy.drugEffect}</p>
-                              </div>
-                            )}
-                            {selectedStudy.aoiDrugEffect && (
-                              <div>
-                                <span className="font-medium text-gray-700">AOI Drug Effect:</span>
-                                <p className="text-gray-900">{selectedStudy.aoiDrugEffect}</p>
-                              </div>
-                            )}
-                            {selectedStudy.approvedIndication && (
-                              <div>
-                                <span className="font-medium text-gray-700">Approved Indication:</span>
-                                <p className="text-gray-900">{selectedStudy.approvedIndication}</p>
-                              </div>
-                            )}
-                            {selectedStudy.aoiClassification && (
-                              <div>
-                                <span className="font-medium text-gray-700">AOI Classification:</span>
-                                <p className="text-gray-900">{selectedStudy.aoiClassification}</p>
-                              </div>
-                            )}
-                            {selectedStudy.substanceGroup && (
-                              <div>
-                                <span className="font-medium text-gray-700">Substance Group:</span>
-                                <p className="text-gray-900">{selectedStudy.substanceGroup}</p>
-                              </div>
-                            )}
-                            {selectedStudy.leadAuthor && (
-                              <div>
-                                <span className="font-medium text-gray-700">Lead Author:</span>
-                                <p className="text-gray-900">{selectedStudy.leadAuthor}</p>
-                              </div>
-                            )}
-                            {selectedStudy.countryOfFirstAuthor && (
-                              <div>
-                                <span className="font-medium text-gray-700">Country (First Author):</span>
-                                <p className="text-gray-900">{selectedStudy.countryOfFirstAuthor}</p>
-                              </div>
-                            )}
-                            {selectedStudy.countryOfOccurrence && (
-                              <div>
-                                <span className="font-medium text-gray-700">Country (Occurrence):</span>
-                                <p className="text-gray-900">{selectedStudy.countryOfOccurrence}</p>
-                              </div>
-                            )}
-                            {selectedStudy.sponsor && (
-                              <div>
-                                <span className="font-medium text-gray-700">Sponsor:</span>
-                                <p className="text-gray-900">{selectedStudy.sponsor}</p>
-                              </div>
-                            )}
-                            {selectedStudy.clientName && (
-                              <div>
-                                <span className="font-medium text-gray-700">Client Name:</span>
-                                <p className="text-gray-900">{selectedStudy.clientName}</p>
-                              </div>
-                            )}
+                    {/* AI Analysis & Clinical Data */}
+                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <div className="font-bold flex justify-center items-center">
+                          <p>AI Literature Analysis</p>
                           </div>
-                          
-                          {/* Complex Fields - Full Width */}
-                          {selectedStudy.summary && (
-                            <div className="pt-2 border-t border-gray-200">
-                              <span className="font-medium text-gray-700 text-sm">AI Summary:</span>
-                              <p className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">{selectedStudy.summary}</p>
+                         
+                      </h4>
+                      <div className="space-y-4">
+                        {/* Grid Layout for Analysis Fields */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                          <div>
+                          <span className="font-bold text-gray-700">AI Identified Adverse Event(s):</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.adverseEvent}</p>
+                        </div>
+                        {(selectedStudy.specialCase) && (
+                            <div>
+                              <span className="font-bold text-gray-700">AI Identified Special Situation(s):</span>
+                              <p className="mt-1 text-gray-900">{selectedStudy.specialCase}</p>
                             </div>
                           )}
                           
-                          {selectedStudy.justification && (
-                            <div className="pt-2 border-t border-gray-200">
-                              <span className="font-medium text-gray-700 text-sm">Justification:</span>
-                              <p className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">{selectedStudy.justification}</p>
+                          {(selectedStudy.textType) && (
+                            <div>
+                              <span className="font-bold text-gray-700">Article Type:</span>
+                              <p className="mt-1 text-gray-900">{selectedStudy.textType}</p>
                             </div>
                           )}
-                          
-                          {selectedStudy.patientDetails && (
-                            <div className="pt-2 border-t border-gray-200">
-                              <span className="font-medium text-gray-700 text-sm">Patient Details:</span>
-                              <div className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">
-                                {typeof selectedStudy.patientDetails === 'object' 
-                                  ? JSON.stringify(selectedStudy.patientDetails, null, 2)
-                                  : selectedStudy.patientDetails}
-                              </div>
+                          {selectedStudy.approvedIndication && (
+                            <div>
+                              <span className="font-bold text-gray-700">AI Assessment of Indication:</span>
+                              <p className="mt-1 text-gray-900">{selectedStudy.approvedIndication}</p>
                             </div>
                           )}
-                          
-                          {selectedStudy.keyEvents && Array.isArray(selectedStudy.keyEvents) && selectedStudy.keyEvents.length > 0 && (
-                            <div className="pt-2 border-t border-gray-200">
-                              <span className="font-medium text-gray-700 text-sm">Key Events:</span>
-                              <ul className="list-disc list-inside text-sm text-gray-800 mt-1 bg-white p-2 rounded border space-y-1">
-                                {selectedStudy.keyEvents.map((event, idx) => (
-                                  <li key={idx}>{event}</li>
-                                ))}
-                              </ul>
+                        </div>
+
+                        {/* Text-based Fields */}
+                        {selectedStudy.attributability && (
+                          <div>
+                            <span className="font-bold text-gray-700">AI Assessment of Attributability:</span>
+                            <p className="mt-1 text-gray-900 text-sm">{selectedStudy.attributability}</p>
+                          </div>
+                        )}
+                        {selectedStudy.drugEffect && (
+                          <div>
+                            <span className="font-bold text-gray-700">AI Identified Drug Effect </span> <span>(Beneficial/Adverse) :</span>
+                            <p className="mt-1 text-gray-900 text-sm">{selectedStudy.drugEffect}</p>
+                          </div>
+                        )}
+                        {selectedStudy.justification && (
+                          <div>
+                            <span className="font-bold text-gray-700">AI Opinion on Literature:</span>
+                            <p className="mt-1 text-gray-900 text-sm">{selectedStudy.justification}</p>
+                          </div>
+                        )}
+
+                        {/* Clinical Data */}
+                        {selectedStudy.administeredDrugs && selectedStudy.administeredDrugs.length > 0 && (
+                          <div>
+                            <span className="font-bold text-gray-700">Administered Drugs:</span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {selectedStudy.administeredDrugs.map((drug, index) => (
+                                <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                                  {drug}
+                                </span>
+                              ))}
                             </div>
-                          )}
-                          
-                          {selectedStudy.administeredDrugs && Array.isArray(selectedStudy.administeredDrugs) && selectedStudy.administeredDrugs.length > 0 && (
-                            <div className="pt-2 border-t border-gray-200">
-                              <span className="font-medium text-gray-700 text-sm">Administered Drugs:</span>
-                              <p className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">{selectedStudy.administeredDrugs.join(', ')}</p>
+                          </div>
+                        )}
+                        {selectedStudy.patientDetails && (
+                          <div>
+                            <span className="font-bold text-gray-700">Patient Details:</span>
+                            <div className="mt-1 bg-white rounded p-3 border">
+                              {typeof selectedStudy.patientDetails === 'object' ? (
+                                <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                                  {JSON.stringify(selectedStudy.patientDetails, null, 2)}
+                                </pre>
+                              ) : (
+                                <p className="text-gray-900 text-sm">{selectedStudy.patientDetails}</p>
+                              )}
                             </div>
-                          )}
-                          
-                          {selectedStudy.relevantDates && (
-                            <div className="pt-2 border-t border-gray-200">
-                              <span className="font-medium text-gray-700 text-sm">Relevant Dates:</span>
-                              <div className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border">
-                                {typeof selectedStudy.relevantDates === 'object' 
-                                  ? JSON.stringify(selectedStudy.relevantDates, null, 2)
-                                  : selectedStudy.relevantDates}
-                              </div>
+                          </div>
+                        )}
+                        {selectedStudy.relevantDates && (
+                          <div>
+                            <span className="font-bold text-gray-700">Relevant Dates:</span>
+                            <div className="mt-1 bg-white rounded p-3 border">
+                              {typeof selectedStudy.relevantDates === 'object' ? (
+                                <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                                  {JSON.stringify(selectedStudy.relevantDates, null, 2)}
+                                </pre>
+                              ) : (
+                                <p className="text-gray-900 text-sm">{selectedStudy.relevantDates}</p>
+                              )}
                             </div>
-                          )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                  {/* Triage Classification */}
+                  <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Triage Classification
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-sm font-medium text-gray-500">Classification</span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                selectedStudy.userTag === 'ICSR' ? 'bg-red-100 text-red-800' :
+                                selectedStudy.userTag === 'AOI' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                            {selectedStudy.userTag}
+                          </span>
                           
+                          {selectedStudy.listedness && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                              {selectedStudy.listedness}
+                            </span>
+                          )}
+
+                          {selectedStudy.seriousness && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                              {selectedStudy.seriousness}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedStudy.justification && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">AI Opinion on Literature</span>
+                          <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                            {selectedStudy.justification}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                           {/* Raw AI Data Expandable */}
                           {selectedStudy.aiInferenceData && (
                             <div className="pt-2 border-t border-gray-200">
@@ -748,9 +754,6 @@ export default function MedicalExaminerPage() {
                               </details>
                             </div>
                           )}
-                        </div>
-                      </div>
-                    )}
 
                     {/* Abstract */}
                     {selectedStudy.abstract && (
@@ -849,7 +852,7 @@ export default function MedicalExaminerPage() {
                                     <div key={comment.id} className="bg-yellow-50 border border-yellow-200 rounded p-2">
                                       <p className="text-xs text-gray-800">{comment.comment}</p>
                                       <p className="text-xs text-gray-500 mt-1">
-                                        By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                        By {comment.userName} on {formatDate(comment.createdAt)}
                                       </p>
                                     </div>
                                   ))}
@@ -948,7 +951,7 @@ export default function MedicalExaminerPage() {
                                           <div key={comment.id} className="bg-yellow-50 border border-yellow-200 rounded p-2">
                                             <p className="text-xs text-gray-800">{comment.comment}</p>
                                             <p className="text-xs text-gray-500 mt-1">
-                                              By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                              By {comment.userName} on {formatDate(comment.createdAt)}
                                             </p>
                                           </div>
                                         ))}
@@ -1028,28 +1031,33 @@ export default function MedicalExaminerPage() {
                       }}
                     />
 
-                    {/* Action Buttons */}
-                    <div className="flex space-x-3 pt-4 border-t border-gray-200">
-                      <PermissionGate resource="medical_examiner" action="write">
-                        <button
-                          onClick={completeMedicalReview}
-                          disabled={actionInProgress === 'complete'}
-                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium transition-colors"
-                        >
-                          {actionInProgress === 'complete' ? 'Completing...' : 'Approve Study'}
-                        </button>
-                      </PermissionGate>
+                    {/* Comment Thread */}
+                    <CommentThread study={selectedStudy} />
 
-                      <PermissionGate resource="medical_examiner" action="revoke_studies">
-                        <button
-                          onClick={() => setShowRevokeModal(true)}
-                          disabled={actionInProgress === 'revoke'}
-                          className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium transition-colors"
-                        >
-                          Revoke Study
-                        </button>
-                      </PermissionGate>
-                    </div>
+                    {/* Action Buttons */}
+                    {selectedStudy.medicalReviewStatus !== 'completed' && (
+                      <div className="flex space-x-3 pt-4 border-t border-gray-200">
+                        <PermissionGate resource="medical_examiner" action="write">
+                          <button
+                            onClick={completeMedicalReview}
+                            disabled={actionInProgress === 'complete'}
+                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium transition-colors"
+                          >
+                            {actionInProgress === 'complete' ? 'Completing...' : 'Approve Study'}
+                          </button>
+                        </PermissionGate>
+
+                        <PermissionGate resource="medical_examiner" action="revoke_studies">
+                          <button
+                            onClick={() => setShowRevokeModal(true)}
+                            disabled={actionInProgress === 'revoke'}
+                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium transition-colors"
+                          >
+                            Revoke Study
+                          </button>
+                        </PermissionGate>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (

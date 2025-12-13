@@ -7,7 +7,8 @@ import {
   BellIcon,
   EnvelopeIcon,
   ServerStackIcon,
-  ArchiveBoxIcon
+  ArchiveBoxIcon,
+  ArrowsRightLeftIcon
 } from "@heroicons/react/24/outline";
 import { usePermissions } from "@/components/PermissionProvider";
 import dynamic from 'next/dynamic';
@@ -20,8 +21,10 @@ const NotificationsTab = dynamic(() => import('@/components/settings/Notificatio
 const EmailSettingsTab = dynamic(() => import('@/components/settings/EmailSettingsTab'), { ssr: false });
 const SuperAdminConfigTab = dynamic(() => import('@/components/settings/SuperAdminConfigTab'), { ssr: false });
 const ArchivalSettingsTab = dynamic(() => import('@/components/settings/ArchivalSettingsTab'), { ssr: false });
+const WorkflowSettingsTab = dynamic(() => import('@/components/settings/WorkflowSettingsTab'), { ssr: false });
+const DateTimeSettingsTab = dynamic(() => import('@/components/settings/DateTimeSettingsTab'), { ssr: false });
 
-type TabName = 'roles' | 'organization' | 'admin-config' | 'notifications' | 'email' | 'archival' | 'super-admin';
+type TabName = 'roles' | 'organization' | 'admin-config' | 'notifications' | 'email' | 'archival' | 'super-admin' | 'workflow' | 'datetime';
 
 interface Tab {
   id: TabName;
@@ -37,6 +40,12 @@ export default function SettingsPage() {
   const { hasPermission, isAdmin, isSuperAdmin } = usePermissions();
 
   const tabs: Tab[] = [
+        {
+          id: 'datetime',
+          name: 'Date/Time Settings',
+          icon: <span className="w-5 h-5">🕒</span>,
+          requireAdmin: true
+        },
     {
       id: 'roles',
       name: 'Role Management',
@@ -48,6 +57,12 @@ export default function SettingsPage() {
       name: 'Organization',
       icon: <BuildingOfficeIcon className="w-5 h-5" />,
       requiredPermission: { resource: 'organizations', action: 'read' }
+    },
+    {
+      id: 'workflow',
+      name: 'Workflow',
+      icon: <ArrowsRightLeftIcon className="w-5 h-5" />,
+      requireAdmin: true
     },
     {
       id: 'notifications',
@@ -102,6 +117,8 @@ export default function SettingsPage() {
         return <RoleManagementTab />;
       case 'organization':
         return <OrganizationManagementTab />;
+      case 'workflow':
+        return <WorkflowSettingsTab />;
       case 'admin-config':
         return <AdminConfigTab />;
       case 'notifications':
@@ -112,6 +129,8 @@ export default function SettingsPage() {
         return <ArchivalSettingsTab />;
       case 'super-admin':
         return <SuperAdminConfigTab />;
+      case 'datetime':
+        return <DateTimeSettingsTab />;
       default:
         return <div className="p-8 text-center text-gray-500">Select a tab to view settings</div>;
     }

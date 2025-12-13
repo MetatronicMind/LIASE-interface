@@ -294,9 +294,9 @@ export default function AuditTrailPage() {
                     return (
                     <tr key={idx} className="border-b border-blue-50 last:border-b-0">
                       <td className="py-3 px-4 align-top text-blue-900">
-                        <div>{new Date(log.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: userTimezone })}</div>
+                        <div>{require('@/hooks/useDateTime').useDateTime().formatDate(log.timestamp)}</div>
                         <div className="text-xs text-gray-600">
-                          {new Date(log.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: userTimezone, timeZoneName: "short" })}
+                          {require('@/hooks/useDateTime').useDateTime().formatTime(log.timestamp)}
                         </div>
                       </td>
                       <td className="py-3 px-4 align-top text-blue-900 font-bold">

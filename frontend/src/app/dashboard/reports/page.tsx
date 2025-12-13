@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
+import { useDateTime } from '../../../hooks/useDateTime';
 import { API_CONFIG } from '../../../config/api';
 import { PmidLink } from '../../../components/PmidLink';
 
@@ -9,7 +10,7 @@ interface Study {
   id: string;
   pmid: string;
   title: string;
-  authors: string;
+  authors: string | string[];
   journal: string;
   publicationDate: string;
   abstract: string;
@@ -27,6 +28,9 @@ interface Study {
   qcR3Status?: string;
   medicalReviewStatus?: string;
   serious?: boolean;
+  listedness?: string;
+  seriousness?: string;
+  fullTextAvailability?: string;
   substanceGroup?: string;
   countryOfFirstAuthor?: string;
   countryOfOccurrence?: string;
@@ -39,6 +43,7 @@ type SortOrder = 'asc' | 'desc';
 
 export default function ReportsPage() {
   const { user } = useAuth();
+  const { formatDateTime, formatDate } = useDateTime();
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +55,7 @@ export default function ReportsPage() {
   const [qaFilter, setQaFilter] = useState<string>('all');
   const [r3Filter, setR3Filter] = useState<string>('all');
   const [seriousFilter, setSeriousFilter] = useState<string>('all');
+  const [listednessFilter, setListednessFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
   
   // Sorting
@@ -118,12 +124,18 @@ export default function ReportsPage() {
     // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(study =>
-        study.title?.toLowerCase().includes(query) ||
-        study.pmid?.toLowerCase().includes(query) ||
-        study.drugName?.toLowerCase().includes(query) ||
-        study.authors?.toLowerCase().includes(query)
-      );
+      filtered = filtered.filter(study => {
+        const authorsStr = Array.isArray(study.authors) 
+          ? study.authors.join(' ') 
+          : (typeof study.authors === 'string' ? study.authors : '');
+          
+        return (
+          study.title?.toLowerCase().includes(query) ||
+          study.pmid?.toLowerCase().includes(query) ||
+          study.drugName?.toLowerCase().includes(query) ||
+          authorsStr.toLowerCase().includes(query)
+        );
+      });
     }
 
     // Status filter
@@ -143,8 +155,25 @@ export default function ReportsPage() {
 
     // Serious filter
     if (seriousFilter !== 'all') {
-      const isSerious = seriousFilter === 'serious';
-      filtered = filtered.filter(study => study.serious === isSerious);
+      const wantSerious = seriousFilter === 'serious';
+      filtered = filtered.filter(study => {
+        const isSerious = study.serious === true || study.seriousness === 'Yes' || study.seriousness === 'Serious';
+        return wantSerious ? isSerious : !isSerious;
+      });
+    }
+
+    // Listedness filter
+    if (listednessFilter !== 'all') {
+      filtered = filtered.filter(study => {
+        const val = study.listedness;
+        if (!val) return false;
+        
+        if (listednessFilter === 'Yes') {
+          return val === 'Yes' || val === 'Listed';
+        } else {
+          return val === 'No' || val === 'Unlisted';
+        }
+      });
     }
 
     // Date range filter
@@ -173,7 +202,7 @@ export default function ReportsPage() {
     });
 
     return filtered;
-  }, [studies, studyType, searchQuery, statusFilter, qaFilter, r3Filter, seriousFilter, dateRange, sortField, sortOrder]);
+  }, [studies, studyType, searchQuery, statusFilter, qaFilter, r3Filter, seriousFilter, listednessFilter, dateRange, sortField, sortOrder]);
 
   // Pagination
   const totalPages = Math.ceil(filteredStudies.length / itemsPerPage);
@@ -247,6 +276,7 @@ export default function ReportsPage() {
       'R3 Status',
       'Medical Review',
       'Serious',
+      'Listedness',
       'Authors',
       'Journal',
       'Publication Date',
@@ -278,14 +308,15 @@ export default function ReportsPage() {
         study.r3FormStatus || '',
         study.medicalReviewStatus || '',
         study.serious ? 'Yes' : 'No',
+        study.listedness || '',
         `"${authorsStr.replace(/"/g, '""')}"`,
         study.journal || '',
         study.publicationDate || '',
         study.countryOfFirstAuthor || '',
         study.countryOfOccurrence || '',
         study.substanceGroup || '',
-        new Date(study.createdAt).toLocaleString(),
-        new Date(study.updatedAt).toLocaleString(),
+        formatDateTime(study.createdAt),
+        formatDateTime(study.updatedAt),
       ];
     });
 
@@ -327,6 +358,7 @@ export default function ReportsPage() {
     setQaFilter('all');
     setR3Filter('all');
     setSeriousFilter('all');
+    setListednessFilter('all');
     setDateRange({ start: '', end: '' });
     setCurrentPage(1);
   };
@@ -530,6 +562,22 @@ export default function ReportsPage() {
               <option value="all">All</option>
               <option value="serious">Serious Only</option>
               <option value="non-serious">Non-Serious Only</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Listedness</label>
+            <select
+              value={listednessFilter}
+              onChange={(e) => {
+                setListednessFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All</option>
+              <option value="Yes">Listed</option>
+              <option value="No">Unlisted</option>
             </select>
           </div>
 
@@ -747,13 +795,36 @@ export default function ReportsPage() {
                       {study.drugName}
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        getTriageClassification(study) === 'Pending' 
-                          ? 'bg-gray-100 text-gray-800' 
-                          : getClassificationBadgeColor(study.userTag)
-                      }`}>
-                        {getTriageClassification(study)}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          getTriageClassification(study) === 'Pending' 
+                            ? 'bg-gray-100 text-gray-800' 
+                            : getClassificationBadgeColor(study.userTag)
+                        }`}>
+                          {getTriageClassification(study)}
+                        </span>
+                        {getTriageClassification(study) !== 'No Case' && study.listedness && (
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            (study.listedness === 'Yes' || study.listedness === 'Listed') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            Listedness: {study.listedness}
+                          </span>
+                        )}
+                        {getTriageClassification(study) !== 'No Case' && (study.seriousness || study.serious !== undefined) && (
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            (study.seriousness === 'Yes' || study.serious === true) ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                          }`}>
+                            Seriousness: {study.seriousness || (study.serious ? 'Yes' : 'No')}
+                          </span>
+                        )}
+                        {study.fullTextAvailability && (
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            study.fullTextAvailability === 'Yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            Full Text: {study.fullTextAvailability}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -796,7 +867,7 @@ export default function ReportsPage() {
                       </span>
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                      {new Date(study.createdAt).toLocaleDateString()}
+                      {formatDate(study.createdAt)}
                     </td>
                   </tr>
                 ))

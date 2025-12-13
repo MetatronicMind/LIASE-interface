@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useDateTime } from '@/hooks/useDateTime';
 import { getApiBaseUrl } from "@/config/api";
 
 interface Attachment {
@@ -30,6 +31,7 @@ export default function PDFAttachmentUpload({
   onUploadComplete,
   maxFiles = 5
 }: PDFAttachmentUploadProps) {
+  const { formatDate } = useDateTime();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -388,7 +390,7 @@ export default function PDFAttachmentUpload({
                     {formatFileSize(attachment.fileSize)}
                     {attachment.uploadedByName && ` • ${attachment.uploadedByName}`}
                     {" • "}
-                    {new Date(attachment.uploadedAt).toLocaleDateString()}
+                    {formatDate(attachment.uploadedAt)}
                   </p>
                 </div>
               </div>

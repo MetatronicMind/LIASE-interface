@@ -981,11 +981,26 @@ class PubMedService {
 
       console.log('🔍 Processed articles:', drugArticles.length);
 
+      // Parse query for INN and BrandName to ensure correct format for AI inference
+      let inn = query;
+      let brandName = null;
+      
+      // Check for INN(BrandName) format
+      const match = query.match(/^([^(]+)\(([^)]+)\)$/);
+      if (match) {
+          inn = match[1].trim();
+          brandName = match[2].trim();
+      }
+      
+      // Strip wildcard * from INN if present (for AI inference)
+      inn = inn.replace(/\*$/, '');
+
       // Process articles into format with PMID, title, drug name, and ALL article data
       const processedDrugs = drugArticles.map(article => ({
         pmid: article.PMID.toString(),
         title: article.Title.toString(),
-        drugName: query, // Always use the search query as the drug name
+        drugName: inn, // Use extracted/cleaned INN
+        brandName: brandName, // Pass brand name if available
         journal: article.Journal.toString(),
         publicationDate: article.PublicationDate.toString(),
         abstract: article.Abstract.toString(),

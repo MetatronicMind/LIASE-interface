@@ -166,7 +166,13 @@ class BatchAiInferenceService {
 
     try {
       const pmid = item.pmid;
-      const drugName = item.drugName || searchParams.query || 'Unknown';
+      let drugName = item.drugName || searchParams.query || 'Unknown';
+      
+      // Format drug name as INN(BrandName) if BrandName is available
+      if (item.brandName) {
+        drugName = `${drugName}(${item.brandName})`;
+      }
+
       const sponsor = searchParams.sponsor || 'Unknown';
 
       if (options.enableDetailedLogging) {

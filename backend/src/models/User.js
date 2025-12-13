@@ -45,6 +45,10 @@ class User {
     this.type = 'user';
   }
 
+  get name() {
+    return this.getFullName() || this.username || this.email;
+  }
+
   // Check if user has specific permission
   hasPermission(resource, action) {
     if (!this.permissions || !this.permissions[resource]) {

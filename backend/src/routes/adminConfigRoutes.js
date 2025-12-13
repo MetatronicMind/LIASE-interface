@@ -61,7 +61,8 @@ router.get(
       'notification',
       'scheduler',
       'migration',
-      'security'
+      'security',
+      'workflow'
     ])
   ],
   validate,
@@ -92,7 +93,8 @@ router.put(
       'notification',
       'scheduler',
       'migration',
-      'security'
+      'security',
+      'workflow'
     ]),
     body('configData').isObject()
   ],

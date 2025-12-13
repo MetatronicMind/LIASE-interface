@@ -73,6 +73,7 @@ class Study {
     // AOI Assessment fields
     listedness = null, // 'Yes', 'No'
     seriousness = null, // 'Yes', 'No'
+    fullTextAvailability = null, // 'Yes', 'No'
     aoiAssessedBy = null,
     aoiAssessedAt = null,
     // Medical Reviewer fields
@@ -169,6 +170,7 @@ class Study {
     // AOI Assessment fields
     this.listedness = listedness;
     this.seriousness = seriousness;
+    this.fullTextAvailability = fullTextAvailability;
     this.aoiAssessedBy = aoiAssessedBy;
     this.aoiAssessedAt = aoiAssessedAt;
     
@@ -224,7 +226,7 @@ class Study {
     this.updatedAt = new Date().toISOString();
   }
 
-  updateUserTag(tag, userId, userName) {
+  updateUserTag(tag, userId, userName, nextStage = null) {
     const validTags = ['ICSR', 'AOI', 'No Case'];
     if (!validTags.includes(tag)) {
       throw new Error(`Invalid tag. Must be one of: ${validTags.join(', ')}`);
@@ -232,16 +234,41 @@ class Study {
     
     const previousTag = this.userTag;
     this.userTag = tag;
-    this.qaApprovalStatus = 'pending'; // Reset QC approval when tag changes
-    this.updatedAt = new Date().toISOString();
+
+    if (nextStage) {
+      this.status = nextStage.id;
+      
+      // If moving to a QC stage, set approval status to pending
+      if (nextStage.id.includes('qc') || nextStage.label.toLowerCase().includes('qc')) {
+        this.qaApprovalStatus = 'pending';
+        this.addComment({
+          userId,
+          userName,
+          text: `Manual classification updated to "${tag}". Moving to ${nextStage.label}.`,
+          type: 'system'
+        });
+      } else {
+        // If skipping QC, ensure we don't get stuck in pending
+        this.qaApprovalStatus = 'not_applicable';
+        this.addComment({
+          userId,
+          userName,
+          text: `Manual classification updated to "${tag}". Moving to ${nextStage.label}.`,
+          type: 'system'
+        });
+      }
+    } else {
+      // Legacy behavior
+      this.qaApprovalStatus = 'pending'; // Reset QC approval when tag changes
+      this.addComment({
+        userId,
+        userName,
+        text: `Manual classification updated from "${previousTag || 'None'}" to "${tag}". Awaiting QC approval.`,
+        type: 'system'
+      });
+    }
     
-    // Add tag change comment
-    this.addComment({
-      userId,
-      userName,
-      text: `Manual classification updated from "${previousTag || 'None'}" to "${tag}". Awaiting QC approval.`,
-      type: 'system'
-    });
+    this.updatedAt = new Date().toISOString();
   }
 
   // QC Workflow Methods
@@ -265,7 +292,7 @@ class Study {
     });
   }
 
-  rejectClassification(userId, userName, reason) {
+  rejectClassification(userId, userName, reason, targetStage) {
     if (!reason) {
       throw new Error('Rejection reason is required');
     }
@@ -277,6 +304,11 @@ class Study {
     this.qaComments = reason;
     this.updatedAt = new Date().toISOString();
     
+    // If targetStage is provided, update status
+    if (targetStage) {
+      this.status = targetStage;
+    }
+    
     // Clear the userTag so the study goes back to Triage for re-classification
     this.userTag = null;
     
@@ -284,13 +316,13 @@ class Study {
     this.addComment({
       userId,
       userName,
-      text: `Classification "${previousTag}" rejected by QC. Reason: ${reason}. Study returned to Triage for re-classification.`,
+      text: `Classification "${previousTag}" rejected by QC. Reason: ${reason}. Study returned to ${targetStage || 'Triage'} for re-classification.`,
       type: 'QC_rejection'
     });
   }
 
   // QC R3 XML Review Methods
-  approveR3Form(userId, userName, comments = null) {
+  approveR3Form(userId, userName, comments = null, workflowSettings = { qcDataEntry: true, medicalReview: true }) {
     if (this.qcR3Status === 'approved') {
       throw new Error('R3 form is already approved by QC');
     }
@@ -305,13 +337,31 @@ class Study {
     this.qcR3Comments = comments;
     this.updatedAt = new Date().toISOString();
     
-    // Add approval comment
-    this.addComment({
-      userId,
-      userName,
-      text: `R3 XML form approved by QC. Ready for Medical Reviewer${comments ? '. Comments: ' + comments : ''}`,
-      type: 'qc_r3_approval'
-    });
+    const medicalReviewEnabled = workflowSettings.medicalReview !== false;
+
+    if (medicalReviewEnabled) {
+      this.status = 'medical_review';
+      // Add approval comment
+      this.addComment({
+        userId,
+        userName,
+        text: `R3 XML form approved by QC. Ready for Medical Reviewer${comments ? '. Comments: ' + comments : ''}`,
+        type: 'qc_r3_approval'
+      });
+    } else {
+      // Medical Review Disabled - Auto complete Medical Review
+      this.medicalReviewStatus = 'completed';
+      this.medicalReviewedBy = 'system';
+      this.medicalReviewedAt = new Date().toISOString();
+      this.status = 'reporting';
+
+      this.addComment({
+        userId,
+        userName,
+        text: `R3 XML form approved by QC. Medical Review skipped (disabled). Ready for Reports.${comments ? ' Comments: ' + comments : ''}`,
+        type: 'qc_r3_approval'
+      });
+    }
   }
 
   rejectR3Form(userId, userName, reason) {
@@ -379,7 +429,7 @@ class Study {
     });
   }
 
-  revokeStudy(userId, userName, reason) {
+  revokeStudy(userId, userName, reason, targetStage) {
     if (!reason) {
       throw new Error('Revocation reason is required');
     }
@@ -389,7 +439,31 @@ class Study {
     this.revokedBy = userId;
     this.revokedAt = new Date().toISOString();
     this.revocationReason = reason;
-    this.r3FormStatus = 'in_progress'; // Reset to allow data entry to fix
+    
+    // Update the main status field if a target stage is provided
+    if (targetStage) {
+      this.status = targetStage;
+    }
+
+    // Handle specific stage logic
+    if (targetStage === 'triage') {
+      // If revoking to triage, we reset QA approval status completely
+      // This removes it from QC queue and allows re-classification in Triage
+      this.qaApprovalStatus = null;
+      this.qaApprovedBy = null;
+      this.qaApprovedAt = null;
+      this.r3FormStatus = 'not_started';
+    } else if (targetStage === 'qc_triage') {
+      // If revoking to QC triage, we set status to pending so it appears in QC queue
+      this.qaApprovalStatus = 'pending';
+      this.qaApprovedBy = null;
+      this.qaApprovedAt = null;
+      this.r3FormStatus = 'not_started';
+    } else {
+      // Default behavior (revoke to Data Entry)
+      this.r3FormStatus = 'in_progress'; // Reset to allow data entry to fix
+    }
+
     this.updatedAt = new Date().toISOString();
     
     // Clear previous medical review data since it's being re-worked
@@ -400,7 +474,7 @@ class Study {
     this.addComment({
       userId,
       userName,
-      text: `Study revoked by Medical Reviewer. Reason: ${reason}. Returned to Data Entry for corrections.`,
+      text: `Study revoked. Reason: ${reason}. Returned to ${targetStage || 'Data Entry'} for corrections.`,
       type: 'revocation'
     });
   }
@@ -410,6 +484,7 @@ class Study {
     this.medicalReviewedBy = userId;
     this.medicalReviewedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
+    this.status = 'reporting';
     
     // Check if this was a resubmission after revocation
     const wasResubmitted = this.revokedBy !== null && this.revokedBy !== undefined;
@@ -447,34 +522,70 @@ class Study {
     });
   }
 
-  completeR3Form(userId, userName) {
+  completeR3Form(userId, userName, workflowSettings = { qcDataEntry: true, medicalReview: true }) {
     this.r3FormStatus = 'completed';
     this.r3FormCompletedBy = userId;
     this.r3FormCompletedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     
-    // Set QC R3 status to pending - requires QC approval before Medical Reviewer
-    this.qcR3Status = 'pending';
-    
+    const qcEnabled = workflowSettings.qcDataEntry !== false;
+    const medicalReviewEnabled = workflowSettings.medicalReview !== false;
+
     // Check if this study was previously revoked by Medical Reviewer
     const wasRevoked = this.revokedBy !== null && this.revokedBy !== undefined;
-    
-    // Add comment indicating R3 form completion
-    if (wasRevoked) {
-      this.addComment({
-        userId,
-        userName,
-        text: 'R3 form completed and resubmitted after Medical Reviewer revocation. Awaiting QC approval before medical re-review.',
-        type: 'resubmission'
-      });
+
+    if (qcEnabled) {
+      // Set QC R3 status to pending - requires QC approval before Medical Reviewer
+      this.qcR3Status = 'pending';
+      this.status = 'qc_data_entry'; // Move to QC Data Entry stage
+      
+      // Add comment indicating R3 form completion
+      if (wasRevoked) {
+        this.addComment({
+          userId,
+          userName,
+          text: 'R3 form completed and resubmitted after Medical Reviewer revocation. Awaiting QC approval before medical re-review.',
+          type: 'resubmission'
+        });
+      } else {
+        // First-time completion - add standard completion comment
+        this.addComment({
+          userId,
+          userName,
+          text: 'R3 form completed. Awaiting QC approval before Medical Reviewer review.',
+          type: 'system'
+        });
+      }
     } else {
-      // First-time completion - add standard completion comment
-      this.addComment({
-        userId,
-        userName,
-        text: 'R3 form completed. Awaiting QC approval before Medical Reviewer review.',
-        type: 'system'
-      });
+      // QC Disabled - Auto approve QC
+      this.qcR3Status = 'approved';
+      this.qcR3ApprovedBy = 'system';
+      this.qcR3ApprovedAt = new Date().toISOString();
+      this.qcR3Comments = 'Auto-approved (QC Data Entry disabled)';
+
+      if (medicalReviewEnabled) {
+        // Move to Medical Review
+        this.status = 'medical_review';
+        this.addComment({
+          userId,
+          userName,
+          text: 'R3 form completed. QC Data Entry skipped (disabled). Ready for Medical Reviewer.',
+          type: 'system'
+        });
+      } else {
+        // Both disabled - Move to Reports
+        this.medicalReviewStatus = 'completed';
+        this.medicalReviewedBy = 'system';
+        this.medicalReviewedAt = new Date().toISOString();
+        this.status = 'reporting';
+        
+        this.addComment({
+          userId,
+          userName,
+          text: 'R3 form completed. QC Data Entry and Medical Review skipped (disabled). Ready for Reports.',
+          type: 'system'
+        });
+      }
     }
     
     // Auto-tag as ICSR if not already tagged
@@ -655,9 +766,12 @@ class Study {
       errors.push('Adverse event description must be at least 5 characters long');
     }
 
+    // Status validation removed to support custom workflows
+    /*
     if (data.status && !['Pending Review', 'Under Review', 'Approved', 'Rejected'].includes(data.status)) {
       errors.push('Status must be Pending Review, Under Review, Approved, or Rejected');
     }
+    */
 
     if (!data.organizationId) {
       errors.push('Organization ID is required');

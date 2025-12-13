@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import { PmidLink } from "@/components/PmidLink";
+import { CommentThread } from "@/components/CommentThread";
 
 // Helper function to format dates for XML (removes hyphens, colons, and T)
 const formatDateForXML = (dateStr: string, maxLength?: number): string => {
@@ -1188,6 +1189,11 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                     <p className="text-gray-600">Additional information that may provide context</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Comment Thread */}
+              <div className="mb-6">
+                <CommentThread study={selectedStudy} />
               </div>
 
               {/* R3 Form Data */}

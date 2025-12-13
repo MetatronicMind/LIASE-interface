@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useDateTime } from '@/hooks/useDateTime';
 
 interface Notification {
   id: string;
@@ -18,6 +19,7 @@ interface NotificationManagerProps {
 
 export default function NotificationManager({ notifications, onDismiss }: NotificationManagerProps) {
   const [visibleNotifications, setVisibleNotifications] = useState<Notification[]>([]);
+  const { formatTime } = useDateTime();
 
   useEffect(() => {
     setVisibleNotifications(notifications);
@@ -118,7 +120,7 @@ export default function NotificationManager({ notifications, onDismiss }: Notifi
               )}
               
               <div className="text-xs opacity-70 mt-2">
-                {new Date(notification.timestamp).toLocaleTimeString()}
+                {formatTime(notification.timestamp)}
               </div>
             </div>
             

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useDateTime } from '@/hooks/useDateTime';
 import { Cog6ToothIcon, ClockIcon, PlayIcon, PauseIcon, TrashIcon } from "@heroicons/react/24/solid";
 import { getApiBaseUrl } from '@/config/api';
 
@@ -24,6 +25,7 @@ interface AdminConfig {
 }
 
 export default function AdminConfigTab() {
+  const { formatDateTime } = useDateTime();
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
   const [configs, setConfigs] = useState<AdminConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -292,10 +294,10 @@ export default function AdminConfigTab() {
                     <div className="text-xs text-gray-500 space-y-1">
                       <p><span className="font-semibold">Schedule:</span> {job.schedule}</p>
                       {job.lastRun && (
-                        <p><span className="font-semibold">Last Run:</span> {new Date(job.lastRun).toLocaleString()}</p>
+                        <p><span className="font-semibold">Last Run:</span> {formatDateTime(job.lastRun)}</p>
                       )}
                       {job.nextRun && (
-                        <p><span className="font-semibold">Next Run:</span> {new Date(job.nextRun).toLocaleString()}</p>
+                        <p><span className="font-semibold">Next Run:</span> {formatDateTime(job.nextRun)}</p>
                       )}
                     </div>
                   </div>

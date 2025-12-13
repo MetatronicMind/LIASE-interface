@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { MagnifyingGlassIcon, UserGroupIcon, ExclamationTriangleIcon, ChartBarIcon } from "@heroicons/react/24/outline";
 import { getApiBaseUrl } from "@/config/api";
 import { PmidLink } from "@/components/PmidLink";
+import { CommentThread } from "@/components/CommentThread";
 
 interface Study {
   id: string;
@@ -444,7 +445,7 @@ useEffect(() => {
                             </div>
                             <div className="flex items-center">
                               <span className="font-medium w-16">Created:</span>
-                              <span>{new Date(study.createdAt).toLocaleDateString('en-CA')}</span>
+                              <span>{require('@/hooks/useDateTime').useDateTime().formatDate(study.createdAt)}</span>
                             </div>
                           </div>
 
@@ -581,7 +582,7 @@ useEffect(() => {
                             {(() => {
                               try {
                                 const date = selectedStudy.publicationDate || selectedStudy.createdAt;
-                                return date ? new Date(date).toLocaleDateString('en-CA') : 'N/A';
+                                return date ? require('@/hooks/useDateTime').useDateTime().formatDate(date) : 'N/A';
                               } catch (error) {
                                 return 'N/A';
                               }
@@ -836,6 +837,11 @@ useEffect(() => {
                           })()}
                         </ul>
                       </div>
+                    </div>
+
+                    {/* Comment Thread */}
+                    <div className="mb-6">
+                      <CommentThread study={selectedStudy} />
                     </div>
 
                     {/* Action Buttons */}

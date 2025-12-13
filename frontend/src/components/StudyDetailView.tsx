@@ -45,6 +45,9 @@ interface Study {
   sponsor?: string;
   userTag?: 'ICSR' | 'AOI' | 'No Case' | null;
   effectiveClassification?: string;
+  listedness?: string;
+  seriousness?: string;
+  fullTextAvailability?: string;
   
   createdAt: string;
   updatedAt: string;
@@ -174,7 +177,7 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-700">Publication Date</label>
-                      <p className="text-gray-900">{new Date(study.publicationDate).toLocaleDateString()}</p>
+                      <p className="text-gray-900">{require('@/hooks/useDateTime').useDateTime().formatDate(study.publicationDate)}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-700">DOI</label>
@@ -318,6 +321,38 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
                   )}
                 </div>
               </div>
+
+              {study.userTag && (
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">Current Classification Details</h3>
+                  <div className="bg-blue-50 rounded-lg p-4 space-y-4 border border-blue-100">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Classification</label>
+                        <p className="text-gray-900 font-medium">{study.userTag}</p>
+                      </div>
+                      {study.listedness && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Listedness</label>
+                          <p className="text-gray-900">{study.listedness}</p>
+                        </div>
+                      )}
+                      {study.seriousness && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Seriousness</label>
+                          <p className="text-gray-900">{study.seriousness}</p>
+                        </div>
+                      )}
+                      {study.fullTextAvailability && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Full Text Availability</label>
+                          <p className="text-gray-900">{study.fullTextAvailability}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Manual Classification Override */}
               {!readonly && (

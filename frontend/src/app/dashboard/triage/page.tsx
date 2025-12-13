@@ -4,6 +4,8 @@ import { MagnifyingGlassIcon, ExclamationTriangleIcon, ChatBubbleLeftEllipsisIco
 import { getApiBaseUrl } from "@/config/api";
 import { PmidLink } from "@/components/PmidLink";
 import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
+import { CommentThread } from "@/components/CommentThread";
+import { useDateTime } from "@/hooks/useDateTime";
 
 interface Study {
   id: string;
@@ -29,6 +31,9 @@ interface Study {
   }>;
   qaApprovalStatus?: 'pending' | 'approved' | 'rejected';
   qaComments?: string;
+  revokedBy?: string;
+  revokedAt?: string;
+  revocationReason?: string;
   
   // AI Inference Data - Raw API response
   aiInferenceData?: any;
@@ -85,6 +90,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function TriagePage() {
+  const { formatDate } = useDateTime();
   // Studies state
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +102,8 @@ export default function TriagePage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [classificationType, setClassificationType] = useState("");
+  const [clientNameFilter, setClientNameFilter] = useState("");
+  const [journalNameFilter, setJournalNameFilter] = useState("");
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
   
   // Pagination state
@@ -108,6 +116,7 @@ export default function TriagePage() {
   const [justification, setJustification] = useState<string>("");
   const [listedness, setListedness] = useState<string>("");
   const [seriousness, setSeriousness] = useState<string>("");
+  const [fullTextAvailability, setFullTextAvailability] = useState<string>("");
   
   // UI state
   const [showRawData, setShowRawData] = useState(false);
@@ -214,7 +223,8 @@ export default function TriagePage() {
   };
 
   // Classification function
-  const classifyStudy = async (studyId: string, classification: string, details?: { justification?: string, listedness?: string, seriousness?: string }) => {
+  const classifyStudy = async (studyId: string, classification: string, details?: { justification?: string, listedness?: string, seriousness?: string, fullTextAvailability?: string }) => {
+    console.log('classifyStudy called for:', studyId, classification);
     try {
       setClassifying(studyId);
       const token = localStorage.getItem("auth_token");
@@ -227,8 +237,10 @@ export default function TriagePage() {
         if (details.justification) body.justification = details.justification;
         if (details.listedness) body.listedness = details.listedness;
         if (details.seriousness) body.seriousness = details.seriousness;
+        if (details.fullTextAvailability) body.fullTextAvailability = details.fullTextAvailability;
       }
       
+      console.log('Sending PUT request to:', `${API_BASE}/studies/${studyId}`);
       const response = await fetch(`${API_BASE}/studies/${studyId}`, {
         method: "PUT",
         headers: {
@@ -237,33 +249,32 @@ export default function TriagePage() {
         },
         body: JSON.stringify(body),
       });
+      
+      console.log('Response status:', response.status);
 
       if (response.ok) {
         const result = await response.json();
+        console.log('Full API Result:', result);
+        const updatedStudy = result.study;
+        
+        if (result.debug) {
+            console.log('=== CLASSIFICATION DEBUG ===');
+            console.log('Full Debug Object:', result.debug);
+            console.log('Transition Found:', result.debug.transition);
+            console.log('Next Stage:', result.debug.nextStage);
+            console.log('============================');
+        } else {
+            console.log('WARNING: No debug object in response');
+        }
+        
         // Update the study in the local state with the response from the server
-        // This ensures qaApprovalStatus is set to 'pending'
         setStudies(prev => prev.map(study => 
-          study.id === studyId 
-            ? { 
-                ...study, 
-                userTag: classification as any, 
-                qaApprovalStatus: 'pending',
-                justification: details?.justification || study.justification,
-                listedness: details?.listedness || study.listedness,
-                seriousness: details?.seriousness || study.seriousness
-              }
-            : study
+          study.id === studyId ? updatedStudy : study
         ));
+        
         // Also update selected study if it's the one being classified
         if (selectedStudy && selectedStudy.id === studyId) {
-          setSelectedStudy(prev => prev ? { 
-            ...prev, 
-            userTag: classification as any, 
-            qaApprovalStatus: 'pending',
-            justification: details?.justification || prev.justification,
-            listedness: details?.listedness || prev.listedness,
-            seriousness: details?.seriousness || prev.seriousness
-          } : null);
+          setSelectedStudy(updatedStudy);
         }
         
         // Reset classification state
@@ -271,8 +282,9 @@ export default function TriagePage() {
         setJustification("");
         setListedness("");
         setSeriousness("");
+        setFullTextAvailability("");
         
-        alert(`Study classified as ${classification}. Awaiting QC approval.`);
+        alert(`Literature Article classified as ${classification}. Awaiting QC approval.`);
       } else {
         throw new Error("Failed to classify study");
       }
@@ -337,13 +349,18 @@ export default function TriagePage() {
     return null;
   };
 
+  // Get unique client names and journal names for dropdowns
+  const uniqueClientNames = Array.from(new Set(studies.map(s => s.clientName).filter(Boolean))).sort();
+  const uniqueJournalNames = Array.from(new Set(studies.map(s => s.journal).filter(Boolean))).sort();
+
   // Filtering logic
   const filteredStudies = studies.filter((study: Study) => {
     // Only show studies that need triage classification:
     // 1. Studies without a userTag (not yet classified), OR
     // 2. Studies that were rejected by QC (need re-classification)
+    // 3. Studies that were revoked to Triage (status === 'triage')
     // Exclude studies that are approved or pending QC approval
-    const needsTriage = !study.userTag || study.qaApprovalStatus === 'rejected';
+    const needsTriage = !study.userTag || study.qaApprovalStatus === 'rejected' || study.status === 'triage';
     if (!needsTriage) return false;
     
     // Search by drug name or title
@@ -361,8 +378,14 @@ export default function TriagePage() {
     // Classification Type filter
     const finalClassification = getFinalClassification(study);
     const matchesClassificationType = classificationType === "" || finalClassification === classificationType;
+
+    // Client Name filter
+    const matchesClientName = clientNameFilter === "" || study.clientName === clientNameFilter;
+
+    // Journal Name filter
+    const matchesJournalName = journalNameFilter === "" || study.journal === journalNameFilter;
     
-    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo && matchesClassificationType;
+    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo && matchesClassificationType && matchesClientName && matchesJournalName;
   });
 
   // Pagination logic
@@ -378,7 +401,7 @@ export default function TriagePage() {
     }
     // Do not auto-select any study when filters change
     setPage(1); // Reset to first page when filters change
-  }, [search, status, dateFrom, dateTo]);
+  }, [search, status, dateFrom, dateTo, classificationType, clientNameFilter, journalNameFilter]);
 
   // Action handlers
   const handleAction = (action: string) => {
@@ -426,8 +449,8 @@ export default function TriagePage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">TRIAGE</h1>
-          <p className="mt-1 text-sm text-gray-600">Classify studies as ICSR, Article of Interest, or No Case for pharmacovigilance processing</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Literature Triage</h1>
+          {/* <p className="mt-1 text-sm text-gray-600">Classify studies as ICSR, Article of Interest, or No Case for pharmacovigilance processing</p> */}
         </div>
       </div>
 
@@ -457,11 +480,11 @@ export default function TriagePage() {
             <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
             </svg>
-            Filter Studies for Triage
+            Filter Articles
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Search Studies</label>
+              <label className="block text-sm font-medium text-gray-700">Drug Name or Title</label>
               <div className="relative">
                 <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
@@ -474,7 +497,7 @@ export default function TriagePage() {
               </div>
             </div>
             
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Status</label>
               <select
                 value={status}
@@ -486,10 +509,24 @@ export default function TriagePage() {
                 <option value="Under Review">Under Review</option>
                 <option value="Approved">Approved</option>
               </select>
+            </div> */}
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Client Name </label>
+              <select
+                value={clientNameFilter}
+                onChange={e => setClientNameFilter(e.target.value)}
+                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+              >
+                <option value="">All Clients</option>
+                {uniqueClientNames.map((client, index) => (
+                  <option key={index} value={client as string}>{client}</option>
+                ))}
+              </select>
             </div>
             
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Classification Type</label>
+              <label className="block text-sm font-medium text-gray-700">AI Classification </label>
               <select
                 value={classificationType}
                 onChange={e => setClassificationType(e.target.value)}
@@ -500,8 +537,25 @@ export default function TriagePage() {
                 <option value="Probable ICSR">Probable ICSR</option>
                 <option value="Probable AOI">Probable AOI</option>
                 <option value="No Case">No Case</option>
+                <option value="Manual Review">Manual Review</option>
               </select>
             </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Journal Name </label>
+              <select
+                value={journalNameFilter}
+                onChange={e => setJournalNameFilter(e.target.value)}
+                className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+              >
+                <option value="">All Journals</option>
+                {uniqueJournalNames.map((journal, index) => (
+                  <option key={index} value={journal as string}>{journal}</option>
+                ))}
+              </select>
+            </div>
+
+
             
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">From Date</label>
@@ -542,8 +596,8 @@ export default function TriagePage() {
               </svg>
               Clear All Filters
             </button>
-            <div className="flex items-center text-sm text-gray-600">
-              <span className="font-medium">{filteredStudies.length}</span> studies found
+            <div className="flex items-center text-sm text-gray-600 ">
+              <span className="font-medium">{filteredStudies.length}</span> Articles found
             </div>
           </div>
         </div>
@@ -560,7 +614,7 @@ export default function TriagePage() {
                       <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Studies ({filteredStudies.length})
+                      Articles ({filteredStudies.length})
                     </h3>
                     <button
                       onClick={fetchStudies}
@@ -647,7 +701,7 @@ export default function TriagePage() {
                           
                           <div className="space-y-1 text-xs text-gray-600">
                             <div>
-                              <span className="font-medium">INN & Brand Name:</span> {study.drugName}
+                              <span className="font-medium">INN:</span> {study.drugName}
                             </div>
                             <div>
                               <span className="font-medium">Adverse Event:</span> {study.adverseEvent}
@@ -665,6 +719,14 @@ export default function TriagePage() {
 
                           {/* Classification and Tags */}
                           <div className="flex flex-wrap gap-1">
+                            {study.revokedBy && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-300">
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                                Revoked
+                              </span>
+                            )}
                             {study.qaApprovalStatus === 'rejected' && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-300">
                                 <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -689,6 +751,11 @@ export default function TriagePage() {
                             {study.justification && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                                 {study.justification}
+                              </span>
+                            )}
+                            {study.fullTextAvailability && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                                Full Text: {study.fullTextAvailability}
                               </span>
                             )}
                             {!study.userTag && study.qaApprovalStatus !== 'rejected' && (
@@ -804,21 +871,48 @@ export default function TriagePage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Revocation Notice */}
+                    {selectedStudy.revokedBy && selectedStudy.revocationReason && (
+                      <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="ml-3 flex-1">
+                            <h3 className="text-sm font-medium text-red-800">
+                              Study Revoked
+                            </h3>
+                            <div className="mt-2 text-sm text-red-700">
+                              <p className="font-semibold">Reason:</p>
+                              <p className="mt-1">{selectedStudy.revocationReason}</p>
+                            </div>
+                            {selectedStudy.revokedAt && (
+                              <p className="mt-2 text-xs text-red-600">
+                                Revoked on: {formatDate(selectedStudy.revokedAt)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Basic Information */}
                     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                       <h4 className="font-semibold text-gray-900 mb-3">Literature Information</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="font-medium text-gray-700">PMID:</span>
+                          <span className="font-bold text-gray-700">PMID:</span>
                           <p className="mt-1"><PmidLink pmid={selectedStudy.pmid} showIcon={true} /></p>
                         </div>
                         <div>
-                          <span className="font-medium text-gray-700">INN & Brand Name:</span>
+                          <span className="font-bold text-gray-700">INN & Brand Name:</span>
                           <p className="mt-1 text-gray-900">{selectedStudy.drugName}</p>
                         </div>
                         <div>
-                          <span className="font-medium text-gray-700">Authors:</span>
+                          <span className="font-bold text-gray-700">Authors:</span>
                           <p className="mt-1 text-gray-900">
                             {Array.isArray(selectedStudy.authors) 
                               ? selectedStudy.authors.join(', ')
@@ -829,33 +923,30 @@ export default function TriagePage() {
                           </p>
                         </div>
                         <div>
-                          <span className="font-medium text-gray-700">Journal:</span>
+                          <span className="font-bold text-gray-700">Journal Name:</span>
                           <p className="mt-1 text-gray-900">{selectedStudy.journal || 'N/A'}</p>
                         </div>
                         <div>
-                          <span className="font-medium text-gray-700">Publication Date:</span>
+                          <span className="font-bold text-gray-700">Publication Date:</span>
                           <p className="mt-1 text-gray-900">{selectedStudy.publicationDate || 'N/A'}</p>
                         </div>
+                        
                         <div>
-                          <span className="font-medium text-gray-700">Adverse Event:</span>
-                          <p className="mt-1 text-gray-900">{selectedStudy.adverseEvent}</p>
+                          <span className="font-bold text-gray-700">Created On:</span>
+                          <p className="mt-1 text-gray-900">{formatDate(selectedStudy.createdAt)}</p>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Created:</span>
-                          <p className="mt-1 text-gray-900">{new Date(selectedStudy.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <div>
+                        {/* <div>
                           <span className="font-medium text-gray-700">Created By:</span>
                           <p className="mt-1 text-gray-900">{selectedStudy.createdBy || 'System'}</p>
-                        </div>
+                        </div> */}
                       </div>
                       <div>
-                        <span className="font-medium text-gray-700">Title:</span>
+                        <span className="font-bold text-gray-700">Title:</span>
                         <p className="mt-1 text-gray-900 leading-relaxed">{selectedStudy.title}</p>
                       </div>
                       {selectedStudy.vancouverCitation && (
                         <div>
-                          <span className="font-medium text-gray-700">Citation:</span>
+                          <span className="font-bold text-gray-700">Literature Citation:</span>
                           <p className="mt-1 text-gray-900 text-sm italic">{selectedStudy.vancouverCitation}</p>
                         </div>
                       )}
@@ -896,12 +987,12 @@ export default function TriagePage() {
                         <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                         </svg>
-                        Literature Metadata
+                        Literature Article Overview
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                         {selectedStudy.doi && (
                           <div>
-                            <span className="font-medium text-gray-700">DOI:</span>
+                            <span className="font-bold text-gray-700">DOI:</span>
                             <p className="mt-1 text-gray-900 break-all">
                               <a 
                                 href={selectedStudy.doi.startsWith('http') ? selectedStudy.doi : `https://doi.org/${selectedStudy.doi}`} 
@@ -916,43 +1007,43 @@ export default function TriagePage() {
                         )}
                         {selectedStudy.leadAuthor && (
                           <div>
-                            <span className="font-medium text-gray-700">Lead Author:</span>
+                            <span className="font-bold text-gray-700">Lead Author:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.leadAuthor}</p>
                           </div>
                         )}
                         {selectedStudy.countryOfFirstAuthor && (
                           <div>
-                            <span className="font-medium text-gray-700">Country of first author:</span>
+                            <span className="font-bold text-gray-700">Country of first Author:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.countryOfFirstAuthor}</p>
                           </div>
                         )}
                         {selectedStudy.countryOfOccurrence && (
                           <div>
-                            <span className="font-medium text-gray-700">Country of Occurrence:</span>
+                            <span className="font-bold text-gray-700">Country of Occurrence:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.countryOfOccurrence}</p>
                           </div>
                         )}
                         {selectedStudy.substanceGroup && (
                           <div>
-                            <span className="font-medium text-gray-700">Substance Group:</span>
+                            <span className="font-bold text-gray-700">INN:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.substanceGroup}</p>
                           </div>
                         )}
                         {selectedStudy.authorPerspective && (
                           <div>
-                            <span className="font-medium text-gray-700">Author Perspective:</span>
+                            <span className="font-bold text-gray-700">Author Perspective:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.authorPerspective}</p>
                           </div>
                         )}
                         {selectedStudy.sponsor && (
                           <div>
-                            <span className="font-medium text-gray-700">Client:</span>
+                            <span className="font-bold text-gray-700">Client Name:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.sponsor}</p>
                           </div>
                         )}
                         {selectedStudy.testSubject && (
                           <div>
-                            <span className="font-medium text-gray-700">Subject/Participant/Patient:</span>
+                            <span className="font-bold text-gray-700">Subject/Participant/Patient:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.testSubject}</p>
                           </div>
                         )}
@@ -965,26 +1056,34 @@ export default function TriagePage() {
                         <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                         </svg>
-                        AI Analysis & Clinical Data
+                        <div className="font-bold flex justify-center items-center">
+                          <p>AI Literature Analysis</p>
+                          </div>
+                         
                       </h4>
                       <div className="space-y-4">
                         {/* Grid Layout for Analysis Fields */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                          {(selectedStudy.special_case || selectedStudy.specialCase) && (
+                          <div>
+                          <span className="font-bold text-gray-700">AI Identified Adverse Event(s):</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.adverseEvent}</p>
+                        </div>
+                        {(selectedStudy.special_case || selectedStudy.specialCase) && (
                             <div>
-                              <span className="font-medium text-gray-700">Special Case:</span>
+                              <span className="font-bold text-gray-700">AI Identified Special Situation(s):</span>
                               <p className="mt-1 text-gray-900">{selectedStudy.special_case || selectedStudy.specialCase}</p>
                             </div>
                           )}
+                          
                           {(selectedStudy.Text_type || selectedStudy.textType) && (
                             <div>
-                              <span className="font-medium text-gray-700">Article Type:</span>
+                              <span className="font-bold text-gray-700">Article Type:</span>
                               <p className="mt-1 text-gray-900">{selectedStudy.Text_type || selectedStudy.textType}</p>
                             </div>
                           )}
                           {selectedStudy.approvedIndication && (
                             <div>
-                              <span className="font-medium text-gray-700">AI assessment of label use:</span>
+                              <span className="font-bold text-gray-700">AI Assessment of Indication:</span>
                               <p className="mt-1 text-gray-900">{selectedStudy.approvedIndication}</p>
                             </div>
                           )}
@@ -993,19 +1092,19 @@ export default function TriagePage() {
                         {/* Text-based Fields */}
                         {selectedStudy.attributability && (
                           <div>
-                            <span className="font-medium text-gray-700">AI assessment of attributability:</span>
+                            <span className="font-bold text-gray-700">AI Assessment of Attributability:</span>
                             <p className="mt-1 text-gray-900 text-sm">{selectedStudy.attributability}</p>
                           </div>
                         )}
                         {selectedStudy.drugEffect && (
                           <div>
-                            <span className="font-medium text-gray-700">AI identified drug response:</span>
+                            <span className="font-bold text-gray-700">AI Identified Drug Effect </span> <span>(Beneficial/Adverse) :</span>
                             <p className="mt-1 text-gray-900 text-sm">{selectedStudy.drugEffect}</p>
                           </div>
                         )}
                         {selectedStudy.justification && (
                           <div>
-                            <span className="font-medium text-gray-700">Justification:</span>
+                            <span className="font-bold text-gray-700">AI Opinion on Literature:</span>
                             <p className="mt-1 text-gray-900 text-sm">{selectedStudy.justification}</p>
                           </div>
                         )}
@@ -1013,7 +1112,7 @@ export default function TriagePage() {
                         {/* Clinical Data */}
                         {selectedStudy.administeredDrugs && selectedStudy.administeredDrugs.length > 0 && (
                           <div>
-                            <span className="font-medium text-gray-700">Administered Drugs:</span>
+                            <span className="font-bold text-gray-700">Administered Drugs:</span>
                             <div className="mt-1 flex flex-wrap gap-1">
                               {selectedStudy.administeredDrugs.map((drug, index) => (
                                 <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
@@ -1025,7 +1124,7 @@ export default function TriagePage() {
                         )}
                         {selectedStudy.patientDetails && (
                           <div>
-                            <span className="font-medium text-gray-700">Patient Details:</span>
+                            <span className="font-bold text-gray-700">Patient Details:</span>
                             <div className="mt-1 bg-white rounded p-3 border">
                               {typeof selectedStudy.patientDetails === 'object' ? (
                                 <pre className="text-xs text-gray-900 whitespace-pre-wrap">
@@ -1039,7 +1138,7 @@ export default function TriagePage() {
                         )}
                         {selectedStudy.relevantDates && (
                           <div>
-                            <span className="font-medium text-gray-700">Relevant Dates:</span>
+                            <span className="font-bold text-gray-700">Relevant Dates:</span>
                             <div className="mt-1 bg-white rounded p-3 border">
                               {typeof selectedStudy.relevantDates === 'object' ? (
                                 <pre className="text-xs text-gray-900 whitespace-pre-wrap">
@@ -1055,7 +1154,7 @@ export default function TriagePage() {
                     </div>
 
                     {/* Raw AI Data Viewer - for debugging and verification */}
-                    {selectedStudy.aiInferenceData && (
+                    {/* {selectedStudy.aiInferenceData && (
                       <div className="bg-gray-100 rounded-lg p-4 border border-gray-300">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="font-semibold text-gray-900 flex items-center">
@@ -1082,7 +1181,7 @@ export default function TriagePage() {
                           </div>
                         )}
                       </div>
-                    )}
+                    )} */}
 
                     {/* Summary */}
                     {selectedStudy.summary && (
@@ -1105,7 +1204,7 @@ export default function TriagePage() {
                         <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
-                        Classify Study
+                        Classify Article
                       </h4>
                       
                       {selectedClassification ? (
@@ -1146,7 +1245,9 @@ export default function TriagePage() {
                                   <>
                                     <option value="Adverse Event">Adverse Event</option>
                                     <option value="Special Situations">Special Situations</option>
-                                    <option value="Not applicable">Not applicable</option>
+                                    <option value="Adverse Event & Special Situations">Adverse Event & Special Situations</option>
+                                    <option value="Others">Others</option>
+
                                   </>
                                 )}
                                 {selectedClassification === 'No Case' && (
@@ -1155,15 +1256,43 @@ export default function TriagePage() {
                                     <option value="Pre-Clinical study">Pre-Clinical study</option>
                                     <option value="Treatment Medication">Treatment Medication</option>
                                     <option value="Secondary analysis">Secondary analysis</option>
-                                    <option value="Not applicable">Not applicable</option>
+                                    <option value="Others">Others</option>
                                   </>
                                 )}
                               </select>
                             </div>
 
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Full Text Availability</label>
+                              <div className="flex gap-4">
+                                <label className="inline-flex items-center">
+                                  <input 
+                                    type="radio" 
+                                    className="form-radio text-blue-600" 
+                                    name="fullTextAvailability" 
+                                    value="Yes" 
+                                    checked={fullTextAvailability === 'Yes'} 
+                                    onChange={(e) => setFullTextAvailability(e.target.value)} 
+                                  />
+                                  <span className="ml-2 text-sm text-gray-700">Yes</span>
+                                </label>
+                                <label className="inline-flex items-center">
+                                  <input 
+                                    type="radio" 
+                                    className="form-radio text-blue-600" 
+                                    name="fullTextAvailability" 
+                                    value="No" 
+                                    checked={fullTextAvailability === 'No'} 
+                                    onChange={(e) => setFullTextAvailability(e.target.value)} 
+                                  />
+                                  <span className="ml-2 text-sm text-gray-700">No</span>
+                                </label>
+                              </div>
+                            </div>
+
                             {selectedClassification === 'ICSR' && (
                               <div className="bg-red-50 p-3 rounded-md border border-red-100">
-                                <p className="text-sm font-medium text-red-800 mb-2">Additional ICSR Options</p>
+                                {/* <p className="text-sm font-medium text-red-800 mb-2">Additional ICSR Options</p> */}
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
                                     <label className="block text-xs font-medium text-gray-700 mb-1">Listedness</label>
@@ -1203,7 +1332,7 @@ export default function TriagePage() {
                                 Cancel
                               </button>
                               <button
-                                onClick={() => classifyStudy(selectedStudy.id, selectedClassification, { justification, listedness, seriousness })}
+                                onClick={() => classifyStudy(selectedStudy.id, selectedClassification, { justification, listedness, seriousness, fullTextAvailability })}
                                 disabled={!justification || classifying === selectedStudy.id}
                                 className={`px-4 py-2 text-white rounded-md text-sm font-medium flex items-center ${
                                   !justification ? 'bg-gray-400 cursor-not-allowed' :
@@ -1230,7 +1359,7 @@ export default function TriagePage() {
                       ) : !selectedStudy.userTag ? (
                         <>
                           <p className="text-sm text-gray-700 mb-4">
-                            Review the study details below and classify this study for pharmacovigilance processing:
+                            Review the literature details above and classify this article:
                           </p>
                           <div className="flex flex-col sm:flex-row gap-3">
                             <button
@@ -1239,6 +1368,7 @@ export default function TriagePage() {
                                 setJustification("");
                                 setListedness("");
                                 setSeriousness("");
+                                setFullTextAvailability("");
                               }}
                               className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors flex items-center justify-center"
                             >
@@ -1253,6 +1383,7 @@ export default function TriagePage() {
                                 setJustification("");
                                 setListedness("");
                                 setSeriousness("");
+                                setFullTextAvailability("");
                               }}
                               className="flex-1 px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-medium transition-colors flex items-center justify-center"
                             >
@@ -1267,6 +1398,7 @@ export default function TriagePage() {
                                 setJustification("");
                                 setListedness("");
                                 setSeriousness("");
+                                setFullTextAvailability("");
                               }}
                               className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium transition-colors flex items-center justify-center"
                             >
@@ -1292,13 +1424,18 @@ export default function TriagePage() {
                               </span>
                             )}
                             {selectedStudy.listedness && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
                                 {selectedStudy.listedness}
                               </span>
                             )}
                             {selectedStudy.seriousness && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
                                 {selectedStudy.seriousness}
+                              </span>
+                            )}
+                            {selectedStudy.fullTextAvailability && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                Full Text: {selectedStudy.fullTextAvailability}
                               </span>
                             )}
                           </div>
@@ -1373,6 +1510,9 @@ export default function TriagePage() {
                         }
                       }}
                     />
+
+                    {/* Comment Thread */}
+                    <CommentThread study={selectedStudy} />
                   </div>
                 </div>
               ) : (

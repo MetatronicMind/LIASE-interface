@@ -117,7 +117,7 @@ router.get('/stats',
         },
         studies: {
           total: studies.length,
-          pendingReview: studies.filter(s => s.status === 'Pending Review').length,
+          pendingReview: studies.filter(s => ['Pending Review', 'Pending', 'Study in Process'].includes(s.status)).length,
           underReview: studies.filter(s => s.status === 'Under Review').length,
           approved: studies.filter(s => s.status === 'Approved').length,
           rejected: studies.filter(s => s.status === 'Rejected').length

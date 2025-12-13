@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useDateTime } from '@/hooks/useDateTime';
 import { 
   BellIcon, 
   EnvelopeIcon, 
@@ -65,6 +66,7 @@ interface NotificationStats {
 export default function NotificationsTab() {
   const [activeView, setActiveView] = useState<'notifications' | 'rules' | 'reports'>('notifications');
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { formatDate, formatDateTime } = useDateTime();
   const [rules, setRules] = useState<NotificationRule[]>([]);
   const [stats, setStats] = useState<NotificationStats>({ total: 0, sent: 0, pending: 0, failed: 0 });
   const [loading, setLoading] = useState(true);
@@ -440,7 +442,7 @@ ${reportSummary}
                       <div className="flex items-center gap-4 text-xs text-gray-500">
                         <span>Type: {notification.type}</span>
                         <span>Channels: {notification.channels.join(', ')}</span>
-                        <span>Created: {new Date(notification.createdAt).toLocaleDateString()}</span>
+                          <span>Created: {formatDate(notification.createdAt)}</span>
                       </div>
                     </div>
                   </div>
@@ -496,7 +498,7 @@ ${reportSummary}
                     <div><strong>Schedule:</strong> {rule.scheduleType} {rule.scheduledTime && `at ${rule.scheduledTime}`}</div>
                     <div><strong>Channels:</strong> {rule.notificationTemplate.channels.join(', ')}</div>
                     {rule.lastTriggeredAt && (
-                      <div><strong>Last Triggered:</strong> {new Date(rule.lastTriggeredAt).toLocaleString()}</div>
+                      <div><strong>Last Triggered:</strong> {formatDateTime(rule.lastTriggeredAt)}</div>
                     )}
                   </div>
 

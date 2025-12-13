@@ -93,6 +93,27 @@ class AdminConfig {
         idFieldMapping: {},
         defaultConflictResolution: 'skip' // skip, overwrite, merge
       },
+      workflow: {
+        qcDataEntry: true,
+        medicalReview: true,
+        stages: [
+          { id: 'triage', label: 'Triage', color: '#3B82F6', type: 'initial' },
+          { id: 'qc_triage', label: 'QC Triage', color: '#8B5CF6', type: 'process' },
+          { id: 'data_entry', label: 'Data Entry', color: '#10B981', type: 'process' },
+          { id: 'medical_review', label: 'Medical Review', color: '#F59E0B', type: 'process' },
+          { id: 'reporting', label: 'Reporting', color: '#EC4899', type: 'process' },
+          { id: 'archived', label: 'Archived', color: '#6B7280', type: 'final' }
+        ],
+        transitions: [
+          { from: 'triage', to: 'qc_triage', label: 'Submit for QC' },
+          { from: 'qc_triage', to: 'data_entry', label: 'Approve & Move to Data Entry' },
+          { from: 'qc_triage', to: 'triage', label: 'Reject & Return to Triage' },
+          { from: 'data_entry', to: 'medical_review', label: 'Submit for Medical Review', canRevoke: true, revokeTo: 'triage' },
+          { from: 'medical_review', to: 'reporting', label: 'Approve & Move to Reporting' },
+          { from: 'medical_review', to: 'data_entry', label: 'Request More Info' },
+          { from: 'reporting', to: 'archived', label: 'Archive' }
+        ]
+      },
       security: {
         passwordPolicy: {
           minLength: 8,
@@ -190,7 +211,7 @@ class AdminConfig {
       errors.push('Config type is required');
     }
 
-    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security'];
+    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security', 'workflow'];
     if (!validTypes.includes(this.configType)) {
       errors.push(`Invalid config type. Must be one of: ${validTypes.join(', ')}`);
     }

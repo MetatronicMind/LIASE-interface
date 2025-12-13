@@ -15,7 +15,7 @@ async function testR3Endpoint() {
     const testDrugName = 'Metformin'; // Replace with a real drug name
     
     // External API endpoint
-    const externalApiUrl = `http://20.242.200.176/get_r3_fields/?PMID=${testPMID}&drug_code=${testDrugCode}&drugname=${testDrugName}`;
+    const externalApiUrl = `http://20.246.204.3/get_r3_fields/?PMID=${testPMID}&drug_code=${testDrugCode}&drugname=${testDrugName}`;
     
     console.log('1. Testing external API directly:');
     console.log('URL:', externalApiUrl);
@@ -55,7 +55,7 @@ if (args.length >= 2) {
   
   console.log(`Testing with custom parameters: PMID=${pmid}, DrugName=${drugname}, DrugCode=${drugcode}\n`);
   
-  const apiUrl = `http://20.242.200.176/get_r3_fields/?PMID=${pmid}&drug_code=${drugcode}&drugname=${drugname}`;
+  const apiUrl = `http://20.246.204.3/get_r3_fields/?PMID=${pmid}&drug_code=${drugcode}&drugname=${drugname}`;
   
   axios.get(apiUrl, { timeout: 10000 })
     .then(response => {

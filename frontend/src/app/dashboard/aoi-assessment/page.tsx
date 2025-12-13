@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import { PmidLink } from "@/components/PmidLink";
+import { CommentThread } from "@/components/CommentThread";
 
 interface Study {
   id: string;
@@ -46,11 +47,14 @@ interface Study {
   approvedIndication?: string;
   justification?: string;
   sponsor?: string;
+  clientName?: string;
   effectiveClassification?: string;
+  requiresManualReview?: boolean;
   
   // AOI Assessment fields
-  listedness?: 'Yes' | 'No' | null;
-  seriousness?: 'Yes' | 'No' | null;
+  listedness?: string;
+  seriousness?: string;
+  fullTextAvailability?: string;
   aoiComments?: string;
   
   // Legacy fields
@@ -92,8 +96,11 @@ export default function AOIAssessmentPage() {
         const data = await response.json();
         // Handle different possible response structures
         const studiesData = data.studies || data.data || (Array.isArray(data) ? data : []);
-        // Filter for AOI cases only
-        const aoiStudies = studiesData.filter((study: Study) => study.userTag === 'AOI');
+        // Filter for AOI cases only and exclude completed assessments
+        const aoiStudies = studiesData.filter((study: Study) => 
+          study.userTag === 'AOI' && 
+          (!study.listedness || !study.seriousness)
+        );
         setStudies(aoiStudies);
       } else {
         throw new Error("Failed to fetch AOI studies");
@@ -356,69 +363,65 @@ export default function AOIAssessmentPage() {
                     </div>
                   )}
 
-                  {/* AI Analysis & Clinical Data */}
+                  {/* AI Literature Analysis */}
                   <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                       <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                       </svg>
-                      AI Analysis & Clinical Data
+                      AI Literature Analysis
                     </h4>
                     <div className="space-y-4">
+                      {/* Grid Layout for Analysis Fields */}
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                        {(selectedStudy.special_case || selectedStudy.specialCase) && (
+                        <div>
+                          <span className="font-bold text-gray-700">AI Identified Adverse Event(s):</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.adverseEvent}</p>
+                        </div>
+                        {(selectedStudy.specialCase || selectedStudy.aiInferenceData?.special_case) && (
                           <div>
-                            <span className="font-medium text-gray-700">Special Case:</span>
-                            <p className="mt-1 text-gray-900">{selectedStudy.special_case || selectedStudy.specialCase}</p>
+                            <span className="font-bold text-gray-700">AI Identified Special Situation(s):</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.specialCase || selectedStudy.aiInferenceData?.special_case}</p>
                           </div>
                         )}
-                        {(selectedStudy.Serious || selectedStudy.serious !== undefined) && (
+                        {(selectedStudy.textType || selectedStudy.aiInferenceData?.Text_type) && (
                           <div>
-                            <span className="font-medium text-gray-700">Serious Event:</span>
-                            <p className="mt-1 text-gray-900">
-                              {typeof selectedStudy.serious === 'boolean' 
-                                ? (selectedStudy.serious ? 'Yes' : 'No')
-                                : selectedStudy.Serious || 'Unknown'
-                              }
-                            </p>
-                          </div>
-                        )}
-                        {selectedStudy.aoiClassification && (
-                          <div>
-                            <span className="font-medium text-gray-700">AOI Classification:</span>
-                            <p className="mt-1 text-gray-900">{selectedStudy.aoiClassification}</p>
+                            <span className="font-bold text-gray-700">Article Type:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.textType || selectedStudy.aiInferenceData?.Text_type}</p>
                           </div>
                         )}
                         {selectedStudy.approvedIndication && (
                           <div>
-                            <span className="font-medium text-gray-700">Approved Indication:</span>
+                            <span className="font-bold text-gray-700">AI Assessment of Indication:</span>
                             <p className="mt-1 text-gray-900">{selectedStudy.approvedIndication}</p>
                           </div>
                         )}
                       </div>
 
-                      {selectedStudy.aoiDrugEffect && (
+                      {/* Text-based Fields */}
+                      {selectedStudy.attributability && (
                         <div>
-                          <span className="font-medium text-gray-700">AOI Drug Effect:</span>
-                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.aoiDrugEffect}</p>
+                          <span className="font-bold text-gray-700">AI Assessment of Attributability:</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.attributability}</p>
+                        </div>
+                      )}
+                      {selectedStudy.drugEffect && (
+                        <div>
+                          <span className="font-bold text-gray-700">AI Identified Drug Effect (Beneficial/Adverse):</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.drugEffect}</p>
                         </div>
                       )}
                       {selectedStudy.justification && (
                         <div>
-                          <span className="font-medium text-gray-700">Justification:</span>
+                          <span className="font-bold text-gray-700">AI Opinion on Literature:</span>
                           <p className="mt-1 text-gray-900 text-sm">{selectedStudy.justification}</p>
                         </div>
                       )}
-                      {selectedStudy.summary && (
-                        <div>
-                          <span className="font-medium text-gray-700">Summary:</span>
-                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.summary}</p>
-                        </div>
-                      )}
 
+                      {/* Clinical Data */}
                       {selectedStudy.administeredDrugs && Array.isArray(selectedStudy.administeredDrugs) && selectedStudy.administeredDrugs.length > 0 && (
                         <div>
-                          <span className="font-medium text-gray-700">Administered Drugs:</span>
+                          <span className="font-bold text-gray-700">Administered Drugs:</span>
                           <div className="mt-1 flex flex-wrap gap-1">
                             {selectedStudy.administeredDrugs.map((drug, index) => (
                               <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
@@ -428,7 +431,92 @@ export default function AOIAssessmentPage() {
                           </div>
                         </div>
                       )}
+                      {selectedStudy.patientDetails && (
+                        <div>
+                          <span className="font-bold text-gray-700">Patient Details:</span>
+                          <div className="mt-1 bg-white rounded p-3 border">
+                            {typeof selectedStudy.patientDetails === 'object' ? (
+                              <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                                {JSON.stringify(selectedStudy.patientDetails, null, 2)}
+                              </pre>
+                            ) : (
+                              <p className="text-gray-900 text-sm">{selectedStudy.patientDetails}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {selectedStudy.relevantDates && (
+                        <div>
+                          <span className="font-bold text-gray-700">Relevant Dates:</span>
+                          <div className="mt-1 bg-white rounded p-3 border">
+                            {typeof selectedStudy.relevantDates === 'object' ? (
+                              <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                                {JSON.stringify(selectedStudy.relevantDates, null, 2)}
+                              </pre>
+                            ) : (
+                              <p className="text-gray-900 text-sm">{selectedStudy.relevantDates}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  </div>
+
+                  {/* Triage Classification */}
+                  <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Triage Classification
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-sm font-medium text-gray-500">Classification</span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                selectedStudy.userTag === 'ICSR' ? 'bg-red-100 text-red-800' :
+                                selectedStudy.userTag === 'AOI' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                            {selectedStudy.userTag}
+                          </span>
+                          
+                          {selectedStudy.listedness && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                              {selectedStudy.listedness}
+                            </span>
+                          )}
+
+                          {selectedStudy.seriousness && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                              {selectedStudy.seriousness}
+                            </span>
+                          )}
+
+                          {selectedStudy.fullTextAvailability && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                              Full Text: {selectedStudy.fullTextAvailability}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedStudy.justification && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">AI Opinion on Literature</span>
+                          <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                            {selectedStudy.justification}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Comment Thread */}
+                  <div className="mb-6">
+                    <CommentThread study={selectedStudy} />
                   </div>
 
                   {/* AOI Assessment Form */}

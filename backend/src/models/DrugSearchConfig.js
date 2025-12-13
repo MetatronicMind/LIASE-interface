@@ -6,6 +6,7 @@ class DrugSearchConfig {
     this.organizationId = data.organizationId;
     this.userId = data.userId;
     this.name = data.name; // User-friendly name for the search
+    this.inn = data.inn || ''; // International Nonproprietary Name
     this.query = data.query; // Drug name or search term
     this.sponsor = data.sponsor || ''; // Manufacturer/sponsor
     this.brandName = data.brandName || ''; // Brand/Product name
@@ -182,8 +183,10 @@ class DrugSearchConfig {
       organizationId: this.organizationId,
       userId: this.userId,
       name: this.name,
+      inn: this.inn,
       query: this.query,
       sponsor: this.sponsor,
+      brandName: this.brandName,
       frequency: this.frequency,
       customFrequencyHours: this.customFrequencyHours,
       isActive: this.isActive,
@@ -198,6 +201,8 @@ class DrugSearchConfig {
       maxResults: this.maxResults,
       includeAdverseEvents: this.includeAdverseEvents,
       includeSafety: this.includeSafety,
+      dateFrom: this.dateFrom,
+      dateTo: this.dateTo,
       sendToExternalApi: this.sendToExternalApi,
       lastExternalApiCall: this.lastExternalApiCall,
       lastExternalApiSuccess: this.lastExternalApiSuccess

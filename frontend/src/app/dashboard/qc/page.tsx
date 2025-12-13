@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDateTime } from "@/hooks/useDateTime";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import { PmidLink } from "@/components/PmidLink";
 import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
+import { CommentThread } from "@/components/CommentThread";
 
 interface FieldComment {
   id: string;
@@ -74,6 +76,9 @@ interface Study {
   sponsor?: string;
   effectiveClassification?: string;
   requiresManualReview?: boolean;
+  listedness?: string;
+  seriousness?: string;
+  fullTextAvailability?: string;
   
   // Legacy fields for backward compatibility
   Drugname?: string;
@@ -119,8 +124,8 @@ const R3_FORM_FIELDS = [
   { key: "E.i.9", label: "Country Where Reaction Occurred", category: "C", required: false, section: "reaction" },
   
   // Drug Information
-  { key: "G.k.1", label: "Characterisation of Drug Role", category: "C", required: false, section: "drug" },
-  { key: "G.k.2", label: "Drug Identification", category: "C", required: false, section: "drug" },
+  { key: "G.k.1", label: "Characterisation of Drug Role", category: "C", required: true, section: "drug" },
+  { key: "G.k.2", label: "Drug Identification", category: "C", required: true, section: "drug" },
   
   // Case Narrative
   { key: "H.1", label: "Case Narrative", category: "C", required: false, section: "narrative" },
@@ -128,6 +133,7 @@ const R3_FORM_FIELDS = [
 
 export default function QCPage() {
   const { user } = useAuth();
+  const { formatDate } = useDateTime();
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -197,8 +203,8 @@ export default function QCPage() {
 
       if (response.ok) {
         // Refresh study data to get updated comments
-        const updatedStudy = await response.json();
-        setSelectedStudy(updatedStudy);
+        const data = await response.json();
+        setSelectedStudy(data.study);
         setFieldCommentsState(prev => ({ ...prev, [fieldKey]: "" }));
         setAddingCommentToField(null);
       } else {
@@ -329,7 +335,7 @@ export default function QCPage() {
               <div key={comment.id} className="bg-yellow-100 rounded p-2">
                 <p className="text-sm text-yellow-900">{comment.comment}</p>
                 <p className="text-xs text-yellow-700 mt-1">
-                  By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                  By {comment.userName} on {formatDate(comment.createdAt)}
                 </p>
               </div>
             ))}
@@ -405,84 +411,83 @@ export default function QCPage() {
           )}
 
           {/* Studies List */}
-          {!selectedStudy && (
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Pending R3 XML Forms ({studies.length})
-                </h2>
-              </div>
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Pending R3 XML Forms ({studies.length})
+              </h2>
+            </div>
 
-              {studies.length === 0 ? (
-                <div className="text-center py-12">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No pending R3 forms</h3>
-                  <p className="mt-1 text-sm text-gray-500">All R3 XML forms have been reviewed.</p>
-                </div>
-              ) : (
-                <ul className="divide-y divide-gray-200">
-                  {studies.map((study) => (
-                    <li
-                      key={study.id}
-                      className="px-4 sm:px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => setSelectedStudy(study)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <PmidLink pmid={study.pmid} />
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getClassificationColor(study.userTag)}`}>
-                              {study.userTag}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              Form completed: {new Date(study.r3FormCompletedAt || study.updatedAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-sm font-medium text-gray-900 truncate">{study.title}</p>
-                          <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4">
-                            <p className="text-xs text-gray-500">
-                              <span className="font-medium">Drug:</span> {study.drugName}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              <span className="font-medium">Adverse Event:</span> {study.adverseEvent}
-                            </p>
-                          </div>
+            {studies.length === 0 ? (
+              <div className="text-center py-12">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No pending R3 forms</h3>
+                <p className="mt-1 text-sm text-gray-500">All R3 XML forms have been reviewed.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-gray-200">
+                {studies.map((study) => (
+                  <li
+                    key={study.id}
+                    className="px-4 sm:px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => setSelectedStudy(study)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <PmidLink pmid={study.pmid} />
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getClassificationColor(study.userTag)}`}>
+                            {study.userTag}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Form completed: {formatDate(study.r3FormCompletedAt || study.updatedAt)}
+                          </span>
                         </div>
-                        <div className="ml-4">
-                          <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                          </svg>
+                        <p className="text-sm font-medium text-gray-900 truncate">{study.title}</p>
+                        <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4">
+                          <p className="text-xs text-gray-500">
+                            <span className="font-medium">Drug:</span> {study.drugName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            <span className="font-medium">Adverse Event:</span> {study.adverseEvent}
+                          </p>
                         </div>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+                      <div className="ml-4">
+                        <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-          {/* Study R3 Form Review */}
+          {/* Study R3 Form Review Modal */}
           {selectedStudy && (
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">R3 XML Form Review</h3>
-                <button
-                  onClick={() => {
-                    setSelectedStudy(null);
-                    setFieldCommentsState({});
-                    setAddingCommentToField(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40 flex justify-center pt-10 pb-10">
+              <div className="relative bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 flex flex-col max-h-[90vh]">
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-lg sticky top-0 z-10">
+                  <h3 className="text-lg font-semibold text-gray-900">R3 XML Form Review</h3>
+                  <button
+                    onClick={() => {
+                      setSelectedStudy(null);
+                      setFieldCommentsState({});
+                      setAddingCommentToField(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
 
-              <div className="px-4 sm:px-6 py-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <div className="px-4 sm:px-6 py-6 overflow-y-auto">
                 {/* Study Header */}
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
@@ -591,49 +596,30 @@ export default function QCPage() {
                     <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                     </svg>
-                    AI Analysis & Clinical Data
+                    AI Literature Analysis
                   </h4>
                   <div className="space-y-4">
                     {/* Grid Layout for Analysis Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="font-bold text-gray-700">AI Identified Adverse Event(s):</span>
+                        <p className="mt-1 text-gray-900">{selectedStudy.adverseEvent}</p>
+                      </div>
                       {(selectedStudy.specialCase || selectedStudy.aiInferenceData?.special_case) && (
                         <div>
-                          <span className="font-medium text-gray-700">Special Case:</span>
+                          <span className="font-bold text-gray-700">AI Identified Special Situation(s):</span>
                           <p className="mt-1 text-gray-900">{selectedStudy.specialCase || selectedStudy.aiInferenceData?.special_case}</p>
-                        </div>
-                      )}
-                      {(selectedStudy.serious !== undefined || selectedStudy.aiInferenceData?.Serious) && (
-                        <div>
-                          <span className="font-medium text-gray-700">Serious Event:</span>
-                          <p className="mt-1 text-gray-900">
-                            {typeof selectedStudy.serious === 'boolean' 
-                              ? (selectedStudy.serious ? 'Yes' : 'No')
-                              : selectedStudy.aiInferenceData?.Serious || 'Unknown'
-                            }
-                          </p>
                         </div>
                       )}
                       {(selectedStudy.textType || selectedStudy.aiInferenceData?.Text_type) && (
                         <div>
-                          <span className="font-medium text-gray-700">Text Type:</span>
+                          <span className="font-bold text-gray-700">Article Type:</span>
                           <p className="mt-1 text-gray-900">{selectedStudy.textType || selectedStudy.aiInferenceData?.Text_type}</p>
-                        </div>
-                      )}
-                      {selectedStudy.identifiableHumanSubject !== undefined && (
-                        <div>
-                          <span className="font-medium text-gray-700">Human Subject:</span>
-                          <p className="mt-1 text-gray-900">{selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}</p>
-                        </div>
-                      )}
-                      {(selectedStudy.aoiClassification || selectedStudy.aiInferenceData?.AOI_classification) && (
-                        <div>
-                          <span className="font-medium text-gray-700">AOI Classification:</span>
-                          <p className="mt-1 text-gray-900">{selectedStudy.aoiClassification || selectedStudy.aiInferenceData?.AOI_classification}</p>
                         </div>
                       )}
                       {selectedStudy.approvedIndication && (
                         <div>
-                          <span className="font-medium text-gray-700">Approved Indication:</span>
+                          <span className="font-bold text-gray-700">AI Assessment of Indication:</span>
                           <p className="mt-1 text-gray-900">{selectedStudy.approvedIndication}</p>
                         </div>
                       )}
@@ -642,39 +628,27 @@ export default function QCPage() {
                     {/* Text-based Fields */}
                     {selectedStudy.attributability && (
                       <div>
-                        <span className="font-medium text-gray-700">Attributability:</span>
+                        <span className="font-bold text-gray-700">AI Assessment of Attributability:</span>
                         <p className="mt-1 text-gray-900 text-sm">{selectedStudy.attributability}</p>
                       </div>
                     )}
                     {selectedStudy.drugEffect && (
                       <div>
-                        <span className="font-medium text-gray-700">Drug Effect:</span>
+                        <span className="font-bold text-gray-700">AI Identified Drug Effect (Beneficial/Adverse):</span>
                         <p className="mt-1 text-gray-900 text-sm">{selectedStudy.drugEffect}</p>
-                      </div>
-                    )}
-                    {(selectedStudy.aoiDrugEffect || selectedStudy.aiInferenceData?.AOI_drug_effect) && (
-                      <div>
-                        <span className="font-medium text-gray-700">AOI Drug Effect:</span>
-                        <p className="mt-1 text-gray-900 text-sm">{selectedStudy.aoiDrugEffect || selectedStudy.aiInferenceData?.AOI_drug_effect}</p>
                       </div>
                     )}
                     {selectedStudy.justification && (
                       <div>
-                        <span className="font-medium text-gray-700">Justification:</span>
+                        <span className="font-bold text-gray-700">AI Opinion on Literature:</span>
                         <p className="mt-1 text-gray-900 text-sm">{selectedStudy.justification}</p>
-                      </div>
-                    )}
-                    {selectedStudy.summary && (
-                      <div>
-                        <span className="font-medium text-gray-700">Summary:</span>
-                        <p className="mt-1 text-gray-900 text-sm">{selectedStudy.summary}</p>
                       </div>
                     )}
 
                     {/* Clinical Data */}
                     {selectedStudy.administeredDrugs && Array.isArray(selectedStudy.administeredDrugs) && selectedStudy.administeredDrugs.length > 0 && (
                       <div>
-                        <span className="font-medium text-gray-700">Administered Drugs:</span>
+                        <span className="font-bold text-gray-700">Administered Drugs:</span>
                         <div className="mt-1 flex flex-wrap gap-1">
                           {selectedStudy.administeredDrugs.map((drug, index) => (
                             <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
@@ -684,21 +658,9 @@ export default function QCPage() {
                         </div>
                       </div>
                     )}
-                    {selectedStudy.keyEvents && Array.isArray(selectedStudy.keyEvents) && selectedStudy.keyEvents.length > 0 && (
-                      <div>
-                        <span className="font-medium text-gray-700">Key Events:</span>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {selectedStudy.keyEvents.map((event, index) => (
-                            <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                              {event}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     {selectedStudy.patientDetails && (
                       <div>
-                        <span className="font-medium text-gray-700">Patient Details:</span>
+                        <span className="font-bold text-gray-700">Patient Details:</span>
                         <div className="mt-1 bg-white rounded p-3 border">
                           {typeof selectedStudy.patientDetails === 'object' ? (
                             <pre className="text-xs text-gray-900 whitespace-pre-wrap">
@@ -712,7 +674,7 @@ export default function QCPage() {
                     )}
                     {selectedStudy.relevantDates && (
                       <div>
-                        <span className="font-medium text-gray-700">Relevant Dates:</span>
+                        <span className="font-bold text-gray-700">Relevant Dates:</span>
                         <div className="mt-1 bg-white rounded p-3 border">
                           {typeof selectedStudy.relevantDates === 'object' ? (
                             <pre className="text-xs text-gray-900 whitespace-pre-wrap">
@@ -727,6 +689,58 @@ export default function QCPage() {
                   </div>
                 </div>
 
+                {/* Triage Classification */}
+                <div className="mb-6 bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Triage Classification
+                  </h4>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">Classification</span>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                              selectedStudy.userTag === 'ICSR' ? 'bg-red-100 text-red-800' :
+                              selectedStudy.userTag === 'AOI' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                          {selectedStudy.userTag}
+                        </span>
+                        
+                        {selectedStudy.userTag !== 'No Case' && selectedStudy.listedness && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                            {selectedStudy.listedness}
+                          </span>
+                        )}
+
+                        {selectedStudy.userTag !== 'No Case' && selectedStudy.seriousness && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                            {selectedStudy.seriousness}
+                          </span>
+                        )}
+
+                        {selectedStudy.fullTextAvailability && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            Full Text: {selectedStudy.fullTextAvailability}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedStudy.justification && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-500">AI Opinion on Literature</span>
+                        <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                          {selectedStudy.justification}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* PDF Attachments */}
                 <div className="mb-6">
                   <PDFAttachmentUpload
@@ -734,6 +748,11 @@ export default function QCPage() {
                     attachments={selectedStudy.attachments || []}
                     onUploadComplete={fetchPendingR3Studies}
                   />
+                </div>
+
+                {/* Comment Thread */}
+                <div className="mb-6">
+                  <CommentThread study={selectedStudy} />
                 </div>
 
                 {/* R3 XML Form Section Header */}
@@ -842,6 +861,7 @@ export default function QCPage() {
                 </div>
               </div>
             </div>
+          </div>
           )}
         </div>
 

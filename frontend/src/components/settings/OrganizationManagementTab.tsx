@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { BuildingOfficeIcon, PencilIcon, UsersIcon, CalendarIcon } from "@heroicons/react/24/solid";
+import { useDateTime } from '@/hooks/useDateTime';
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/components/PermissionProvider";
 import { getApiBaseUrl } from '@/config/api';
@@ -18,6 +19,7 @@ interface Organization {
 }
 
 export default function OrganizationManagementTab() {
+  const { formatDate } = useDateTime();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const [organization, setOrganization] = useState<Organization | null>(null);
@@ -202,7 +204,7 @@ export default function OrganizationManagementTab() {
               <CalendarIcon className="w-5 h-5 text-gray-400" />
               <div>
                 <label className="text-sm font-semibold text-gray-500">Created</label>
-                <p className="text-gray-900">{new Date(organization.createdAt).toLocaleDateString()}</p>
+                <p className="text-gray-900">{formatDate(organization.createdAt)}</p>
               </div>
             </div>
 
