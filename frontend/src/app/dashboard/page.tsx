@@ -215,7 +215,7 @@ export default function DashboardPage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="relative w-full min-h-[800px]">
               <Image
-                src="/liase-architecture.png"
+                src="/liase-architecture.jpg"
                 alt="LIASE System Architecture"
                 fill
                 className="object-contain"
