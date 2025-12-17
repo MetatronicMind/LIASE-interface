@@ -210,11 +210,21 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* <div className="flex-1 overflow-hidden p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto h-full">
-          {!loading && <AnalyticsCharts stats={stats} />}
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div className="relative w-full min-h-[800px]">
+              <Image
+                src="/liase-architecture.png"
+                alt="LIASE System Architecture"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
         </div>
-      </div> */}
+      </div>
     </div>
   );
 }
