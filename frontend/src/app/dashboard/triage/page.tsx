@@ -1914,6 +1914,8 @@ export default function TriagePage() {
                 setSeriousness={setSeriousness}
                 fullTextAvailability={fullTextAvailability}
                 setFullTextAvailability={setFullTextAvailability}
+                fullTextSource={fullTextSource}
+                setFullTextSource={setFullTextSource}
                 classifying={classifying}
                 getClassificationLabel={getClassificationLabel}
                 getClassificationColor={getClassificationColor}

@@ -114,6 +114,8 @@ export default function TriageStudyDetails({
   setSeriousness,
   fullTextAvailability,
   setFullTextAvailability,
+  fullTextSource,
+  setFullTextSource,
   classifying,
   getClassificationLabel,
   getClassificationColor,
