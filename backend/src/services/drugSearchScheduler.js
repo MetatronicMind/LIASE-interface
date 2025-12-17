@@ -223,8 +223,8 @@ class DrugSearchScheduler {
 
                   // Update status based on ICSR classification or confirmed potential ICSR
                   if (study.icsrClassification || study.confirmedPotentialICSR) {
-                    study.status = 'Study in Process';
-                    console.log(`Setting status to 'Study in Process' for PMID ${drug.pmid} due to ICSR classification`);
+                    study.status = 'Under Triage Review';
+                    console.log(`Setting status to 'Under Triage Review' for PMID ${drug.pmid} due to ICSR classification`);
                   }
 
                   // Store study in database

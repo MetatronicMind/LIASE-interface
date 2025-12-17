@@ -20,8 +20,13 @@ router.get('/',
         sortOrder = 'desc' 
       } = req.query;
 
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
       let query = 'SELECT * FROM c WHERE c.organizationId = @orgId';
-      const parameters = [{ name: '@orgId', value: req.user.organizationId }];
+      const parameters = [{ name: '@orgId', value: targetOrgId }];
 
       // Add filters
       if (action) {
@@ -86,11 +91,16 @@ router.get('/stats',
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - parseInt(days));
 
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
       const auditLogs = await cosmosService.queryItems(
         'audit-logs',
         'SELECT * FROM c WHERE c.organizationId = @orgId AND c.timestamp >= @startDate ORDER BY c.timestamp DESC',
         [
-          { name: '@orgId', value: req.user.organizationId },
+          { name: '@orgId', value: targetOrgId },
           { name: '@startDate', value: startDate.toISOString() }
         ]
       );

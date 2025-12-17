@@ -62,7 +62,8 @@ router.get(
       'scheduler',
       'migration',
       'security',
-      'workflow'
+      'workflow',
+      'study_queue'
     ])
   ],
   validate,
@@ -94,7 +95,8 @@ router.put(
       'scheduler',
       'migration',
       'security',
-      'workflow'
+      'workflow',
+      'study_queue'
     ]),
     body('configData').isObject()
   ],

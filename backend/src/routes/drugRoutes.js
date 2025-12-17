@@ -411,8 +411,13 @@ router.get('/',
     try {
       const { page = 1, limit = 50, search, status, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
       
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
       let query = 'SELECT * FROM c WHERE c.organizationId = @orgId';
-      const parameters = [{ name: '@orgId', value: req.user.organizationId }];
+      const parameters = [{ name: '@orgId', value: targetOrgId }];
 
       // Add filters
       if (status && status !== 'all') {
@@ -672,8 +677,8 @@ router.get('/discover',
               
               // Update status based on ICSR classification or confirmed potential ICSR
               if (study.icsrClassification || study.confirmedPotentialICSR) {
-                study.status = 'Study in Process';
-                console.log(`Setting status to 'Study in Process' for PMID ${aiResult.pmid} due to ICSR classification`);
+                study.status = 'Under Triage Review';
+                console.log(`Setting status to 'Under Triage Review' for PMID ${aiResult.pmid} due to ICSR classification`);
               }
               
               // Store study in database
@@ -765,8 +770,13 @@ router.get('/search-configs',
       const { page = 1, limit = 50, active = 'all' } = req.query;
       
       // Build query filter - organization-wide, not user-specific
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
       let filter = {
-        organizationId: req.user.organizationId
+        organizationId: targetOrgId
         // Removed userId filter - configs should be visible to all users in the organization
       };
       

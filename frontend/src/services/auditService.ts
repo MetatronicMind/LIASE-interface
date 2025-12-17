@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../config/api';
+import { formatDateTime } from '../utils/dateTimeFormatter';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -61,6 +62,7 @@ export interface AuditFilters {
   startDate?: string;
   endDate?: string;
   sortOrder?: 'asc' | 'desc';
+  organizationId?: string;
 }
 
 class AuditService {
@@ -199,7 +201,7 @@ class AuditService {
         }
         
         return [
-          new Date(log.timestamp).toLocaleString(),
+          formatDateTime(log.timestamp),
           log.userName,
           log.action,
           log.resource,

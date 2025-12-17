@@ -59,7 +59,9 @@ class User {
 
   // Check if user has any of the specified roles
   hasRole(...roleNames) {
-    return roleNames.includes(this.role);
+    if (!this.role) return false;
+    const normalizedUserRole = this.role.toLowerCase();
+    return roleNames.some(r => r.toLowerCase() === normalizedUserRole);
   }
 
   // Check if user is admin or superadmin

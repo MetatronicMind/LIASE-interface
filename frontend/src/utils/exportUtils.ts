@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { formatDateTime } from './dateTimeFormatter';
 
 export const exportToPDF = (title: string, columns: string[], data: any[][], filename: string) => {
   const doc = new jsPDF();
@@ -12,7 +13,7 @@ export const exportToPDF = (title: string, columns: string[], data: any[][], fil
   doc.setTextColor(100);
   
   // Add timestamp
-  const date = new Date().toLocaleString();
+  const date = formatDateTime(new Date());
   doc.text(`Generated on: ${date}`, 14, 28);
   
   autoTable(doc, {

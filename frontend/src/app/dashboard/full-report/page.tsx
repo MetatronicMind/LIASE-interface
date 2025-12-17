@@ -1,10 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDateTime } from "@/hooks/useDateTime";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import { PmidLink } from "@/components/PmidLink";
 import { CommentThread } from "@/components/CommentThread";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
+import { MagnifyingGlassIcon, FunnelIcon } from "@heroicons/react/24/outline";
 
 // Helper function to format dates for XML (removes hyphens, colons, and T)
 const formatDateForXML = (dateStr: string, maxLength?: number): string => {
@@ -41,6 +45,7 @@ interface Study {
   reviewedBy?: string;
   approvedBy?: string;
   approvedAt?: string;
+  qaApprovedBy?: string;
   reviewDetails?: any;
   comments?: any[];
   attachments?: any[];
@@ -138,18 +143,28 @@ const R3_FORM_FIELDS = [
 ];
 
 export default function FullReportPage() {
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { user } = useAuth();
+  const { formatDateTime } = useDateTime();
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
   const [showReport, setShowReport] = useState(false);
+  
+  // Filters
+  const [studyIdFilter, setStudyIdFilter] = useState("");
+  const [qaFilter, setQaFilter] = useState("all");
+  const [r3Filter, setR3Filter] = useState("all");
+  const [seriousFilter, setSeriousFilter] = useState("all");
+  const [listednessFilter, setListednessFilter] = useState("all");
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchMedicalExaminerStudies();
-  }, [currentPage, searchTerm]);
+  }, [currentPage, searchTerm, selectedOrganizationId, studyIdFilter, qaFilter, r3Filter, seriousFilter, listednessFilter, dateRange]);
 
   const fetchMedicalExaminerStudies = async () => {
     try {
@@ -158,7 +173,15 @@ export default function FullReportPage() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "10",
-        ...(searchTerm && { search: searchTerm })
+        ...(searchTerm && { search: searchTerm }),
+        ...(selectedOrganizationId && { organizationId: selectedOrganizationId }),
+        ...(studyIdFilter && { studyId: studyIdFilter }),
+        ...(qaFilter !== 'all' && { qaApprovalStatus: qaFilter }),
+        ...(r3Filter !== 'all' && { r3FormStatus: r3Filter }),
+        ...(seriousFilter !== 'all' && { serious: seriousFilter === 'serious' ? 'true' : 'false' }),
+        ...(listednessFilter !== 'all' && { listedness: listednessFilter }),
+        ...(dateRange.start && { dateFrom: dateRange.start }),
+        ...(dateRange.end && { dateTo: dateRange.end })
       });
 
       const response = await fetch(`${getApiBaseUrl()}/studies/medical-examiner?${params}`, {
@@ -222,6 +245,7 @@ export default function FullReportPage() {
         r3FormCompletedBy: selectedStudy.r3FormCompletedBy,
         reviewedBy: selectedStudy.reviewedBy,
         approvedBy: selectedStudy.approvedBy,
+        qaApprovedBy: selectedStudy.qaApprovedBy,
         
         // Processing info
         isProcessed: selectedStudy.isProcessed,
@@ -422,7 +446,7 @@ Adverse Event: ${selectedStudy.adverseEvent}
 R3 Form Data:
 ${Object.entries(xmlData).map(([key, value]) => `${key}: ${value}`).join('\n')}
 
-Form completed on: ${selectedStudy.r3FormCompletedAt ? new Date(selectedStudy.r3FormCompletedAt).toLocaleString() : 'N/A'}
+Form completed on: ${selectedStudy.r3FormCompletedAt ? formatDateTime(selectedStudy.r3FormCompletedAt) : 'N/A'}
 Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
       </narrativeincludeclinical>
     </narrative>
@@ -597,16 +621,6 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  };
-
   return (
     <PermissionGate 
       resource="reports" 
@@ -631,22 +645,155 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
       {!showReport ? (
         <>
           {/* Search and Filters */}
-          <div className="mb-6 flex gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search completed ICSR studies..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <FunnelIcon className="w-5 h-5 mr-2 text-blue-600" />
+              Filter Reports
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Search */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Search</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search completed ICSR studies..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  />
+                </div>
+              </div>
+              
+              {/* Study ID */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Study ID</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={studyIdFilter}
+                    onChange={(e) => {
+                      setStudyIdFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    placeholder="Search by Study ID..."
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  />
+                </div>
+              </div>
+
+              {/* QC Status */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">QC Status</label>
+                <select
+                  value={qaFilter}
+                  onChange={(e) => {
+                    setQaFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="all">All QC Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              {/* R3 Form */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">R3 Form</label>
+                <select
+                  value={r3Filter}
+                  onChange={(e) => {
+                    setR3Filter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="all">All R3 Statuses</option>
+                  <option value="not_started">Not Started</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
+              {/* Seriousness */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Seriousness</label>
+                <select
+                  value={seriousFilter}
+                  onChange={(e) => {
+                    setSeriousFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="all">All</option>
+                  <option value="serious">Serious Only</option>
+                  <option value="non-serious">Non-Serious Only</option>
+                </select>
+              </div>
+
+              {/* Listedness */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Listedness</label>
+                <select
+                  value={listednessFilter}
+                  onChange={(e) => {
+                    setListednessFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="all">All</option>
+                  <option value="Yes">Listed</option>
+                  <option value="No">Unlisted</option>
+                </select>
+              </div>
+
+              {/* Date From */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Date From</label>
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => {
+                    setDateRange({ ...dateRange, start: e.target.value });
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                />
+              </div>
+
+              {/* Date To */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Date To</label>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => {
+                    setDateRange({ ...dateRange, end: e.target.value });
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                />
+              </div>
+              
+              <div className="flex items-end">
+                <button
+                  onClick={fetchMedicalExaminerStudies}
+                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
-            <button
-              onClick={fetchMedicalExaminerStudies}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Refresh
-            </button>
           </div>
 
           {/* Studies List */}
@@ -667,6 +814,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                         {study.title}
                       </h3>
                       <div className="flex gap-4 text-sm text-gray-800 mb-2">
+                        <span><strong>Study ID:</strong> {study.id}</span>
                         <span><strong>PMID:</strong> <PmidLink pmid={study.pmid} className="text-blue-600 hover:underline" /></span>
                         <span><strong>Drug:</strong> {study.drugName}</span>
                       </div>
@@ -675,7 +823,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                       </p>
                       {study.r3FormCompletedAt && (
                         <p className="text-sm text-black">
-                          <strong>Completed:</strong> {formatDate(study.r3FormCompletedAt)}
+                          <strong>Completed:</strong> {formatDateTime(study.r3FormCompletedAt)}
                         </p>
                       )}
                     </div>
@@ -686,6 +834,19 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                       <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                         Completed
                       </span>
+                      {study.qaApprovalStatus && (
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                          study.qaApprovalStatus === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
+                          study.qaApprovalStatus === 'rejected' ? 'bg-red-100 text-red-800 border-red-200' :
+                          'bg-yellow-100 text-yellow-800 border-yellow-200'
+                        }`}>
+                          {study.qaApprovalStatus === 'approved' ? (
+                            study.qaApprovedBy ? 'Manual Approved' : 'System Approved'
+                          ) : (
+                            study.qaApprovalStatus
+                          )}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -788,6 +949,10 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                     <p className="text-sm text-black bg-white p-2 rounded border">{selectedStudy?.title}</p>
                   </div>
                   <div>
+                    <p className="text-sm font-medium text-black">Study ID:</p>
+                    <p className="text-sm text-black">{selectedStudy?.id}</p>
+                  </div>
+                  <div>
                     <p className="text-sm font-medium text-black">PMID:</p>
                     <p className="text-sm text-black"><PmidLink pmid={selectedStudy?.pmid || ''} showIcon={true} /></p>
                   </div>
@@ -853,18 +1018,18 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                   {/* Timestamps */}
                   <div>
                     <p className="text-sm font-medium text-black">Created Date:</p>
-                    <p className="text-sm text-black">{selectedStudy?.createdAt ? formatDate(selectedStudy.createdAt) : 'N/A'}</p>
+                    <p className="text-sm text-black">{selectedStudy?.createdAt ? formatDateTime(selectedStudy.createdAt) : 'N/A'}</p>
                   </div>
                   {selectedStudy?.updatedAt && (
                     <div>
                       <p className="text-sm font-medium text-black">Last Updated:</p>
-                      <p className="text-sm text-black">{formatDate(selectedStudy.updatedAt)}</p>
+                      <p className="text-sm text-black">{formatDateTime(selectedStudy.updatedAt)}</p>
                     </div>
                   )}
                   {selectedStudy?.r3FormCompletedAt && (
                     <div>
                       <p className="text-sm font-medium text-black">Form Completed:</p>
-                      <p className="text-sm text-black">{formatDate(selectedStudy.r3FormCompletedAt)}</p>
+                      <p className="text-sm text-black">{formatDateTime(selectedStudy.r3FormCompletedAt)}</p>
                     </div>
                   )}
                   

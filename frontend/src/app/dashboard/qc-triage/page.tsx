@@ -1,11 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDateTime } from "@/hooks/useDateTime";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import { PmidLink } from "@/components/PmidLink";
 import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 import { CommentThread } from "@/components/CommentThread";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 interface Study {
   id: string;
@@ -76,6 +80,8 @@ interface Study {
 
 export default function QCTriagePage() {
   const { user } = useAuth();
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
+  const { formatDateTime } = useDateTime();
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,10 +92,64 @@ export default function QCTriagePage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [revokeToStage, setRevokeToStage] = useState("");
 
+  // Filter state
+  const [search, setSearch] = useState("");
+  const [studyIdFilter, setStudyIdFilter] = useState("");
+  const [clientNameFilter, setClientNameFilter] = useState("");
+  const [classificationType, setClassificationType] = useState("");
+  const [journalNameFilter, setJournalNameFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Helper function to normalize classification values from backend
+  const normalizeClassification = (value?: string): string | undefined => {
+    if (!value) return value;
+    let normalized = value.replace(/^Classification:\s*/i, '').trim();
+    normalized = normalized.replace(/^\d+\.\s*/, '').trim();
+    return normalized;
+  };
+
+  // Function to calculate final classification based on AI inference data
+  const getFinalClassification = (study: Study): string | null => {
+    const rawIcsrClassification = study.aiInferenceData?.ICSR_classification || study.ICSR_classification || study.icsrClassification;
+    const rawAoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+    
+    const icsrClassification = normalizeClassification(rawIcsrClassification);
+    const aoiClassification = normalizeClassification(rawAoiClassification);
+
+    if (!icsrClassification) return null;
+
+    if (icsrClassification === "Article requires manual review") {
+      return "Manual Review";
+    }
+
+    if (icsrClassification === "Probable ICSR/AOI") {
+      return "Probable ICSR/AOI";
+    }
+
+    if (icsrClassification === "Probable ICSR") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (ICSR)") {
+        return "Probable ICSR/AOI";
+      } else {
+        return "Probable ICSR";
+      }
+    }
+
+    if (icsrClassification === "No Case") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (AOI)") {
+        return "Probable AOI";
+      } else {
+        return "No Case";
+      }
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     fetchPendingStudies();
     fetchWorkflowConfig();
-  }, []);
+  }, [selectedOrganizationId]);
 
   const fetchWorkflowConfig = async () => {
     try {
@@ -118,7 +178,8 @@ export default function QCTriagePage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/QA-pending?status=manual_qc`, {
+      const queryParams = selectedOrganizationId ? `&organizationId=${selectedOrganizationId}` : '';
+      const response = await fetch(`${getApiBaseUrl()}/studies/QA-pending?status=manual_qc${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -137,6 +198,49 @@ export default function QCTriagePage() {
       setLoading(false);
     }
   };
+
+  // Extract unique client names for filter dropdown
+  const uniqueClientNames = Array.from(new Set(studies.map(s => s.clientName).filter(Boolean))).sort();
+  
+  // Extract unique journal names for filter dropdown
+  const uniqueJournalNames = Array.from(new Set(studies.map(s => s.journal).filter(Boolean))).sort();
+
+  // Filter studies
+  const filteredStudies = studies.filter(study => {
+    // Search filter (Drug Name, Title, PMID)
+    const searchLower = search.toLowerCase();
+    const matchesSearch = !search || 
+      (study.drugName && study.drugName.toLowerCase().includes(searchLower)) ||
+      (study.title && study.title.toLowerCase().includes(searchLower)) ||
+      (study.pmid && study.pmid.includes(searchLower));
+      
+    // Study ID filter
+    const matchesStudyId = !studyIdFilter || study.id.toLowerCase().includes(studyIdFilter.toLowerCase());
+
+    // Client Name filter
+    const matchesClient = !clientNameFilter || study.clientName === clientNameFilter;
+    
+    // Classification filter
+    const finalClassification = getFinalClassification(study);
+    const matchesClassification = !classificationType || finalClassification === classificationType;
+    
+    // Journal filter
+    const matchesJournal = !journalNameFilter || study.journal === journalNameFilter;
+    
+    // Date filter
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      const studyDate = new Date(study.publicationDate || study.createdAt);
+      if (dateFrom) {
+        matchesDate = matchesDate && studyDate >= new Date(dateFrom);
+      }
+      if (dateTo) {
+        matchesDate = matchesDate && studyDate <= new Date(dateTo);
+      }
+    }
+    
+    return matchesSearch && matchesStudyId && matchesClient && matchesClassification && matchesJournal && matchesDate;
+  });
 
   const approveClassification = async (studyId: string) => {
     setActionInProgress(studyId);
@@ -252,15 +356,142 @@ export default function QCTriagePage() {
             </div>
           )}
 
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+              </svg>
+              Filter Articles
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Drug Name, Title, or PMID</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search by drug name, title, or PMID..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Study ID</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search by Study ID..."
+                    value={studyIdFilter}
+                    onChange={e => setStudyIdFilter(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Client Name </label>
+                <select
+                  value={clientNameFilter}
+                  onChange={e => setClientNameFilter(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="">All Clients</option>
+                  {uniqueClientNames.map((client, index) => (
+                    <option key={index} value={client as string}>{client}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">AI Classification </label>
+                <select
+                  value={classificationType}
+                  onChange={e => setClassificationType(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="">All Classifications</option>
+                  <option value="Probable ICSR/AOI">Probable ICSR/AOI</option>
+                  <option value="Probable ICSR">Probable ICSR</option>
+                  <option value="Probable AOI">Probable AOI</option>
+                  <option value="No Case">No Case</option>
+                  <option value="Manual Review">Manual Review</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Journal Name </label>
+                <select
+                  value={journalNameFilter}
+                  onChange={e => setJournalNameFilter(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="">All Journals</option>
+                  {uniqueJournalNames.map((journal, index) => (
+                    <option key={index} value={journal as string}>{journal}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">From Date</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">To Date</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <button
+                type="button"
+                className="flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 text-sm font-medium transition-colors"
+                onClick={() => {
+                  setSearch("");
+                  setStudyIdFilter("");
+                  setClientNameFilter("");
+                  setClassificationType("");
+                  setJournalNameFilter("");
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear All Filters
+              </button>
+              <div className="text-sm text-gray-500">
+                {filteredStudies.length} Articles found
+              </div>
+            </div>
+          </div>
+
           {/* Studies List */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
-                Pending Triage Classifications ({studies.length})
+                Pending Triage Classifications ({filteredStudies.length})
               </h2>
             </div>
 
-            {studies.length === 0 ? (
+            {filteredStudies.length === 0 ? (
               <div className="text-center py-12">
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -272,7 +503,7 @@ export default function QCTriagePage() {
               </div>
             ) : (
               <ul className="divide-y divide-gray-200">
-                {studies.map((study) => (
+                {filteredStudies.map((study) => (
                   <li
                     key={study.id}
                     className={`px-4 sm:px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors ${
@@ -283,12 +514,13 @@ export default function QCTriagePage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">ID: {study.id}</span>
                           <PmidLink pmid={study.pmid} />
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getClassificationColor(study.userTag)}`}>
                             {study.userTag}
                           </span>
                           <span className="text-xs text-gray-500">
-                            Classified: {new Date(study.r3FormCompletedAt || study.updatedAt).toLocaleDateString()}
+                            Classified: {formatDateTime(study.r3FormCompletedAt || study.updatedAt)}
                           </span>
                         </div>
                         <p className="text-sm font-medium text-gray-900 truncate">{study.title}</p>
@@ -339,6 +571,10 @@ export default function QCTriagePage() {
                   <div>
                     <h4 className="text-sm font-medium text-gray-500">Study Details</h4>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-500">Study ID</p>
+                        <p className="text-sm text-gray-900 font-mono">{selectedStudy.id}</p>
+                      </div>
                       <div>
                         <p className="text-xs text-gray-500">PMID</p>
                         <PmidLink pmid={selectedStudy.pmid} />

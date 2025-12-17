@@ -1,8 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDateTime } from "@/hooks/useDateTime";
 import { getApiBaseUrl } from "@/config/api";
 import { useRouter } from "next/navigation";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 interface Study {
   id: string;
@@ -13,6 +17,7 @@ interface Study {
   userTag: string;
   qaApprovalStatus: string;
   qaApprovedAt?: string;
+  qaComments?: string;
   r3FormStatus: string;
   r3FormData?: any;
   medicalReviewStatus?: string;
@@ -56,16 +61,71 @@ interface Study {
 }
 
 export default function DataEntryPage() {
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { user } = useAuth();
+  const { formatDateTime } = useDateTime();
   const router = useRouter();
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Filter state
+  const [search, setSearch] = useState("");
+  const [clientNameFilter, setClientNameFilter] = useState("");
+  const [classificationType, setClassificationType] = useState("");
+  const [journalNameFilter, setJournalNameFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Helper function to normalize classification values from backend
+  const normalizeClassification = (value?: string): string | undefined => {
+    if (!value) return value;
+    let normalized = value.replace(/^Classification:\s*/i, '').trim();
+    normalized = normalized.replace(/^\d+\.\s*/, '').trim();
+    return normalized;
+  };
+
+  // Function to calculate final classification based on AI inference data
+  const getFinalClassification = (study: Study): string | null => {
+    const rawIcsrClassification = study.aiInferenceData?.ICSR_classification || study.ICSR_classification || study.icsrClassification;
+    const rawAoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+    
+    const icsrClassification = normalizeClassification(rawIcsrClassification);
+    const aoiClassification = normalizeClassification(rawAoiClassification);
+
+    if (!icsrClassification) return null;
+
+    if (icsrClassification === "Article requires manual review") {
+      return "Manual Review";
+    }
+
+    if (icsrClassification === "Probable ICSR/AOI") {
+      return "Probable ICSR/AOI";
+    }
+
+    if (icsrClassification === "Probable ICSR") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (ICSR)") {
+        return "Probable ICSR/AOI";
+      } else {
+        return "Probable ICSR";
+      }
+    }
+
+    if (icsrClassification === "No Case") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (AOI)") {
+        return "Probable AOI";
+      } else {
+        return "No Case";
+      }
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     fetchDataEntryStudies();
-  }, [currentPage, searchTerm]);
+  }, [currentPage, searchTerm, selectedOrganizationId]);
 
   const fetchDataEntryStudies = async () => {
     try {
@@ -78,9 +138,8 @@ export default function DataEntryPage() {
       }
       
       const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: "10",
-        ...(searchTerm && { search: searchTerm })
+        limit: "1000",
+        ...(selectedOrganizationId && { organizationId: selectedOrganizationId })
       });
 
       console.log('Fetching data entry studies with params:', Object.fromEntries(params.entries()));
@@ -120,6 +179,46 @@ export default function DataEntryPage() {
     }
   };
 
+  // Extract unique client names for filter dropdown
+  const uniqueClientNames = Array.from(new Set(studies.map(s => s.clientName).filter(Boolean))).sort();
+  
+  // Extract unique journal names for filter dropdown
+  const uniqueJournalNames = Array.from(new Set(studies.map(s => s.journal).filter(Boolean))).sort();
+
+  // Filter studies
+  const filteredStudies = studies.filter(study => {
+    // Search filter (Drug Name, Title, PMID)
+    const searchLower = search.toLowerCase();
+    const matchesSearch = !search || 
+      (study.drugName && study.drugName.toLowerCase().includes(searchLower)) ||
+      (study.title && study.title.toLowerCase().includes(searchLower)) ||
+      (study.pmid && study.pmid.includes(searchLower));
+      
+    // Client Name filter
+    const matchesClient = !clientNameFilter || study.clientName === clientNameFilter;
+    
+    // Classification filter
+    const finalClassification = getFinalClassification(study);
+    const matchesClassification = !classificationType || finalClassification === classificationType;
+    
+    // Journal filter
+    const matchesJournal = !journalNameFilter || study.journal === journalNameFilter;
+    
+    // Date filter
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      const studyDate = new Date(study.publicationDate || study.createdAt || study.qaApprovedAt || '');
+      if (dateFrom) {
+        matchesDate = matchesDate && studyDate >= new Date(dateFrom);
+      }
+      if (dateTo) {
+        matchesDate = matchesDate && studyDate <= new Date(dateTo);
+      }
+    }
+    
+    return matchesSearch && matchesClient && matchesClassification && matchesJournal && matchesDate;
+  });
+
   const openR3Form = (study: Study) => {
     // Navigate to the dedicated R3 form page using Next.js router
     router.push(`/dashboard/r3-form?studyId=${study.id}`);
@@ -146,22 +245,115 @@ export default function DataEntryPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="mb-6 flex gap-4">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search ICSR studies..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+          </svg>
+          Filter Articles
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Drug Name, Title, or PMID</label>
+            <div className="relative">
+              <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search by drug name, title, or PMID..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Client Name </label>
+            <select
+              value={clientNameFilter}
+              onChange={e => setClientNameFilter(e.target.value)}
+              className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+            >
+              <option value="">All Clients</option>
+              {uniqueClientNames.map((client, index) => (
+                <option key={index} value={client as string}>{client}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">AI Classification </label>
+            <select
+              value={classificationType}
+              onChange={e => setClassificationType(e.target.value)}
+              className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+            >
+              <option value="">All Classifications</option>
+              <option value="Probable ICSR/AOI">Probable ICSR/AOI</option>
+              <option value="Probable ICSR">Probable ICSR</option>
+              <option value="Probable AOI">Probable AOI</option>
+              <option value="No Case">No Case</option>
+              <option value="Manual Review">Manual Review</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Journal Name </label>
+            <select
+              value={journalNameFilter}
+              onChange={e => setJournalNameFilter(e.target.value)}
+              className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+            >
+              <option value="">All Journals</option>
+              {uniqueJournalNames.map((journal, index) => (
+                <option key={index} value={journal as string}>{journal}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">From Date</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">To Date</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+            />
+          </div>
         </div>
-        <button
-          onClick={fetchDataEntryStudies}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Refresh
-        </button>
+        
+        <div className="mt-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <button
+            type="button"
+            className="flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 text-sm font-medium transition-colors"
+            onClick={() => {
+              setSearch("");
+              setClientNameFilter("");
+              setClassificationType("");
+              setJournalNameFilter("");
+              setDateFrom("");
+              setDateTo("");
+            }}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Clear All Filters
+          </button>
+          <div className="text-sm text-gray-500">
+            {filteredStudies.length} Articles found
+          </div>
+        </div>
       </div>
 
       {/* Studies List */}
@@ -171,7 +363,7 @@ export default function DataEntryPage() {
         </div>
       ) : (
         <div className="grid gap-6">
-          {studies.map((study) => (
+          {filteredStudies.map((study) => (
             <div
               key={study.id}
               className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
@@ -182,17 +374,25 @@ export default function DataEntryPage() {
                     {study.title}
                   </h3>
                   <div className="flex gap-4 text-sm text-gray-800 mb-2">
+                    <span><strong>Study ID:</strong> {study.id}</span>
                     <span><strong>PMID:</strong> {study.pmid}</span>
                     <span><strong>Drug:</strong> {study.drugName}</span>
                   </div>
-                  <p className="text-sm text-black mb-2">
-                    <strong>Adverse Event:</strong> {study.adverseEvent}
-                  </p>
                   
                   {/* QC Approval Info */}
-                  {study.qaApprovedAt && (
-                    <p className="text-xs text-green-600 mb-2">
-                      ✓ QC Approved on {new Date(study.qaApprovedAt).toLocaleDateString()}
+                  {(study.qaApprovalStatus === 'approved' || study.qaApprovedAt) ? (
+                    study.qaComments === 'Auto approved QC' ? (
+                      <p className="text-xs text-purple-600 mb-2">
+                        ✓ Auto Approved{study.qaApprovedAt ? ` on ${formatDateTime(study.qaApprovedAt)}` : ''}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-green-600 mb-2">
+                        ✓ QC Approved{study.qaApprovedAt ? ` on ${formatDateTime(study.qaApprovedAt)}` : ''}
+                      </p>
+                    )
+                  ) : (
+                    <p className="text-xs text-gray-500 mb-2">
+                      Not QC Reviewed
                     </p>
                   )}
                   
@@ -208,7 +408,7 @@ export default function DataEntryPage() {
                           <p className="text-xs text-orange-700 mt-1"><strong>Reason:</strong> {study.revocationReason}</p>
                           {study.revokedAt && (
                             <p className="text-xs text-orange-600 mt-1">
-                              Revoked on {new Date(study.revokedAt).toLocaleDateString()} - Please make corrections and resubmit
+                              Revoked on {formatDateTime(study.revokedAt)} - Please make corrections and resubmit
                             </p>
                           )}
                         </div>

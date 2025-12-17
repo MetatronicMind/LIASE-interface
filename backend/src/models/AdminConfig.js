@@ -93,6 +93,12 @@ class AdminConfig {
         idFieldMapping: {},
         defaultConflictResolution: 'skip' // skip, overwrite, merge
       },
+      study_queue: {
+        mode: 'default', // 'status', 'client', 'default'
+        statusQueue: ['Probable ICSR', 'Probable AOI', 'Probable ICSR/AOI', 'No Case', 'Manual Review'],
+        clientList: [],
+        allowUserClientEntry: false
+      },
       workflow: {
         qcDataEntry: true,
         medicalReview: true,

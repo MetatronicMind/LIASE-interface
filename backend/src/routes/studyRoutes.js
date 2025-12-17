@@ -88,8 +88,13 @@ router.get('/',
         sortOrder = 'desc' 
       } = req.query;
       
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
       let query = 'SELECT DISTINCT * FROM c WHERE c.organizationId = @orgId';
-      const parameters = [{ name: '@orgId', value: req.user.organizationId }];
+      const parameters = [{ name: '@orgId', value: targetOrgId }];
 
       // Add filters
       if (status && status !== 'all') {
@@ -147,9 +152,14 @@ router.get('/QA-pending',
         status = 'pending'
       } = req.query;
       
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
       let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag != null AND c.qaApprovalStatus = @status';
       const parameters = [
-        { name: '@orgId', value: req.user.organizationId },
+        { name: '@orgId', value: targetOrgId },
         { name: '@status', value: status }
       ];
 
@@ -349,9 +359,14 @@ router.get('/QC-r3-pending',
         search
       } = req.query;
       
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
       let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.r3FormStatus = @r3Status AND c.qcR3Status = @qcR3Status';
       const parameters = [
-        { name: '@orgId', value: req.user.organizationId },
+        { name: '@orgId', value: targetOrgId },
         { name: '@r3Status', value: 'completed' },
         { name: '@qcR3Status', value: 'pending' }
       ];
@@ -554,9 +569,14 @@ router.get('/medical-examiner',
         status = 'all' // all, pending, completed, revoked
       } = req.query;
       
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
       let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND c.r3FormStatus = @formStatus AND c.qcR3Status = @qcR3Status';
       const parameters = [
-        { name: '@orgId', value: req.user.organizationId },
+        { name: '@orgId', value: targetOrgId },
         { name: '@userTag', value: 'ICSR' },
         { name: '@qaStatus', value: 'approved' },
         { name: '@formStatus', value: 'completed' },
@@ -670,6 +690,18 @@ router.post('/',
         createdBy: req.user.id
       };
 
+      // Generate unique study IDs for each case if not provided
+      if (!studyData.id) {
+        const drugName = studyData.drugName || 'Unknown';
+        const sponsor = studyData.sponsor || studyData.clientName || 'Unknown';
+        
+        const innPrefix = drugName.substring(0, 4);
+        const clientPrefix = sponsor.substring(0, 4);
+        const randomNum = Math.floor(10000 + Math.random() * 90000); // 5 random digits
+        
+        studyData.id = `${innPrefix}_${clientPrefix}_${randomNum}`;
+      }
+
       // Validate study data
       const validationErrors = Study.validate(studyData);
       if (validationErrors.length > 0) {
@@ -768,7 +800,7 @@ router.put('/:studyId',
             let currentStatus = study.status;
             
             // Handle legacy statuses - map them to the initial workflow stage
-            const legacyStatuses = ['Pending Review', 'Pending', 'Study in Process'];
+            const legacyStatuses = ['Pending Review', 'Pending', 'Under Triage Review'];
             if (legacyStatuses.includes(currentStatus)) {
               currentStatus = 'triage'; // Default fallback
               const initialStage = workflowConfig.configData.stages.find(s => s.type === 'initial');
@@ -1157,20 +1189,63 @@ router.get('/stats/summary',
         underReview: 0,
         approved: 0,
         rejected: 0,
+        qaStats: {
+          pending: 0,
+          approvedManual: 0,
+          approvedAuto: 0,
+          rejected: 0,
+          manualQc: 0
+        },
+        medicalReviewStats: {
+          notStarted: 0,
+          inProgress: 0,
+          completed: 0
+        },
+        r3Stats: {
+          notStarted: 0,
+          inProgress: 0,
+          completed: 0
+        },
+        counts: {
+          users: 0,
+          medicalReviewers: 0,
+          drugs: 0,
+          qaReviewed: 0
+        },
         byDrug: {},
-        byMonth: {}
+        byMonth: {},
+        byUser: {}
       };
 
-      const studies = await cosmosService.getStudiesByOrganization(req.user.organizationId);
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
+      // Fetch all required data in parallel
+      const [studies, users, drugs] = await Promise.all([
+        cosmosService.getStudiesByOrganization(targetOrgId),
+        cosmosService.getUsersByOrganization(targetOrgId),
+        cosmosService.getDrugsByOrganization(targetOrgId)
+      ]);
       
       stats.total = studies.length;
+      stats.counts.users = users.length;
+      stats.counts.medicalReviewers = users.filter(u => u.role === 'medical_reviewer' || u.roles?.includes('medical_reviewer')).length;
+      stats.counts.drugs = drugs.length;
+
+      // Create user map for resolving IDs to names
+      const userMap = users.reduce((acc, user) => {
+        acc[user.id] = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.name || user.email;
+        return acc;
+      }, {});
 
       studies.forEach(study => {
         // Count by status
         switch (study.status) {
           case 'Pending Review':
           case 'Pending':
-          case 'Study in Process':
+          case 'Under Triage Review':
             stats.pendingReview++;
             break;
           case 'Under Review':
@@ -1184,6 +1259,41 @@ router.get('/stats/summary',
             break;
         }
 
+        // QA Stats
+        if (study.qaApprovalStatus === 'approved') {
+          stats.counts.qaReviewed++; // Count approved as reviewed
+          if (study.qaComments === 'Auto approved QC') {
+            stats.qaStats.approvedAuto++;
+          } else {
+            stats.qaStats.approvedManual++;
+          }
+        } else if (study.qaApprovalStatus === 'rejected') {
+          stats.counts.qaReviewed++; // Count rejected as reviewed
+          stats.qaStats.rejected++;
+        } else if (study.qaApprovalStatus === 'manual_qc') {
+          stats.qaStats.manualQc++;
+        } else {
+          stats.qaStats.pending++;
+        }
+
+        // Medical Review Stats
+        if (study.medicalReviewStatus === 'completed') {
+          stats.medicalReviewStats.completed++;
+        } else if (study.medicalReviewStatus === 'in_progress') {
+          stats.medicalReviewStats.inProgress++;
+        } else {
+          stats.medicalReviewStats.notStarted++;
+        }
+
+        // R3 Stats
+        if (study.r3FormStatus === 'completed') {
+          stats.r3Stats.completed++;
+        } else if (study.r3FormStatus === 'in_progress') {
+          stats.r3Stats.inProgress++;
+        } else {
+          stats.r3Stats.notStarted++;
+        }
+
         // Count by drug
         if (study.drugName) {
           stats.byDrug[study.drugName] = (stats.byDrug[study.drugName] || 0) + 1;
@@ -1194,7 +1304,27 @@ router.get('/stats/summary',
           const month = new Date(study.createdAt).toISOString().slice(0, 7); // YYYY-MM
           stats.byMonth[month] = (stats.byMonth[month] || 0) + 1;
         }
+
+        // Count by user
+        if (study.createdBy) {
+          let creatorName = 'Unknown';
+          if (typeof study.createdBy === 'object') {
+             creatorName = study.createdBy.name || study.createdBy.email || 'Unknown';
+          } else {
+             // Try to resolve ID to name, otherwise use the ID/string
+             creatorName = userMap[study.createdBy] || study.createdBy;
+          }
+          
+          if (creatorName) {
+            stats.byUser[creatorName] = (stats.byUser[creatorName] || 0) + 1;
+          }
+        }
       });
+
+      // Fallback for drugs count: if no configured drugs, use unique drugs found in studies
+      if (stats.counts.drugs === 0 && Object.keys(stats.byDrug).length > 0) {
+        stats.counts.drugs = Object.keys(stats.byDrug).length;
+      }
 
       res.json(stats);
 
@@ -1563,7 +1693,7 @@ router.put('/:id',
             let currentStatus = study.status;
             
             // Handle legacy statuses - map them to the initial workflow stage
-            const legacyStatuses = ['Pending Review', 'Pending', 'Study in Process'];
+            const legacyStatuses = ['Pending Review', 'Pending', 'Under Triage Review'];
             if (legacyStatuses.includes(currentStatus)) {
               currentStatus = 'triage'; // Default fallback
               const initialStage = workflowConfig.configData.stages.find(s => s.type === 'initial');
@@ -1636,7 +1766,7 @@ router.put('/:id',
   }
 );
 
-// Update existing studies with ICSR classification from Pending to Study in Process
+// Update existing studies with ICSR classification from Pending to Under Triage Review
 router.put('/update-icsr-status',
   authorizePermission('studies', 'write'),
   async (req, res) => {
@@ -1670,7 +1800,7 @@ router.put('/update-icsr-status',
       for (const studyData of studiesWithICSR) {
         try {
           // Update the status
-          studyData.status = 'Study in Process';
+          studyData.status = 'Under Triage Review';
           studyData.updatedAt = new Date().toISOString();
           
           // Add a comment about the status change
@@ -1682,7 +1812,7 @@ router.put('/update-icsr-status',
             id: uuidv4(),
             userId: req.user.id,
             userName: req.user.name || req.user.email,
-            text: 'Status automatically updated to "Study in Process" due to ICSR classification',
+            text: 'Status automatically updated to "Under Triage Review" due to ICSR classification',
             type: 'system',
             createdAt: new Date().toISOString()
           });
@@ -1695,12 +1825,12 @@ router.put('/update-icsr-status',
             pmid: studyData.pmid,
             id: studyData.id,
             previousStatus: 'Pending',
-            newStatus: 'Study in Process',
+            newStatus: 'Under Triage Review',
             icsrClassification: studyData.icsrClassification,
             confirmedPotentialICSR: studyData.confirmedPotentialICSR
           });
 
-          console.log(`Updated study ${studyData.id} (PMID: ${studyData.pmid}) status to "Study in Process"`);
+          console.log(`Updated study ${studyData.id} (PMID: ${studyData.pmid}) status to "Under Triage Review"`);
           
         } catch (updateError) {
           console.error(`Failed to update study ${studyData.id}:`, updateError);
@@ -1716,7 +1846,7 @@ router.put('/update-icsr-status',
       await auditAction(
         req.user,
         'studies_bulk_update',
-        `Updated ${updatedCount} studies with ICSR classification from Pending to Study in Process`,
+        `Updated ${updatedCount} studies with ICSR classification from Pending to Under Triage Review`,
         { 
           totalFound: studiesWithICSR.length,
           updatedCount,
@@ -2214,6 +2344,155 @@ router.post('/:id/medical-review/complete',
   }
 );
 
+// Allocate a case to the current user
+router.post('/allocate-case',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+
+      // 1. Check if user already has a locked case
+      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId';
+      const parameters = [
+        { name: '@orgId', value: organizationId },
+        { name: '@userId', value: userId }
+      ];
+
+      const existingCases = await cosmosService.queryItems('studies', query, parameters);
+      
+      if (existingCases && existingCases.length > 0) {
+        return res.json({ 
+          success: true, 
+          message: "You are already working on a case", 
+          case: existingCases[0] 
+        });
+      }
+
+      // 2. Find and lock a new case
+      // We need to find a case that is not assigned (assignedTo is null or missing)
+      // And status is 'Pending Review' or 'Under Triage Review'
+      const findQuery = 'SELECT TOP 1 * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")';
+      const findParams = [
+        { name: '@orgId', value: organizationId }
+      ];
+
+      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+
+      if (!availableCases || availableCases.length === 0) {
+        return res.status(404).json({ success: false, message: "No available cases at the moment." });
+      }
+
+      const caseToLock = availableCases[0];
+      caseToLock.assignedTo = userId;
+      caseToLock.lockedAt = new Date().toISOString();
+      caseToLock.updatedAt = new Date().toISOString();
+
+      const updatedCase = await cosmosService.updateItem('studies', caseToLock.id, organizationId, caseToLock);
+
+      res.json({ success: true, message: "Case allocated successfully", case: updatedCase });
+
+    } catch (error) {
+      console.error('Allocation error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// Lock a specific case (for legacy view)
+router.post('/lock-case/:id',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+
+      // 1. Check if user already has a locked case (optional - maybe we allow multiple locks in legacy view? 
+      // For strict safety, let's enforce one case at a time even in legacy view)
+      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId AND c.id != @currentId';
+      const parameters = [
+        { name: '@orgId', value: organizationId },
+        { name: '@userId', value: userId },
+        { name: '@currentId', value: id }
+      ];
+
+      const existingCases = await cosmosService.queryItems('studies', query, parameters);
+      
+      if (existingCases && existingCases.length > 0) {
+        // If they have another case locked, we could either:
+        // A) Block them
+        // B) Auto-release the old one and lock the new one
+        // Let's go with B for better UX in legacy view
+        const oldCase = existingCases[0];
+        oldCase.assignedTo = null;
+        oldCase.lockedAt = null;
+        await cosmosService.updateItem('studies', oldCase.id, organizationId, oldCase);
+      }
+
+      // 2. Get the target case
+      const study = await cosmosService.getItem('studies', id, organizationId);
+      
+      if (!study) {
+        return res.status(404).json({ success: false, message: "Case not found" });
+      }
+
+      // 3. Check if it's already locked by someone else
+      if (study.assignedTo && study.assignedTo !== userId) {
+        return res.status(409).json({ success: false, message: "Case is already locked by another user" });
+      }
+
+      // 4. Lock it
+      study.assignedTo = userId;
+      study.lockedAt = new Date().toISOString();
+      study.updatedAt = new Date().toISOString();
+
+      const updatedCase = await cosmosService.updateItem('studies', id, organizationId, study);
+
+      res.json({ success: true, message: "Case locked successfully", study: updatedCase });
+
+    } catch (error) {
+      console.error('Lock error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// Release a case
+router.post('/release-case/:id',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+
+      const study = await cosmosService.getItem('studies', id, organizationId);
+      
+      if (!study) {
+        return res.status(404).json({ success: false, message: "Case not found" });
+      }
+
+      // Only allow release if assigned to current user
+      if (study.assignedTo !== userId) {
+        return res.status(403).json({ success: false, message: "You are not assigned to this case" });
+      }
+
+      study.assignedTo = null;
+      study.lockedAt = null;
+      study.updatedAt = new Date().toISOString();
+
+      await cosmosService.updateItem('studies', id, organizationId, study);
+
+      res.json({ success: true, message: "Case released successfully" });
+
+    } catch (error) {
+      console.error('Release error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
 module.exports = router;
 
 // Ingest studies from PubMed for a given drug
@@ -2404,8 +2683,8 @@ router.post('/:id/attachments',
           stack: err.stack
         });
         
-        if (err.message === 'Only PDF files are allowed') {
-          return res.status(400).json({ error: 'Only PDF files are allowed' });
+        if (err.message === 'Only PDF, JPEG, PNG, DOC, DOCX, MSG, and EML files are allowed') {
+          return res.status(400).json({ error: 'Only PDF, JPEG, PNG, DOC, DOCX, MSG, and EML files are allowed' });
         }
         if (err.code === 'LIMIT_FILE_SIZE') {
           return res.status(400).json({ error: 'File too large. Maximum size is 10MB per file' });
@@ -2428,12 +2707,14 @@ router.post('/:id/attachments',
     try {
       const { id } = req.params;
       const files = req.files;
+      const { receiptDate } = req.body;
 
       console.log(`Upload request for study ${id}:`, {
         filesCount: files?.length || 0,
         fileDetails: files?.map(f => ({ name: f.originalname, size: f.size, type: f.mimetype })),
         userId: req.user?.id,
-        organizationId: req.user?.organizationId
+        organizationId: req.user?.organizationId,
+        receiptDate
       });
 
       if (!files || files.length === 0) {
@@ -2463,6 +2744,7 @@ router.post('/:id/attachments',
           fileSize: file.size,
           fileType: file.mimetype,
           uploadedBy: req.user.id,
+          receiptDate: receiptDate || null,
           uploadedByName: `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.username,
           uploadedAt: new Date().toISOString(),
           data: base64Data // Store as base64 blob
@@ -2478,6 +2760,7 @@ router.post('/:id/attachments',
           id: attachment.id,
           fileName: attachment.fileName,
           fileSize: attachment.fileSize,
+          receiptDate: attachment.receiptDate,
           uploadedAt: attachment.uploadedAt
         });
       }

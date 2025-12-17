@@ -5,6 +5,9 @@ import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import { PmidLink } from "@/components/PmidLink";
 import { CommentThread } from "@/components/CommentThread";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 interface Study {
   id: string;
@@ -67,6 +70,7 @@ interface Study {
 
 export default function AOIAssessmentPage() {
   const { user } = useAuth();
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,15 +82,69 @@ export default function AOIAssessmentPage() {
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Filter state
+  // search is already defined above
+  const [clientNameFilter, setClientNameFilter] = useState("");
+  const [classificationType, setClassificationType] = useState("");
+  const [journalNameFilter, setJournalNameFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Helper function to normalize classification values from backend
+  const normalizeClassification = (value?: string): string | undefined => {
+    if (!value) return value;
+    let normalized = value.replace(/^Classification:\s*/i, '').trim();
+    normalized = normalized.replace(/^\d+\.\s*/, '').trim();
+    return normalized;
+  };
+
+  // Function to calculate final classification based on AI inference data
+  const getFinalClassification = (study: Study): string | null => {
+    const rawIcsrClassification = study.aiInferenceData?.ICSR_classification || study.icsrClassification;
+    const rawAoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+    
+    const icsrClassification = normalizeClassification(rawIcsrClassification);
+    const aoiClassification = normalizeClassification(rawAoiClassification);
+
+    if (!icsrClassification) return null;
+
+    if (icsrClassification === "Article requires manual review") {
+      return "Manual Review";
+    }
+
+    if (icsrClassification === "Probable ICSR/AOI") {
+      return "Probable ICSR/AOI";
+    }
+
+    if (icsrClassification === "Probable ICSR") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (ICSR)") {
+        return "Probable ICSR/AOI";
+      } else {
+        return "Probable ICSR";
+      }
+    }
+
+    if (icsrClassification === "No Case") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (AOI)") {
+        return "Probable AOI";
+      } else {
+        return "No Case";
+      }
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     fetchAOIStudies();
-  }, []);
+  }, [selectedOrganizationId]);
 
   const fetchAOIStudies = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies?limit=1000`, {
+      const queryParams = selectedOrganizationId ? `&organizationId=${selectedOrganizationId}` : '';
+      const response = await fetch(`${getApiBaseUrl()}/studies?limit=1000${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -180,12 +238,30 @@ export default function AOIAssessmentPage() {
     }
   };
 
-  const filteredStudies = studies.filter(study => 
-    search === '' || 
-    study.title.toLowerCase().includes(search.toLowerCase()) ||
-    study.drugName.toLowerCase().includes(search.toLowerCase()) ||
-    study.pmid.includes(search)
-  );
+  const filteredStudies = studies.filter(study => {
+    const matchesSearch = search === "" || 
+      study.title.toLowerCase().includes(search.toLowerCase()) ||
+      study.pmid?.includes(search) ||
+      study.drugName?.toLowerCase().includes(search.toLowerCase()) ||
+      study.adverseEvent?.toLowerCase().includes(search.toLowerCase());
+
+    const matchesClient = clientNameFilter === "" || 
+      study.clientName?.toLowerCase().includes(clientNameFilter.toLowerCase());
+
+    const matchesClassification = classificationType === "" || 
+      getFinalClassification(study) === classificationType;
+
+    const matchesJournal = journalNameFilter === "" ||
+      study.journal?.toLowerCase().includes(journalNameFilter.toLowerCase());
+
+    const matchesDateFrom = dateFrom === "" || 
+      new Date(study.createdAt).getTime() >= new Date(dateFrom).getTime();
+
+    const matchesDateTo = dateTo === "" || 
+      new Date(study.createdAt).getTime() <= new Date(dateTo).getTime();
+
+    return matchesSearch && matchesClient && matchesClassification && matchesJournal && matchesDateFrom && matchesDateTo;
+  });
 
   if (loading) {
     return (
@@ -218,26 +294,124 @@ export default function AOIAssessmentPage() {
             </div>
           )}
 
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+              </svg>
+              Filter Articles
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Search */}
+              <div className="space-y-2">
+                <label htmlFor="search" className="block text-sm font-medium text-gray-700">
+                  Search
+                </label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-purple-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="search"
+                    id="search"
+                    className="w-full pl-10 pr-4 py-3 border border-purple-400 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-colors text-gray-900"
+                    placeholder="Search title, drug, PMID..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Client Name Filter */}
+              <div className="space-y-2">
+                <label htmlFor="client" className="block text-sm font-medium text-gray-700">
+                  Client Name
+                </label>
+                <input
+                  type="text"
+                  name="client"
+                  id="client"
+                  className="w-full px-4 py-3 border border-purple-400 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-colors text-gray-900"
+                  placeholder="Filter by client..."
+                  value={clientNameFilter}
+                  onChange={(e) => setClientNameFilter(e.target.value)}
+                />
+              </div>
+
+              {/* Classification Filter */}
+              <div className="space-y-2">
+                <label htmlFor="classification" className="block text-sm font-medium text-gray-700">
+                  AI Classification
+                </label>
+                <select
+                  id="classification"
+                  name="classification"
+                  className="w-full px-4 py-3 border border-purple-400 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-colors text-gray-900"
+                  value={classificationType}
+                  onChange={(e) => setClassificationType(e.target.value)}
+                >
+                  <option value="">All Classifications</option>
+                  <option value="Probable ICSR">Probable ICSR</option>
+                  <option value="Probable AOI">Probable AOI</option>
+                  <option value="Probable ICSR/AOI">Probable ICSR/AOI</option>
+                  <option value="No Case">No Case</option>
+                  <option value="Manual Review">Manual Review</option>
+                </select>
+              </div>
+
+              {/* Journal Name Filter */}
+              <div className="space-y-2">
+                <label htmlFor="journal" className="block text-sm font-medium text-gray-700">
+                  Journal Name
+                </label>
+                <input
+                  type="text"
+                  name="journal"
+                  id="journal"
+                  className="w-full px-4 py-3 border border-purple-400 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-colors text-gray-900"
+                  placeholder="Filter by journal..."
+                  value={journalNameFilter}
+                  onChange={(e) => setJournalNameFilter(e.target.value)}
+                />
+              </div>
+
+              {/* Date Range */}
+              <div className="space-y-2">
+                <label htmlFor="date-from" className="block text-sm font-medium text-gray-700">
+                  Date From
+                </label>
+                <input
+                  type="date"
+                  name="date-from"
+                  id="date-from"
+                  className="w-full px-4 py-3 border border-purple-400 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-colors text-gray-900"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="date-to" className="block text-sm font-medium text-gray-700">
+                  Date To
+                </label>
+                <input
+                  type="date"
+                  name="date-to"
+                  id="date-to"
+                  className="w-full px-4 py-3 border border-purple-400 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-colors text-gray-900"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Studies List */}
           <div className="bg-white shadow rounded-lg">
-            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
                 AOI Cases ({filteredStudies.length})
               </h2>
-              <div className="relative max-w-xs w-full">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
-                  placeholder="Search studies..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
             </div>
 
             {filteredStudies.length === 0 ? (
@@ -261,6 +435,7 @@ export default function AOIAssessmentPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">ID: {study.id}</span>
                           <PmidLink pmid={study.pmid} />
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700 border border-orange-300">
                             AOI
@@ -328,6 +503,10 @@ export default function AOIAssessmentPage() {
                   <div>
                     <h4 className="text-sm font-medium text-gray-500">Study Details</h4>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-500">Study ID</p>
+                        <p className="text-sm text-gray-900 font-mono">{selectedStudy.id}</p>
+                      </div>
                       <div>
                         <p className="text-xs text-gray-500">PMID</p>
                         <PmidLink pmid={selectedStudy.pmid} />

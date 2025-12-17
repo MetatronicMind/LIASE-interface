@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDateTime } from '@/hooks/useDateTime';
 import { getApiBaseUrl } from "@/config/api";
 
@@ -9,6 +9,7 @@ interface Attachment {
   fileSize: number;
   uploadedAt: string;
   uploadedByName?: string;
+  receiptDate?: string;
 }
 
 interface PDFAttachmentUploadProps {
@@ -23,6 +24,7 @@ interface PDFPreviewState {
   pdfUrl: string | null;
   fileName: string;
   isLoading: boolean;
+  receiptDate?: string;
 }
 
 export default function PDFAttachmentUpload({
@@ -32,9 +34,12 @@ export default function PDFAttachmentUpload({
   maxFiles = 5
 }: PDFAttachmentUploadProps) {
   const { formatDate } = useDateTime();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [receiptDate, setReceiptDate] = useState<string>("");
   const [pdfPreview, setPdfPreview] = useState<PDFPreviewState>({
     isOpen: false,
     pdfUrl: null,
@@ -57,16 +62,48 @@ export default function PDFAttachmentUpload({
     return (bytes / (1024 * 1024)).toFixed(2) + " MB";
   };
 
+  const handleUploadClick = () => {
+    setReceiptDate(new Date().toISOString().split('T')[0]); // Default to today
+    setShowDateModal(true);
+    setUploadError(null);
+  };
+
+  const handleDateConfirm = () => {
+    setShowDateModal(false);
+    // Trigger file selection after date is confirmed
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     // Validate file types
-    const invalidFiles = Array.from(files).filter(
-      file => file.type !== "application/pdf"
-    );
+    const allowedTypes = [
+      'application/pdf', 
+      'image/jpeg', 
+      'image/png', 
+      'image/jpg',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-outlook',
+      'message/rfc822'
+    ];
+    
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.msg', '.eml'];
+
+    const invalidFiles = Array.from(files).filter(file => {
+      const fileTypeValid = allowedTypes.includes(file.type);
+      const fileExtensionValid = allowedExtensions.some(ext => 
+        file.name.toLowerCase().endsWith(ext)
+      );
+      return !fileTypeValid && !fileExtensionValid;
+    });
+
     if (invalidFiles.length > 0) {
-      setUploadError("Only PDF files are allowed");
+      setUploadError("Only PDF, JPEG, PNG, DOC, DOCX, MSG, and EML files are allowed");
       return;
     }
 
@@ -93,6 +130,10 @@ export default function PDFAttachmentUpload({
       Array.from(files).forEach(file => {
         formData.append("files", file);
       });
+      
+      if (receiptDate) {
+        formData.append("receiptDate", receiptDate);
+      }
 
       const token = localStorage.getItem("auth_token");
       
@@ -147,14 +188,20 @@ export default function PDFAttachmentUpload({
       console.log('Upload successful:', result);
       onUploadComplete();
       
-      // Reset file input
-      event.target.value = "";
     } catch (error: any) {
       console.error("Upload error:", error);
       setUploadError(error.message || "Failed to upload files");
     } finally {
       setUploading(false);
+      setReceiptDate("");
+      // Reset file input
+      event.target.value = "";
     }
+  };
+
+  const cancelUpload = () => {
+    setShowDateModal(false);
+    setReceiptDate("");
   };
 
   const handleDownload = async (attachmentId: string, fileName: string) => {
@@ -189,6 +236,8 @@ export default function PDFAttachmentUpload({
   };
 
   const handlePreview = async (attachmentId: string, fileName: string) => {
+    const attachment = attachments.find(a => a.id === attachmentId);
+
     // Cleanup previous blob URL if exists
     if (pdfPreview.pdfUrl) {
       window.URL.revokeObjectURL(pdfPreview.pdfUrl);
@@ -198,7 +247,8 @@ export default function PDFAttachmentUpload({
       isOpen: true,
       pdfUrl: null,
       fileName: fileName,
-      isLoading: true
+      isLoading: true,
+      receiptDate: attachment?.receiptDate
     });
 
     try {
@@ -213,7 +263,7 @@ export default function PDFAttachmentUpload({
       );
 
       if (!response.ok) {
-        throw new Error("Failed to load PDF");
+        throw new Error("Failed to load file");
       }
 
       const blob = await response.blob();
@@ -228,7 +278,7 @@ export default function PDFAttachmentUpload({
     } catch (error) {
       console.error("Preview error:", error);
       setPdfPreview(prev => ({ ...prev, isLoading: false }));
-      alert("Failed to load PDF preview");
+      alert("Failed to load file preview");
     }
   };
 
@@ -294,7 +344,7 @@ export default function PDFAttachmentUpload({
               d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
             />
           </svg>
-          PDF Attachments
+          Attachments
           {attachments && attachments.length > 0 && (
             <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
               {attachments.length}
@@ -302,16 +352,21 @@ export default function PDFAttachmentUpload({
           )}
         </h4>
 
-        <label className="cursor-pointer">
+        <div>
           <input
             type="file"
-            accept="application/pdf"
+            ref={fileInputRef}
+            accept="application/pdf,image/jpeg,image/png,image/jpg,.docx,.doc,.msg,.eml,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/vnd.ms-outlook,message/rfc822"
             multiple
             onChange={handleFileUpload}
             disabled={uploading}
             className="hidden"
           />
-          <span className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+          <button
+            onClick={handleUploadClick}
+            disabled={uploading}
+            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             {uploading ? (
               <>
                 <svg
@@ -350,11 +405,11 @@ export default function PDFAttachmentUpload({
                     d="M12 4v16m8-8H4"
                   />
                 </svg>
-                Upload PDF
+                Upload File
               </>
             )}
-          </span>
-        </label>
+          </button>
+        </div>
       </div>
 
       {uploadError && (
@@ -391,6 +446,11 @@ export default function PDFAttachmentUpload({
                     {attachment.uploadedByName && ` • ${attachment.uploadedByName}`}
                     {" • "}
                     {formatDate(attachment.uploadedAt)}
+                    {attachment.receiptDate && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                        Received: {formatDate(attachment.receiptDate)}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -501,10 +561,58 @@ export default function PDFAttachmentUpload({
               d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
             />
           </svg>
-          <p className="mt-2 text-sm text-gray-500">No PDF attachments yet</p>
+          <p className="mt-2 text-sm text-gray-500">No attachments yet</p>
           <p className="text-xs text-gray-400 mt-1">
-            Upload supporting documents (Max {maxFiles} files, 10MB each)
+            Supported types: PDF, JPEG, JPG, PNG, DOC, DOCX, MSG, EML
+            <br />
+            (Max {maxFiles} files, 10MB each)
           </p>
+        </div>
+      )}
+
+      {/* Date Selection Modal */}
+      {showDateModal && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={cancelUpload} />
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 z-10">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Enter Receipt Date
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Please enter the date when the full text document was received.
+              </p>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Receipt Date
+                </label>
+                <input
+                  type="date"
+                  value={receiptDate}
+                  onChange={(e) => setReceiptDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={cancelUpload}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDateConfirm}
+                  disabled={!receiptDate}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Select Files & Upload
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -534,6 +642,11 @@ export default function PDFAttachmentUpload({
                       clipRule="evenodd"
                     />
                   </svg>
+                  {pdfPreview.receiptDate && (
+                    <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Received: {formatDate(pdfPreview.receiptDate)}
+                    </span>
+                  )}
                   <h3 className="text-lg font-medium text-gray-900 truncate max-w-md">
                     {pdfPreview.fileName}
                   </h3>
@@ -609,15 +722,25 @@ export default function PDFAttachmentUpload({
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      <p className="text-gray-600">Loading PDF...</p>
+                      <p className="text-gray-600">Loading file...</p>
                     </div>
                   </div>
                 ) : pdfPreview.pdfUrl ? (
-                  <iframe
-                    src={pdfPreview.pdfUrl}
-                    className="w-full h-full border-0"
-                    title={`PDF Preview: ${pdfPreview.fileName}`}
-                  />
+                  pdfPreview.fileName.toLowerCase().match(/\.(jpeg|jpg|png)$/) ? (
+                    <div className="flex items-center justify-center h-full overflow-auto p-4">
+                      <img 
+                        src={pdfPreview.pdfUrl} 
+                        alt={pdfPreview.fileName}
+                        className="max-w-full max-h-full object-contain shadow-lg"
+                      />
+                    </div>
+                  ) : (
+                    <iframe
+                      src={pdfPreview.pdfUrl}
+                      className="w-full h-full border-0"
+                      title={`Preview: ${pdfPreview.fileName}`}
+                    />
+                  )
                 ) : (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center text-gray-500">
@@ -634,7 +757,7 @@ export default function PDFAttachmentUpload({
                           d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
-                      <p>Failed to load PDF</p>
+                      <p>Failed to load file</p>
                     </div>
                   </div>
                 )}

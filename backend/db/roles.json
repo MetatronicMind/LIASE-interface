@@ -1,0 +1,281 @@
+[
+  {
+    "id": "role_72be9f41-e760-440e-9b24-c51178575a0b",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "name": "admin",
+    "displayName": "Admin",
+    "description": "This is the admin role",
+    "permissions": {
+      "dashboard": {
+        "read": true,
+        "write": true
+      },
+      "users": {
+        "read": true,
+        "write": true,
+        "delete": true
+      },
+      "roles": {
+        "read": true,
+        "write": true,
+        "delete": true
+      },
+      "drugs": {
+        "read": true,
+        "write": true,
+        "delete": true
+      },
+      "studies": {
+        "read": true,
+        "write": true,
+        "delete": true
+      },
+      "audit": {
+        "read": true,
+        "write": true,
+        "delete": true
+      },
+      "settings": {
+        "read": true,
+        "write": true
+      },
+      "organizations": {
+        "read": true,
+        "write": true,
+        "delete": true
+      },
+      "reports": {
+        "read": true,
+        "write": true,
+        "delete": true
+      },
+      "triage": {
+        "read": true,
+        "write": true,
+        "classify": true,
+        "manual_drug_test": true
+      },
+      "QA": {
+        "read": false,
+        "write": false,
+        "approve": false,
+        "reject": false
+      },
+      "QC": {
+        "read": true,
+        "write": true,
+        "approve": true,
+        "reject": true
+      },
+      "data_entry": {
+        "read": true,
+        "write": true,
+        "r3_form": true
+      },
+      "medical_examiner": {
+        "read": true,
+        "write": true,
+        "comment_fields": true,
+        "edit_fields": true,
+        "revoke_studies": true
+      }
+    },
+    "isSystemRole": false,
+    "isActive": true,
+    "createdAt": "2025-12-17T16:36:40.987Z",
+    "updatedAt": "2025-12-17T16:51:07.792Z",
+    "createdBy": "8ecfefd9-2cbe-4ffd-8040-64bf6c875e84",
+    "type": "role",
+    "_rid": "Vf9WAPBRECUBAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAPBRECU=/docs/Vf9WAPBRECUBAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6f75-5722540501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1765990267
+  },
+  {
+    "id": "role_0fb81a60-4a3a-4c19-b28c-26a6938bcf4d",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "name": "triage",
+    "displayName": "Triage Team",
+    "description": "Team responsible for classifying studies and running manual drug tests",
+    "permissions": {
+      "dashboard": {
+        "read": true,
+        "write": false
+      },
+      "users": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "roles": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "drugs": {
+        "read": true,
+        "write": true,
+        "delete": false
+      },
+      "studies": {
+        "read": true,
+        "write": true,
+        "delete": false
+      },
+      "audit": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "settings": {
+        "read": false,
+        "write": false
+      },
+      "organizations": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "reports": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "triage": {
+        "read": true,
+        "write": true,
+        "classify": true,
+        "manual_drug_test": true
+      },
+      "QA": {
+        "read": false,
+        "write": false,
+        "approve": false,
+        "reject": false
+      },
+      "QC": {
+        "read": false,
+        "write": false,
+        "approve": false,
+        "reject": false
+      },
+      "data_entry": {
+        "read": false,
+        "write": false,
+        "r3_form": false
+      },
+      "medical_examiner": {
+        "read": false,
+        "write": false,
+        "comment_fields": false,
+        "edit_fields": false,
+        "revoke_studies": false
+      }
+    },
+    "isSystemRole": false,
+    "isActive": true,
+    "createdAt": "2025-12-17T16:54:06.006Z",
+    "updatedAt": "2025-12-17T16:54:06.006Z",
+    "createdBy": "user_bf28651c-0b97-4303-a5b5-250ec8bd1d28",
+    "type": "role",
+    "_rid": "Vf9WAPBRECUCAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAPBRECU=/docs/Vf9WAPBRECUCAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6f75-c161780501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1765990446
+  },
+  {
+    "id": "role_ed7a398f-6c72-4211-a46b-b93c55dd5be4",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "name": "data_entry",
+    "displayName": "Data Entry Team",
+    "description": "Team responsible for filling R3 forms for approved ICSR studies",
+    "permissions": {
+      "dashboard": {
+        "read": true,
+        "write": false
+      },
+      "users": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "roles": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "drugs": {
+        "read": true,
+        "write": false,
+        "delete": false
+      },
+      "studies": {
+        "read": true,
+        "write": true,
+        "delete": false
+      },
+      "audit": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "settings": {
+        "read": false,
+        "write": false
+      },
+      "organizations": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "reports": {
+        "read": false,
+        "write": false,
+        "delete": false
+      },
+      "triage": {
+        "read": false,
+        "write": false,
+        "classify": false,
+        "manual_drug_test": false
+      },
+      "QA": {
+        "read": false,
+        "write": false,
+        "approve": false,
+        "reject": false
+      },
+      "QC": {
+        "read": false,
+        "write": false,
+        "approve": false,
+        "reject": false
+      },
+      "data_entry": {
+        "read": true,
+        "write": true,
+        "r3_form": true
+      },
+      "medical_examiner": {
+        "read": false,
+        "write": false,
+        "comment_fields": false,
+        "edit_fields": false,
+        "revoke_studies": false
+      }
+    },
+    "isSystemRole": false,
+    "isActive": true,
+    "createdAt": "2025-12-17T16:54:17.033Z",
+    "updatedAt": "2025-12-17T16:54:17.033Z",
+    "createdBy": "user_bf28651c-0b97-4303-a5b5-250ec8bd1d28",
+    "type": "role",
+    "_rid": "Vf9WAPBRECUDAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAPBRECU=/docs/Vf9WAPBRECUDAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6f75-c7f0e80501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1765990457
+  }
+]

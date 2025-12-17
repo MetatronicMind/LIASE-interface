@@ -8,7 +8,8 @@ import {
   EnvelopeIcon,
   ServerStackIcon,
   ArchiveBoxIcon,
-  ArrowsRightLeftIcon
+  ArrowsRightLeftIcon,
+  QueueListIcon
 } from "@heroicons/react/24/outline";
 import { usePermissions } from "@/components/PermissionProvider";
 import dynamic from 'next/dynamic';
@@ -17,6 +18,7 @@ import dynamic from 'next/dynamic';
 const RoleManagementTab = dynamic(() => import('@/components/settings/RoleManagementTab'), { ssr: false });
 const OrganizationManagementTab = dynamic(() => import('@/components/settings/OrganizationManagementTab'), { ssr: false });
 const AdminConfigTab = dynamic(() => import('@/components/settings/AdminConfigTab'), { ssr: false });
+const StudyQueueConfigTab = dynamic(() => import('@/components/settings/StudyQueueConfigTab'), { ssr: false });
 const NotificationsTab = dynamic(() => import('@/components/settings/NotificationsTab'), { ssr: false });
 const EmailSettingsTab = dynamic(() => import('@/components/settings/EmailSettingsTab'), { ssr: false });
 const SuperAdminConfigTab = dynamic(() => import('@/components/settings/SuperAdminConfigTab'), { ssr: false });
@@ -24,7 +26,7 @@ const ArchivalSettingsTab = dynamic(() => import('@/components/settings/Archival
 const WorkflowSettingsTab = dynamic(() => import('@/components/settings/WorkflowSettingsTab'), { ssr: false });
 const DateTimeSettingsTab = dynamic(() => import('@/components/settings/DateTimeSettingsTab'), { ssr: false });
 
-type TabName = 'roles' | 'organization' | 'admin-config' | 'notifications' | 'email' | 'archival' | 'super-admin' | 'workflow' | 'datetime';
+type TabName = 'roles' | 'organization' | 'admin-config' | 'study-queue' | 'notifications' | 'email' | 'archival' | 'super-admin' | 'workflow' | 'datetime';
 
 interface Tab {
   id: TabName;
@@ -89,6 +91,12 @@ export default function SettingsPage() {
       requireAdmin: true
     },
     {
+      id: 'study-queue',
+      name: 'Study Queue Config',
+      icon: <QueueListIcon className="w-5 h-5" />,
+      requireAdmin: true
+    },
+    {
       id: 'super-admin',
       name: 'System Configuration',
       icon: <ServerStackIcon className="w-5 h-5" />,
@@ -121,6 +129,8 @@ export default function SettingsPage() {
         return <WorkflowSettingsTab />;
       case 'admin-config':
         return <AdminConfigTab />;
+      case 'study-queue':
+        return <StudyQueueConfigTab />;
       case 'notifications':
         return <NotificationsTab />;
       case 'email':

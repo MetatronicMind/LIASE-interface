@@ -222,7 +222,7 @@ router.get('/stats/system',
           totalDrugs: drugs.length,
           activeDrugs: drugs.filter(d => d.status === 'Active').length,
           totalStudies: studies.length,
-          pendingStudies: studies.filter(s => ['Pending Review', 'Pending', 'Study in Process'].includes(s.status)).length
+          pendingStudies: studies.filter(s => ['Pending Review', 'Pending', 'Under Triage Review'].includes(s.status)).length
         },
         activity: {
           totalActions: recentAuditLogs.length,

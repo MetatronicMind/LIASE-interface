@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { TrashIcon, ArrowPathIcon, ExclamationTriangleIcon } from "@heroicons/react/24/solid";
 import { roleService, type Role } from "@/services/roleService";
+import { formatDateTime } from "@/utils/dateTimeFormatter";
 
 interface DebugTabProps {
   roles: Role[];
@@ -416,7 +417,7 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
                     </td>
                     <td className="py-4 px-4">
                       <div className="text-xs text-gray-500">
-                        {new Date(role.createdAt).toLocaleDateString()}
+                        {formatDateTime(role.createdAt)}
                       </div>
                     </td>
                     <td className="py-4 px-4">

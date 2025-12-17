@@ -6,11 +6,17 @@ import {
   ClockIcon,
   EyeIcon,
   CheckCircleIcon,
-  CubeIcon
+  CubeIcon,
+  UserGroupIcon,
+  BeakerIcon,
+  ClipboardDocumentCheckIcon
 } from "@heroicons/react/24/outline";
 import { API_CONFIG } from "@/config/api";
 import { useDateTime } from '@/hooks/useDateTime';
 import { useAuth } from "@/hooks/useAuth";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
+import AnalyticsCharts from "@/components/dashboard/AnalyticsCharts";
 
 interface Stats {
   total: number;
@@ -19,6 +25,32 @@ interface Stats {
   approved: number;
   rejected: number;
   activeDrugs?: number;
+  counts?: {
+    users: number;
+    medicalReviewers: number;
+    drugs: number;
+    qaReviewed: number;
+  };
+  qaStats?: {
+    pending: number;
+    approvedManual: number;
+    approvedAuto: number;
+    rejected: number;
+    manualQc: number;
+  };
+  medicalReviewStats?: {
+    notStarted: number;
+    inProgress: number;
+    completed: number;
+  };
+  r3Stats?: {
+    notStarted: number;
+    inProgress: number;
+    completed: number;
+  };
+  byDrug?: Record<string, number>;
+  byMonth?: Record<string, number>;
+  byUser?: Record<string, number>;
 }
 
 interface AuditLog {
@@ -32,6 +64,7 @@ interface AuditLog {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { formatDate: formatDateGlobal } = useDateTime();
   const [processing, setProcessing] = useState(false);
   const [stats, setStats] = useState<Stats>({
@@ -47,7 +80,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [selectedOrganizationId]);
 
   const fetchDashboardData = async () => {
     try {
@@ -65,13 +98,16 @@ export default function DashboardPage() {
         "Content-Type": "application/json"
       };
 
+      const queryParams = selectedOrganizationId ? `?organizationId=${selectedOrganizationId}` : '';
+      const queryParamsAmp = selectedOrganizationId ? `&organizationId=${selectedOrganizationId}` : '';
+
       // Fetch study statistics
-      const statsResponse = await fetch(`${API_CONFIG.BASE_URL}/studies/stats/summary`, { headers });
+      const statsResponse = await fetch(`${API_CONFIG.BASE_URL}/studies/stats/summary${queryParams}`, { headers });
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         
         // Fetch active drugs count
-        const drugsResponse = await fetch(`${API_CONFIG.BASE_URL}/drugs?limit=1000`, { headers });
+        const drugsResponse = await fetch(`${API_CONFIG.BASE_URL}/drugs?limit=1000${queryParamsAmp}`, { headers });
         let activeDrugsCount = 0;
         if (drugsResponse.ok) {
           const drugsData = await drugsResponse.json();
@@ -84,12 +120,19 @@ export default function DashboardPage() {
           underReview: statsData.underReview || 0,
           approved: statsData.approved || 0,
           rejected: statsData.rejected || 0,
-          activeDrugs: activeDrugsCount
+          activeDrugs: activeDrugsCount,
+          counts: statsData.counts,
+          qaStats: statsData.qaStats,
+          medicalReviewStats: statsData.medicalReviewStats,
+          r3Stats: statsData.r3Stats,
+          byDrug: statsData.byDrug,
+          byMonth: statsData.byMonth,
+          byUser: statsData.byUser
         });
       }
 
       // Fetch recent audit logs
-      const auditResponse = await fetch(`${API_CONFIG.BASE_URL}/audit?limit=5&sortOrder=desc`, { headers });
+      const auditResponse = await fetch(`${API_CONFIG.BASE_URL}/audit?limit=5&sortOrder=desc${queryParamsAmp}`, { headers });
       if (auditResponse.ok) {
         const auditData = await auditResponse.json();
         setRecentActivity(auditData.auditLogs || []);
@@ -115,11 +158,10 @@ export default function DashboardPage() {
   };
 
   const statsArray = [
-    { label: "Total Studies", value: stats.total, icon: <DocumentTextIcon className="w-8 h-8 text-blue-400" /> },
-    { label: "Pending Review", value: stats.pendingReview, icon: <ClockIcon className="w-8 h-8 text-yellow-400" /> },
-    { label: "Under Review", value: stats.underReview, icon: <EyeIcon className="w-8 h-8 text-blue-600" /> },
-    { label: "Approved", value: stats.approved, icon: <CheckCircleIcon className="w-8 h-8 text-green-500" /> },
-    { label: "Active Drugs", value: stats.activeDrugs || 0, icon: <CubeIcon className="w-8 h-8 text-pink-400" /> },
+    { label: "Total Users", value: stats.counts?.users || 0, icon: <UserGroupIcon className="w-8 h-8 text-blue-500" /> },
+    { label: "Medical Reviewers", value: stats.counts?.medicalReviewers || 0, icon: <EyeIcon className="w-8 h-8 text-purple-500" /> },
+    { label: "Total Drugs", value: stats.counts?.drugs || 0, icon: <BeakerIcon className="w-8 h-8 text-green-500" /> },
+    { label: "QA Reviewed Cases", value: stats.counts?.qaReviewed || 0, icon: <ClipboardDocumentCheckIcon className="w-8 h-8 text-orange-500" /> },
   ];
 
   const handleAIProcessing = () => {
@@ -128,75 +170,50 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-white min-h-screen p-4 sm:p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Dashboard</h1>
-          <p className="text-gray-600">Hello, {user?.firstName || "User"}</p>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    <div className="bg-gray-50 h-screen flex flex-col overflow-hidden">
+      <div className="flex-none p-4 sm:p-6 bg-white shadow-sm z-10">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-sm text-gray-500">Overview for {user?.firstName || "User"}</p>
+            </div>
+            <button
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-60 shadow-sm"
+              onClick={handleAIProcessing}
+              disabled={processing}
+            >
+              {processing ? "Processing..." : "Start AI Processing"}
+            </button>
           </div>
-        ) : (
-          <>
-            {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+
+          {loading ? (
+            <div className="h-24 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {statsArray.map((stat, i) => (
                 <div
                   key={stat.label}
-                  className={`rounded-xl shadow-sm border flex items-center gap-4 p-4 bg-white/90 transition-transform duration-300 ease-out hover:scale-105 hover:-translate-y-1 active:scale-95 ${
-                    i === 0 ? 'border-blue-300' :
-                    i === 1 ? 'border-cyan-300' :
-                    i === 2 ? 'border-sky-300' :
-                    i === 3 ? 'border-emerald-300' :
-                    'border-pink-200'
-                  }`}
-                  style={{ willChange: 'transform' }}
+                  className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <div>{stat.icon}</div>
+                  <div className="p-2 bg-gray-50 rounded-lg">{stat.icon}</div>
                   <div>
-                    <div className="text-2xl font-extrabold text-blue-900">{stat.value}</div>
-                    <div className="text-blue-700 text-sm font-medium">{stat.label}</div>
+                    <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+                    <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">{stat.label}</div>
                   </div>
                 </div>
               ))}
-              {/*
-                <span className="font-semibold">Note:</span> AI processing typically runs automatically at midnight. Use this button for manual processing or testing.
-              */}
-              <button
-                className="bg-blue-600 text-white px-5 py-2 rounded font-semibold hover:bg-blue-700 transition disabled:opacity-60"
-                onClick={handleAIProcessing}
-                disabled={processing}
-              >
-                {processing ? "Processing..." : "Start AI Processing"}
-              </button>
-            </div> 
+            </div>
+          )}
+        </div>
+      </div>
 
-            {/* Recent Activity Section */}
-            {/* <div className="bg-white/90 rounded-xl shadow border border-blue-100 p-6">
-              <div className="font-bold text-lg mb-4 text-blue-900">Recent Activity</div>
-              {recentActivity.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No recent activity</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <tbody>
-                      {recentActivity.map((item, idx) => (
-                        <tr key={item.id || idx} className="border-b last:border-b-0 border-blue-50">
-                          <td className="py-2 px-2 whitespace-nowrap font-semibold text-blue-700 cursor-pointer hover:underline">{item.userName}</td>
-                          <td className="py-2 px-2 whitespace-nowrap text-blue-900">{formatAction(item)}</td>
-                          <td className="py-2 px-2 whitespace-nowrap text-right text-cyan-600">{formatDate(item.timestamp)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div> */}
-          </>
-        )}
+      <div className="flex-1 overflow-hidden p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto h-full">
+          {!loading && <AnalyticsCharts stats={stats} />}
+        </div>
       </div>
     </div>
   );

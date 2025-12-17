@@ -50,6 +50,7 @@ class ArchivalService {
         organizationId,
         studyId: study.id,
         studyTitle: study.title,
+        drugName: study.drugName,
         initiatedBy: userId
       });
 
@@ -288,7 +289,7 @@ class ArchivalService {
    * Get archival records
    */
   async getArchivalRecords(organizationId, filters = {}, page = 1, limit = 50) {
-    const { status, startDate, endDate, studyId } = filters;
+    const { status, startDate, endDate, studyId, drugName } = filters;
 
     let conditions = [
       'c.organizationId = @organizationId',
@@ -317,6 +318,11 @@ class ArchivalService {
     if (studyId) {
       conditions.push('c.studyId = @studyId');
       parameters.push({ name: '@studyId', value: studyId });
+    }
+
+    if (drugName) {
+      conditions.push('CONTAINS(UPPER(c.drugName), UPPER(@drugName))');
+      parameters.push({ name: '@drugName', value: drugName });
     }
 
     const offset = (page - 1) * limit;

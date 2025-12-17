@@ -193,7 +193,7 @@ const R3_FORM_FIELDS = [
 
 export default function R3FormPage() {
   const { user } = useAuth();
-  const { formatDate } = useDateTime();
+  const { formatDate, formatDateTime } = useDateTime();
   const router = useRouter();
   const searchParams = useSearchParams();
   const studyId = searchParams.get("studyId");
@@ -219,6 +219,8 @@ export default function R3FormPage() {
 
   const statusStyles: Record<string, string> = {
     "Pending Review": "bg-yellow-100 text-yellow-800 border border-yellow-300",
+    "Under Triage Review": "bg-yellow-100 text-yellow-800 border border-yellow-300",
+    "Study in Process": "bg-yellow-100 text-yellow-800 border border-yellow-300",
     "Under Review": "bg-blue-100 text-blue-800 border border-blue-300",
     Approved: "bg-green-100 text-green-800 border border-green-300",
   };
@@ -870,7 +872,7 @@ export default function R3FormPage() {
                 <div className="flex flex-wrap gap-2">
                    {/* Status */}
                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusStyles[study.r3FormStatus || 'Pending Review'] || "bg-gray-100 text-gray-800"}`}>
-                      {study.r3FormStatus || 'Pending Review'}
+                      {study.r3FormStatus === 'Study in Process' ? 'Under Triage Review' : (study.r3FormStatus || 'Pending Review')}
                    </span>
                    {/* User Tag */}
                    {study.userTag && (
@@ -912,6 +914,10 @@ export default function R3FormPage() {
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                 <h4 className="font-semibold text-gray-900 mb-3">Literature Information</h4>
                 <div className="space-y-3 text-sm">
+                  <div>
+                    <span className="font-bold text-gray-700 block">Study ID:</span>
+                    <p className="mt-1 text-gray-900 font-mono">{study.id}</p>
+                  </div>
                   <div>
                     <span className="font-bold text-gray-700 block">PMID:</span>
                     <p className="mt-1"><PmidLink pmid={study.pmid} showIcon={true} /></p>
@@ -993,7 +999,7 @@ export default function R3FormPage() {
                   </svg>
                   Literature Article Overview
                 </h4>
-                <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                   {study.doi && (
                     <div>
                       <span className="font-bold text-gray-700 block">DOI:</span>
@@ -1062,7 +1068,7 @@ export default function R3FormPage() {
                   </svg>
                   AI Literature Analysis
                 </h4>
-                <div className="space-y-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="font-bold text-gray-700 block">AI Identified Adverse Event(s):</span>
                     <p className="mt-1 text-gray-900">{study.adverseEvent}</p>
@@ -1197,7 +1203,7 @@ export default function R3FormPage() {
                       <p className="text-sm text-orange-800 mt-1">{study.revocationReason}</p>
                       {study.revokedAt && (
                         <p className="text-xs text-orange-700 mt-2">
-                          Revoked on: {new Date(study.revokedAt).toLocaleDateString()}
+                          Revoked on: {formatDateTime(study.revokedAt)}
                         </p>
                       )}
                     </div>
@@ -1337,7 +1343,7 @@ export default function R3FormPage() {
                               <div key={comment.id} className="bg-yellow-100 rounded p-2">
                                 <p className="text-sm text-yellow-900">{comment.comment}</p>
                                 <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
                                 </p>
                               </div>
                             ))}
@@ -1399,7 +1405,7 @@ export default function R3FormPage() {
                               <div key={comment.id} className="bg-yellow-100 rounded p-2">
                                 <p className="text-sm text-yellow-900">{comment.comment}</p>
                                 <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
                                 </p>
                               </div>
                             ))}
@@ -1476,7 +1482,7 @@ export default function R3FormPage() {
                               <div key={comment.id} className="bg-yellow-100 rounded p-2">
                                 <p className="text-sm text-yellow-900">{comment.comment}</p>
                                 <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
                                 </p>
                               </div>
                             ))}
@@ -1538,7 +1544,7 @@ export default function R3FormPage() {
                               <div key={comment.id} className="bg-yellow-100 rounded p-2">
                                 <p className="text-sm text-yellow-900">{comment.comment}</p>
                                 <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
                                 </p>
                               </div>
                             ))}
@@ -1600,7 +1606,7 @@ export default function R3FormPage() {
                               <div key={comment.id} className="bg-yellow-100 rounded p-2">
                                 <p className="text-sm text-yellow-900">{comment.comment}</p>
                                 <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {new Date(comment.createdAt).toLocaleDateString()}
+                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
                                 </p>
                               </div>
                             ))}

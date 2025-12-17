@@ -1,0 +1,604 @@
+[
+  {
+    "id": "report_1764682037025_38nz2ielo",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "reportDate": "2025-12-02",
+    "generatedAt": "2025-12-02T13:27:17.024Z",
+    "reportType": "daily_summary",
+    "data": {
+      "studyMetrics": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      },
+      "userActivityMetrics": {
+        "activeUsers": 0,
+        "totalActions": 0
+      },
+      "systemMetrics": {
+        "notifications": {
+          "totalNotifications": 21,
+          "delivered": 8,
+          "failed": 13
+        }
+      },
+      "errorMetrics": {
+        "totalErrors": 0
+      }
+    },
+    "summary": "Daily Summary Report:\n\nStudies:\n- Total Studies: 0\n- New Studies Today: 0\n- Completed: 0\n- In Progress: 0\n- Pending: 0\n\nUser Activity:\n- Active Users: 0\n- Total Actions: 0\n\nSystem Health:\n- Notifications Sent: 21\n- Successfully Delivered: 8\n- Failed Notifications: 13\n- System Errors: 0",
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoBAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoBAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-638f-60d5ac0501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1764682037
+  },
+  {
+    "id": "report_1764682084693_lt3330nhj",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "weekStartDate": "2025-11-29",
+    "weekEndDate": "2025-12-06",
+    "generatedAt": "2025-12-02T13:28:04.693Z",
+    "reportType": "weekly_summary",
+    "data": {
+      "dailyMetrics": [
+        {
+          "date": "2025-11-30",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-01",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-02",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-03",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-04",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-05",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-06",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        }
+      ],
+      "weeklyTotals": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      }
+    },
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoCAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoCAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-638f-7d3ee40501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1764682084
+  },
+  {
+    "id": "report_1764682157605_k76gs868g",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "reportDate": "2025-12-02",
+    "generatedAt": "2025-12-02T13:29:17.605Z",
+    "reportType": "daily_summary",
+    "data": {
+      "studyMetrics": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      },
+      "userActivityMetrics": {
+        "activeUsers": 0,
+        "totalActions": 0
+      },
+      "systemMetrics": {
+        "notifications": {
+          "totalNotifications": 21,
+          "delivered": 8,
+          "failed": 13
+        }
+      },
+      "errorMetrics": {
+        "totalErrors": 0
+      }
+    },
+    "summary": "Daily Summary Report:\n\nStudies:\n- Total Studies: 0\n- New Studies Today: 0\n- Completed: 0\n- In Progress: 0\n- Pending: 0\n\nUser Activity:\n- Active Users: 0\n- Total Actions: 0\n\nSystem Health:\n- Notifications Sent: 21\n- Successfully Delivered: 8\n- Failed Notifications: 13\n- System Errors: 0",
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoDAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoDAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-638f-a8b4c00501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1764682157
+  },
+  {
+    "id": "report_1764682289767_5aswj1j0j",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "reportDate": "2025-12-02",
+    "generatedAt": "2025-12-02T13:31:29.767Z",
+    "reportType": "daily_summary",
+    "data": {
+      "studyMetrics": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      },
+      "userActivityMetrics": {
+        "activeUsers": 0,
+        "totalActions": 0
+      },
+      "systemMetrics": {
+        "notifications": {
+          "totalNotifications": 21,
+          "delivered": 8,
+          "failed": 13
+        }
+      },
+      "errorMetrics": {
+        "totalErrors": 0
+      }
+    },
+    "summary": "Daily Summary Report:\n\nStudies:\n- Total Studies: 0\n- New Studies Today: 0\n- Completed: 0\n- In Progress: 0\n- Pending: 0\n\nUser Activity:\n- Active Users: 0\n- Total Actions: 0\n\nSystem Health:\n- Notifications Sent: 21\n- Successfully Delivered: 8\n- Failed Notifications: 13\n- System Errors: 0",
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoEAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoEAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-638f-f77a9c0501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1764682289
+  },
+  {
+    "id": "report_1764682310382_jtqfwznwq",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "weekStartDate": "2025-11-29",
+    "weekEndDate": "2025-12-06",
+    "generatedAt": "2025-12-02T13:31:50.382Z",
+    "reportType": "weekly_summary",
+    "data": {
+      "dailyMetrics": [
+        {
+          "date": "2025-11-30",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-01",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-02",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-03",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-04",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-05",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-06",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        }
+      ],
+      "weeklyTotals": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      }
+    },
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoFAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoFAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6390-03c5680501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1764682310
+  },
+  {
+    "id": "report_1764682432070_0bgi96o9b",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "reportDate": "2025-12-02",
+    "generatedAt": "2025-12-02T13:33:52.069Z",
+    "reportType": "daily_summary",
+    "data": {
+      "studyMetrics": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      },
+      "userActivityMetrics": {
+        "activeUsers": 0,
+        "totalActions": 0
+      },
+      "systemMetrics": {
+        "notifications": {
+          "totalNotifications": 21,
+          "delivered": 8,
+          "failed": 13
+        }
+      },
+      "errorMetrics": {
+        "totalErrors": 0
+      }
+    },
+    "summary": "Daily Summary Report:\n\nStudies:\n- Total Studies: 0\n- New Studies Today: 0\n- Completed: 0\n- In Progress: 0\n- Pending: 0\n\nUser Activity:\n- Active Users: 0\n- Total Actions: 0\n\nSystem Health:\n- Notifications Sent: 21\n- Successfully Delivered: 8\n- Failed Notifications: 13\n- System Errors: 0",
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoGAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoGAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6390-4c4ccc0501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1764682432
+  },
+  {
+    "id": "report_1764770300565_qwyzu2in5",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "reportDate": "2025-12-03",
+    "generatedAt": "2025-12-03T13:58:20.565Z",
+    "reportType": "daily_summary",
+    "data": {
+      "studyMetrics": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      },
+      "userActivityMetrics": {
+        "activeUsers": 0,
+        "totalActions": 0
+      },
+      "systemMetrics": {
+        "notifications": {
+          "totalNotifications": 4,
+          "delivered": 4,
+          "failed": 0
+        }
+      },
+      "errorMetrics": {
+        "totalErrors": 0
+      }
+    },
+    "summary": "Daily Summary Report:\n\nStudies:\n- Total Studies: 0\n- New Studies Today: 0\n- Completed: 0\n- In Progress: 0\n- Pending: 0\n\nUser Activity:\n- Active Users: 0\n- Total Actions: 0\n\nSystem Health:\n- Notifications Sent: 4\n- Successfully Delivered: 4\n- Failed Notifications: 0\n- System Errors: 0",
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoHAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoHAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-645c-e2020c0501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1764770300
+  },
+  {
+    "id": "report_1764770375761_fnogf008f",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "weekStartDate": "2025-11-29",
+    "weekEndDate": "2025-12-06",
+    "generatedAt": "2025-12-03T13:59:35.761Z",
+    "reportType": "weekly_summary",
+    "data": {
+      "dailyMetrics": [
+        {
+          "date": "2025-11-30",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-01",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-02",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-03",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-04",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-05",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-06",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        }
+      ],
+      "weeklyTotals": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      }
+    },
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoIAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoIAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-645d-0ed31c0501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1764770375
+  },
+  {
+    "id": "report_1765615269345_dh9ie3mub",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "reportDate": "2025-12-13",
+    "generatedAt": "2025-12-13T08:41:09.345Z",
+    "reportType": "daily_summary",
+    "data": {
+      "studyMetrics": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      },
+      "userActivityMetrics": {
+        "activeUsers": 0,
+        "totalActions": 0
+      },
+      "systemMetrics": {
+        "notifications": {
+          "totalNotifications": 1,
+          "delivered": 1,
+          "failed": 0
+        }
+      },
+      "errorMetrics": {
+        "totalErrors": 0
+      }
+    },
+    "summary": "Daily Summary Report:\n\nStudies:\n- Total Studies: 0\n- New Studies Today: 0\n- Completed: 0\n- In Progress: 0\n- Pending: 0\n\nUser Activity:\n- Active Users: 0\n- Total Actions: 0\n\nSystem Health:\n- Notifications Sent: 1\n- Successfully Delivered: 1\n- Failed Notifications: 0\n- System Errors: 0",
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoJAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoJAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6c0c-3aa4f40501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1765615269
+  },
+  {
+    "id": "report_1765615305419_tb3hfx5gz",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "weekStartDate": "2025-12-06",
+    "weekEndDate": "2025-12-13",
+    "generatedAt": "2025-12-13T08:41:45.419Z",
+    "reportType": "weekly_summary",
+    "data": {
+      "dailyMetrics": [
+        {
+          "date": "2025-12-07",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-08",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-09",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-10",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-11",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-12",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        },
+        {
+          "date": "2025-12-13",
+          "metrics": {
+            "total": 0,
+            "completed": 0,
+            "inProgress": 0,
+            "pending": 0,
+            "newStudies": 0
+          }
+        }
+      ],
+      "weeklyTotals": {
+        "total": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0,
+        "newStudies": 0
+      }
+    },
+    "type_doc": "report",
+    "_rid": "Vf9WANQTvGoKAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WANQTvGo=/docs/Vf9WANQTvGoKAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6c0c-5024bc0501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1765615305
+  }
+]

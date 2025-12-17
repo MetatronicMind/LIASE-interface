@@ -1,0 +1,137 @@
+[
+  {
+    "id": "admin_config_99b72274-1cf5-4d0f-bd4f-218edb51a318",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "configType": "scheduler",
+    "configData": {
+      "enabled": true,
+      "timezone": "UTC",
+      "retentionDays": 30,
+      "autoCleanup": true,
+      "maxConcurrentJobs": 5,
+      "defaultTimeout": 3600000,
+      "allowedWeeklyDays": [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Saturday"
+      ]
+    },
+    "isActive": true,
+    "version": 7,
+    "createdBy": "system",
+    "updatedBy": "8ecfefd9-2cbe-4ffd-8040-64bf6c875e84",
+    "createdAt": "2025-12-11T16:00:17.718Z",
+    "updatedAt": "2025-12-12T04:45:32.211Z",
+    "metadata": {},
+    "type_doc": "admin_config",
+    "_rid": "Vf9WAKIEmUUBAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAKIEmUU=/docs/Vf9WAKIEmUUBAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6b22-25d6d40501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1765514732
+  },
+  {
+    "id": "admin_config_77bfb49b-8c37-48a3-aa23-310f830bee51",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "configType": "workflow",
+    "configData": {
+      "qcDataEntry": true,
+      "medicalReview": true,
+      "stages": [
+        {
+          "id": "triage",
+          "label": "Triage",
+          "color": "#3B82F6",
+          "type": "initial"
+        },
+        {
+          "id": "qc_triage",
+          "label": "QC Triage",
+          "color": "#8B5CF6",
+          "type": "process"
+        },
+        {
+          "id": "data_entry",
+          "label": "Data Entry",
+          "color": "#10B981",
+          "type": "process"
+        },
+        {
+          "id": "medical_review",
+          "label": "Medical Review",
+          "color": "#F59E0B",
+          "type": "process"
+        },
+        {
+          "id": "reporting",
+          "label": "Reporting",
+          "color": "#EC4899",
+          "type": "process"
+        },
+        {
+          "id": "archived",
+          "label": "Archived",
+          "color": "#6B7280",
+          "type": "final"
+        },
+        {
+          "id": "qc_data_entry",
+          "label": "QC Data Entry",
+          "color": "#f2ea02",
+          "type": "process"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "triage",
+          "to": "qc_triage",
+          "label": "Step 1",
+          "qcPercentage": 50
+        },
+        {
+          "from": "qc_triage",
+          "to": "data_entry",
+          "label": "Step 2"
+        },
+        {
+          "from": "data_entry",
+          "to": "qc_data_entry",
+          "label": "Step 3",
+          "canRevoke": true,
+          "revokeTo": "triage"
+        },
+        {
+          "from": "qc_data_entry",
+          "to": "medical_review",
+          "label": "Step 4"
+        },
+        {
+          "from": "medical_review",
+          "to": "reporting",
+          "label": "Step 5"
+        },
+        {
+          "from": "reporting",
+          "to": "archived",
+          "label": "Step 6"
+        }
+      ]
+    },
+    "isActive": true,
+    "version": 97,
+    "createdBy": "system",
+    "updatedBy": "8ecfefd9-2cbe-4ffd-8040-64bf6c875e84",
+    "createdAt": "2025-12-12T09:01:01.990Z",
+    "updatedAt": "2025-12-17T20:20:27.063Z",
+    "metadata": {},
+    "type_doc": "admin_config",
+    "_rid": "Vf9WAKIEmUUCAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAKIEmUU=/docs/Vf9WAKIEmUUCAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6f92-950af40501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1766002827
+  }
+]

@@ -8,7 +8,10 @@ import {
   ArrowDownTrayIcon,
   ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
+import { useDateTime } from "@/hooks/useDateTime";
 import { auditService, AuditLog, AuditFilters } from "../../../services/auditService";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
 
 // Action configuration with icons
 const actionConfig: Record<string, { label: string; icon: React.ReactElement; color: string }> = {
@@ -68,6 +71,8 @@ function getActionMeta(action: string) {
 }
 
 export default function AuditTrailPage() {
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
+  const { formatDate, formatTime } = useDateTime();
   // State for audit logs and pagination
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
@@ -99,6 +104,7 @@ export default function AuditTrailPage() {
         ...(action && { action }),
         ...(dateFrom && { startDate: dateFrom }),
         ...(dateTo && { endDate: dateTo }),
+        ...(selectedOrganizationId && { organizationId: selectedOrganizationId }),
         sortOrder: 'desc'
       };
 
@@ -126,7 +132,7 @@ export default function AuditTrailPage() {
   // Load data on component mount and when filters change
   useEffect(() => {
     fetchAuditLogs();
-  }, [page, pageSize, user, action, dateFrom, dateTo]);
+  }, [page, pageSize, user, action, dateFrom, dateTo, selectedOrganizationId]);
 
   useEffect(() => {
     fetchUsers();
@@ -294,9 +300,9 @@ export default function AuditTrailPage() {
                     return (
                     <tr key={idx} className="border-b border-blue-50 last:border-b-0">
                       <td className="py-3 px-4 align-top text-blue-900">
-                        <div>{require('@/hooks/useDateTime').useDateTime().formatDate(log.timestamp)}</div>
+                        <div>{formatDate(log.timestamp)}</div>
                         <div className="text-xs text-gray-600">
-                          {require('@/hooks/useDateTime').useDateTime().formatTime(log.timestamp)}
+                          {formatTime(log.timestamp)}
                         </div>
                       </td>
                       <td className="py-3 px-4 align-top text-blue-900 font-bold">

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { PmidLink } from './PmidLink';
+import { formatDateTime } from '../utils/dateTimeFormatter';
 
 interface Study {
   id: string;
@@ -467,11 +468,11 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
                 <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-700">Created At</label>
-                    <p className="text-gray-900">{new Date(study.createdAt).toLocaleString()}</p>
+                    <p className="text-gray-900">{formatDateTime(study.createdAt)}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-700">Last Updated</label>
-                    <p className="text-gray-900">{new Date(study.updatedAt).toLocaleString()}</p>
+                    <p className="text-gray-900">{formatDateTime(study.updatedAt)}</p>
                   </div>
                 </div>
               </div>
@@ -482,7 +483,7 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t bg-gray-50 rounded-b-lg">
           <div className="text-sm text-gray-500">
-            Last updated: {new Date(study.updatedAt).toLocaleString()}
+            Last updated: {formatDateTime(study.updatedAt)}
           </div>
           {onClose && (
             <button

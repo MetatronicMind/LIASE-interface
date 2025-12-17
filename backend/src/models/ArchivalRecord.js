@@ -10,6 +10,7 @@ class ArchivalRecord {
     organizationId,
     studyId,
     studyTitle,
+    drugName,
     
     // Archival Status
     status = 'pending', // pending, processing, completed, failed, partial
@@ -81,6 +82,7 @@ class ArchivalRecord {
     this.organizationId = organizationId;
     this.studyId = studyId;
     this.studyTitle = studyTitle;
+    this.drugName = drugName;
     
     this.status = status;
     this.initiatedBy = initiatedBy;
@@ -204,6 +206,7 @@ class ArchivalRecord {
       organizationId: this.organizationId,
       studyId: this.studyId,
       studyTitle: this.studyTitle,
+      drugName: this.drugName,
       
       status: this.status,
       initiatedBy: this.initiatedBy,

@@ -273,7 +273,7 @@ class ArticleRetryQueueService {
           
           // Set status based on ICSR classification
           if (study.icsrClassification || study.confirmedPotentialICSR) {
-            study.status = 'Study in Process';
+            study.status = 'Under Triage Review';
           }
           
           // Save to database

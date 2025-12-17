@@ -7,6 +7,9 @@ import { PermissionGate } from "@/components/PermissionProvider";
 import { PmidLink } from "@/components/PmidLink";
 import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 import { CommentThread } from "@/components/CommentThread";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 interface FieldComment {
   id: string;
@@ -132,8 +135,9 @@ const R3_FORM_FIELDS = [
 ];
 
 export default function QCPage() {
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { user } = useAuth();
-  const { formatDate } = useDateTime();
+  const { formatDate, formatDateTime } = useDateTime();
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,14 +146,101 @@ export default function QCPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectModal, setShowRejectModal] = useState(false);
   
+  // Filter state
+  const [search, setSearch] = useState("");
+  const [studyIdFilter, setStudyIdFilter] = useState("");
+  const [clientNameFilter, setClientNameFilter] = useState("");
+  const [classificationType, setClassificationType] = useState("");
+  const [journalNameFilter, setJournalNameFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Helper function to normalize classification values from backend
+  const normalizeClassification = (value?: string): string | undefined => {
+    if (!value) return value;
+    let normalized = value.replace(/^Classification:\s*/i, '').trim();
+    normalized = normalized.replace(/^\d+\.\s*/, '').trim();
+    return normalized;
+  };
+
+  // Function to calculate final classification based on AI inference data
+  const getFinalClassification = (study: Study): string | null => {
+    const rawIcsrClassification = study.aiInferenceData?.ICSR_classification || study.ICSR_classification || study.icsrClassification;
+    const rawAoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+    
+    const icsrClassification = normalizeClassification(rawIcsrClassification);
+    const aoiClassification = normalizeClassification(rawAoiClassification);
+
+    if (!icsrClassification) return null;
+
+    if (icsrClassification === "Article requires manual review") {
+      return "Manual Review";
+    }
+
+    if (icsrClassification === "Probable ICSR/AOI") {
+      return "Probable ICSR/AOI";
+    }
+
+    if (icsrClassification === "Probable ICSR") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (ICSR)") {
+        return "Probable ICSR/AOI";
+      } else {
+        return "Probable ICSR";
+      }
+    }
+
+    if (icsrClassification === "No Case") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (AOI)") {
+        return "Probable AOI";
+      } else {
+        return "No Case";
+      }
+    }
+
+    return null;
+  };
+
   // Field-level commenting
   const [fieldCommentsState, setFieldCommentsState] = useState<{[key: string]: string}>({});
   const [addingCommentToField, setAddingCommentToField] = useState<string | null>(null);
 
+  // Get unique client names and journal names for dropdowns
+  const uniqueClientNames = Array.from(new Set(studies.map(s => s.clientName).filter(Boolean))).sort();
+  const uniqueJournalNames = Array.from(new Set(studies.map(s => s.journal).filter(Boolean))).sort();
+
+  // Filter logic
+  const filteredStudies = studies.filter(study => {
+    const matchesSearch = search === "" || 
+      study.title.toLowerCase().includes(search.toLowerCase()) ||
+      study.pmid?.includes(search) ||
+      study.drugName?.toLowerCase().includes(search.toLowerCase()) ||
+      study.adverseEvent?.toLowerCase().includes(search.toLowerCase());
+
+    const matchesStudyId = studyIdFilter === "" ||
+      study.id.toLowerCase().includes(studyIdFilter.toLowerCase());
+
+    const matchesClient = clientNameFilter === "" || 
+      study.clientName?.toLowerCase().includes(clientNameFilter.toLowerCase());
+
+    const matchesClassification = classificationType === "" || 
+      getFinalClassification(study) === classificationType;
+
+    const matchesJournal = journalNameFilter === "" ||
+      study.journal?.toLowerCase().includes(journalNameFilter.toLowerCase());
+
+    const matchesDateFrom = dateFrom === "" || 
+      new Date(study.publicationDate || study.createdAt).getTime() >= new Date(dateFrom).getTime();
+
+    const matchesDateTo = dateTo === "" || 
+      new Date(study.publicationDate || study.createdAt).getTime() <= new Date(dateTo).getTime();
+
+    return matchesSearch && matchesStudyId && matchesClient && matchesClassification && matchesJournal && matchesDateFrom && matchesDateTo;
+  });
+
   useEffect(() => {
     console.log('QC Page mounted, fetching studies...');
     fetchPendingR3Studies();
-  }, []);
+  }, [selectedOrganizationId]);
 
   const fetchPendingR3Studies = async () => {
     try {
@@ -159,7 +250,8 @@ export default function QCPage() {
       
       console.log('Fetching QC pending R3 studies...');
       
-      const response = await fetch(`${getApiBaseUrl()}/studies/QC-r3-pending`, {
+      const queryParams = selectedOrganizationId ? `?organizationId=${selectedOrganizationId}` : '';
+      const response = await fetch(`${getApiBaseUrl()}/studies/QC-r3-pending${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -396,7 +488,7 @@ export default function QCPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">QUALITY CONTROL</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">QC Data Entry</h1>
           <p className="mt-1 text-sm text-gray-600">
             Review R3 XML forms and add comments on specific fields before approval
           </p>
@@ -410,15 +502,142 @@ export default function QCPage() {
             </div>
           )}
 
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+              </svg>
+              Filter Articles
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Search</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search title, drug, PMID..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Study ID</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search Study ID..."
+                    value={studyIdFilter}
+                    onChange={e => setStudyIdFilter(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Client Name</label>
+                <select
+                  value={clientNameFilter}
+                  onChange={e => setClientNameFilter(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="">All Clients</option>
+                  {uniqueClientNames.map((client, index) => (
+                    <option key={index} value={client as string}>{client}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">AI Classification</label>
+                <select
+                  value={classificationType}
+                  onChange={e => setClassificationType(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="">All Classifications</option>
+                  <option value="Probable ICSR">Probable ICSR</option>
+                  <option value="Probable AOI">Probable AOI</option>
+                  <option value="Probable ICSR/AOI">Probable ICSR/AOI</option>
+                  <option value="No Case">No Case</option>
+                  <option value="Manual Review">Manual Review</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Journal Name</label>
+                <select
+                  value={journalNameFilter}
+                  onChange={e => setJournalNameFilter(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="">All Journals</option>
+                  {uniqueJournalNames.map((journal, index) => (
+                    <option key={index} value={journal as string}>{journal}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">From Date</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">To Date</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                className="flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 text-sm font-medium transition-colors"
+                onClick={() => {
+                  setSearch("");
+                  setStudyIdFilter("");
+                  setClientNameFilter("");
+                  setClassificationType("");
+                  setJournalNameFilter("");
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear All Filters
+              </button>
+              <div className="flex items-center text-sm text-gray-600 ">
+                <span className="font-medium">{filteredStudies.length}</span> Articles found
+              </div>
+            </div>
+          </div>
+
           {/* Studies List */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
-                Pending R3 XML Forms ({studies.length})
+                Pending R3 XML Forms ({filteredStudies.length})
               </h2>
             </div>
 
-            {studies.length === 0 ? (
+            {filteredStudies.length === 0 ? (
               <div className="text-center py-12">
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -428,7 +647,7 @@ export default function QCPage() {
               </div>
             ) : (
               <ul className="divide-y divide-gray-200">
-                {studies.map((study) => (
+                {filteredStudies.map((study) => (
                   <li
                     key={study.id}
                     className="px-4 sm:px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -437,12 +656,13 @@ export default function QCPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">ID: {study.id}</span>
                           <PmidLink pmid={study.pmid} />
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getClassificationColor(study.userTag)}`}>
                             {study.userTag}
                           </span>
                           <span className="text-xs text-gray-500">
-                            Form completed: {formatDate(study.r3FormCompletedAt || study.updatedAt)}
+                            Form completed: {formatDateTime(study.r3FormCompletedAt || study.updatedAt)}
                           </span>
                         </div>
                         <p className="text-sm font-medium text-gray-900 truncate">{study.title}</p>
@@ -488,19 +708,56 @@ export default function QCPage() {
                 </div>
 
                 <div className="px-4 sm:px-6 py-6 overflow-y-auto">
-                {/* Study Header */}
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <PmidLink pmid={selectedStudy.pmid} />
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getClassificationColor(selectedStudy.userTag)}`}>
-                      {selectedStudy.userTag}
-                    </span>
+                {/* Literature Information */}
+                <div className="mb-6 bg-gray-50 rounded-lg p-4 space-y-3">
+                  <h4 className="font-semibold text-gray-900 mb-3">Literature Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-bold text-gray-700">Study ID:</span>
+                      <p className="mt-1 text-gray-900 font-mono">{selectedStudy.id}</p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-gray-700">PMID:</span>
+                      <p className="mt-1"><PmidLink pmid={selectedStudy.pmid} showIcon={true} /></p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-gray-700">INN & Brand Name:</span>
+                      <p className="mt-1 text-gray-900">{selectedStudy.drugName}</p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-gray-700">Authors:</span>
+                      <p className="mt-1 text-gray-900">
+                        {Array.isArray(selectedStudy.authors) 
+                          ? selectedStudy.authors.join(', ')
+                          : typeof selectedStudy.authors === 'string' 
+                            ? selectedStudy.authors 
+                            : 'N/A'
+                        }
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-gray-700">Journal Name:</span>
+                      <p className="mt-1 text-gray-900">{selectedStudy.journal || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-gray-700">Publication Date:</span>
+                      <p className="mt-1 text-gray-900">{selectedStudy.publicationDate || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-gray-700">Created On:</span>
+                      <p className="mt-1 text-gray-900">{formatDate(selectedStudy.createdAt)}</p>
+                    </div>
                   </div>
-                  <h4 className="font-semibold text-gray-900 mb-2">{selectedStudy.title}</h4>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div><span className="font-medium">Drug:</span> {selectedStudy.drugName}</div>
-                    <div><span className="font-medium">Adverse Event:</span> {selectedStudy.adverseEvent}</div>
+                  <div>
+                    <span className="font-bold text-gray-700">Title:</span>
+                    <p className="mt-1 text-gray-900 leading-relaxed">{selectedStudy.title}</p>
                   </div>
+                  {selectedStudy.vancouverCitation && (
+                    <div>
+                      <span className="font-bold text-gray-700">Literature Citation:</span>
+                      <p className="mt-1 text-gray-900 text-sm italic">{selectedStudy.vancouverCitation}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Abstract - From Triage */}
@@ -518,73 +775,76 @@ export default function QCPage() {
                   </div>
                 )}
 
-                {/* Study Metadata - From Triage/QC Triage */}
+                {/* Literature Article Overview */}
                 <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                     </svg>
-                    Study Metadata
+                    Literature Article Overview
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                     {selectedStudy.doi && (
                       <div>
-                        <span className="font-medium text-gray-700">DOI:</span>
-                        <p className="mt-1 text-gray-900 break-all">{selectedStudy.doi}</p>
+                        <span className="font-bold text-gray-700">DOI:</span>
+                        <p className="mt-1 text-gray-900 break-all">
+                          <a 
+                            href={selectedStudy.doi.startsWith('http') ? selectedStudy.doi : `https://doi.org/${selectedStudy.doi}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-blue-600 hover:underline"
+                          >
+                            {selectedStudy.doi}
+                          </a>
+                        </p>
                       </div>
                     )}
                     {selectedStudy.leadAuthor && (
                       <div>
-                        <span className="font-medium text-gray-700">Lead Author:</span>
+                        <span className="font-bold text-gray-700">Lead Author:</span>
                         <p className="mt-1 text-gray-900">{selectedStudy.leadAuthor}</p>
                       </div>
                     )}
                     {selectedStudy.countryOfFirstAuthor && (
                       <div>
-                        <span className="font-medium text-gray-700">Country (First Author):</span>
+                        <span className="font-bold text-gray-700">Country of first Author:</span>
                         <p className="mt-1 text-gray-900">{selectedStudy.countryOfFirstAuthor}</p>
                       </div>
                     )}
                     {selectedStudy.countryOfOccurrence && (
                       <div>
-                        <span className="font-medium text-gray-700">Country of Occurrence:</span>
+                        <span className="font-bold text-gray-700">Country of Occurrence:</span>
                         <p className="mt-1 text-gray-900">{selectedStudy.countryOfOccurrence}</p>
                       </div>
                     )}
                     {selectedStudy.substanceGroup && (
                       <div>
-                        <span className="font-medium text-gray-700">Substance Group:</span>
+                        <span className="font-bold text-gray-700">INN:</span>
                         <p className="mt-1 text-gray-900">{selectedStudy.substanceGroup}</p>
                       </div>
                     )}
                     {selectedStudy.authorPerspective && (
                       <div>
-                        <span className="font-medium text-gray-700">Author Perspective:</span>
+                        <span className="font-bold text-gray-700">Author Perspective:</span>
                         <p className="mt-1 text-gray-900">{selectedStudy.authorPerspective}</p>
                       </div>
                     )}
                     {selectedStudy.clientName && (
                       <div>
-                        <span className="font-medium text-gray-700">Client:</span>
+                        <span className="font-bold text-gray-700">Client Name:</span>
                         <p className="mt-1 text-gray-900">{selectedStudy.clientName}</p>
                       </div>
                     )}
                     {selectedStudy.sponsor && (
                       <div>
-                        <span className="font-medium text-gray-700">Sponsor:</span>
+                        <span className="font-bold text-gray-700">Client Name:</span>
                         <p className="mt-1 text-gray-900">{selectedStudy.sponsor}</p>
                       </div>
                     )}
                     {selectedStudy.testSubject && (
                       <div>
-                        <span className="font-medium text-gray-700">Test Subject:</span>
+                        <span className="font-bold text-gray-700">Subject/Participant/Patient:</span>
                         <p className="mt-1 text-gray-900">{selectedStudy.testSubject}</p>
-                      </div>
-                    )}
-                    {selectedStudy.vancouverCitation && (
-                      <div className="md:col-span-2 lg:col-span-3">
-                        <span className="font-medium text-gray-700">Vancouver Citation:</span>
-                        <p className="mt-1 text-gray-900 text-xs italic">{selectedStudy.vancouverCitation}</p>
                       </div>
                     )}
                   </div>

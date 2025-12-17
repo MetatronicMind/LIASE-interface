@@ -8,6 +8,24 @@ const { auditAction } = require('../middleware/audit');
 
 const router = express.Router();
 
+// Get all organizations (Super Admin only)
+router.get('/',
+  authorizeRole('superadmin'),
+  async (req, res) => {
+    try {
+      const query = 'SELECT * FROM c WHERE c.type = "organization"';
+      const organizations = await cosmosService.queryItems('organizations', query, []);
+      res.json(organizations);
+    } catch (error) {
+      console.error('Error fetching organizations:', error);
+      res.status(500).json({
+        error: 'Failed to fetch organizations',
+        message: error.message
+      });
+    }
+  }
+);
+
 // Get organization details
 router.get('/me', async (req, res) => {
   try {
@@ -117,7 +135,7 @@ router.get('/stats',
         },
         studies: {
           total: studies.length,
-          pendingReview: studies.filter(s => ['Pending Review', 'Pending', 'Study in Process'].includes(s.status)).length,
+          pendingReview: studies.filter(s => ['Pending Review', 'Pending', 'Under Triage Review'].includes(s.status)).length,
           underReview: studies.filter(s => s.status === 'Under Review').length,
           approved: studies.filter(s => s.status === 'Approved').length,
           rejected: studies.filter(s => s.status === 'Rejected').length

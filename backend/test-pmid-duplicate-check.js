@@ -102,8 +102,8 @@ async function testPMIDDuplicateCheck() {
     
     // Test the status update logic
     if (testStudy.icsrClassification || testStudy.confirmedPotentialICSR) {
-      testStudy.status = 'Study in Process';
-      console.log('✅ Status correctly updated to "Study in Process" due to ICSR classification');
+      testStudy.status = 'Under Triage Review';
+      console.log('✅ Status correctly updated to "Under Triage Review" due to ICSR classification');
     }
     
     console.log('\n=== Test Summary ===');

@@ -5,7 +5,10 @@ import { getApiBaseUrl } from "@/config/api";
 import { PmidLink } from "@/components/PmidLink";
 import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 import { CommentThread } from "@/components/CommentThread";
+import TriageStudyDetails from "@/components/TriageStudyDetails";
 import { useDateTime } from "@/hooks/useDateTime";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
 
 interface Study {
   id: string;
@@ -71,6 +74,8 @@ interface Study {
   userTag?: 'ICSR' | 'AOI' | 'No Case' | null;
   effectiveClassification?: string;
   requiresManualReview?: boolean;
+  fullTextAvailability?: string;
+  fullTextSource?: string;
   
   // Legacy fields for backward compatibility
   Drugname?: string;
@@ -78,6 +83,10 @@ interface Study {
   special_case?: string;
   ICSR_classification?: string;
   Text_type?: string;
+  
+  // Allocation fields
+  assignedTo?: string;
+  lockedAt?: string;
 }
 
 // No sample data - user requested removal of all sample/demo data
@@ -85,11 +94,14 @@ const fallbackStudies: any[] = [];
 
 const statusStyles: Record<string, string> = {
   "Pending Review": "bg-yellow-100 text-yellow-800 border border-yellow-300",
+  "Under Triage Review": "bg-yellow-100 text-yellow-800 border border-yellow-300",
+  "Study in Process": "bg-yellow-100 text-yellow-800 border border-yellow-300",
   "Under Review": "bg-blue-100 text-blue-800 border border-blue-300",
   Approved: "bg-green-100 text-green-800 border border-green-300",
 };
 
 export default function TriagePage() {
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { formatDate } = useDateTime();
   // Studies state
   const [studies, setStudies] = useState<Study[]>([]);
@@ -98,6 +110,7 @@ export default function TriagePage() {
   
   // Filter state
   const [search, setSearch] = useState("");
+  const [studyIdFilter, setStudyIdFilter] = useState("");
   const [status, setStatus] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -117,10 +130,17 @@ export default function TriagePage() {
   const [listedness, setListedness] = useState<string>("");
   const [seriousness, setSeriousness] = useState<string>("");
   const [fullTextAvailability, setFullTextAvailability] = useState<string>("");
+  const [fullTextSource, setFullTextSource] = useState<string>("");
   
   // UI state
   const [showRawData, setShowRawData] = useState(false);
+  
+  // Allocation state
+  const [allocatedCase, setAllocatedCase] = useState<Study | null>(null);
+  const [isAllocating, setIsAllocating] = useState(false);
+  const [isLockingStudy, setIsLockingStudy] = useState(false);
 
+  const { user } = useSelector((state: RootState) => state.auth);
   const API_BASE = getApiBaseUrl();
 
   // Normalize API studies to ensure proper data types
@@ -144,7 +164,7 @@ export default function TriagePage() {
   // Fetch studies from API
   useEffect(() => {
     fetchStudies();
-  }, []);
+  }, [selectedOrganizationId]);
 
   const fetchStudies = async () => {
     setLoading(true);
@@ -161,7 +181,8 @@ export default function TriagePage() {
       }
 
       console.log('Fetching studies from API...');
-      const response = await fetch(`${API_BASE}/studies?limit=1000`, {
+      const queryParams = selectedOrganizationId ? `&organizationId=${selectedOrganizationId}` : '';
+      const response = await fetch(`${API_BASE}/studies?limit=1000${queryParams}`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -222,6 +243,136 @@ export default function TriagePage() {
     }
   };
 
+  const handleAllocateCase = async () => {
+    console.log('handleAllocateCase: Starting allocation...');
+    setIsAllocating(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      console.log('handleAllocateCase: Fetching from API...');
+      const response = await fetch(`${API_BASE}/studies/allocate-case`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('handleAllocateCase: Response status:', response.status);
+      const data = await response.json();
+      console.log('handleAllocateCase: Data received:', data);
+      
+      if (data.success) {
+        console.log('handleAllocateCase: Setting new case:', data.case.id);
+        setAllocatedCase(data.case);
+        // Also update the studies list if needed, or just rely on allocatedCase view
+      } else {
+        console.log('handleAllocateCase: Allocation failed or no cases:', data.message);
+        // If no cases are available, we should probably inform the user and exit allocation mode
+        if (data.message === "No pending cases found for allocation") {
+             alert("No more pending cases available for triage.");
+             setAllocatedCase(null);
+        } else {
+             alert(data.message || "Failed to allocate case");
+        }
+      }
+    } catch (error) {
+      console.error("Error allocating case:", error);
+      alert("Error allocating case. Please try again.");
+    } finally {
+      setIsAllocating(false);
+    }
+  };
+
+  const handleReleaseCase = async () => {
+    if (!allocatedCase) return;
+    
+    try {
+      const token = localStorage.getItem('auth_token');
+      await fetch(`${API_BASE}/studies/release-case/${allocatedCase.id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      setAllocatedCase(null);
+      // Refresh list to show updated status
+      fetchStudies();
+    } catch (error) {
+      console.error("Error releasing case:", error);
+    }
+  };
+
+  // View a study without locking
+  const handleViewStudy = (study: Study) => {
+    setSelectedStudy(study);
+  };
+
+  // Lock a study for editing in legacy view
+  const handleLockStudy = async (study: Study) => {
+    // If study is already locked by current user, just select it
+    if (study.assignedTo === user?.id) {
+      setSelectedStudy(study);
+      return;
+    }
+    
+    // If study is locked by someone else, show error
+    if (study.assignedTo && study.assignedTo !== user?.id) {
+      alert(`This case is currently being worked on by another user.`);
+      return;
+    }
+    
+    setIsLockingStudy(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_BASE}/studies/lock-case/${study.id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update the study in the list with locked status
+        const updatedStudy = data.study;
+        setStudies(prev => prev.map(s => s.id === study.id ? updatedStudy : s));
+        setSelectedStudy(updatedStudy);
+      } else {
+        alert(data.message || "Failed to lock case");
+      }
+    } catch (error) {
+      console.error("Error locking case:", error);
+      alert("Error locking case. Please try again.");
+    } finally {
+      setIsLockingStudy(false);
+    }
+  };
+
+  // Release lock on a study
+  const handleReleaseStudy = async (studyId: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      await fetch(`${API_BASE}/studies/release-case/${studyId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // Update the study in the list to show it's unlocked
+      setStudies(prev => prev.map(s => 
+        s.id === studyId ? { ...s, assignedTo: null, lockedAt: null } : s
+      ));
+    } catch (error) {
+      console.error("Error releasing case:", error);
+    }
+  };
+
   // Classification function
   const classifyStudy = async (studyId: string, classification: string, details?: { justification?: string, listedness?: string, seriousness?: string, fullTextAvailability?: string }) => {
     console.log('classifyStudy called for:', studyId, classification);
@@ -277,6 +428,10 @@ export default function TriagePage() {
           setSelectedStudy(updatedStudy);
         }
         
+        if (allocatedCase && allocatedCase.id === studyId) {
+          setAllocatedCase(updatedStudy);
+        }
+        
         // Reset classification state
         setSelectedClassification(null);
         setJustification("");
@@ -284,7 +439,19 @@ export default function TriagePage() {
         setSeriousness("");
         setFullTextAvailability("");
         
-        alert(`Literature Article classified as ${classification}. Awaiting QC approval.`);
+        // Check if we are in allocation mode and the classified study is the allocated one
+        if (allocatedCase && allocatedCase.id === studyId) {
+            // Fetch the next case automatically
+            console.log('Auto-advancing to next case...');
+            handleAllocateCase();
+        } else {
+            // Release the lock on the study in legacy view since it's now classified
+            if (selectedStudy && selectedStudy.id === studyId) {
+              handleReleaseStudy(studyId);
+              setSelectedStudy(null);
+            }
+            alert(`Literature Article classified as ${classification}. Awaiting QC approval.`);
+        }
       } else {
         throw new Error("Failed to classify study");
       }
@@ -363,11 +530,18 @@ export default function TriagePage() {
     const needsTriage = !study.userTag || study.qaApprovalStatus === 'rejected' || study.status === 'triage';
     if (!needsTriage) return false;
     
-    // Search by drug name or title
+    // Search by drug name, title, or PMID
     const matchesSearch =
       search.trim() === "" ||
       study.drugName.toLowerCase().includes(search.toLowerCase()) ||
-      study.title.toLowerCase().includes(search.toLowerCase());
+      study.title.toLowerCase().includes(search.toLowerCase()) ||
+      study.pmid.toLowerCase().includes(search.toLowerCase());
+    
+    // Study ID filter
+    const matchesStudyId = 
+      studyIdFilter.trim() === "" ||
+      study.id.toLowerCase().includes(studyIdFilter.toLowerCase());
+
     // Status filter
     const matchesStatus = status === "" || study.status === status;
     // Date range filter (created date)
@@ -385,7 +559,7 @@ export default function TriagePage() {
     // Journal Name filter
     const matchesJournalName = journalNameFilter === "" || study.journal === journalNameFilter;
     
-    return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo && matchesClassificationType && matchesClientName && matchesJournalName;
+    return matchesSearch && matchesStudyId && matchesStatus && matchesDateFrom && matchesDateTo && matchesClassificationType && matchesClientName && matchesJournalName;
   });
 
   // Pagination logic
@@ -401,7 +575,7 @@ export default function TriagePage() {
     }
     // Do not auto-select any study when filters change
     setPage(1); // Reset to first page when filters change
-  }, [search, status, dateFrom, dateTo, classificationType, clientNameFilter, journalNameFilter]);
+  }, [search, studyIdFilter, status, dateFrom, dateTo, classificationType, clientNameFilter, journalNameFilter]);
 
   // Action handlers
   const handleAction = (action: string) => {
@@ -448,9 +622,22 @@ export default function TriagePage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Literature Triage</h1>
-          {/* <p className="mt-1 text-sm text-gray-600">Classify studies as ICSR, Article of Interest, or No Case for pharmacovigilance processing</p> */}
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Literature Triage</h1>
+            {/* <p className="mt-1 text-sm text-gray-600">Classify studies as ICSR, Article of Interest, or No Case for pharmacovigilance processing</p> */}
+          </div>
+          {allocatedCase && (
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-500">Working on Case: {allocatedCase.pmid}</span>
+              <button 
+                onClick={handleReleaseCase}
+                className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+              >
+                Exit / Release Case
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -474,8 +661,49 @@ export default function TriagePage() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        {!allocatedCase ? (
+          <>
+            {/* Allocation CTA */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center mb-8">
+              <div className="max-w-2xl mx-auto">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Ready to Triage?</h2>
+                <p className="text-gray-600 mb-8">
+                  Get the next available case assigned to you. The system ensures no two users work on the same case.
+                </p>
+                <button
+                  onClick={handleAllocateCase}
+                  disabled={isAllocating}
+                  className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+                >
+                  {isAllocating ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Allocating Case...
+                    </>
+                  ) : (
+                    <>
+                      <MagnifyingGlassIcon className="w-6 h-6 mr-2" />
+                      Start Triage Session
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center">
+                <span className="px-2 bg-gray-50 text-sm text-gray-500">Or browse pending articles (Legacy View)</span>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mt-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
@@ -484,14 +712,28 @@ export default function TriagePage() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Drug Name or Title</label>
+              <label className="block text-sm font-medium text-gray-700">Drug Name, Title, or PMID</label>
               <div className="relative">
                 <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search by drug name or title..."
+                  placeholder="Search by drug name, title, or PMID..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Study ID</label>
+              <div className="relative">
+                <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by Study ID..."
+                  value={studyIdFilter}
+                  onChange={e => setStudyIdFilter(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
                 />
               </div>
@@ -584,6 +826,7 @@ export default function TriagePage() {
               className="flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 text-sm font-medium transition-colors"
               onClick={() => {
                 setSearch("");
+                setStudyIdFilter("");
                 setStatus("");
                 setDateFrom("");
                 setDateTo("");
@@ -677,22 +920,36 @@ export default function TriagePage() {
                     {paginatedStudies.map((study, index) => (
                       <div
                         key={study.pmid}
-                        onClick={() => setSelectedStudy(study)}
+                        onClick={() => handleViewStudy(study)}
                         className={`group relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
                           selectedStudy && selectedStudy.pmid === study.pmid
                             ? "border-blue-500 bg-blue-50 shadow-md"
+                            : study.assignedTo && study.assignedTo !== user?.id
+                            ? "border-yellow-200 bg-yellow-50"
                             : "border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50"
                         }`}
                       >
                         {/* Study Card Content */}
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              PMID: <PmidLink pmid={study.pmid} className="text-blue-800 hover:underline ml-1" />
-                            </span>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[study.status]}`}>
-                              {study.status}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                ID: {study.id}
+                              </span>
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                PMID: <PmidLink pmid={study.pmid} className="text-blue-800 hover:underline ml-1" />
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {study.assignedTo && study.assignedTo !== user?.id && (
+                                <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Locked by another user">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                              )}
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[study.status]}`}>
+                                {study.status === 'Study in Process' ? 'Under Triage Review' : study.status}
+                              </span>
+                            </div>
                           </div>
                           
                           <h4 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">
@@ -719,6 +976,22 @@ export default function TriagePage() {
 
                           {/* Classification and Tags */}
                           <div className="flex flex-wrap gap-1">
+                            {study.assignedTo && study.assignedTo !== user?.id && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700 border border-gray-400">
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                </svg>
+                                In Use
+                              </span>
+                            )}
+                            {study.assignedTo === user?.id && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-200 text-blue-800 border border-blue-400">
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                You're Working On This
+                              </span>
+                            )}
                             {study.revokedBy && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-300">
                                 <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -834,7 +1107,7 @@ export default function TriagePage() {
                       </h3>
                       <div className="flex items-center space-x-2">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusStyles[selectedStudy.status]}`}>
-                          {selectedStudy.status}
+                          {selectedStudy.status === 'Study in Process' ? 'Under Triage Review' : selectedStudy.status}
                         </span>
                         {selectedStudy.userTag && (
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getClassificationColor(selectedStudy.userTag)}`}>
@@ -903,6 +1176,10 @@ export default function TriagePage() {
                     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                       <h4 className="font-semibold text-gray-900 mb-3">Literature Information</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-bold text-gray-700">Study ID:</span>
+                          <p className="mt-1 text-gray-900 font-mono">{selectedStudy.id}</p>
+                        </div>
                         <div>
                           <span className="font-bold text-gray-700">PMID:</span>
                           <p className="mt-1"><PmidLink pmid={selectedStudy.pmid} showIcon={true} /></p>
@@ -1207,6 +1484,49 @@ export default function TriagePage() {
                         Classify Article
                       </h4>
                       
+                      {!selectedStudy.assignedTo ? (
+                        <div className="text-center py-6 bg-white bg-opacity-50 rounded-lg border border-blue-100">
+                          <p className="text-gray-600 mb-4 font-medium">This case is currently unlocked.</p>
+                          <p className="text-sm text-gray-500 mb-4">You are viewing this case in read-only mode. To classify or edit, you must lock it first.</p>
+                          <button
+                            onClick={() => handleLockStudy(selectedStudy)}
+                            disabled={isLockingStudy}
+                            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+                          >
+                            {isLockingStudy ? (
+                              <>
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Locking Case...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                Lock Case for Classification
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      ) : selectedStudy.assignedTo !== user?.id ? (
+                        <div className="text-center py-6 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <div className="flex justify-center mb-2">
+                            <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          </div>
+                          <p className="text-yellow-800 font-medium text-lg">
+                            Locked by another user
+                          </p>
+                          <p className="text-yellow-600 mt-2">
+                            This case is currently being worked on by another user. You can view the details but cannot make changes.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
                       {selectedClassification ? (
                         <div className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm animate-fadeIn">
                           <div className="flex items-center justify-between mb-4">
@@ -1288,37 +1608,47 @@ export default function TriagePage() {
                                   <span className="ml-2 text-sm text-gray-700">No</span>
                                 </label>
                               </div>
+                              {fullTextAvailability === 'Yes' && (
+                                <div className="mt-2">
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Full Text Source/Comments</label>
+                                  <textarea
+                                    value={fullTextSource || ''}
+                                    onChange={(e) => setFullTextSource(e.target.value)}
+                                    placeholder="Enter source or comments..."
+                                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
+                                    rows={2}
+                                  />
+                                </div>
+                              )}
                             </div>
 
-                            {selectedClassification === 'ICSR' && (
-                              <div className="bg-red-50 p-3 rounded-md border border-red-100">
-                                {/* <p className="text-sm font-medium text-red-800 mb-2">Additional ICSR Options</p> */}
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-700 mb-1">Listedness</label>
-                                    <div className="flex gap-2">
-                                      <label className="inline-flex items-center">
-                                        <input type="radio" className="form-radio text-red-600" name="listedness" value="Listed" checked={listedness === 'Listed'} onChange={(e) => setListedness(e.target.value)} />
-                                        <span className="ml-2 text-xs text-gray-700">Listed</span>
-                                      </label>
-                                      <label className="inline-flex items-center">
-                                        <input type="radio" className="form-radio text-red-600" name="listedness" value="Unlisted" checked={listedness === 'Unlisted'} onChange={(e) => setListedness(e.target.value)} />
-                                        <span className="ml-2 text-xs text-gray-700">Unlisted</span>
-                                      </label>
-                                    </div>
+                            {selectedClassification !== 'No Case' && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Listedness</label>
+                                  <div className="flex gap-4">
+                                    <label className="inline-flex items-center">
+                                      <input type="radio" className="form-radio text-blue-600" name="listedness" value="Listed" checked={listedness === 'Listed'} onChange={(e) => setListedness(e.target.value)} />
+                                      <span className="ml-2 text-sm text-gray-700">Listed</span>
+                                    </label>
+                                    <label className="inline-flex items-center">
+                                      <input type="radio" className="form-radio text-blue-600" name="listedness" value="Unlisted" checked={listedness === 'Unlisted'} onChange={(e) => setListedness(e.target.value)} />
+                                      <span className="ml-2 text-sm text-gray-700">Unlisted</span>
+                                    </label>
                                   </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-700 mb-1">Seriousness</label>
-                                    <div className="flex gap-2">
-                                      <label className="inline-flex items-center">
-                                        <input type="radio" className="form-radio text-red-600" name="seriousness" value="Serious" checked={seriousness === 'Serious'} onChange={(e) => setSeriousness(e.target.value)} />
-                                        <span className="ml-2 text-xs text-gray-700">Serious</span>
-                                      </label>
-                                      <label className="inline-flex items-center">
-                                        <input type="radio" className="form-radio text-red-600" name="seriousness" value="Non-Serious" checked={seriousness === 'Non-Serious'} onChange={(e) => setSeriousness(e.target.value)} />
-                                        <span className="ml-2 text-xs text-gray-700">Non-Serious</span>
-                                      </label>
-                                    </div>
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Seriousness</label>
+                                  <div className="flex gap-4">
+                                    <label className="inline-flex items-center">
+                                      <input type="radio" className="form-radio text-red-600" name="seriousness" value="Serious" checked={seriousness === 'Serious'} onChange={(e) => setSeriousness(e.target.value)} />
+                                      <span className="ml-2 text-sm text-gray-700">Serious</span>
+                                    </label>
+                                    <label className="inline-flex items-center">
+                                      <input type="radio" className="form-radio text-red-600" name="seriousness" value="Non-Serious" checked={seriousness === 'Non-Serious'} onChange={(e) => setSeriousness(e.target.value)} />
+                                      <span className="ml-2 text-sm text-gray-700">Non-Serious</span>
+                                    </label>
                                   </div>
                                 </div>
                               </div>
@@ -1332,7 +1662,7 @@ export default function TriagePage() {
                                 Cancel
                               </button>
                               <button
-                                onClick={() => classifyStudy(selectedStudy.id, selectedClassification, { justification, listedness, seriousness, fullTextAvailability })}
+                                onClick={() => classifyStudy(selectedStudy.id, selectedClassification, { justification, listedness, seriousness, fullTextAvailability, fullTextSource })}
                                 disabled={!justification || classifying === selectedStudy.id}
                                 className={`px-4 py-2 text-white rounded-md text-sm font-medium flex items-center ${
                                   !justification ? 'bg-gray-400 cursor-not-allowed' :
@@ -1369,6 +1699,7 @@ export default function TriagePage() {
                                 setListedness("");
                                 setSeriousness("");
                                 setFullTextAvailability("");
+                                setFullTextSource("");
                               }}
                               className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors flex items-center justify-center"
                             >
@@ -1384,6 +1715,7 @@ export default function TriagePage() {
                                 setListedness("");
                                 setSeriousness("");
                                 setFullTextAvailability("");
+                                setFullTextSource("");
                               }}
                               className="flex-1 px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-medium transition-colors flex items-center justify-center"
                             >
@@ -1399,6 +1731,7 @@ export default function TriagePage() {
                                 setListedness("");
                                 setSeriousness("");
                                 setFullTextAvailability("");
+                                setFullTextSource("");
                               }}
                               className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium transition-colors flex items-center justify-center"
                             >
@@ -1436,6 +1769,11 @@ export default function TriagePage() {
                             {selectedStudy.fullTextAvailability && (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                                 Full Text: {selectedStudy.fullTextAvailability}
+                              </span>
+                            )}
+                            {selectedStudy.fullTextAvailability === 'Yes' && selectedStudy.fullTextSource && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                                Source: {selectedStudy.fullTextSource}
                               </span>
                             )}
                           </div>
@@ -1479,6 +1817,8 @@ export default function TriagePage() {
                             </button>
                           </div>
                         </div>
+                      )}
+                      </>
                       )}
                     </div>
 
@@ -1531,6 +1871,60 @@ export default function TriagePage() {
             </div>
           </div>
         </div>
+        </>
+      ) : (
+        /* ALLOCATED CASE VIEW - SPLIT PANE */
+        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
+          {/* LEFT PANE: Abstract & Details */}
+          <div className="w-full lg:w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+             <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                <h3 className="font-bold text-gray-900">Study Details</h3>
+                <PmidLink pmid={allocatedCase.pmid} />
+             </div>
+             <div className="p-6 overflow-y-auto flex-1">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">{allocatedCase.title}</h2>
+                <div className="text-sm text-gray-600 mb-4">
+                   <span className="font-medium">{Array.isArray(allocatedCase.authors) ? allocatedCase.authors.join(', ') : allocatedCase.authors}</span>
+                   <span className="mx-2">•</span>
+                   <span>{allocatedCase.journal}</span>
+                   <span className="mx-2">•</span>
+                   <span>{allocatedCase.publicationDate}</span>
+                </div>
+                
+                <div className="prose max-w-none">
+                   <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">Abstract</h4>
+                   <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base">{allocatedCase.abstract}</p>
+                </div>
+             </div>
+          </div>
+
+          {/* RIGHT PANE: Full Details & Classification */}
+          <div className="w-full lg:w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+             <TriageStudyDetails 
+                study={allocatedCase}
+                onUpdate={setAllocatedCase}
+                classifyStudy={classifyStudy}
+                selectedClassification={selectedClassification}
+                setSelectedClassification={setSelectedClassification}
+                justification={justification}
+                setJustification={setJustification}
+                listedness={listedness}
+                setListedness={setListedness}
+                seriousness={seriousness}
+                setSeriousness={setSeriousness}
+                fullTextAvailability={fullTextAvailability}
+                setFullTextAvailability={setFullTextAvailability}
+                classifying={classifying}
+                getClassificationLabel={getClassificationLabel}
+                getClassificationColor={getClassificationColor}
+                getFinalClassification={getFinalClassification}
+                formatDate={formatDate}
+                API_BASE={API_BASE}
+                fetchStudies={fetchStudies}
+             />
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

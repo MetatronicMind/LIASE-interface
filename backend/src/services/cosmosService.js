@@ -191,6 +191,10 @@ class CosmosService {
       {
         id: 'Archives',
         partitionKey: '/organizationId'
+      },
+      {
+        id: 'legacyData',
+        partitionKey: '/organizationId'
       }
     ];
 
@@ -239,6 +243,7 @@ class CosmosService {
       case 'Reports':
       case 'Settings':
       case 'Archives':
+      case 'legacyData':
         return item.organizationId || item;
       default:
         return item.id || item;

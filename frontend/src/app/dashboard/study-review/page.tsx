@@ -68,6 +68,8 @@ const fallbackStudies: any[] = [];
 
 const statusStyles: Record<string, string> = {
   "Pending Review": "bg-yellow-100 text-yellow-800 border border-yellow-300",
+  "Under Triage Review": "bg-yellow-100 text-yellow-800 border border-yellow-300",
+  "Study in Process": "bg-yellow-100 text-yellow-800 border border-yellow-300",
   "Under Review": "bg-blue-100 text-blue-800 border border-blue-300",
   Approved: "bg-green-100 text-green-800 border border-green-300",
 };
@@ -292,6 +294,7 @@ useEffect(() => {
               >
                 <option value="">All Statuses</option>
                 <option value="Pending Review">Pending Review</option>
+                <option value="Under Triage Review">Under Triage Review</option>
                 <option value="Under Review">Under Review</option>
                 <option value="Approved">Approved</option>
               </select>
@@ -430,7 +433,7 @@ useEffect(() => {
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[study.status]}`}
                             >
-                              {study.status}
+                              {study.status === 'Study in Process' ? 'Under Triage Review' : study.status}
                             </span>
                           </div>
                           
@@ -546,7 +549,7 @@ useEffect(() => {
                       </h3>
                       <div className="flex items-center space-x-2">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusStyles[selectedStudy.status]}`}>
-                          {selectedStudy.status}
+                          {selectedStudy.status === 'Study in Process' ? 'Under Triage Review' : selectedStudy.status}
                         </span>
                       </div>
                     </div>
@@ -558,6 +561,10 @@ useEffect(() => {
                     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                       <h4 className="font-semibold text-gray-900 mb-3">Study Information</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium text-gray-700">Study ID:</span>
+                          <span className="ml-2 text-gray-900 font-mono font-medium">{selectedStudy.id}</span>
+                        </div>
                         <div>
                           <span className="font-medium text-gray-700">PMID:</span>
                           <span className="ml-2"><PmidLink pmid={selectedStudy.pmid} showIcon={true} /></span>

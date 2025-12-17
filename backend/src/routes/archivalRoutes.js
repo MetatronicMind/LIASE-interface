@@ -225,7 +225,7 @@ router.post('/auto-archive', authenticateToken, async (req, res) => {
 router.get('/records', authenticateToken, async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
-    const { status, startDate, endDate, studyId, page = 1, limit = 50 } = req.query;
+    const { status, startDate, endDate, studyId, drugName, page = 1, limit = 50 } = req.query;
 
     // Validate admin role
     if (!req.user.role || !['Super Admin', 'Admin'].includes(req.user.role)) {
@@ -237,6 +237,7 @@ router.get('/records', authenticateToken, async (req, res) => {
     if (startDate) filters.startDate = startDate;
     if (endDate) filters.endDate = endDate;
     if (studyId) filters.studyId = studyId;
+    if (drugName) filters.drugName = drugName;
 
     const result = await archivalService.getArchivalRecords(
       organizationId,

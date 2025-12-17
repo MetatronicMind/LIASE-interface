@@ -215,11 +215,14 @@ class StudyCreationService {
       // Continue without AI data
     }
 
-    // Generate custom ID: PMID-Drug-Sponsor-Random
-    const randomDigits = Math.floor(1000 + Math.random() * 9000); // 4 random digits
-    const sanitizedDrug = drugName.replace(/[^a-zA-Z0-9]/g, '');
-    const sanitizedSponsor = sponsor.replace(/[^a-zA-Z0-9]/g, '');
-    const customId = `${article.pmid}-${sanitizedDrug}-${sanitizedSponsor}-${randomDigits}`;
+    // Generate unique study IDs for each case
+    // Format: first four letters of the INN_ first 4 letters of Client Name _ random number
+    // Example: Dexa_Synt_38532 for INN = Dexamethosone , Client = Synt
+    const innPrefix = (drugName || 'Unkn').substring(0, 4);
+    const clientPrefix = (sponsor || 'Unkn').substring(0, 4);
+    const randomNum = Math.floor(10000 + Math.random() * 90000); // 5 random digits
+    
+    const customId = `${innPrefix}_${clientPrefix}_${randomNum}`;
 
     // Map AI inference data to study fields
     const studyData = {

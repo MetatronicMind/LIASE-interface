@@ -16,11 +16,13 @@ import {
   CheckCircleIcon,
   UserIcon,
   ChartBarIcon,
-  BeakerIcon
+  BeakerIcon,
+  ArchiveBoxIcon
 } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/components/PermissionProvider";
+import ClientSelector from "@/components/ClientSelector";
 
 // Base navigation items - always visible
 const baseNavItems = [
@@ -100,6 +102,18 @@ const permissionBasedNavItems = [
     href: "/dashboard/user-management", 
     icon: <UsersIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'users', action: 'read' } // Requires users.read permission
+  },
+  { 
+    name: "Legacy Data", 
+    href: "/dashboard/legacy-data", 
+    icon: <TableCellsIcon className="w-5 h-5 mr-2" />, 
+    permission: null
+  },
+  { 
+    name: "Archive", 
+    href: "/dashboard/archive", 
+    icon: <ArchiveBoxIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'settings', action: 'read' } // Requires settings.read permission
   },
   { 
     name: "Settings", 
@@ -241,6 +255,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
+            <ClientSelector />
           </div>
           <div className="flex items-center gap-4">
             <button className="bg-blue-700/40 rounded-full p-2 text-white hover:bg-blue-800/60 transition">

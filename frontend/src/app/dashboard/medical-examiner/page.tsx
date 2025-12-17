@@ -6,6 +6,9 @@ import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
 import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 import { CommentThread } from "@/components/CommentThread";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 interface Study {
   id: string;
@@ -73,6 +76,8 @@ interface Study {
   sponsor?: string;
   effectiveClassification?: string;
   requiresManualReview?: boolean;
+  qaApprovedBy?: string;
+  qaApprovalStatus?: string;
 }
 
 interface FieldComment {
@@ -154,8 +159,9 @@ const R3_FORM_FIELDS = [
 ];
 
 export default function MedicalExaminerPage() {
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { user } = useAuth();
-  const { formatDate } = useDateTime();
+  const { formatDate, formatDateTime } = useDateTime();
   const [studies, setStudies] = useState<Study[]>([]);
   const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,14 +183,69 @@ export default function MedicalExaminerPage() {
   // Listedness state
   const [listedness, setListedness] = useState<'Yes' | 'No' | null>(null);
 
+  // Filter state
+  const [search, setSearch] = useState("");
+  const [studyIdFilter, setStudyIdFilter] = useState("");
+  const [clientNameFilter, setClientNameFilter] = useState("");
+  const [classificationType, setClassificationType] = useState("");
+  const [journalNameFilter, setJournalNameFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Helper function to normalize classification values from backend
+  const normalizeClassification = (value?: string): string | undefined => {
+    if (!value) return value;
+    let normalized = value.replace(/^Classification:\s*/i, '').trim();
+    normalized = normalized.replace(/^\d+\.\s*/, '').trim();
+    return normalized;
+  };
+
+  // Function to calculate final classification based on AI inference data
+  const getFinalClassification = (study: Study): string | null => {
+    const rawIcsrClassification = study.aiInferenceData?.ICSR_classification || study.icsrClassification;
+    const rawAoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+    
+    const icsrClassification = normalizeClassification(rawIcsrClassification);
+    const aoiClassification = normalizeClassification(rawAoiClassification);
+
+    if (!icsrClassification) return null;
+
+    if (icsrClassification === "Article requires manual review") {
+      return "Manual Review";
+    }
+
+    if (icsrClassification === "Probable ICSR/AOI") {
+      return "Probable ICSR/AOI";
+    }
+
+    if (icsrClassification === "Probable ICSR") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (ICSR)") {
+        return "Probable ICSR/AOI";
+      } else {
+        return "Probable ICSR";
+      }
+    }
+
+    if (icsrClassification === "No Case") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (AOI)") {
+        return "Probable AOI";
+      } else {
+        return "No Case";
+      }
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     fetchStudies();
-  }, [statusFilter]);
+  }, [statusFilter, selectedOrganizationId]);
 
   const fetchStudies = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/medical-examiner?status=${statusFilter}`, {
+      const queryParams = selectedOrganizationId ? `&organizationId=${selectedOrganizationId}` : '';
+      const response = await fetch(`${getApiBaseUrl()}/studies/medical-examiner?status=${statusFilter}${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -350,6 +411,35 @@ export default function MedicalExaminerPage() {
     return selectedStudy?.fieldComments?.filter(comment => comment.fieldKey === fieldKey) || [];
   };
 
+  // Filter logic
+  const filteredStudies = studies.filter(study => {
+    const matchesSearch = search === "" || 
+      study.title.toLowerCase().includes(search.toLowerCase()) ||
+      study.pmid?.includes(search) ||
+      study.drugName?.toLowerCase().includes(search.toLowerCase()) ||
+      study.adverseEvent?.toLowerCase().includes(search.toLowerCase());
+
+    const matchesStudyId = studyIdFilter === "" ||
+      study.id.toLowerCase().includes(studyIdFilter.toLowerCase());
+
+    const matchesClient = clientNameFilter === "" || 
+      study.clientName?.toLowerCase().includes(clientNameFilter.toLowerCase());
+
+    const matchesClassification = classificationType === "" || 
+      getFinalClassification(study) === classificationType;
+
+    const matchesJournal = journalNameFilter === "" ||
+      study.journal?.toLowerCase().includes(journalNameFilter.toLowerCase());
+
+    const matchesDateFrom = dateFrom === "" || 
+      new Date(study.publicationDate || study.createdAt).getTime() >= new Date(dateFrom).getTime();
+
+    const matchesDateTo = dateTo === "" || 
+      new Date(study.publicationDate || study.createdAt).getTime() <= new Date(dateTo).getTime();
+
+    return matchesSearch && matchesStudyId && matchesClient && matchesClassification && matchesJournal && matchesDateFrom && matchesDateTo;
+  });
+
   if (loading) {
     return (
       <div className="p-6">
@@ -397,6 +487,137 @@ export default function MedicalExaminerPage() {
             </div>
           </div>
 
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+              </svg>
+              Filter Articles
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Search */}
+              <div className="space-y-2">
+                <label htmlFor="search" className="block text-sm font-medium text-gray-700">
+                  Drug Name, Title, or PMID
+                </label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="search"
+                    id="search"
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                    placeholder="Search by drug name, title, or PMID..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Study ID Filter */}
+              <div className="space-y-2">
+                <label htmlFor="studyId" className="block text-sm font-medium text-gray-700">
+                  Study ID
+                </label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="studyId"
+                    id="studyId"
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                    placeholder="Search by Study ID..."
+                    value={studyIdFilter}
+                    onChange={(e) => setStudyIdFilter(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Client Name Filter */}
+              <div className="space-y-2">
+                <label htmlFor="client" className="block text-sm font-medium text-gray-700">
+                  Client Name
+                </label>
+                <input
+                  type="text"
+                  name="client"
+                  id="client"
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  placeholder="Filter by client..."
+                  value={clientNameFilter}
+                  onChange={(e) => setClientNameFilter(e.target.value)}
+                />
+              </div>
+
+              {/* Classification Filter */}
+              <div className="space-y-2">
+                <label htmlFor="classification" className="block text-sm font-medium text-gray-700">
+                  AI Classification
+                </label>
+                <select
+                  id="classification"
+                  name="classification"
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  value={classificationType}
+                  onChange={(e) => setClassificationType(e.target.value)}
+                >
+                  <option value="">All Classifications</option>
+                  <option value="Probable ICSR">Probable ICSR</option>
+                  <option value="Probable AOI">Probable AOI</option>
+                  <option value="Probable ICSR/AOI">Probable ICSR/AOI</option>
+                  <option value="No Case">No Case</option>
+                  <option value="Manual Review">Manual Review</option>
+                </select>
+              </div>
+
+              {/* Journal Name Filter */}
+              <div className="space-y-2">
+                <label htmlFor="journal" className="block text-sm font-medium text-gray-700">
+                  Journal Name
+                </label>
+                <input
+                  type="text"
+                  name="journal"
+                  id="journal"
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  placeholder="Filter by journal..."
+                  value={journalNameFilter}
+                  onChange={(e) => setJournalNameFilter(e.target.value)}
+                />
+              </div>
+
+              {/* Date Range */}
+              <div className="space-y-2">
+                <label htmlFor="date-from" className="block text-sm font-medium text-gray-700">
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  name="date-from"
+                  id="date-from"
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="date-to" className="block text-sm font-medium text-gray-700">
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  name="date-to"
+                  id="date-to"
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Error Banner */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -410,12 +631,12 @@ export default function MedicalExaminerPage() {
             <div className="bg-white rounded-xl shadow-lg">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Studies ({studies.length})
+                  Studies ({filteredStudies.length})
                 </h2>
               </div>
 
               <div className="divide-y divide-gray-200 max-h-[70vh] overflow-y-auto">
-                {studies.length === 0 ? (
+                {filteredStudies.length === 0 ? (
                   <div className="p-6 text-center text-gray-500">
                     <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -424,7 +645,7 @@ export default function MedicalExaminerPage() {
                     <p className="mt-1 text-sm text-gray-500">No studies match the current filter.</p>
                   </div>
                 ) : (
-                  studies.map((study) => (
+                  filteredStudies.map((study) => (
                     <div
                       key={study.id}
                       className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
@@ -435,10 +656,16 @@ export default function MedicalExaminerPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">ID: {study.id}</span>
                             <span className="text-sm font-mono text-gray-600">PMID: {study.pmid}</span>
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
                               ICSR
                             </span>
+                            {study.qaApprovalStatus === 'approved' && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                {study.qaApprovedBy ? 'Manual Approved' : 'System Approved'}
+                              </span>
+                            )}
                           </div>
                           <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-1">
                             {study.title}
@@ -449,7 +676,7 @@ export default function MedicalExaminerPage() {
                           <div className="flex items-center gap-2">
                             {study.r3FormCompletedAt && (
                               <p className="text-xs text-green-600">
-                                R3 Form completed: {formatDate(study.r3FormCompletedAt)}
+                                R3 Form completed: {formatDateTime(study.r3FormCompletedAt)}
                               </p>
                             )}
                             {study.revokedBy && (
@@ -513,6 +740,10 @@ export default function MedicalExaminerPage() {
                         <h4 className="font-semibold text-gray-900 text-base">{selectedStudy.title}</h4>
                         
                         <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-700">Study ID:</span>
+                            <p className="text-gray-900 font-mono">{selectedStudy.id}</p>
+                          </div>
                           <div>
                             <span className="font-medium text-gray-700">PMID:</span>
                             <p className="text-gray-900">{selectedStudy.pmid}</p>
@@ -962,46 +1193,6 @@ export default function MedicalExaminerPage() {
                               })}
                           </div>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Listedness Selection */}
-                    <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
-                        <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        Listedness
-                      </h4>
-                      <p className="text-sm text-gray-700 mb-4">
-                        Is this adverse event listed in the product label?
-                      </p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setListedness('Yes')}
-                          className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
-                            listedness === 'Yes'
-                              ? 'bg-green-600 text-white'
-                              : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-green-500'
-                          }`}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          onClick={() => setListedness('No')}
-                          className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
-                            listedness === 'No'
-                              ? 'bg-red-600 text-white'
-                              : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-red-500'
-                          }`}
-                        >
-                          No
-                        </button>
-                      </div>
-                      {listedness && (
-                        <p className="mt-3 text-sm text-gray-600 text-center">
-                          Selected: <span className="font-semibold">{listedness}</span>
-                        </p>
                       )}
                     </div>
 

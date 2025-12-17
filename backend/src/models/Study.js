@@ -80,6 +80,9 @@ class Study {
     medicalReviewStatus = 'not_started', // not_started, in_progress, completed, revoked
     medicalReviewedBy = null,
     medicalReviewedAt = null,
+    // Allocation fields
+    assignedTo = null,
+    lockedAt = null,
     fieldComments = [], // Array of field-level comments
     revokedBy = null,
     revokedAt = null,
@@ -178,6 +181,8 @@ class Study {
     this.medicalReviewStatus = medicalReviewStatus;
     this.medicalReviewedBy = medicalReviewedBy;
     this.medicalReviewedAt = medicalReviewedAt;
+    this.assignedTo = assignedTo;
+    this.lockedAt = lockedAt;
     this.fieldComments = fieldComments || [];
     this.revokedBy = revokedBy;
     this.revokedAt = revokedAt;
@@ -234,6 +239,11 @@ class Study {
     
     const previousTag = this.userTag;
     this.userTag = tag;
+
+    // Clear assignment/lock when classification is submitted
+    // This allows the user to pick up a new case immediately
+    this.assignedTo = null;
+    this.lockedAt = null;
 
     if (nextStage) {
       this.status = nextStage.id;
@@ -726,7 +736,11 @@ class Study {
       fieldComments: this.fieldComments,
       revokedBy: this.revokedBy,
       revokedAt: this.revokedAt,
-      revocationReason: this.revocationReason
+      revocationReason: this.revocationReason,
+      
+      // Allocation fields
+      assignedTo: this.assignedTo,
+      lockedAt: this.lockedAt
     };
   }
 

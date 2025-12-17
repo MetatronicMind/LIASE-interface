@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import { getApiBaseUrl } from "@/config/api";
 import StudyProgressTracker from "@/components/StudyProgressTracker";
 import { exportToPDF, exportToExcel } from "@/utils/exportUtils";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
 
 interface DrugSearchConfig {
   id: string;
@@ -18,9 +20,12 @@ interface DrugSearchConfig {
   totalRuns: number;
   lastResultCount: number;
   lastRunPmids?: string[];
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export default function DrugManagementPage() {
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const [searchConfigs, setSearchConfigs] = useState<DrugSearchConfig[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -93,7 +98,7 @@ export default function DrugManagementPage() {
       setShowProgressTracker(true);
       setRunningConfigName(savedConfigName);
     }
-  }, []);
+  }, [selectedOrganizationId]);
 
   // Handle job completion
   const handleJobComplete = (results: any) => {
@@ -155,7 +160,8 @@ export default function DrugManagementPage() {
   const fetchSearchConfigs = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE}/search-configs`, {
+      const queryParams = selectedOrganizationId ? `?organizationId=${selectedOrganizationId}` : '';
+      const response = await fetch(`${API_BASE}/search-configs${queryParams}`, {
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
@@ -363,9 +369,18 @@ export default function DrugManagementPage() {
         
       const method = editingConfigId ? 'PUT' : 'POST';
       
-      // Generate config name automatically: INN(brandName)_Client_DateAndTime
+      // Generate config name automatically: INN(brandName)_Client_DateAndTime_TimeZone
       const now = new Date();
-      const dateStr = now.toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      
+      // Get timezone abbreviation
+      const timeZone = now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || '';
+      
+      const dateStr = `${year}-${month}-${day}_${hours}-${minutes}_${timeZone}`;
       const brandPart = brandName.trim() ? `(${brandName.trim()})` : '';
       const generatedName = `${inn.trim()}${brandPart}_${sponsor.trim()}_${dateStr}`;
 
@@ -777,7 +792,14 @@ export default function DrugManagementPage() {
                           <div className="flex-1">
                             <h4 className="font-medium">{config.name}</h4>
                             <p className="text-sm text-gray-600">Query: {config.query}</p>
-                            <p className="text-sm text-gray-600">Frequency: {config.frequency}</p>
+                            <p className="text-sm text-gray-600">
+                              Frequency: {config.frequency}
+                              {config.frequency === 'custom' && config.dateFrom && config.dateTo && (
+                                <span className="ml-1">
+                                  ({new Date(config.dateFrom).toLocaleDateString()} - {new Date(config.dateTo).toLocaleDateString()})
+                                </span>
+                              )}
+                            </p>
                             {config.sponsor && (
                               <p className="text-sm text-gray-600">Client: {config.sponsor}</p>
                             )}

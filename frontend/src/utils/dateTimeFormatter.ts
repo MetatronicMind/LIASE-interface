@@ -111,7 +111,12 @@ function convertToTimezone(date: Date, timezone: string): Date {
 // Get timezone abbreviation
 function getTimezoneAbbr(timezone: string): string {
   if (timezone === 'Local') {
-    return new Date().toLocaleString('en-US', { timeZoneName: 'short' }).split(' ').pop() || 'Local';
+    try {
+      // Get local timezone abbreviation (e.g., EST, IST, UTC)
+      return new Date().toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || 'Local';
+    } catch {
+      return 'Local';
+    }
   }
   
   const gmtMatch = timezone.match(/GMT([+-])(\d{2}):?(\d{2})/);
@@ -184,7 +189,7 @@ export function formatTime(date: Date | string | null, settings?: DateTimeSettin
     timeStr = `${pad(hours)}:${pad(minutes)}${config.showSeconds ? ':' + pad(seconds) : ''}`;
   }
   
-  if (config.showTimezone && config.timezone !== 'Local') {
+  if (config.showTimezone) {
     timeStr += ` ${getTimezoneAbbr(config.timezone)}`;
   }
   

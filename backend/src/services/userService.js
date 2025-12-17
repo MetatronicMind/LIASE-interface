@@ -38,7 +38,12 @@ class UserService {
           }
         } else if (user.role) {
           // Handle legacy users with role names instead of roleId
-          const role = await roleService.getRoleByName(user.role, organizationId);
+          let role = await roleService.getRoleByName(user.role, organizationId);
+          // Try lowercase if not found (handle case sensitivity issues)
+          if (!role && user.role !== user.role.toLowerCase()) {
+            role = await roleService.getRoleByName(user.role.toLowerCase(), organizationId);
+          }
+          
           if (role) {
             user.roleId = role.id;
             user.roleDisplayName = role.displayName;
@@ -81,7 +86,12 @@ class UserService {
         }
       } else if (user.role) {
         // Handle legacy users
-        const role = await roleService.getRoleByName(user.role, organizationId);
+        let role = await roleService.getRoleByName(user.role, organizationId);
+        // Try lowercase if not found (handle case sensitivity issues)
+        if (!role && user.role !== user.role.toLowerCase()) {
+          role = await roleService.getRoleByName(user.role.toLowerCase(), organizationId);
+        }
+
         if (role) {
           user.roleId = role.id;
           user.roleDisplayName = role.displayName;
@@ -134,6 +144,9 @@ class UserService {
         role = await roleService.getRoleById(userData.roleId, userData.organizationId);
       } else if (userData.role) {
         role = await roleService.getRoleByName(userData.role, userData.organizationId);
+        if (!role && userData.role !== userData.role.toLowerCase()) {
+          role = await roleService.getRoleByName(userData.role.toLowerCase(), userData.organizationId);
+        }
       }
 
       if (!role) {
@@ -193,6 +206,9 @@ class UserService {
         }
       } else if (updateData.role && updateData.role !== existingUser.role) {
         newRole = await roleService.getRoleByName(updateData.role, organizationId);
+        if (!newRole && updateData.role !== updateData.role.toLowerCase()) {
+          newRole = await roleService.getRoleByName(updateData.role.toLowerCase(), organizationId);
+        }
         if (!newRole) {
           throw new Error('Invalid role specified');
         }
