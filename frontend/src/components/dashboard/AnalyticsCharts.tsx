@@ -58,10 +58,10 @@ export default function AnalyticsCharts({ stats }: AnalyticsChartsProps) {
   ].filter(item => item.value > 0);
 
   const qaData = stats.qaStats ? [
-    { name: 'Pending QA', value: stats.qaStats.pending },
+    { name: 'Pending QC', value: stats.qaStats.pending },
     { name: 'Manual Approved', value: stats.qaStats.approvedManual },
     { name: 'Auto Approved', value: stats.qaStats.approvedAuto },
-    { name: 'QA Rejected', value: stats.qaStats.rejected },
+    { name: 'QC Rejected', value: stats.qaStats.rejected },
     { name: 'Manual QC', value: stats.qaStats.manualQc },
   ].filter(item => item.value > 0) : [];
 
@@ -130,7 +130,7 @@ export default function AnalyticsCharts({ stats }: AnalyticsChartsProps) {
 
       {/* QA Performance */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">QA Performance</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">QC Performance</h3>
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>

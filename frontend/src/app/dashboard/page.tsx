@@ -210,11 +210,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden p-4 sm:p-6">
+      {/* <div className="flex-1 overflow-hidden p-4 sm:p-6">
         <div className="max-w-7xl mx-auto h-full">
           {!loading && <AnalyticsCharts stats={stats} />}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
