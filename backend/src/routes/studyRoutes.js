@@ -1663,6 +1663,7 @@ router.put('/:id',
 
       const beforeValue = { 
         userTag: studyData.userTag,
+        status: studyData.status,
         justification: studyData.justification,
         listedness: studyData.listedness,
         seriousness: studyData.seriousness,

@@ -96,11 +96,20 @@ router.post('/',
       const user = await userService.createUser(userData, req.user);
 
       // Create audit log
-      await auditAction(req, 'CREATE', 'user', user.id, {
-        username: user.username,
-        role: user.role,
-        email: user.email
-      });
+      await auditAction(
+        req.user,
+        'create',
+        'user',
+        user.id,
+        `Created user ${user.username}`,
+        {
+          username: user.username,
+          role: user.role,
+          email: user.email
+        },
+        null,
+        user.toSafeJSON()
+      );
 
       res.status(201).json({
         message: 'User created successfully',

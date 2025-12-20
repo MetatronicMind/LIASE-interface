@@ -11,7 +11,8 @@ const auditLogger = (action, resource) => {
     // Override json method to capture response
     res.json = async function(data) {
       // Create audit log entry
-      if (req.user && res.statusCode < 400) {
+      // Skip GET requests to reduce noise (navigation), only log mutations
+      if (req.user && res.statusCode < 400 && req.method !== 'GET') {
         const fullName = typeof req.user.getFullName === 'function'
           ? req.user.getFullName()
           : [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.username || req.user.email || 'Unknown User';

@@ -135,7 +135,7 @@ router.post('/retry-queue/retry-all',
     try {
       const result = await articleRetryQueueService.retryAllFailed(req.user.organizationId);
       
-      await auditAction(req, 'retry_queue_trigger', 'success', {
+      await auditAction(req.user, 'trigger', 'retry_queue', 'all', 'Triggered retry for all failed articles', {
         jobsRetried: result.jobsRetried
       });
       
@@ -143,7 +143,7 @@ router.post('/retry-queue/retry-all',
     } catch (error) {
       console.error('Error triggering retry:', error);
       
-      await auditAction(req, 'retry_queue_trigger', 'failed', {
+      await auditAction(req.user, 'trigger', 'retry_queue', 'all', 'Failed to trigger retry queue', {
         error: error.message
       });
       
@@ -162,7 +162,7 @@ router.post('/retry-queue/retry/:jobId',
     try {
       const result = await articleRetryQueueService.manualRetry(req.params.jobId);
       
-      await auditAction(req, 'retry_queue_manual_trigger', 'success', {
+      await auditAction(req.user, 'trigger', 'retry_queue', req.params.jobId, 'Manually triggered retry for job', {
         jobId: req.params.jobId,
         result
       });
@@ -171,7 +171,7 @@ router.post('/retry-queue/retry/:jobId',
     } catch (error) {
       console.error('Error triggering manual retry:', error);
       
-      await auditAction(req, 'retry_queue_manual_trigger', 'failed', {
+      await auditAction(req.user, 'trigger', 'retry_queue', req.params.jobId, 'Failed to manually trigger retry for job', {
         jobId: req.params.jobId,
         error: error.message
       });

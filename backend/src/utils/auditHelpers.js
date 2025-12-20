@@ -163,8 +163,18 @@ function generateChangeDescription(changes) {
   }
 
   // Multiple changes
-  const fieldNames = changes.map(c => formatFieldName(c.field)).join(', ');
-  return `Updated ${changes.length} fields: ${fieldNames}`;
+  const changeDetails = changes.map(c => {
+    const fieldName = formatFieldName(c.field);
+    if (c.before === null || c.before === undefined) {
+      return `${fieldName} set to "${c.after}"`;
+    }
+    if (c.after === null || c.after === undefined) {
+      return `${fieldName} cleared`;
+    }
+    return `${fieldName} changed from "${c.before}" to "${c.after}"`;
+  }).join('; ');
+
+  return changeDetails;
 }
 
 /**
