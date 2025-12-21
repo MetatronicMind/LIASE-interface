@@ -1168,7 +1168,9 @@ router.put('/search-configs/:configId',
         {
           configId: config.id,
           changes: req.body
-        }
+        },
+        existingConfig,
+        config.toObject()
       );
       
       res.json({
@@ -1621,11 +1623,18 @@ router.get('/search/:drugName',
         articles = await pubmedService.fetchDetails(pmids);
       }
 
-      await auditAction(req, 'drug_search', 'success', {
+      await auditAction(
+        req.user, 
+        'search', 
+        'drug', 
         drugName,
-        foundArticles: articles.length,
-        searchParams: req.query
-      });
+        `Searched for drug: ${drugName}`,
+        {
+          drugName,
+          foundArticles: articles.length,
+          searchParams: req.query
+        }
+      );
 
       res.json({
         drugName,

@@ -56,7 +56,7 @@ function extractChanges(before, after, fieldsToTrack = null) {
     keys.forEach(key => {
       // Include fields even if they are empty string, but skip undefined/null
       const value = afterObj[key];
-      if (value !== undefined && value !== null && value !== '') {
+      if (value !== undefined && value !== null) {
         changes.push({
           field: key,
           before: null,

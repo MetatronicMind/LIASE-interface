@@ -501,7 +501,7 @@ export default function DrugManagementPage() {
             <div>
               {/* Header with Scheduler Information */}
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Drug Management</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Literature Search Configuration</h2>
               </div>
               {/* <h2 className="text-xl font-semibold mb-4">Search Configurations</h2> */}
               

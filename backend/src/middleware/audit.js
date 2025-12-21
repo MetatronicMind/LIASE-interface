@@ -1,7 +1,22 @@
 const AuditLog = require('../models/AuditLog');
 const cosmosService = require('../services/cosmosService');
-const { extractChanges, createAuditDescription } = require('../utils/auditHelpers');
+const { extractChanges, createAuditDescription, generateChangeDescription } = require('../utils/auditHelpers');
 const geolocationService = require('../services/geolocationService');
+
+function coerceDetails(details) {
+  if (details === null || details === undefined) return '';
+  if (typeof details === 'string') return details;
+  if (typeof details === 'number' || typeof details === 'boolean') return String(details);
+  if (typeof details === 'object') {
+    if (typeof details.message === 'string') return details.message;
+    try {
+      return JSON.stringify(details);
+    } catch {
+      return String(details);
+    }
+  }
+  return String(details);
+}
 
 const auditLogger = (action, resource) => {
   return async (req, res, next) => {
@@ -12,7 +27,13 @@ const auditLogger = (action, resource) => {
     res.json = async function(data) {
       // Create audit log entry
       // Skip GET requests to reduce noise (navigation), only log mutations
-      if (req.user && res.statusCode < 400 && req.method !== 'GET') {
+      // Also skip specific routes that shouldn't be logged
+      const shouldLog = req.user && 
+                        res.statusCode < 400 && 
+                        req.method !== 'GET' &&
+                        !req.originalUrl.includes('/QA/bulk-process');
+
+      if (shouldLog) {
         const fullName = typeof req.user.getFullName === 'function'
           ? req.user.getFullName()
           : [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.username || req.user.email || 'Unknown User';
@@ -58,14 +79,17 @@ const auditAction = async (user, action, resource, resourceId, details, metadata
   try {
     // Extract field-level changes if before and after values are provided
     let changes = [];
-    let enrichedDetails = details;
+    const baseDetails = coerceDetails(details).trim();
+    let enrichedDetails = baseDetails;
 
     if (beforeValue !== null && afterValue !== null) {
       changes = extractChanges(beforeValue, afterValue);
       
       // Enrich details with change information
       if (changes.length > 0) {
-        enrichedDetails = createAuditDescription(action, resource, resourceId, changes);
+        // Keep caller-provided details short/plain. Use generic description only when no message is provided.
+        // The UI can render `changes` in a friendly way.
+        enrichedDetails = baseDetails ? baseDetails : createAuditDescription(action, resource, resourceId, changes);
       }
     }
 

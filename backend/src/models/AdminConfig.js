@@ -99,6 +99,16 @@ class AdminConfig {
         clientList: [],
         allowUserClientEntry: false
       },
+      triage: {
+        batchSize: 10,
+        priorityQueue: [
+          'Probable ICSR',
+          'Probable AOI',
+          'Probable ICSR/AOI',
+          'No Case',
+          'Manual Review'
+        ]
+      },
       workflow: {
         qcDataEntry: true,
         medicalReview: true,
@@ -217,7 +227,7 @@ class AdminConfig {
       errors.push('Config type is required');
     }
 
-    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security', 'workflow'];
+    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security', 'workflow', 'study_queue', 'triage'];
     if (!validTypes.includes(this.configType)) {
       errors.push(`Invalid config type. Must be one of: ${validTypes.join(', ')}`);
     }

@@ -149,6 +149,18 @@ class AuditService {
     return data;
   }
 
+  async createLog(data: { action: string; resource: string; details: string; metadata?: any }): Promise<void> {
+    try {
+      await fetch(`${API_BASE_URL}/audit`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+    } catch (error) {
+      console.error('Failed to create audit log:', error);
+    }
+  }
+
   // Helper method to get unique users from audit logs
   async getUsers(): Promise<{ id: string; name: string }[]> {
     try {
@@ -192,12 +204,44 @@ class AuditService {
       
       const header = ['Timestamp', 'User', 'Action', 'Resource', 'Country', 'City', 'IP Address', 'Details', 'Changes'];
       const rows = response.auditLogs.map(log => {
+        const formatFieldLabel = (fieldName: string) =>
+          String(fieldName)
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/_/g, ' ')
+            .replace(/^./, str => str.toUpperCase())
+            .trim();
+
+        const shortenUuids = (text: string) =>
+          String(text).replace(
+            /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
+            (m) => `#${m.slice(0, 8)}`
+          );
+
+        const expandCommonTerms = (text: string) =>
+          String(text)
+            .replace(/\bICSR\b/g, 'Safety case')
+            .replace(/\bAOI\b/g, 'Not a safety case')
+            .replace(/\bQC\b/g, 'Quality check')
+            .replace(/\bR3\b/g, 'Medical review')
+            .replace(/\bNo Case\b/g, 'Not a case');
+
+        const formatValue = (value: any) => {
+          if (value === null || value === undefined || value === '') return 'empty';
+          if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+          if (typeof value === 'string') return expandCommonTerms(shortenUuids(value));
+          // Objects/arrays are noisy in CSV; keep simple.
+          return 'updated';
+        };
+
         // Format changes as a readable string
         let changesText = '';
         if (log.changes && log.changes.length > 0) {
-          changesText = log.changes.map(change => 
-            `${change.field}: "${change.before || '<empty>'}" → "${change.after || '<empty>'}"`
-          ).join('; ');
+          changesText = log.changes.map(change => {
+            const label = formatFieldLabel(change.field);
+            const after = formatValue(change.after);
+            if (after === 'empty') return `${label}: cleared`;
+            return `${label}: ${after}`;
+          }).join('; ');
         }
         
         return [
@@ -208,7 +252,7 @@ class AuditService {
           log.location?.country || 'Unknown',
           log.location?.city || 'Unknown',
           log.ipAddress || 'N/A',
-          log.details,
+          expandCommonTerms(shortenUuids(String(log.details || ''))),
           changesText
         ];
       });

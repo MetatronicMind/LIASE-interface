@@ -23,6 +23,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/components/PermissionProvider";
 import ClientSelector from "@/components/ClientSelector";
+import { auditService } from "@/services/auditService";
 
 // Base navigation items - always visible
 const baseNavItems = [
@@ -32,7 +33,7 @@ const baseNavItems = [
 // Permission-based navigation items
 const permissionBasedNavItems = [
   { 
-    name: "Drug Management", 
+    name: "Literature Search Configuration", 
     href: "/dashboard/drug-management", 
     icon: <BeakerIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'drugs', action: 'read' } // Requires drugs.read permission
@@ -227,6 +228,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   style={{ willChange: 'transform' }}
                   onClick={() => {
                     if (window.innerWidth < 1024) setSidebarOpen(false);
+                    auditService.createLog({
+                      action: 'view',
+                      resource: 'navigation',
+                      details: `Clicked on ${item.name}`
+                    });
                   }}
                 >
                   {item.icon}

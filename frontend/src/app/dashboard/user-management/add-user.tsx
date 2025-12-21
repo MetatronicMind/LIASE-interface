@@ -5,7 +5,7 @@ import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 const sections = [
   { key: "dashboard", label: "Dashboard" },
   { key: "studyReview", label: "Study Review" },
-  { key: "drugManagement", label: "Drug Management" },
+  { key: "drugManagement", label: "Literature Search Configuration" },
   { key: "userManagement", label: "User Management" },
   { key: "auditTrail", label: "Audit Trail" },
 ];

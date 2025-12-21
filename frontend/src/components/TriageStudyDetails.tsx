@@ -593,7 +593,13 @@ export default function TriageStudyDetails({
                   Cancel
                 </button>
                 <button
-                  onClick={() => classifyStudy(study.id, selectedClassification, { justification, listedness, seriousness, fullTextAvailability, fullTextSource })}
+                  onClick={() => classifyStudy(study.id, selectedClassification, {
+                    justification: justification,
+                    listedness: selectedClassification === 'ICSR' ? listedness : undefined,
+                    seriousness: selectedClassification === 'ICSR' ? seriousness : undefined,
+                    fullTextAvailability: fullTextAvailability,
+                    fullTextSource: fullTextAvailability === 'Yes' ? fullTextSource : undefined
+                  })}
                   disabled={!justification || classifying === study.id}
                   className={`px-4 py-2 text-white rounded-md text-sm font-medium flex items-center ${
                     !justification ? 'bg-gray-400 cursor-not-allowed' :

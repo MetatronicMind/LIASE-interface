@@ -783,7 +783,13 @@ router.put('/:studyId',
 
       // If userTag is being updated, use the Study model to handle it properly
       if (updates.userTag) {
-        const beforeValue = { userTag: existingStudy.userTag };
+        const beforeValue = { 
+          userTag: existingStudy.userTag,
+          justification: existingStudy.justification,
+          listedness: existingStudy.listedness,
+          seriousness: existingStudy.seriousness,
+          fullTextAvailability: existingStudy.fullTextAvailability
+        };
         
         const study = new Study(existingStudy);
 
@@ -837,8 +843,15 @@ router.put('/:studyId',
         if (updates.justification !== undefined) study.justification = updates.justification;
         if (updates.listedness !== undefined) study.listedness = updates.listedness;
         if (updates.seriousness !== undefined) study.seriousness = updates.seriousness;
+        if (updates.fullTextAvailability !== undefined) study.fullTextAvailability = updates.fullTextAvailability;
         
-        const afterValue = { userTag: study.userTag };
+        const afterValue = { 
+          userTag: study.userTag,
+          justification: study.justification,
+          listedness: study.listedness,
+          seriousness: study.seriousness,
+          fullTextAvailability: study.fullTextAvailability
+        };
         
         // Save updated study with qaApprovalStatus set to pending
         const updatedStudy = await cosmosService.updateItem(
@@ -1653,7 +1666,16 @@ router.put('/:id',
       }
 
       const { id } = req.params;
-      const { userTag, justification, listedness, seriousness, fullTextAvailability } = req.body;
+      const { userTag, justification, listedness, seriousness, fullTextAvailability, fullTextSource } = req.body;
+
+      console.log('Update Study Request Body:', { 
+        id, 
+        userTag, 
+        justification, 
+        fullTextAvailability, 
+        fullTextSource,
+        fullTextSourceType: typeof fullTextSource
+      });
 
       // Get the study
       const studyData = await cosmosService.getItem('studies', id, req.user.organizationId);
@@ -1667,7 +1689,8 @@ router.put('/:id',
         justification: studyData.justification,
         listedness: studyData.listedness,
         seriousness: studyData.seriousness,
-        fullTextAvailability: studyData.fullTextAvailability
+        fullTextAvailability: studyData.fullTextAvailability,
+        fullTextSource: studyData.fullTextSource || null
       };
       
       const study = new Study(studyData);
@@ -1677,6 +1700,7 @@ router.put('/:id',
       if (listedness !== undefined) study.listedness = listedness;
       if (seriousness !== undefined) study.seriousness = seriousness;
       if (fullTextAvailability !== undefined) study.fullTextAvailability = fullTextAvailability;
+      if (fullTextSource !== undefined) study.fullTextSource = fullTextSource;
       
       let debugInfo = {};
 
@@ -1734,7 +1758,8 @@ router.put('/:id',
         justification: study.justification,
         listedness: study.listedness,
         seriousness: study.seriousness,
-        fullTextAvailability: study.fullTextAvailability
+        fullTextAvailability: study.fullTextAvailability,
+        fullTextSource: study.fullTextSource || null
       };
 
       // Save updated study
@@ -2400,6 +2425,183 @@ router.post('/allocate-case',
   }
 );
 
+// Allocate a batch of cases (10) to the current user
+router.post('/allocate-batch',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+
+      // Fetch Triage Configuration
+      const triageConfig = await adminConfigService.getConfig(organizationId, 'triage');
+      const batchSize = triageConfig?.configData?.batchSize || 10;
+      const priorityQueue = triageConfig?.configData?.priorityQueue || [
+        'Probable ICSR',
+        'Probable AOI',
+        'Probable ICSR/AOI',
+        'No Case',
+        'Manual Review'
+      ];
+
+      // Helper to determine study type based on classifications
+      const getStudyType = (study) => {
+        // Check multiple fields for classification to ensure we catch all data variations
+        const icsr = study.icsrClassification || study.ICSR_classification || study.aiInferenceData?.ICSR_classification || '';
+        const aoi = study.aoiClassification || study.AOI_classification || study.aiInferenceData?.AOI_classification || '';
+        const userTag = study.userTag || '';
+
+        const icsrLower = String(icsr).toLowerCase();
+        const aoiLower = String(aoi).toLowerCase();
+
+        // Explicit Manual Review check
+        if (icsrLower.includes('manual review')) return 'Manual Review';
+
+        // Explicit Combined check - if the text says "Probable ICSR/AOI", trust it
+        if (icsrLower.includes('probable icsr/aoi')) return 'Probable ICSR/AOI';
+
+        // Check for "Probable" OR "Yes" (some AI models return Yes/No)
+        const isProbableICSR = icsrLower.includes('probable') || icsrLower === 'yes' || icsrLower.includes('yes (icsr)');
+        const isProbableAOI = aoiLower.includes('probable') || aoiLower === 'yes' || aoiLower.includes('yes (aoi)');
+        
+        // Potential checks
+        const isPotentialICSR = icsrLower.includes('potential');
+        const isPotentialAOI = aoiLower.includes('potential');
+
+        if (isProbableICSR && isProbableAOI) return 'Probable ICSR/AOI';
+        if (isProbableICSR) return 'Probable ICSR';
+        if (isProbableAOI) return 'Probable AOI';
+        
+        if (isPotentialICSR && isPotentialAOI) return 'Potential ICSR/AOI';
+        if (isPotentialICSR) return 'Potential ICSR';
+        if (isPotentialAOI) return 'Potential AOI';
+
+        if (userTag === 'No Case' || icsrLower === 'no case') return 'No Case';
+
+        return 'Manual Review';
+      };
+
+      // Helper to get priority index (lower is higher priority)
+      const getPriority = (study) => {
+        const type = getStudyType(study);
+        let index = priorityQueue.indexOf(type);
+
+        // Fallback logic:
+        // If type is "Probable ICSR/AOI" and it's not in the queue,
+        // check if "Probable ICSR" or "Probable AOI" is in the queue and use the best priority.
+        // This ensures that if the user only has "Probable ICSR" in their list, it still catches combined cases.
+        if (index === -1 && type === 'Probable ICSR/AOI') {
+            const indexICSR = priorityQueue.indexOf('Probable ICSR');
+            const indexAOI = priorityQueue.indexOf('Probable AOI');
+            
+            if (indexICSR !== -1 && indexAOI !== -1) {
+                index = Math.min(indexICSR, indexAOI); // Take the higher priority (lower index)
+            } else if (indexICSR !== -1) {
+                index = indexICSR;
+            } else if (indexAOI !== -1) {
+                index = indexAOI;
+            }
+        }
+
+        return index === -1 ? 999 : index;
+      };
+
+      // 1. Check if user already has locked cases
+      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId';
+      const parameters = [
+        { name: '@orgId', value: organizationId },
+        { name: '@userId', value: userId }
+      ];
+
+      const existingCases = await cosmosService.queryItems('studies', query, parameters);
+      
+      if (existingCases && existingCases.length > 0) {
+        // If user already has cases, return them (resume session)
+        // Sort them by priority as well to maintain order
+        existingCases.sort((a, b) => getPriority(a) - getPriority(b));
+
+        return res.json({ 
+          success: true, 
+          message: "Resuming triage session", 
+          cases: existingCases 
+        });
+      }
+
+      // 2. Find available cases
+      // Fetch a large number of items to ensure we find the high priority ones even if they are deep in the DB
+      // The previous limit of 100 was causing issues where high-priority items (like Probable ICSR) were missed
+      // if they were stored after hundreds of Manual Review items.
+      const fetchLimit = 1000;
+      const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
+      const findParams = [
+        { name: '@orgId', value: organizationId }
+      ];
+
+      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+
+      if (!availableCases || availableCases.length === 0) {
+        return res.status(404).json({ success: false, message: "No available cases at the moment." });
+      }
+
+      // 3. Sort by priority
+      availableCases.sort((a, b) => getPriority(a) - getPriority(b));
+
+      // 4. Take top N (batchSize)
+      const casesToLock = availableCases.slice(0, batchSize);
+
+      // 5. Lock them
+      const lockedCases = [];
+      for (const study of casesToLock) {
+        study.assignedTo = userId;
+        study.lockedAt = new Date().toISOString();
+        study.updatedAt = new Date().toISOString();
+        
+        // Update in DB
+        const updated = await cosmosService.updateItem('studies', study.id, organizationId, study);
+        lockedCases.push(updated);
+      }
+
+      res.json({ success: true, message: "Cases allocated successfully", cases: lockedCases });
+
+    } catch (error) {
+      console.error('Batch allocation error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// Release all cases assigned to user
+router.post('/release-batch',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+
+      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId';
+      const parameters = [
+        { name: '@orgId', value: organizationId },
+        { name: '@userId', value: userId }
+      ];
+
+      const assignedCases = await cosmosService.queryItems('studies', query, parameters);
+
+      for (const study of assignedCases) {
+        study.assignedTo = null;
+        study.lockedAt = null;
+        study.updatedAt = new Date().toISOString();
+        await cosmosService.updateItem('studies', study.id, organizationId, study);
+      }
+
+      res.json({ success: true, message: "Cases released successfully" });
+
+    } catch (error) {
+      console.error('Batch release error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
 // Lock a specific case (for legacy view)
 router.post('/lock-case/:id',
   authorizePermission('studies', 'read'),
@@ -2408,6 +2610,11 @@ router.post('/lock-case/:id',
       const { id } = req.params;
       const userId = req.user.id;
       const organizationId = req.user.organizationId;
+
+      const beforeAudit = {
+        assignedTo: null,
+        lockedAt: null
+      };
 
       // 1. Check if user already has a locked case (optional - maybe we allow multiple locks in legacy view? 
       // For strict safety, let's enforce one case at a time even in legacy view)
@@ -2443,12 +2650,26 @@ router.post('/lock-case/:id',
         return res.status(409).json({ success: false, message: "Case is already locked by another user" });
       }
 
+      beforeAudit.assignedTo = study.assignedTo ?? null;
+      beforeAudit.lockedAt = study.lockedAt ?? null;
+
       // 4. Lock it
       study.assignedTo = userId;
       study.lockedAt = new Date().toISOString();
       study.updatedAt = new Date().toISOString();
 
       const updatedCase = await cosmosService.updateItem('studies', id, organizationId, study);
+
+      await auditAction(
+        req.user,
+        'update',
+        'study',
+        id,
+        `Locked the case for study ${id}`,
+        { studyId: id, pmid: study.pmid },
+        beforeAudit,
+        { assignedTo: updatedCase.assignedTo ?? null, lockedAt: updatedCase.lockedAt ?? null }
+      );
 
       res.json({ success: true, message: "Case locked successfully", study: updatedCase });
 
@@ -2479,11 +2700,27 @@ router.post('/release-case/:id',
         return res.status(403).json({ success: false, message: "You are not assigned to this case" });
       }
 
+      const beforeAudit = {
+        assignedTo: study.assignedTo ?? null,
+        lockedAt: study.lockedAt ?? null
+      };
+
       study.assignedTo = null;
       study.lockedAt = null;
       study.updatedAt = new Date().toISOString();
 
       await cosmosService.updateItem('studies', id, organizationId, study);
+
+      await auditAction(
+        req.user,
+        'update',
+        'study',
+        id,
+        `Released the case for study ${id}`,
+        { studyId: id, pmid: study.pmid },
+        beforeAudit,
+        { assignedTo: null, lockedAt: null }
+      );
 
       res.json({ success: true, message: "Case released successfully" });
 

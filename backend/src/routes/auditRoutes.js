@@ -1,8 +1,41 @@
 const express = require('express');
 const cosmosService = require('../services/cosmosService');
 const { authorizePermission } = require('../middleware/authorization');
+const AuditLog = require('../models/AuditLog');
 
 const router = express.Router();
+
+// Create a manual audit log (e.g. for navigation)
+router.post('/',
+  async (req, res) => {
+    try {
+      const { action, resource, details, metadata } = req.body;
+
+      if (!req.user) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const auditLog = new AuditLog({
+        organizationId: req.user.organizationId,
+        userId: req.user.id,
+        userName: req.user.getFullName ? req.user.getFullName() : req.user.username,
+        action: action || 'view',
+        resource: resource || 'navigation',
+        details: details || 'User navigation',
+        ipAddress: req.ip,
+        timestamp: new Date().toISOString(),
+        metadata: metadata || {}
+      });
+
+      await cosmosService.createItem('audit-logs', auditLog.toJSON());
+
+      res.status(201).json({ success: true });
+    } catch (error) {
+      console.error('Error creating audit log:', error);
+      res.status(500).json({ error: 'Failed to create audit log' });
+    }
+  }
+);
 
 // Get audit logs for organization
 router.get('/',

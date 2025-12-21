@@ -74,6 +74,7 @@ class Study {
     listedness = null, // 'Yes', 'No'
     seriousness = null, // 'Yes', 'No'
     fullTextAvailability = null, // 'Yes', 'No'
+    fullTextSource = null,
     aoiAssessedBy = null,
     aoiAssessedAt = null,
     // Medical Reviewer fields
@@ -174,6 +175,7 @@ class Study {
     this.listedness = listedness;
     this.seriousness = seriousness;
     this.fullTextAvailability = fullTextAvailability;
+    this.fullTextSource = fullTextSource;
     this.aoiAssessedBy = aoiAssessedBy;
     this.aoiAssessedAt = aoiAssessedAt;
     
@@ -726,6 +728,8 @@ class Study {
       // AOI Assessment fields
       listedness: this.listedness,
       seriousness: this.seriousness,
+      fullTextAvailability: this.fullTextAvailability,
+      fullTextSource: this.fullTextSource,
       aoiAssessedBy: this.aoiAssessedBy,
       aoiAssessedAt: this.aoiAssessedAt,
       

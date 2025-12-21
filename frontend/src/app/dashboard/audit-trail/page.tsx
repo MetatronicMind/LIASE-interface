@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   ArrowPathIcon,
   ChatBubbleLeftEllipsisIcon,
@@ -59,6 +59,21 @@ const actionConfig: Record<string, { label: string; icon: React.ReactElement; co
     label: "Read",
     icon: <ArrowPathIcon className="w-4 h-4 mr-1 inline-block align-middle" />,
     color: "text-blue-500"
+  },
+  fetch: {
+    label: "View",
+    icon: <ArrowPathIcon className="w-4 h-4 mr-1 inline-block align-middle" />,
+    color: "text-blue-500"
+  },
+  complete: {
+    label: "Complete",
+    icon: <CheckCircleIcon className="w-4 h-4 mr-1 inline-block align-middle" />,
+    color: "text-green-600"
+  },
+  approval: {
+    label: "Approval",
+    icon: <CheckCircleIcon className="w-4 h-4 mr-1 inline-block align-middle" />,
+    color: "text-green-600"
   }
 };
 
@@ -68,6 +83,294 @@ function getActionMeta(action: string) {
     icon: React.createElement(ArrowPathIcon, { className: "w-4 h-4 mr-1 inline-block align-middle" }),
     color: "text-gray-600"
   };
+}
+
+function normalizeAction(action?: string, method?: string) {
+  const raw = (action || method || '').toLowerCase();
+
+  // Backend auto-logger uses HTTP verbs as actions (put/post/etc). Map to user-friendly audit verbs.
+  if (raw === 'post') return 'create';
+  if (raw === 'put' || raw === 'patch') return 'update';
+  if (raw === 'delete') return 'delete';
+  if (raw === 'get') return 'read';
+
+  // Common app-level verbs
+  if (raw === 'fetch' || raw === 'list' || raw === 'query' || raw === 'search') return 'fetch';
+  if (raw === 'approval') return 'approval';
+  if (raw === 'complete' || raw === 'completed') return 'complete';
+  if (raw === 'approved') return 'approve';
+  if (raw === 'rejected') return 'reject';
+
+  return raw || 'update';
+}
+
+function isTechnicalAutoLog(log: AuditLog) {
+  const details = (log.details || '').trim();
+  const hasHttpDetails = /^(GET|POST|PUT|PATCH|DELETE)\s+\/api\//i.test(details);
+  const hasHttpAction = ['get', 'post', 'put', 'patch', 'delete'].includes((log.action || '').toLowerCase());
+  const hasApiPath = typeof log.metadata?.path === 'string' && String(log.metadata.path).startsWith('/api/');
+
+  // Heuristic: auto logs look like "PUT /api/..." and include metadata.path/method.
+  return hasHttpDetails || (hasHttpAction && hasApiPath);
+}
+
+function formatFieldLabel(fieldName: string) {
+  return String(fieldName)
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/_/g, ' ')
+    .replace(/^./, (str) => str.toUpperCase())
+    .trim();
+}
+
+function shortenUuids(text: string) {
+  if (!text) return text;
+  return text.replace(
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
+    (m) => `#${m.slice(0, 8)}`
+  );
+}
+
+function expandCommonTerms(text: string) {
+  if (!text) return text;
+  return text
+    .replace(/\bQC\b/g, 'Quality check')
+    .replace(/\bR3\b/g, 'Medical review');
+}
+
+function humanizeNonTechnicalDetails(log: AuditLog) {
+  let text = String(log.details || '').trim();
+
+  // 5. Bulk Approve / QC Allocation
+  // Check action OR text content
+  if (log.action === 'Bulk_approve' || text.includes('Auto approved Quality check') || text.includes('moved to data_entry')) {
+    return "User clicked QC Process Allocation (Auto-approved and moved to Data Entry as ICSR)";
+  }
+
+  // Remove technical prefixes like "update study <uuid>:"
+  text = text.replace(/^\w+\s+\w+\s+[0-9a-f-]{8,36}:\s*/i, '');
+  text = text.replace(/^\w+\s+study\s+[0-9a-f-]{8,36}:\s*/i, '');
+
+  // Make common verbs more readable
+  text = text.replace(/^Retrieved\b/i, 'Viewed');
+  text = text.replace(/^Fetched\b/i, 'Viewed');
+  text = text.replace(/^Query\b/i, 'Viewed');
+
+  // 3. Locked / Released Case
+  if (text.includes('Locked the case for study')) {
+    // Use the resourceId (which is the Study ID)
+    // Update regex to support non-hex IDs (like DEXA_Synt_...)
+    const id = log.resourceId || text.match(/study #?([\w-]+)/i)?.[1];
+    
+    if (id) {
+        // If it's a UUID, shorten it. If it's a custom ID (like DEXA_Synt_...), show it as is.
+        return `Locked Case ${shortenUuids(id)}`;
+    }
+    return 'Locked Case';
+  }
+  if (text.includes('Released the case for study')) {
+    const id = log.resourceId || text.match(/study #?([\w-]+)/i)?.[1];
+    
+    if (id) {
+        return `Released Case ${shortenUuids(id)}`;
+    }
+    return 'Released Case';
+  }
+
+  // 4. Classification
+  if (text.includes('classification') || text.includes('Classified as')) {
+    // Check if it was "First classified" (previous value was empty/null)
+    // Check raw field names (user_tag, userTag) and formatted names just in case
+    const tagChange = log.changes?.find(c => 
+        c.field === 'user_tag' || 
+        c.field === 'userTag' || 
+        c.field === 'User Tag' || 
+        c.field === 'classification' ||
+        c.field === 'Classification'
+    );
+    
+    // Robust check for "empty" previous value
+    const isFirst = tagChange && (
+      tagChange.before === 'empty' || 
+      tagChange.before === null || 
+      tagChange.before === undefined || 
+      tagChange.before === '' ||
+      String(tagChange.before).toLowerCase() === 'null'
+    );
+    
+    // Extract classification value
+    const match = text.match(/(?:Updated study classification to|Classified as) (.+)/i);
+    if (match) {
+      const classification = match[1];
+      let result = isFirst ? `First classified as ${classification}` : `Classified as ${classification}`;
+
+      // Add details about other changed fields
+      if (log.changes && log.changes.length > 0) {
+          const details = [];
+          
+          const fullTextChange = log.changes.find(c => c.field === 'fullTextAvailability');
+          if (fullTextChange) details.push(`Full Text Option: ${fullTextChange.after}`);
+
+          const fullTextSourceChange = log.changes.find(c => c.field === 'fullTextSource');
+          if (fullTextSourceChange && fullTextSourceChange.after !== undefined && fullTextSourceChange.after !== null) {
+            details.push(`Full Text Source: "${fullTextSourceChange.after}"`);
+          }
+
+          const justificationChange = log.changes.find(c => c.field === 'justification');
+          if (justificationChange) details.push(`Justification: "${justificationChange.after}"`);
+
+          const seriousnessChange = log.changes.find(c => c.field === 'seriousness');
+          if (seriousnessChange) details.push(`Seriousness: ${seriousnessChange.after}`);
+
+          const listednessChange = log.changes.find(c => c.field === 'listedness');
+          if (listednessChange) details.push(`Listedness: ${listednessChange.after}`);
+
+          if (details.length > 0) {
+              result += ` (${details.join(', ')})`;
+          }
+      }
+      return result;
+    }
+    
+    // 7. Approved Classification
+    if (text.startsWith('Approved classification')) {
+       const id = text.match(/study ([^ ]+)/i)?.[1] || log.resourceId;
+       return id ? `Approved classification for Case ${shortenUuids(id)}` : 'Approved classification for Case';
+    }
+  }
+
+  // 6. Manual QC - Try to add Case ID if missing
+  if (text.includes('Selected for Quality check Triage')) {
+     if (log.resourceId && !text.includes(log.resourceId)) {
+         return `Selected Case ${shortenUuids(log.resourceId)} for Manual Quality Check`;
+     }
+     return text.replace('Selected for Quality check Triage (Manual Quality check)', 'Selected for Manual Quality Check');
+  }
+
+  // Handle specific "Viewed Triage Cases" request
+  if (text.match(/Viewed.*studies for data entry/i) || text.match(/Viewed.*cases for data entry/i)) {
+    return 'Viewed Triage Cases';
+  }
+  
+  // 2. Configuration Updates
+  if (text.includes('Updated drug configuration')) {
+      // If we have changes, we can be more specific, otherwise just return the text
+      if (log.changes && log.changes.length > 0) {
+          const changedFields = log.changes.map(c => formatFieldLabel(c.field)).join(', ');
+          return `Updated drug configuration (${changedFields})`;
+      }
+      return 'Updated drug configuration';
+  }
+
+  return expandCommonTerms(shortenUuids(text));
+}
+
+function formatValueForHumans(value: unknown) {
+  if (value === null || value === undefined) return 'empty';
+  if (typeof value === 'string') return shortenUuids(value);
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  // Objects/arrays tend to look technical; keep it simple.
+  return 'updated';
+}
+
+function humanizeTechnicalDetails(log: AuditLog) {
+  // Prefer metadata.path because details might include query strings
+  const details = (log.details || '').trim();
+  const method = String(log.metadata?.method || details.split(' ')[0] || '').toUpperCase();
+  // Keep query params for filter detection
+  const fullPath = String(log.metadata?.path || (details.split(' ')[1] || ''));
+  const rawPath = fullPath.split('?')[0];
+  const queryParams = fullPath.split('?')[1] || '';
+
+  const studyIdFromPath = (path: string) => {
+    const m = path.match(/\/api\/studies\/(?:lock-case|release-case)\/([^/?#]+)/i);
+    if (m?.[1]) return m[1];
+    const m2 = path.match(/\/api\/studies\/([^/?#]+)/i);
+    return m2?.[1] || null;
+  };
+
+  // Studies
+  if (/^\/api\/studies\/lock-case\//i.test(rawPath)) {
+    const studyId = studyIdFromPath(rawPath);
+    // 3. Locked Case - clearer formatting
+    return studyId ? `Locked Case ${shortenUuids(studyId)}` : 'Locked a case';
+  }
+  if (/^\/api\/studies\/release-case\//i.test(rawPath)) {
+    const studyId = studyIdFromPath(rawPath);
+    return studyId ? `Released Case ${shortenUuids(studyId)}` : 'Released a case';
+  }
+
+  // QA Specific Routes
+  if (/^\/api\/studies\/QA\/bulk-process\/?$/i.test(rawPath)) {
+    return 'Initiated Quality Check Process';
+  }
+  if (/^\/api\/studies\/[^/]+\/QA\/approve\/?$/i.test(rawPath)) {
+    const studyId = studyIdFromPath(rawPath);
+    return studyId ? `QA Approved Case ${shortenUuids(studyId)}` : 'QA Approved Case';
+  }
+  if (/^\/api\/studies\/[^/]+\/QA\/reject\/?$/i.test(rawPath)) {
+    const studyId = studyIdFromPath(rawPath);
+    return studyId ? `QA Rejected Case ${shortenUuids(studyId)}` : 'QA Rejected Case';
+  }
+
+  if (/^\/api\/studies\//i.test(rawPath)) {
+    const studyId = studyIdFromPath(rawPath);
+    if (method === 'PUT' || method === 'PATCH') {
+      return studyId ? `Updated Case ${shortenUuids(studyId)}` : 'Updated a case';
+    }
+    if (method === 'POST') {
+      return studyId ? `Created Case ${shortenUuids(studyId)}` : 'Created a case';
+    }
+    return studyId ? `Viewed Case ${shortenUuids(studyId)}` : 'Viewed a case';
+  }
+
+  // Study List / Filtering
+  if (/^\/api\/studies\/?$/i.test(rawPath) && method === 'GET') {
+    const pageMatch = queryParams.match(/page=(\d+)/);
+    const pageNum = pageMatch ? ` (Page ${pageMatch[1]})` : '';
+
+    if (queryParams) {
+      if (queryParams.includes('status=data_entry')) return `Viewed Data Entry Cases${pageNum}`;
+      if (queryParams.includes('status=manual_qc')) return `Viewed QC Triage Cases${pageNum}`;
+      if (queryParams.includes('status=triage')) return `Viewed Triage Cases${pageNum}`;
+      if (queryParams.includes('status=completed')) return `Viewed Completed Cases${pageNum}`;
+      if (queryParams.includes('status=archived')) return `Viewed Archived Cases${pageNum}`;
+      
+      return `Used filter on studies list${pageNum}`;
+    }
+    return `Viewed Triage Cases${pageNum}`;
+  }
+
+  // Drug Configuration
+  if (/^\/api\/drugs\/?$/i.test(rawPath)) {
+    if (method === 'POST') return 'Created drug configuration';
+    if (method === 'GET') return 'Viewed drug configuration';
+  }
+  if (/^\/api\/drugs\//i.test(rawPath)) {
+    // 2. Updated Configuration - try to be more specific if possible, otherwise rely on changes
+    if (method === 'PUT' || method === 'PATCH') return 'Updated drug configuration';
+    if (method === 'DELETE') return 'Deleted drug configuration';
+    if (method === 'GET') return 'Viewed drug configuration';
+  }
+
+  // Users
+  if (/^\/api\/users\/?$/i.test(rawPath) && method === 'POST') {
+    return 'Created a new user';
+  }
+  if (/^\/api\/users\//i.test(rawPath)) {
+    const userId = rawPath.split('/').pop();
+    if (method === 'PUT' || method === 'PATCH') return userId ? `Updated user ${userId}` : 'Updated a user';
+    if (method === 'DELETE') return userId ? `Deleted user ${userId}` : 'Deleted a user';
+  }
+
+  // Auth
+  if (/^\/api\/auth\/login\/?$/i.test(rawPath)) return 'Logged in';
+  if (/^\/api\/auth\/logout\/?$/i.test(rawPath)) return 'Logged out';
+
+  // Fallback
+  const actionVerb = normalizeAction(log.action, log.metadata?.method);
+  const actionLabel = getActionMeta(actionVerb).label.toLowerCase();
+  return rawPath ? `${actionLabel} (${rawPath.replace(/^\/api\//, '')})` : (details || 'Performed an action');
 }
 
 export default function AuditTrailPage() {
@@ -140,6 +443,48 @@ export default function AuditTrailPage() {
 
   // Calculate pagination
   const pageCount = Math.ceil(totalRecords / pageSize);
+
+  const displayLogs = useMemo(() => {
+    if (!auditLogs || auditLogs.length === 0) return [];
+
+    const meaningful = auditLogs.filter((l) => !isTechnicalAutoLog(l));
+
+    const hasMeaningfulSibling = (technicalLog: AuditLog) => {
+      const tTime = Date.parse(technicalLog.timestamp);
+      return meaningful.some((m) => {
+        if (m.userId !== technicalLog.userId) return false;
+        
+        // For bulk operations or general actions, resourceId might be missing in both
+        const isBulkOrGeneral = !m.resourceId && !technicalLog.resourceId;
+        
+        // If not bulk/general, require matching resourceIds
+        if (!isBulkOrGeneral) {
+            if (!m.resourceId || !technicalLog.resourceId) return false;
+            if (m.resourceId !== technicalLog.resourceId) return false;
+        }
+        
+        const mTime = Date.parse(m.timestamp);
+        return Number.isFinite(tTime) && Number.isFinite(mTime) && Math.abs(mTime - tTime) <= 5000;
+      });
+    };
+
+    // Keep the original API order, but drop technical rows when a meaningful row exists.
+    return auditLogs.filter((l) => {
+      const path = l.metadata?.path || '';
+      
+      // Filter out "Initiated Quality Check Process"
+      if (/^\/api\/studies\/QA\/bulk-process\/?$/i.test(String(path))) {
+        return false;
+      }
+
+      // Filter out "Viewed Triage Cases" and other study list views (GET /api/studies)
+      if (/^\/api\/studies\/?$/i.test(String(path)) && (l.action === 'get' || l.metadata?.method === 'GET')) {
+        return false;
+      }
+
+      return !isTechnicalAutoLog(l) || !hasMeaningfulSibling(l);
+    });
+  }, [auditLogs]);
 
   // Generate summary from current logs
   const summary = availableActions.map(a => ({
@@ -283,7 +628,7 @@ export default function AuditTrailPage() {
                     <td colSpan={5} className="text-center py-6 text-gray-400 border-b border-blue-100">No records found.</td>
                   </tr>
                 ) : (
-                  auditLogs.map((log, idx) => {
+                  displayLogs.map((log, idx) => {
                     // Use the timezone from location data, fallback to UTC
                     // Handle invalid timezone values (like "Unknown") by using UTC
                     let userTimezone = 'UTC';
@@ -307,13 +652,18 @@ export default function AuditTrailPage() {
                       </td>
                       <td className="py-3 px-4 align-top text-blue-900 font-bold">
                         {log.userName}
-                        <div className="text-xs text-gray-600 font-normal">ID: {log.userId}</div>
                       </td>
                       <td className="py-3 px-4 align-top">
+                        {(() => {
+                          const normalized = normalizeAction(log.action, log.metadata?.method);
+                          const meta = getActionMeta(normalized);
+                          return (
                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded bg-gray-100 text-gray-800 font-semibold text-xs">
-                          {getActionMeta(log.action).icon}
-                          {getActionMeta(log.action).label}
+                          {meta.icon}
+                          {meta.label}
                         </span>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 px-4 align-top text-blue-900 text-xs">
                         {log.location ? (
@@ -330,27 +680,33 @@ export default function AuditTrailPage() {
                         )}
                       </td>
                       <td className="py-3 px-4 align-top text-blue-900">
-                        <div className="mb-1">{log.details}</div>
+                        <div className="mb-1">
+                          {expandCommonTerms(
+                            isTechnicalAutoLog(log) ? humanizeTechnicalDetails(log) : humanizeNonTechnicalDetails(log)
+                          )}
+                        </div>
                         {log.changes && log.changes.length > 0 && (
                           <div className="mt-2 space-y-1">
-                            {log.changes.map((change, changeIdx) => (
+                            {log.changes
+                              .filter(change => {
+                                const field = change.field.toLowerCase();
+                                const technicalFields = ['rid', 'self', 'etag', 'attachments', 'ts', '_rid', '_self', '_etag', '_ts'];
+                                return !technicalFields.includes(field);
+                              })
+                              .map((change, changeIdx) => (
                               <div key={changeIdx} className="text-xs bg-blue-50 rounded p-2 border border-blue-100">
-                                <div className="font-semibold text-blue-900 mb-1">{change.field}:</div>
-                                <div className="flex items-start gap-2">
-                                  <div className="flex-1">
-                                    <div className="text-gray-500 text-xs mb-0.5">Before:</div>
-                                    <div className="text-red-600 font-mono text-xs break-words">
-                                      {change.before === null ? '<empty>' : String(change.before)}
-                                    </div>
-                                  </div>
-                                  <div className="text-gray-400 self-center">→</div>
-                                  <div className="flex-1">
-                                    <div className="text-gray-500 text-xs mb-0.5">After:</div>
-                                    <div className="text-green-600 font-mono text-xs break-words">
-                                      {change.after === null ? '<empty>' : String(change.after)}
-                                    </div>
-                                  </div>
-                                </div>
+                                {(() => {
+                                  const label = formatFieldLabel(change.field);
+                                  const before = formatValueForHumans(change.before);
+                                  const after = formatValueForHumans(change.after);
+
+                                  const simpleBefore = expandCommonTerms(before);
+                                  const simpleAfter = expandCommonTerms(after);
+                                  
+                                  const sentence = `${label}: changed from "${simpleBefore}" to "${simpleAfter}".`;
+
+                                  return <div className="text-blue-900">{sentence}</div>;
+                                })()}
                               </div>
                             ))}
                           </div>

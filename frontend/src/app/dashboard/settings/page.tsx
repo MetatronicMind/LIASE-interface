@@ -25,8 +25,9 @@ const SuperAdminConfigTab = dynamic(() => import('@/components/settings/SuperAdm
 const ArchivalSettingsTab = dynamic(() => import('@/components/settings/ArchivalSettingsTab'), { ssr: false });
 const WorkflowSettingsTab = dynamic(() => import('@/components/settings/WorkflowSettingsTab'), { ssr: false });
 const DateTimeSettingsTab = dynamic(() => import('@/components/settings/DateTimeSettingsTab'), { ssr: false });
+const TriageConfigTab = dynamic(() => import('@/components/settings/TriageConfigTab'), { ssr: false });
 
-type TabName = 'roles' | 'organization' | 'admin-config' | 'study-queue' | 'notifications' | 'email' | 'archival' | 'super-admin' | 'workflow' | 'datetime';
+type TabName = 'roles' | 'organization' | 'admin-config' | 'study-queue' | 'notifications' | 'email' | 'archival' | 'super-admin' | 'workflow' | 'datetime' | 'triage-config';
 
 interface Tab {
   id: TabName;
@@ -97,6 +98,12 @@ export default function SettingsPage() {
       requireAdmin: true
     },
     {
+      id: 'triage-config',
+      name: 'Triage Settings',
+      icon: <QueueListIcon className="w-5 h-5" />,
+      requireAdmin: true
+    },
+    {
       id: 'super-admin',
       name: 'System Configuration',
       icon: <ServerStackIcon className="w-5 h-5" />,
@@ -131,6 +138,8 @@ export default function SettingsPage() {
         return <AdminConfigTab />;
       case 'study-queue':
         return <StudyQueueConfigTab />;
+      case 'triage-config':
+        return <TriageConfigTab />;
       case 'notifications':
         return <NotificationsTab />;
       case 'email':

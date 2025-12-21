@@ -50,7 +50,7 @@ export default function UserPermissionsDebugPage() {
 
       const navigationAccess = {
         'Dashboard': true, // Always accessible
-        'Drug Management': hasPermission('drugs', 'read') && isSuperAdmin(),
+        'Literature Search Configuration': hasPermission('drugs', 'read') && isSuperAdmin(),
         'Triage': hasPermission('studies', 'read') && isAdmin(),
         'Data Entry': hasPermission('studies', 'write'),
         'Full Report': hasPermission('reports', 'read'), // This is the key one!
