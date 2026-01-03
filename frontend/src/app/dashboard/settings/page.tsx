@@ -43,71 +43,71 @@ export default function SettingsPage() {
   const { hasPermission, isAdmin, isSuperAdmin } = usePermissions();
 
   const tabs: Tab[] = [
-        {
-          id: 'datetime',
-          name: 'Date/Time Settings',
-          icon: <span className="w-5 h-5">🕒</span>,
-          requireAdmin: true
-        },
+    {
+      id: 'datetime',
+      name: 'Date/Time Settings',
+      icon: <span className="w-5 h-5">🕒</span>,
+      requiredPermission: { resource: 'settings', action: 'viewDateTime' }
+    },
     {
       id: 'roles',
       name: 'Role Management',
       icon: <ShieldCheckIcon className="w-5 h-5" />,
-      requiredPermission: { resource: 'roles', action: 'read' }
+      requiredPermission: { resource: 'settings', action: 'viewRoleManagement' }
     },
     {
       id: 'organization',
       name: 'Organization',
       icon: <BuildingOfficeIcon className="w-5 h-5" />,
-      requiredPermission: { resource: 'organizations', action: 'read' }
+      requiredPermission: { resource: 'settings', action: 'viewOrganization' }
     },
     {
       id: 'workflow',
       name: 'Workflow',
       icon: <ArrowsRightLeftIcon className="w-5 h-5" />,
-      requireAdmin: true
+      requiredPermission: { resource: 'settings', action: 'viewWorkflow' }
     },
     {
       id: 'notifications',
       name: 'Notifications',
       icon: <BellIcon className="w-5 h-5" />,
-      requiredPermission: { resource: 'notifications', action: 'read' }
+      requiredPermission: { resource: 'settings', action: 'viewNotifications' }
     },
     {
       id: 'email',
       name: 'Email Settings',
       icon: <EnvelopeIcon className="w-5 h-5" />,
-      requiredPermission: { resource: 'email', action: 'read' }
+      requiredPermission: { resource: 'settings', action: 'viewEmail' }
     },
     {
       id: 'archival',
       name: 'Archival Settings',
       icon: <ArchiveBoxIcon className="w-5 h-5" />,
-      requireAdmin: true
+      requiredPermission: { resource: 'settings', action: 'viewArchival' }
     },
     {
       id: 'admin-config',
       name: 'Admin Configuration',
       icon: <Cog6ToothIcon className="w-5 h-5" />,
-      requireAdmin: true
+      requiredPermission: { resource: 'settings', action: 'viewAdminConfig' }
     },
     {
       id: 'study-queue',
       name: 'Study Queue Config',
       icon: <QueueListIcon className="w-5 h-5" />,
-      requireAdmin: true
+      requiredPermission: { resource: 'settings', action: 'viewStudyQueue' }
     },
     {
       id: 'triage-config',
       name: 'Triage Settings',
       icon: <QueueListIcon className="w-5 h-5" />,
-      requireAdmin: true
+      requiredPermission: { resource: 'settings', action: 'viewTriageConfig' }
     },
     {
       id: 'super-admin',
       name: 'System Configuration',
       icon: <ServerStackIcon className="w-5 h-5" />,
-      requireSuperAdmin: true
+      requiredPermission: { resource: 'settings', action: 'viewSystemConfig' }
     }
   ];
 

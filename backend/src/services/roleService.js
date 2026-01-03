@@ -384,146 +384,140 @@ class RoleService {
         displayName: 'Dashboard',
         description: 'Access to main dashboard and overview',
         actions: {
-          read: 'View dashboard',
-          write: 'Modify dashboard settings'
+          read: 'Can view dashboard only'
+        }
+      },
+      literatureSearch: {
+        displayName: 'Literature Search Configuration',
+        description: 'Manage literature search configurations',
+        actions: {
+          create: 'Can Add New Configuration',
+          update: 'Can Modify Configuration',
+          search: 'Can Search Configuration'
+        }
+      },
+      literatureTriage: {
+        displayName: 'Literature Triage Section',
+        description: 'Access to literature triage',
+        actions: {
+          read: 'Can View Section'
+        }
+      },
+      qcAllocation: {
+        displayName: 'QC Allocation',
+        description: 'Manage QC allocation',
+        actions: {
+          read: 'Can View Section',
+          allocate: 'Can allocate case'
+        }
+      },
+      qcTriage: {
+        displayName: 'QC Triage Page',
+        description: 'Quality control for triage',
+        actions: {
+          read: 'Can View Section',
+          approveReject: 'Can Approve/Reject'
+        }
+      },
+      dataEntry: {
+        displayName: 'Data Entry',
+        description: 'Data entry operations',
+        actions: {
+          read: 'Can View Section',
+          openXml: 'Can Open R3 XML Form'
+        }
+      },
+      qcDataEntry: {
+        displayName: 'QC Data Entry',
+        description: 'Quality control for data entry',
+        actions: {
+          read: 'Can View Section',
+          approveReject: 'Can Approve/Reject'
+        }
+      },
+      medicalReview: {
+        displayName: 'Medical Review',
+        description: 'Medical review operations',
+        actions: {
+          read: 'Can View Section',
+          approveReject: 'Can Approve/Reject Study',
+          comment: 'Can comment'
+        }
+      },
+      icsrReports: {
+        displayName: 'ICSR Reports',
+        description: 'Access to ICSR reports',
+        actions: {
+          read: 'Can View Section',
+          viewFullReport: 'Can View Full Report',
+          export: 'Can Export'
+        }
+      },
+      aoiAssessment: {
+        displayName: 'AOI Assessment',
+        description: 'Assessment of interest',
+        actions: {
+          read: 'Can View Section',
+          save: 'Can Save Assessment'
+        }
+      },
+      reports: {
+        displayName: 'Reports',
+        description: 'General reports',
+        actions: {
+          read: 'Can View Section',
+          export: 'Can Export'
+        }
+      },
+      auditTrail: {
+        displayName: 'Audit Trail',
+        description: 'System audit logs',
+        actions: {
+          read: 'Can View Section',
+          export: 'Can Export'
         }
       },
       users: {
         displayName: 'User Management',
-        description: 'Manage user accounts and profiles',
+        description: 'Manage users',
         actions: {
-          read: 'View users',
-          write: 'Create and edit users',
-          delete: 'Delete users'
+          read: 'Can view Section',
+          create: 'Can Add New User',
+          update: 'Can Edit Users'
         }
       },
-      roles: {
-        displayName: 'Role Management',
-        description: 'Manage roles and permissions',
+      legacyData: {
+        displayName: 'Legacy Data',
+        description: 'Access to legacy data',
         actions: {
-          read: 'View roles',
-          write: 'Create and edit roles',
-          delete: 'Delete roles'
+          read: 'Can View Section',
+          create: 'Can Add Data'
         }
       },
-      drugs: {
-        displayName: 'Drug Management',
-        description: 'Access to drug database and search',
+      archive: {
+        displayName: 'Archive',
+        description: 'Archival operations',
         actions: {
-          read: 'View drug information',
-          write: 'Add and edit drug data',
-          delete: 'Delete drug entries'
-        }
-      },
-      studies: {
-        displayName: 'Study Management',
-        description: 'Access to clinical studies and trials',
-        actions: {
-          read: 'View study information',
-          write: 'Create and edit studies',
-          delete: 'Delete studies'
-        }
-      },
-      audit: {
-        displayName: 'Audit Trail',
-        description: 'Access to system audit logs',
-        actions: {
-          read: 'View audit logs',
-          write: 'Add audit entries',
-          delete: 'Delete audit logs'
+          read: 'Can View Section',
+          archive: 'Can Archive studies'
         }
       },
       settings: {
-        displayName: 'System Settings',
-        description: 'Configure system preferences',
+        displayName: 'Settings',
+        description: 'System settings',
         actions: {
-          read: 'View settings',
-          write: 'Modify settings'
-        }
-      },
-      organizations: {
-        displayName: 'Organization Management',
-        description: 'Manage organization settings and data',
-        actions: {
-          read: 'View organization data',
-          write: 'Edit organization settings',
-          delete: 'Delete organizations'
-        }
-      },
-      reports: {
-        displayName: 'Full Report',
-        description: 'Access to comprehensive reporting and analytics',
-        actions: {
-          read: 'View full reports',
-          write: 'Create and modify reports',
-          delete: 'Delete reports'
-        }
-      },
-      triage: {
-        displayName: 'Triage Operations',
-        description: 'Manual drug testing and study classification',
-        actions: {
-          read: 'View triage queue',
-          write: 'Update triage records',
-          classify: 'Classify studies as ICSR/AOI/No Case',
-          manual_drug_test: 'Run manual drug tests'
-        }
-      },
-      QC: {
-        displayName: 'Quality Assurance',
-        description: 'Review and approve triage classifications',
-        actions: {
-          read: 'View QC queue',
-          write: 'Update QC records',
-          approve: 'Approve classifications',
-          reject: 'Reject classifications'
-        }
-      },
-      data_entry: {
-        displayName: 'Data Entry',
-        description: 'Complete R3 forms for approved ICSR studies',
-        actions: {
-          read: 'View data entry queue',
-          write: 'Update data entry records',
-          r3_form: 'Complete R3 XML forms'
-        }
-      },
-      medical_examiner: {
-        displayName: 'Medical Reviewer',
-        description: 'Review completed studies and manage quality control',
-        actions: {
-          read: 'View medical review queue',
-          write: 'Update review records',
-          comment_fields: 'Comment on R3 form fields',
-          edit_fields: 'Edit R3 form field values',
-          revoke_studies: 'Revoke studies back to Data Entry'
-        }
-      },
-      notifications: {
-        displayName: 'Notifications Management',
-        description: 'Manage system notifications and notification rules',
-        actions: {
-          read: 'View notifications',
-          write: 'Create and edit notifications',
-          delete: 'Delete notifications'
-        }
-      },
-      email: {
-        displayName: 'Email Management',
-        description: 'Manage email templates, logs, and SMTP configuration',
-        actions: {
-          read: 'View email settings',
-          write: 'Edit email templates and configuration',
-          delete: 'Delete email templates and logs'
-        }
-      },
-      admin_config: {
-        displayName: 'Admin Configuration',
-        description: 'Manage system configuration and scheduled jobs',
-        actions: {
-          read: 'View admin configuration',
-          write: 'Edit system configuration',
-          manage_jobs: 'Manage scheduled jobs'
+          read: 'Can View Section',
+          viewDateTime: 'Can view Date/Time Settings',
+          viewRoleManagement: 'Can view Role Management Settings',
+          viewOrganization: 'Can view Organization Settings',
+          viewWorkflow: 'Can view Workflow Settings',
+          viewNotifications: 'Can view Notifications Settings',
+          viewEmail: 'Can view Email Settings',
+          viewArchival: 'Can view Archival Settings',
+          viewAdminConfig: 'Can view Admin Configuration',
+          viewStudyQueue: 'Can view Study Queue Configuration',
+          viewTriageConfig: 'Can view Triage Configuration',
+          viewSystemConfig: 'Can view System Configuration'
         }
       }
     };

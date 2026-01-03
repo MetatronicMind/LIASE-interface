@@ -142,9 +142,10 @@ router.get('/',
 
 // Get studies for QA approval (studies awaiting triage classification approval)
 router.get('/QA-pending',
-  authorizePermission('QA', 'read'),
+  authorizePermission('studies', 'read'),
   async (req, res) => {
     try {
+      console.log('GET /QA-pending request received');
       const { 
         page = 1, 
         limit = 50, 
@@ -156,8 +157,9 @@ router.get('/QA-pending',
       if (req.user.isSuperAdmin() && req.query.organizationId) {
         targetOrgId = req.query.organizationId;
       }
+      console.log('Target Org ID:', targetOrgId);
 
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag != null AND c.qaApprovalStatus = @status';
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND IS_DEFINED(c.userTag) AND c.qaApprovalStatus = @status';
       const parameters = [
         { name: '@orgId', value: targetOrgId },
         { name: '@status', value: status }
@@ -168,11 +170,19 @@ router.get('/QA-pending',
         parameters.push({ name: '@search', value: search });
       }
 
-      query += ' ORDER BY c.updatedAt DESC';
-      const offset = (page - 1) * limit;
-      query += ` OFFSET ${offset} LIMIT ${limit}`;
+      console.log('Executing query:', query);
+      console.log('Parameters:', JSON.stringify(parameters));
 
-      const studies = await cosmosService.queryItems('studies', query, parameters);
+      // Fetch all matching items to sort in memory (avoids composite index requirement)
+      const allStudies = await cosmosService.queryItems('studies', query, parameters);
+      console.log('Studies found:', allStudies.length);
+      
+      // Sort by updatedAt DESC
+      allStudies.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+      // Apply pagination in memory
+      const offset = (page - 1) * parseInt(limit);
+      const studies = allStudies.slice(offset, offset + parseInt(limit));
 
       res.json({
         success: true,
@@ -180,7 +190,7 @@ router.get('/QA-pending',
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: studies.length
+          total: allStudies.length
         }
       });
     } catch (error) {
@@ -195,7 +205,7 @@ router.get('/QA-pending',
 
 // Bulk process QC items
 router.post('/QA/bulk-process',
-  authorizePermission('QA', 'approve'),
+  authorizePermission('studies', 'write'),
   async (req, res) => {
     try {
       // Find all studies pending QA approval (matches the QA page view)
@@ -1899,7 +1909,7 @@ router.put('/update-icsr-status',
 
 // QC Approval/Rejection endpoints
 router.post('/:id/QA/approve',
-  authorizePermission('QA', 'approve'),
+  authorizePermission('studies', 'write'),
   [
     body('comments').optional().isString().withMessage('Comments must be a string')
   ],
@@ -1964,7 +1974,7 @@ router.post('/:id/QA/approve',
 );
 
 router.post('/:id/QA/reject',
-  authorizePermission('QA', 'reject'),
+  authorizePermission('studies', 'write'),
   [
     body('reason').isString().isLength({ min: 1 }).withMessage('Rejection reason is required'),
     body('targetStage').optional().isString()

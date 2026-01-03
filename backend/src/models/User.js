@@ -91,13 +91,15 @@ class User {
         drugs: { read: true, write: true, delete: true },
         studies: { read: true, write: true, delete: true },
         audit: { read: true, write: false, delete: false },
-        settings: { read: true, write: true }
+        settings: { read: true, write: true },
+        QA: { read: true, approve: true, reject: true }
       },
       pharmacovigilance: {
         dashboard: { read: true, write: false },
         users: { read: true, write: false, delete: false },
         drugs: { read: true, write: true, delete: false },
         studies: { read: true, write: true, delete: false },
+        QA: { read: true, approve: true, reject: true },
         audit: { read: true, write: false, delete: false },
         settings: { read: true, write: false }
       },

@@ -464,7 +464,7 @@ export default function QAPage() {
   }
 
   return (
-    <PermissionGate resource="QA" action="read">
+    <PermissionGate resource="studies" action="read">
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
@@ -1124,7 +1124,7 @@ export default function QAPage() {
 
                   {/* Action Buttons */}
                   <div className="flex space-x-3">
-                    <PermissionGate resource="QA" action="approve">
+                    <PermissionGate resource="studies" action="write">
                       <button
                         onClick={() => approveClassification(selectedStudy.id)}
                         disabled={actionInProgress === selectedStudy.id}
@@ -1150,7 +1150,7 @@ export default function QAPage() {
                     </PermissionGate>
 
                     {canRevoke && (
-                      <PermissionGate resource="QA" action="reject">
+                      <PermissionGate resource="studies" action="write">
                         <button
                           onClick={() => setShowRejectModal(true)}
                           disabled={actionInProgress === selectedStudy.id}

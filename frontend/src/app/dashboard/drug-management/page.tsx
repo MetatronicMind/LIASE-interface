@@ -5,6 +5,7 @@ import StudyProgressTracker from "@/components/StudyProgressTracker";
 import { exportToPDF, exportToExcel } from "@/utils/exportUtils";
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
+import { usePermissions } from "@/components/PermissionProvider";
 
 interface DrugSearchConfig {
   id: string;
@@ -25,6 +26,11 @@ interface DrugSearchConfig {
 }
 
 export default function DrugManagementPage() {
+  const { hasPermission } = usePermissions();
+  const canAdd = hasPermission('literatureSearch', 'create');
+  const canModify = hasPermission('literatureSearch', 'update');
+  const canSearch = hasPermission('literatureSearch', 'search');
+
   const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const [searchConfigs, setSearchConfigs] = useState<DrugSearchConfig[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -618,7 +624,7 @@ export default function DrugManagementPage() {
                 <div className="mt-4 flex gap-2">
                   <button
                     onClick={saveConfiguration}
-                    disabled={saving || !inn.trim() || !query.trim() || !sponsor.trim()}
+                    disabled={saving || !inn.trim() || !query.trim() || !sponsor.trim() || (editingConfigId ? !canModify : !canAdd)}
                     className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : (editingConfigId ? 'Update Configuration' : 'Save Configuration')}
@@ -823,7 +829,7 @@ export default function DrugManagementPage() {
                           <div className="ml-4 flex flex-col gap-2">
                             <button
                               onClick={() => runSearchConfig(config.id, config.name)}
-                              disabled={runningConfigs.has(config.id) || (showProgressTracker && config.name === runningConfigName)}
+                              disabled={!canSearch || runningConfigs.has(config.id) || (showProgressTracker && config.name === runningConfigName)}
                               className={`px-4 py-2 text-sm font-medium rounded-md w-full ${
                                 runningConfigs.has(config.id) || (showProgressTracker && config.name === runningConfigName)
                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -839,18 +845,22 @@ export default function DrugManagementPage() {
                                 'Run Now'
                               )}
                             </button>
-                            <button
-                              onClick={() => handleEdit(config)}
-                              className="px-4 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 w-full"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeactivate(config.id)}
-                              className="px-4 py-2 text-sm font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 w-full"
-                            >
-                              Deactivate
-                            </button>
+                            {canModify && (
+                              <>
+                                <button
+                                  onClick={() => handleEdit(config)}
+                                  className="px-4 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 w-full"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeactivate(config.id)}
+                                  className="px-4 py-2 text-sm font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 w-full"
+                                >
+                                  Deactivate
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>

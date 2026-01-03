@@ -23,8 +23,8 @@ export default function RoleManagementTab() {
   const [error, setError] = useState<string | null>(null);
   const { hasPermission } = usePermissions();
 
-  const canWrite = hasPermission('roles', 'write');
-  const canDelete = hasPermission('roles', 'delete');
+  const canWrite = hasPermission('settings', 'viewRoleManagement');
+  const canDelete = false;
 
   useEffect(() => {
     fetchRoles();

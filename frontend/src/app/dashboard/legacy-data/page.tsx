@@ -4,8 +4,11 @@ import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { legacyDataService } from '@/services/legacyDataService';
 import { toast } from 'react-hot-toast';
+import { usePermissions } from "@/components/PermissionProvider";
 
 export default function LegacyDataPage() {
+  const { hasPermission } = usePermissions();
+  const canAddData = hasPermission('legacyData', 'create');
   const [file, setFile] = useState<File | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [parsedData, setParsedData] = useState<any[]>([]);
@@ -121,46 +124,52 @@ export default function LegacyDataPage() {
       
       <div className="bg-white p-6 rounded-lg shadow mb-6">
         <h2 className="text-lg font-semibold mb-4">Upload New Data</h2>
-        <div className="flex items-center gap-4 mb-4">
-          <input 
-            type="file" 
-            accept=".csv,.xlsx,.xls" 
-            onChange={handleFileUpload}
-            className="block w-full text-sm text-gray-500
-              file:mr-4 file:py-2 file:px-4
-              file:rounded-full file:border-0
-              file:text-sm file:font-semibold
-              file:bg-blue-50 file:text-blue-700
-              hover:file:bg-blue-100"
-          />
-        </div>
-
-        {headers.length > 0 && (
-          <div className="mb-4">
-            <h3 className="font-medium mb-2">Map Columns</h3>
-            <div className="grid grid-cols-2 gap-4 max-w-2xl">
-              {headers.map(header => (
-                <div key={header} className="flex items-center gap-2">
-                  <span className="w-1/2 text-sm text-gray-600">{header}</span>
-                  <span className="text-gray-400">→</span>
-                  <input
-                    type="text"
-                    value={mapping[header] || ''}
-                    onChange={(e) => handleMappingChange(header, e.target.value)}
-                    className="w-1/2 border rounded px-2 py-1 text-sm"
-                    placeholder="Target Field Name"
-                  />
-                </div>
-              ))}
+        {!canAddData ? (
+          <p className="text-gray-500">You do not have permission to add legacy data.</p>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 mb-4">
+              <input 
+                type="file" 
+                accept=".csv,.xlsx,.xls" 
+                onChange={handleFileUpload}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"
+              />
             </div>
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Saving...' : 'Set Data'}
-            </button>
-          </div>
+
+            {headers.length > 0 && (
+              <div className="mb-4">
+                <h3 className="font-medium mb-2">Map Columns</h3>
+                <div className="grid grid-cols-2 gap-4 max-w-2xl">
+                  {headers.map(header => (
+                    <div key={header} className="flex items-center gap-2">
+                      <span className="w-1/2 text-sm text-gray-600">{header}</span>
+                      <span className="text-gray-400">→</span>
+                      <input
+                        type="text"
+                        value={mapping[header] || ''}
+                        onChange={(e) => handleMappingChange(header, e.target.value)}
+                        className="w-1/2 border rounded px-2 py-1 text-sm"
+                        placeholder="Target Field Name"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Set Data'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -127,27 +127,27 @@ export function useConditionalPermissions() {
   };
 
   const canManageUsers = (): boolean => {
-    return hasPermission('users', 'write');
+    return hasPermission('users', 'create') || hasPermission('users', 'update');
   };
 
   const canManageRoles = (): boolean => {
-    return hasPermission('roles', 'write');
+    return hasPermission('settings', 'viewRoleManagement');
   };
 
   const canDeleteUsers = (): boolean => {
-    return hasPermission('users', 'delete');
+    return false;
   };
 
   const canDeleteRoles = (): boolean => {
-    return hasPermission('roles', 'delete');
+    return false;
   };
 
   const canViewAuditLogs = (): boolean => {
-    return hasPermission('audit', 'read');
+    return hasPermission('auditTrail', 'read');
   };
 
   const canManageOrganization = (): boolean => {
-    return hasPermission('organizations', 'write');
+    return false;
   };
 
   return {

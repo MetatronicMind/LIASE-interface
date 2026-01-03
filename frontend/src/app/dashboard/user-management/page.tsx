@@ -110,7 +110,7 @@ export default function UserManagementPage() {
             <div className="text-gray-600 text-base font-medium">Manage user accounts and access privileges</div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 self-start sm:self-auto">
-            <PermissionGate resource="roles" action="read">
+            <PermissionGate resource="settings" action="viewRoleManagement">
               <button
                 className="bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2"
                 onClick={() => router.push("/dashboard/user-management/role-management")}
@@ -119,7 +119,7 @@ export default function UserManagementPage() {
                 Manage Roles
               </button>
             </PermissionGate>
-            <PermissionGate resource="users" action="write">
+            <PermissionGate resource="users" action="create">
               <button
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2"
                 onClick={handleAddUser}
@@ -184,7 +184,7 @@ export default function UserManagementPage() {
                     </td>
                     <td className="py-3 px-4 align-top">
                       <div className="flex gap-2">
-                        <PermissionGate resource="users" action="write">
+                        <PermissionGate resource="users" action="update">
                           <button 
                             onClick={() => router.push(`/dashboard/user-management/edit-user?id=${user.id}`)}
                             className="bg-gray-100 hover:bg-blue-100 text-blue-700 p-2 rounded transition" 

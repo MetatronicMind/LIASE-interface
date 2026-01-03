@@ -36,91 +36,91 @@ const permissionBasedNavItems = [
     name: "Literature Search Configuration", 
     href: "/dashboard/drug-management", 
     icon: <BeakerIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'drugs', action: 'read' } // Requires drugs.read permission
+    permission: { resource: 'literatureSearch', action: 'search' } 
   },
   { 
     name: "Literature Triage", 
     href: "/dashboard/triage", 
     icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'triage', action: 'write' } // Requires triage.write permission
+    permission: { resource: 'literatureTriage', action: 'read' } 
   },
   { 
     name: "QC Allocation", 
     href: "/dashboard/qa", 
     icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'QA', action: 'read' } // Requires QA.read permission
+    permission: { resource: 'qcAllocation', action: 'read' } 
   },
   { 
     name: "QC Triage Page", 
     href: "/dashboard/qc-triage", 
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'QA', action: 'read' } // Requires QA.read permission
+    permission: { resource: 'qcTriage', action: 'read' } 
   },
   { 
     name: "Data Entry", 
     href: "/dashboard/data-entry", 
     icon: <PencilSquareIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'data_entry', action: 'read' } // Requires data_entry.read permission
+    permission: { resource: 'dataEntry', action: 'read' } 
   },
   { 
     name: "QC Data Entry", 
     href: "/dashboard/qc", 
     icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'QC', action: 'read' } // Requires QC.read permission
+    permission: { resource: 'qcDataEntry', action: 'read' } 
   },
   { 
     name: "Medical Review", 
     href: "/dashboard/medical-examiner", 
     icon: <UserIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'medical_examiner', action: 'read' } // Requires medical_examiner.read permission
+    permission: { resource: 'medicalReview', action: 'read' } 
   },
   { 
     name: "ICSR Reports", 
     href: "/dashboard/full-report", 
     icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'reports', action: 'read' } // Requires reports.read permission
+    permission: { resource: 'icsrReports', action: 'read' } 
   },
   { 
     name: "AOI Assessment", 
     href: "/dashboard/aoi-assessment", 
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'studies', action: 'read' } // Requires studies.read permission
+    permission: { resource: 'aoiAssessment', action: 'read' } 
   },
   { 
     name: "Reports", 
     href: "/dashboard/reports", 
     icon: <ChartBarIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'studies', action: 'read' } // Requires studies.read permission
+    permission: { resource: 'reports', action: 'read' } 
   },
   { 
     name: "Audit Trail", 
     href: "/dashboard/audit-trail", 
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'audit', action: 'read' } // Requires audit.read permission
+    permission: { resource: 'auditTrail', action: 'read' } 
   },
   { 
     name: "User Management", 
     href: "/dashboard/user-management", 
     icon: <UsersIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'users', action: 'read' } // Requires users.read permission
+    permission: { resource: 'users', action: 'read' } 
   },
   { 
     name: "Legacy Data", 
     href: "/dashboard/legacy-data", 
     icon: <TableCellsIcon className="w-5 h-5 mr-2" />, 
-    permission: null
+    permission: { resource: 'legacyData', action: 'read' }
   },
   { 
     name: "Archive", 
     href: "/dashboard/archive", 
     icon: <ArchiveBoxIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'settings', action: 'read' } // Requires settings.read permission
+    permission: { resource: 'archive', action: 'read' } 
   },
   { 
     name: "Settings", 
     href: "/dashboard/settings", 
     icon: <Cog6ToothIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'settings', action: 'read' } // Requires settings.read permission
+    permission: { resource: 'settings', action: 'read' } 
   },
 ];
 
