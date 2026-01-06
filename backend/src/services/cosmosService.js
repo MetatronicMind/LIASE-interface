@@ -229,6 +229,7 @@ class CosmosService {
     switch (containerName) {
       case 'organizations':
         return item.id || item;
+      case 'roles':
       case 'users':
       case 'drugs':
       case 'studies':

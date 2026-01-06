@@ -75,7 +75,10 @@ class Role {
         comment_fields: false, 
         edit_fields: false, 
         revoke_studies: false 
-      }
+      },
+      notifications: { read: false, write: false, delete: false },
+      email: { read: false, write: false, delete: false },
+      admin_config: { read: false, write: false, manage_jobs: false }
     };
 
     // Merge provided permissions with default structure
