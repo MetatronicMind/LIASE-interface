@@ -261,7 +261,7 @@ router.delete('/:userId',
 
 // Get available roles for user assignment
 router.get('/roles/available',
-  authorizePermission('users', 'write'),
+  authorizePermission('users', 'read'),
   async (req, res) => {
     try {
       const roles = await roleService.getRolesByOrganization(req.user.organizationId);
