@@ -41,10 +41,23 @@ class Role {
       roles: { read: false, write: false, delete: false },
       drugs: { read: false, write: false, delete: false },
       studies: { read: false, write: false, delete: false },
-      audit: { read: false, write: false, delete: false },
-      settings: { read: false, write: false },
+      audit: { read: false, write: false, delete: false, export: false },
+      settings: { 
+        read: false, 
+        write: false,
+        viewDateTime: false,
+        viewRoleManagement: false,
+        viewOrganization: false,
+        viewWorkflow: false,
+        viewNotifications: false,
+        viewEmail: false,
+        viewArchival: false,
+        viewAdminConfig: false,
+        viewStudyQueue: false,
+        viewSystemConfig: false
+      },
       organizations: { read: false, write: false, delete: false },
-      reports: { read: false, write: false, delete: false },
+      reports: { read: false, write: false, delete: false, export: false },
       // New workflow-specific permissions
       triage: { 
         read: false, 
@@ -79,7 +92,11 @@ class Role {
       },
       notifications: { read: false, write: false, delete: false },
       email: { read: false, write: false, delete: false },
-      admin_config: { read: false, write: false, manage_jobs: false }
+      admin_config: { read: false, write: false, manage_jobs: false },
+      // Added missing modules
+      aoiAssessment: { read: false, save: false },
+      legacyData: { read: false, create: false },
+      archive: { read: false, archive: false }
     };
 
     // Merge provided permissions with default structure
