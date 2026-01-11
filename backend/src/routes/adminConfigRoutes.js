@@ -21,6 +21,13 @@ const validate = (req, res, next) => {
 
 // Middleware to check admin permissions
 const requireAdmin = (req, res, next) => {
+  // Allow explicit exceptions for workflow config reading
+  // This allows Data Entry users to read workflow config to know where to revoke/reject cases to
+  if (req.method === 'GET' && 
+      (req.path === '/workflow' || req.params.configType === 'workflow')) {
+    return next();
+  }
+
   // For GET requests, allow read access
   if (req.method === 'GET') {
     if (!req.user.permissions?.admin_config?.read && 
@@ -37,6 +44,219 @@ const requireAdmin = (req, res, next) => {
   }
   next();
 };
+
+// ========== Super Admin System Configuration ==========
+
+// Middleware to check super admin permissions
+const requireSuperAdmin = (req, res, next) => {
+  const role = req.user.role ? req.user.role.toLowerCase() : '';
+  // Allow 'superadmin' and 'admin' (for easier access during development/testing)
+  if (role !== 'superadmin' && role !== 'admin') {
+    console.warn(`[AdminConfig] Access denied. Required: superadmin/admin, Actual: ${req.user.role}`);
+    return res.status(403).json({ 
+      error: 'Super admin permissions required',
+      details: `Current role: ${req.user.role}`
+    });
+  }
+  next();
+};
+
+// Get system configuration
+router.get(
+  '/system-config',
+  // authenticateToken is already applied in app.js
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      console.log('Fetching system config for user:', req.user.id, 'Org:', req.user.organizationId);
+
+      // 1. Fetch configured values from database
+      const dbConfig = await adminConfigService.getConfig(
+        req.user.organizationId,
+        'system_config'
+      );
+
+      const savedData = dbConfig?.configData || {};
+
+      // 2. Fetch system configuration from environment variables and database
+      const systemConfig = {
+        aiInferenceEndpoints: {
+          primary: savedData.aiInferenceEndpoints?.primary || process.env.AI_INFERENCE_URL_1 || 'http://48.217.12.7/get_AI_inference',
+          secondary: savedData.aiInferenceEndpoints?.secondary || process.env.AI_INFERENCE_URL_2 || 'http://4.157.127.230/get_AI_inference',
+          tertiary: savedData.aiInferenceEndpoints?.tertiary || process.env.AI_INFERENCE_URL_3 || 'http://4.157.29.153/get_AI_inference',
+          quaternary: savedData.aiInferenceEndpoints?.quaternary || process.env.AI_INFERENCE_URL_4 || 'http://4.236.195.153/get_AI_inference',
+        },
+        r3XmlEndpoint: savedData.r3XmlEndpoint || process.env.R3_XML_ENDPOINT || 'http://4.236.195.153/get_r3_xml',
+        // Make sure to use the saved PubMed endpoint if available, otherwise default
+        pubmedApiEndpoint: savedData.pubmedApiEndpoint || process.env.PUBMED_API_ENDPOINT || 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/',
+        pmidListEndpoint: savedData.pmidListEndpoint || process.env.PMID_LIST_ENDPOINT || 'http://48.217.12.7/get_pmidlist/',
+        
+        backendPort: parseInt(process.env.PORT) || 8000,
+        frontendPort: 3000,
+        backendUrl: process.env.BACKEND_URL || 'http://localhost:8000',
+        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        aiProcessing: {
+          maxConcurrentRequests: parseInt(process.env.AI_MAX_CONCURRENT) || 5,
+          requestTimeout: parseInt(process.env.AI_REQUEST_TIMEOUT) || 30000,
+          retryAttempts: parseInt(process.env.AI_RETRY_ATTEMPTS) || 3,
+          batchSize: parseInt(process.env.AI_BATCH_SIZE) || 10,
+          enableCircuitBreaker: process.env.AI_CIRCUIT_BREAKER !== 'false',
+          circuitBreakerThreshold: parseInt(process.env.AI_CIRCUIT_BREAKER_THRESHOLD) || 5,
+          ...savedData.aiProcessing
+        },
+        database: {
+          cosmosDbEndpoint: process.env.COSMOS_DB_ENDPOINT || '',
+          databaseId: process.env.COSMOS_DB_DATABASE_ID || 'LIASE-DB',
+          maxConnectionPoolSize: parseInt(process.env.DB_MAX_POOL_SIZE) || 100,
+          requestTimeout: parseInt(process.env.DB_REQUEST_TIMEOUT) || 30000,
+          ...savedData.database
+        },
+        rateLimiting: {
+          enabled: process.env.RATE_LIMIT_ENABLED !== 'false',
+          windowMs: parseInt(process.env.RATE_LIMIT_WINDOW) || 900000,
+          maxRequests: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+          ...savedData.rateLimiting
+        },
+        email: {
+          smtpHost: process.env.SMTP_HOST || '',
+          smtpPort: parseInt(process.env.SMTP_PORT) || 587,
+          smtpSecure: process.env.SMTP_SECURE === 'true',
+          fromName: process.env.SMTP_FROM_NAME || 'LIASE Notifications',
+          fromEmail: process.env.SMTP_FROM_EMAIL || '',
+          ...savedData.email
+        },
+        scheduler: {
+          drugSearchInterval: process.env.DRUG_SEARCH_CRON || '0 */6 * * *',
+          dailyReportsTime: process.env.DAILY_REPORTS_CRON || '0 9 * * *',
+          notificationProcessingInterval: parseInt(process.env.NOTIFICATION_INTERVAL) || 10,
+          ...savedData.scheduler
+        },
+        security: {
+          jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+          passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH) || 8,
+          enableMfa: process.env.ENABLE_MFA === 'true',
+          sessionTimeout: parseInt(process.env.SESSION_TIMEOUT) || 60,
+          maxLoginAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5,
+          ...savedData.security
+        },
+        maintenance: {
+          enabled: process.env.MAINTENANCE_MODE === 'true',
+          message: process.env.MAINTENANCE_MESSAGE || 'System is under maintenance. Please try again later.',
+          allowedIps: (process.env.MAINTENANCE_ALLOWED_IPS || '').split(',').filter(ip => ip.trim()),
+          ...savedData.maintenance
+        },
+      };
+
+      res.json(systemConfig);
+    } catch (error) {
+      console.error('Error getting system config:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Update system configuration (saves to database for runtime changes)
+router.post(
+  '/system-config',
+  // authenticateToken is already applied in app.js
+  requireSuperAdmin,
+  [
+    body('aiInferenceEndpoints').optional().isObject(),
+    body('r3XmlEndpoint').optional().isURL(),
+    body('pmidListEndpoint').optional().isURL(),
+    body('backendPort').optional().isInt({ min: 1000, max: 65535 }),
+    body('frontendPort').optional().isInt({ min: 1000, max: 65535 }),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      // Store system configuration in AdminConfig collection
+      const config = await adminConfigService.updateConfig(
+        req.user.organizationId,
+        'system_config',
+        req.body,
+        req.user.id
+      );
+
+      res.json({
+        success: true,
+        message: 'System configuration saved successfully. Note: Environment variable changes require server restart.',
+        config
+      });
+    } catch (error) {
+      console.error('Error saving system config:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Test endpoint connectivity
+router.post(
+  '/test-endpoint',
+  // authenticateToken is already applied in app.js
+  requireSuperAdmin,
+  [
+    body('type').notEmpty(),
+    body('url').isURL()
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { type, url } = req.body;
+      // Use global fetch (Node 18+) or dynamic import for node-fetch v3 (ESM)
+      const fetchImplementation = global.fetch || (await import('node-fetch')).default;
+      
+      console.log(`Testing connection to ${url} (Type: ${type})`);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+      try {
+        const response = await fetchImplementation(url, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'LIASE-System-Test/1.0'
+          }
+        });
+
+        clearTimeout(timeout);
+
+        // Treat 2xx and 422 (Unprocessable Entity) as successful connections
+        const isSuccess = response.ok || response.status === 422;
+
+        res.json({
+          success: isSuccess,
+          message: isSuccess 
+            ? `Connection successful (Status: ${response.status})` 
+            : `Connection failed (Status: ${response.status})`,
+          statusCode: response.status,
+          responseTime: response.headers.get('x-response-time') || 'N/A'
+        });
+      } catch (fetchError) {
+        clearTimeout(timeout);
+        
+        if (fetchError.name === 'AbortError') {
+          res.json({
+            success: false,
+            message: 'Connection timeout (>15 seconds)'
+          });
+        } else {
+          res.json({
+            success: false,
+            message: `Connection error: ${fetchError.message}`
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error testing endpoint:', error);
+      res.status(500).json({ 
+        success: false,
+        message: `Internal server error: ${error.message}` 
+      });
+    }
+  }
+);
 
 // ========== General Config Operations ==========
 
@@ -523,186 +743,6 @@ router.get(
     } catch (error) {
       console.error('Error getting job history:', error);
       res.status(500).json({ error: error.message });
-    }
-  }
-);
-
-// ========== Super Admin System Configuration ==========
-
-// Middleware to check super admin permissions
-const requireSuperAdmin = (req, res, next) => {
-  if (req.user.role !== 'superadmin') {
-    return res.status(403).json({ error: 'Super admin permissions required' });
-  }
-  next();
-};
-
-// Get system configuration
-router.get(
-  '/system-config',
-  authenticateToken,
-  requireSuperAdmin,
-  async (req, res) => {
-    try {
-      // Fetch system configuration from environment variables and database
-      const systemConfig = {
-        aiInferenceEndpoints: {
-          primary: process.env.AI_INFERENCE_URL_1 || '',
-          secondary: process.env.AI_INFERENCE_URL_2 || '',
-          tertiary: process.env.AI_INFERENCE_URL_3 || '',
-        },
-        r3XmlEndpoint: process.env.R3_XML_ENDPOINT || '',
-        pubmedApiEndpoint: process.env.PUBMED_API_ENDPOINT || 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/',
-        backendPort: parseInt(process.env.PORT) || 8000,
-        frontendPort: 3000,
-        backendUrl: process.env.BACKEND_URL || 'http://localhost:8000',
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-        aiProcessing: {
-          maxConcurrentRequests: parseInt(process.env.AI_MAX_CONCURRENT) || 5,
-          requestTimeout: parseInt(process.env.AI_REQUEST_TIMEOUT) || 30000,
-          retryAttempts: parseInt(process.env.AI_RETRY_ATTEMPTS) || 3,
-          batchSize: parseInt(process.env.AI_BATCH_SIZE) || 10,
-          enableCircuitBreaker: process.env.AI_CIRCUIT_BREAKER !== 'false',
-          circuitBreakerThreshold: parseInt(process.env.AI_CIRCUIT_BREAKER_THRESHOLD) || 5,
-        },
-        database: {
-          cosmosDbEndpoint: process.env.COSMOS_DB_ENDPOINT || '',
-          databaseId: process.env.COSMOS_DB_DATABASE_ID || 'LIASE-DB',
-          maxConnectionPoolSize: parseInt(process.env.DB_MAX_POOL_SIZE) || 100,
-          requestTimeout: parseInt(process.env.DB_REQUEST_TIMEOUT) || 30000,
-        },
-        rateLimiting: {
-          enabled: process.env.RATE_LIMIT_ENABLED !== 'false',
-          windowMs: parseInt(process.env.RATE_LIMIT_WINDOW) || 900000,
-          maxRequests: parseInt(process.env.RATE_LIMIT_MAX) || 100,
-        },
-        email: {
-          smtpHost: process.env.SMTP_HOST || '',
-          smtpPort: parseInt(process.env.SMTP_PORT) || 587,
-          smtpSecure: process.env.SMTP_SECURE === 'true',
-          fromName: process.env.SMTP_FROM_NAME || 'LIASE Notifications',
-          fromEmail: process.env.SMTP_FROM_EMAIL || '',
-        },
-        scheduler: {
-          drugSearchInterval: process.env.DRUG_SEARCH_CRON || '0 */6 * * *',
-          dailyReportsTime: process.env.DAILY_REPORTS_CRON || '0 9 * * *',
-          notificationProcessingInterval: parseInt(process.env.NOTIFICATION_INTERVAL) || 10,
-        },
-        security: {
-          jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
-          passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH) || 8,
-          enableMfa: process.env.ENABLE_MFA === 'true',
-          sessionTimeout: parseInt(process.env.SESSION_TIMEOUT) || 60,
-          maxLoginAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5,
-        },
-        maintenance: {
-          enabled: process.env.MAINTENANCE_MODE === 'true',
-          message: process.env.MAINTENANCE_MESSAGE || 'System is under maintenance. Please try again later.',
-          allowedIps: (process.env.MAINTENANCE_ALLOWED_IPS || '').split(',').filter(ip => ip.trim()),
-        },
-      };
-
-      res.json(systemConfig);
-    } catch (error) {
-      console.error('Error getting system config:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
-
-// Update system configuration (saves to database for runtime changes)
-router.post(
-  '/system-config',
-  authenticateToken,
-  requireSuperAdmin,
-  [
-    body('aiInferenceEndpoints').optional().isObject(),
-    body('r3XmlEndpoint').optional().isURL(),
-    body('backendPort').optional().isInt({ min: 1000, max: 65535 }),
-    body('frontendPort').optional().isInt({ min: 1000, max: 65535 }),
-  ],
-  validate,
-  async (req, res) => {
-    try {
-      // Store system configuration in AdminConfig collection
-      const config = await adminConfigService.updateConfig(
-        req.user.organizationId,
-        'system_config',
-        req.body,
-        req.user.id
-      );
-
-      res.json({
-        success: true,
-        message: 'System configuration saved successfully. Note: Environment variable changes require server restart.',
-        config
-      });
-    } catch (error) {
-      console.error('Error saving system config:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
-
-// Test endpoint connectivity
-router.post(
-  '/test-endpoint',
-  authenticateToken,
-  requireSuperAdmin,
-  [
-    body('type').notEmpty(),
-    body('url').isURL()
-  ],
-  validate,
-  async (req, res) => {
-    try {
-      const { type, url } = req.body;
-      const fetch = require('node-fetch');
-
-      // Test the endpoint with a simple GET or POST request
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-      try {
-        const response = await fetch(url, {
-          method: 'GET',
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'LIASE-System-Test/1.0'
-          }
-        });
-
-        clearTimeout(timeout);
-
-        res.json({
-          success: response.ok,
-          message: response.ok 
-            ? `Connection successful (Status: ${response.status})` 
-            : `Connection failed (Status: ${response.status})`,
-          statusCode: response.status,
-          responseTime: response.headers.get('x-response-time') || 'N/A'
-        });
-      } catch (fetchError) {
-        clearTimeout(timeout);
-        
-        if (fetchError.name === 'AbortError') {
-          res.json({
-            success: false,
-            message: 'Connection timeout (>10 seconds)'
-          });
-        } else {
-          res.json({
-            success: false,
-            message: `Connection error: ${fetchError.message}`
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error testing endpoint:', error);
-      res.status(500).json({ 
-        success: false,
-        error: error.message 
-      });
     }
   }
 );

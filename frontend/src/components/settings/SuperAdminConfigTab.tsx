@@ -19,9 +19,11 @@ interface SystemConfig {
     primary: string;
     secondary: string;
     tertiary: string;
+    quaternary: string;
   };
   r3XmlEndpoint: string;
   pubmedApiEndpoint: string;
+  pmidListEndpoint: string;
   
   // Ports and URLs
   backendPort: number;
@@ -103,7 +105,8 @@ export default function SuperAdminConfigTab() {
   const fetchConfig = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/admin-config/system-config", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const response = await fetch(`${apiUrl}/admin-config/system-config`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -126,12 +129,14 @@ export default function SuperAdminConfigTab() {
 
   const getDefaultConfig = (): SystemConfig => ({
     aiInferenceEndpoints: {
-      primary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_1 || "",
-      secondary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_2 || "",
-      tertiary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_3 || "",
+      primary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_1 || "http://48.217.12.7/get_AI_inference",
+      secondary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_2 || "http://4.157.127.230/get_AI_inference",
+      tertiary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_3 || "http://4.157.29.153/get_AI_inference",
+      quaternary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_4 || "http://4.236.195.153/get_AI_inference",
     },
-    r3XmlEndpoint: process.env.NEXT_PUBLIC_R3_XML_ENDPOINT || "",
+    r3XmlEndpoint: process.env.NEXT_PUBLIC_R3_XML_ENDPOINT || "http://4.236.195.153/get_r3_xml",
     pubmedApiEndpoint: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/",
+    pmidListEndpoint: process.env.NEXT_PUBLIC_PMID_LIST_ENDPOINT || "http://48.217.12.7/get_pmidlist/",
     backendPort: 8000,
     frontendPort: 3000,
     backendUrl: process.env.NEXT_PUBLIC_API_URL || "https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api",
@@ -189,7 +194,8 @@ export default function SuperAdminConfigTab() {
     
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/admin-config/system-config", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const response = await fetch(`${apiUrl}/admin-config/system-config`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -217,7 +223,8 @@ export default function SuperAdminConfigTab() {
     
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch("/api/admin-config/test-endpoint", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const response = await fetch(`${apiUrl}/admin-config/test-endpoint`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -337,7 +344,7 @@ export default function SuperAdminConfigTab() {
             <div className="space-y-4">
               <h4 className="font-medium text-gray-700">AI Inference Endpoints</h4>
               
-              {["primary", "secondary", "tertiary"].map((endpoint) => (
+              {["primary", "secondary", "tertiary", "quaternary"].map((endpoint) => (
                 <div key={endpoint} className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700 capitalize">
                     {endpoint} AI Endpoint
@@ -424,6 +431,47 @@ export default function SuperAdminConfigTab() {
                     <XCircleIcon className="w-4 h-4" />
                   )}
                   {testResults["r3-xml"].message}
+                </div>
+              )}
+            </div>
+
+            {/* PMID List Endpoint */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                PMID List Endpoint
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={config.pmidListEndpoint || ""}
+                  onChange={(e) => updateConfig(["pmidListEndpoint"], e.target.value)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="http://..."
+                />
+                <button
+                  onClick={() => testEndpoint("pmid-list", config.pmidListEndpoint)}
+                  disabled={testing["pmid-list"]}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {testing["pmid-list"] ? (
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Test"
+                  )}
+                </button>
+              </div>
+              {testResults["pmid-list"] && (
+                <div
+                  className={`flex items-center gap-2 text-sm ${
+                    testResults["pmid-list"].success ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {testResults["pmid-list"].success ? (
+                    <CheckCircleIcon className="w-4 h-4" />
+                  ) : (
+                    <XCircleIcon className="w-4 h-4" />
+                  )}
+                  {testResults["pmid-list"].message}
                 </div>
               )}
             </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
+import { toast } from "react-hot-toast";
 import { userService } from "@/services/userService";
 import { roleService, type Role } from "@/services/roleService";
 
@@ -59,7 +60,7 @@ export default function AddUserPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    // setError(null);
 
     try {
       // Validate form
@@ -81,11 +82,12 @@ export default function AddUserPage() {
       console.log('User created successfully:', newUser);
       
       // Show success and redirect
-      alert(`User "${formData.username}" created successfully!`);
+      toast.success(`User "${formData.username}" created successfully!`);
       router.push('/dashboard/user-management');
     } catch (err: any) {
       console.error('User creation error:', err);
-      setError(err.message || 'Failed to create user');
+      // Show toast error instead of inline error
+      toast.error(err.message || 'Failed to create user');
     } finally {
       setLoading(false);
     }
@@ -128,17 +130,7 @@ export default function AddUserPage() {
         {/* Form */}
         <div className="bg-white rounded-xl shadow border border-blue-100">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Error/Warning Message */}
-            {error && (
-              <div className={`px-4 py-3 rounded ${
-                error.includes('Note:') 
-                  ? 'bg-yellow-100 border border-yellow-400 text-yellow-800' 
-                  : 'bg-red-100 border border-red-400 text-red-700'
-              }`}>
-                {error}
-              </div>
-            )}
-
+            
             {/* Username */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">

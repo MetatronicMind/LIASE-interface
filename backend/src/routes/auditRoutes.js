@@ -15,6 +15,11 @@ router.post('/',
         return res.status(401).json({ error: 'User not authenticated' });
       }
 
+      // Skip logging navigation events (Clicked on different tabs/pages)
+      if (details && typeof details === 'string' && details.startsWith('Clicked on')) {
+        return res.status(200).json({ success: true, ignored: true });
+      }
+
       const auditLog = new AuditLog({
         organizationId: req.user.organizationId,
         userId: req.user.id,

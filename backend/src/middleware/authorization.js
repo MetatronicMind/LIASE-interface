@@ -39,9 +39,44 @@ const authorizePermission = (resource, action) => {
     }
 
     // Check if user has the required permission
-    const hasPermission = typeof req.user.hasPermission === 'function' 
-      ? req.user.hasPermission(resource, action)
-      : false;
+    let hasPermission = false;
+
+    // Method 1: Use User model method if available
+    if (typeof req.user.hasPermission === 'function') {
+      hasPermission = req.user.hasPermission(resource, action);
+    } 
+    // Method 2: Fallback manual check (if req.user is plain object)
+    else {
+      console.warn('Checking permissions on plain user object (missing prototype methods)');
+      
+      // Check for Admin/Super Admin role (case-insensitive, normalized)
+      if (req.user.role) {
+        const normalizedRole = req.user.role.toLowerCase().replace(/[\s_]/g, '');
+        if (['admin', 'superadmin'].includes(normalizedRole)) {
+          hasPermission = true;
+        }
+      }
+      
+      // Check explicit permissions if not already approved as admin
+      if (!hasPermission && req.user.permissions && req.user.permissions[resource]) {
+        hasPermission = req.user.permissions[resource][action] === true;
+      }
+    }
+
+    // Implicitly allow 'read' and 'write' (but NOT 'delete') for the 'studies' resource
+    // This replaces the configurable "Studies (Core)" permission module
+    if (resource === 'studies' && (action === 'read' || action === 'write')) {
+      hasPermission = true;
+    }
+    
+    // Explicit override for admins - doubled check to be absolutely sure
+    if (!hasPermission && req.user.role) {
+      const normalizedRole = req.user.role.toLowerCase().replace(/[\s_]/g, '');
+      const normalizedDisplayName = req.user.roleDisplayName ? req.user.roleDisplayName.toLowerCase().replace(/[\s_]/g, '') : '';
+      if (['admin', 'superadmin'].includes(normalizedRole) || ['admin', 'superadmin'].includes(normalizedDisplayName)) {
+        hasPermission = true;
+      }
+    }
 
     if (!hasPermission) {
       return res.status(403).json({ 
@@ -67,7 +102,12 @@ const authorizeSelfOrAdmin = (req, res, next) => {
 
   const targetUserId = req.params.userId || req.params.id;
   
-  if (req.user.role === 'Admin' || req.user.id === targetUserId) {
+  // Use isAdmin() method if available (User model instance), otherwise check role manualy
+  const isUserAdmin = typeof req.user.isAdmin === 'function' 
+    ? req.user.isAdmin() 
+    : (req.user.role && ['admin', 'superadmin'].includes(req.user.role.toLowerCase()));
+
+  if (isUserAdmin || req.user.id === targetUserId) {
     return next();
   }
 

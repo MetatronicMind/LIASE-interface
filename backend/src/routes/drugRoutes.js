@@ -858,7 +858,7 @@ router.post('/search-configs',
     body('query').isLength({ min: 1, max: 200 }).withMessage('Query must be 1-200 characters'),
     body('sponsor').notEmpty().withMessage('Sponsor is required').isLength({ max: 100 }).withMessage('Sponsor must be max 100 characters'),
     body('brandName').optional().isLength({ max: 100 }).withMessage('Brand name must be max 100 characters'),
-    body('frequency').isIn(['weekly', 'custom']).withMessage('Invalid frequency'),
+    body('frequency').isIn(['daily', 'weekly', 'monthly', 'custom', 'manual']).withMessage('Invalid frequency'),
     body('customFrequencyHours').optional().isInt({ min: 1, max: 8760 }).withMessage('Custom frequency must be 1-8760 hours'),
     body('nextRunAt').optional().isISO8601().withMessage('Next run at must be a valid ISO 8601 date'),
     body('maxResults').optional().isInt({ min: 1, max: 10000 }).withMessage('Max results must be 1-10000'),
@@ -866,12 +866,16 @@ router.post('/search-configs',
     body('includeSafety').optional().isBoolean().withMessage('Include safety must be boolean'),
     body('sendToExternalApi').optional().isBoolean().withMessage('Send to external API must be boolean'),
     body('dateFrom').optional({ nullable: true }).custom(value => {
+      // Accepting YYYY-MM-DD or YYYY/MM/DD or empty string
+      if (!value) return true;
       if (value && !value.match(/^\d{4}[-\/]\d{2}[-\/]\d{2}$/)) {
         throw new Error('Date from must be in YYYY-MM-DD or YYYY/MM/DD format');
       }
       return true;
     }),
     body('dateTo').optional({ nullable: true }).custom(value => {
+       // Accepting YYYY-MM-DD or YYYY/MM/DD or empty string
+       if (!value) return true;
       if (value && !value.match(/^\d{4}[-\/]\d{2}[-\/]\d{2}$/)) {
         throw new Error('Date to must be in YYYY-MM-DD or YYYY/MM/DD format');
       }
@@ -934,7 +938,9 @@ router.post('/search-configs',
           name: config.name,
           query: config.query,
           frequency: config.frequency
-        }
+        },
+        null,
+        config.toObject()
       );
       
       res.status(201).json({
@@ -974,10 +980,14 @@ router.post('/search-configs/:configId/run',
         });
       }
       
-      // Allow access if user is admin/superadmin OR owns the config
+      // Allow access if user is admin/superadmin OR owns the config OR has explicit write permission
+      const hasWritePermission = req.user.permissions?.drugs?.write === true || 
+                               (req.user.hasPermission && req.user.hasPermission('drugs', 'write'));
+
       const isAdminOrOwner = req.user.role === 'admin' || 
                             req.user.role === 'superadmin' || 
-                            config.userId === req.user.id;
+                            config.userId === req.user.id ||
+                            hasWritePermission;
       
       if (!isAdminOrOwner) {
         return res.status(403).json({
@@ -1124,10 +1134,17 @@ router.put('/search-configs/:configId',
         });
       }
       
-      // Allow modification if user is admin/superadmin OR owns the config
+      // Allow modification if user is admin/superadmin OR owns the config OR has explicit write permission
+      // We check explicit permission here because authorizePermission middleware check at the route level
+      // only verifies the capability, but this block was enforcing strict ownership. We want to allow
+      // users with the 'write' permission to edit any config if they have the role.
+      const hasWritePermission = req.user.permissions?.drugs?.write === true || 
+                               (req.user.hasPermission && req.user.hasPermission('drugs', 'write'));
+
       const isAdminOrOwner = req.user.role === 'admin' || 
                             req.user.role === 'superadmin' || 
-                            existingConfig.userId === req.user.id;
+                            existingConfig.userId === req.user.id ||
+                            hasWritePermission;
       
       if (!isAdminOrOwner) {
         return res.status(403).json({
@@ -1353,7 +1370,9 @@ router.post('/',
         'drug',
         createdDrug.id,
         `Created new drug: ${drug.name}`,
-        { manufacturer: drug.manufacturer, rsi: drug.rsi }
+        { manufacturer: drug.manufacturer, rsi: drug.rsi },
+        null,
+        createdDrug
       );
 
       res.status(201).json({
@@ -1452,7 +1471,9 @@ router.put('/:drugId',
         'drug',
         drugId,
         `Updated drug: ${updatedDrug.name}`,
-        { updates: Object.keys(updates) }
+        { updates: Object.keys(updates) },
+        existingDrug,
+        updatedDrug
       );
 
       res.json({
@@ -1985,7 +2006,8 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
       includeAdverseEvents: configObject.includeAdverseEvents,
       includeSafety: configObject.includeSafety,
       dateFrom: configObject.dateFrom,
-      dateTo: configObject.dateTo
+      dateTo: configObject.dateTo,
+      organizationId: user.organizationId
     });
 
     // Update job progress - PubMed search completed

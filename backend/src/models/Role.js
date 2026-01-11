@@ -67,7 +67,8 @@ class Role {
       data_entry: { 
         read: false, 
         write: false, 
-        r3_form: false 
+        r3_form: false,
+        revoke_studies: false
       },
       medical_examiner: { 
         read: false, 

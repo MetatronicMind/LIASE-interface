@@ -36,49 +36,49 @@ const permissionBasedNavItems = [
     name: "Literature Search Configuration", 
     href: "/dashboard/drug-management", 
     icon: <BeakerIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'literatureSearch', action: 'search' } 
+    permission: { resource: 'drugs', action: 'read' } 
   },
   { 
     name: "Literature Triage", 
     href: "/dashboard/triage", 
     icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'literatureTriage', action: 'read' } 
+    permission: { resource: 'triage', action: 'read' } 
   },
   { 
     name: "QC Allocation", 
     href: "/dashboard/qa", 
     icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'qcAllocation', action: 'read' } 
+    permission: { resource: 'QA', action: 'read' } 
   },
   { 
     name: "QC Triage Page", 
     href: "/dashboard/qc-triage", 
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'qcTriage', action: 'read' } 
+    permission: { resource: 'QC', action: 'read' } 
   },
   { 
     name: "Data Entry", 
     href: "/dashboard/data-entry", 
     icon: <PencilSquareIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'dataEntry', action: 'read' } 
+    permission: { resource: 'data_entry', action: 'read' } 
   },
   { 
     name: "QC Data Entry", 
     href: "/dashboard/qc", 
     icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'qcDataEntry', action: 'read' } 
+    permission: { resource: 'QC', action: 'read' } 
   },
   { 
     name: "Medical Review", 
     href: "/dashboard/medical-examiner", 
     icon: <UserIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'medicalReview', action: 'read' } 
+    permission: { resource: 'medical_examiner', action: 'read' } 
   },
   { 
     name: "ICSR Reports", 
     href: "/dashboard/full-report", 
     icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'icsrReports', action: 'read' } 
+    permission: { resource: 'reports', action: 'read' } 
   },
   { 
     name: "AOI Assessment", 
@@ -96,7 +96,7 @@ const permissionBasedNavItems = [
     name: "Audit Trail", 
     href: "/dashboard/audit-trail", 
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
-    permission: { resource: 'auditTrail', action: 'read' } 
+    permission: { resource: 'audit', action: 'read' } 
   },
   { 
     name: "User Management", 

@@ -73,6 +73,24 @@ class PubMedService {
     this.minDelay = 334; // ~3 requests per second (NCBI recommendation without API key)
   }
 
+  // Get the configured PMID list endpoint
+  async getPmidEndpoint(organizationId) {
+    try {
+      if (organizationId) {
+        // Dynamic requiring to avoid circular dependency issues if any
+        const adminConfigService = require('./adminConfigService');
+        const config = await adminConfigService.getConfig(organizationId, 'system_config');
+        if (config && config.configData && config.configData.pmidListEndpoint) {
+          return config.configData.pmidListEndpoint;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch dynamic PMID endpoint, using default.', err.message);
+    }
+    // Default fallback (New IP)
+    return 'http://48.217.12.7/get_pmidlist/';
+  }
+
   // Helper to respect rate limits
   async respectRateLimit() {
     const now = Date.now();
@@ -94,7 +112,7 @@ class PubMedService {
     return params;
   }
 
-  async search(query, { maxResults = 50, dateFrom, dateTo } = {}) {
+  async search(query, { maxResults = 50, dateFrom, dateTo, organizationId } = {}) {
     try {
       // Use the new custom PMID endpoint
       const params = new URLSearchParams({
@@ -116,7 +134,13 @@ class PubMedService {
       params.append('start_date', startDate);
       params.append('end_date', endDate);
 
-      const searchUrl = `http://20.246.204.143/get_pmidlist/?${params.toString()}`;
+      const baseUrl = await this.getPmidEndpoint(organizationId);
+      // Ensure baseUrl ends with / if needed, or handles query params correctly
+      // Typically the URL stored is like http://x.x.x.x/get_pmidlist/
+      // We will handle trailing slash
+      const url = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+      const searchUrl = `${url}?${params.toString()}`;
+      
       console.log('PubMed API call:', searchUrl);
       
       await this.respectRateLimit();
@@ -227,14 +251,17 @@ class PubMedService {
   }
 
   // Enhanced drug articles search using the new custom PMID endpoint
-  async getDrugArticles(term, maxResults = 10) {
+  async getDrugArticles(term, maxResults = 10, organizationId = null) {
     try {
       // 1. Search for PMIDs using the new custom endpoint
       // Provide default dates since the API requires them
       const defaultStartDate = '2000-01-01'; 
       const defaultEndDate = new Date().toISOString().split('T')[0]; 
       
-      const searchUrl = `http://20.242.192.125/get_pmidlist/?search=${encodeURIComponent(term)}&start_date=${defaultStartDate}&end_date=${defaultEndDate}`;
+      const baseUrl = await this.getPmidEndpoint(organizationId);
+      const url = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+      const searchUrl = `${url}?search=${encodeURIComponent(term)}&start_date=${defaultStartDate}&end_date=${defaultEndDate}`;
+
       console.log('Search URL:', searchUrl);
       
       const searchResp = await fetch(searchUrl);
@@ -663,7 +690,7 @@ class PubMedService {
 
   // Get drug discovery results with PMIDs using the working approach
   async discoverDrugs(options = {}) {
-    const { maxResults = 1000, dateFrom, dateTo, query = 'drug', sponsor = '', frequency = 'custom' } = options;
+    const { maxResults = 1000, dateFrom, dateTo, query = 'drug', sponsor = '', frequency = 'custom', organizationId } = options;
     
     try {
       console.log('Starting drug discovery with options:', options);
@@ -684,7 +711,9 @@ class PubMedService {
       
       // Build search term without sponsor (sponsor will be passed to AI inference later)
       let searchTerm = query;
+      let pmidList = [];
       
+      console.log('🔄 Attempting to fetch from Custom Endpoint...');
       // Use the new custom PMID endpoint with date range support
       const params = new URLSearchParams({
         search: searchTerm
@@ -700,33 +729,28 @@ class PubMedService {
       params.append('start_date', startDate);
       params.append('end_date', endDate);
       console.log('Using date range:', startDate, 'to', endDate);
+
+      // Get the configured endpoint (dynamic or default)
+      const endpointBase = await this.getPmidEndpoint(organizationId);
+      // Ensure we handle URL construction correctly whether endpoint ends with / or not
+      // and whether it keeps query params or not (though typically it's just a base URL)
+      const separator = endpointBase.includes('?') ? '&' : '?';
+      const searchUrl = `${endpointBase}${separator}${params.toString()}`;
       
-      const searchUrl = `http://52.191.200.41/get_pmidlist/?${params.toString()}`;
       console.log('🔗 Final Search URL:', searchUrl);
-      console.log('🔗 URL Parameters:', params.toString());
       
       const searchResp = await fetch(searchUrl);
       console.log('📡 Search response status:', searchResp.status);
-      console.log('📡 Search response headers:', Object.fromEntries(searchResp.headers.entries()));
       
       if (!searchResp.ok) {
-        console.error(`❌ Custom PMID endpoint failed: ${searchResp.status} ${searchResp.statusText}`);
-        const errorText = await searchResp.text();
-        console.error('❌ Error response:', errorText);
-        return {
-          totalFound: 0,
-          drugs: [],
-          searchDate: new Date().toISOString(),
-          searchParams: options,
-          error: `Custom endpoint failed: ${searchResp.status} - ${errorText}`
-        };
+        throw new Error(`Custom endpoint failed: ${searchResp.status} ${searchResp.statusText}`);
       }
       
       const searchJson = await searchResp.json();
-      console.log('📋 Raw Search response:', JSON.stringify(searchJson, null, 2));
+
+      console.log('📋 Raw Search response received');
       
       // The custom endpoint returns PMIDs directly as an array
-      let pmidList = [];
       if (Array.isArray(searchJson)) {
         pmidList = searchJson;
         console.log(`✅ Custom endpoint returned ${pmidList.length} PMIDs as direct array`);
@@ -737,17 +761,17 @@ class PubMedService {
         pmidList = searchJson.idlist;
         console.log(`✅ Custom endpoint returned ${pmidList.length} PMIDs in idlist property`);
       } else {
-        console.error('❌ No PMIDs found in custom endpoint response');
-        console.error('❌ Response structure:', JSON.stringify(searchJson, null, 2));
-        return {
-          totalFound: 0,
-          drugs: [],
-          searchDate: new Date().toISOString(),
-          searchParams: options,
-          message: 'No results found from custom endpoint'
-        };
+         console.error('❌ No PMIDs found in custom endpoint response');
+         console.error('❌ Response structure:', JSON.stringify(searchJson, null, 2));
+         return {
+           totalFound: 0,
+           drugs: [],
+           searchDate: new Date().toISOString(),
+           searchParams: options,
+           message: 'No results found from custom endpoint'
+         };
       }
-      
+
       if (pmidList.length === 0) {
         console.log('❌ No articles found in response');
         return {

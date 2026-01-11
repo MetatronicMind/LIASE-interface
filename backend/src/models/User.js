@@ -51,6 +51,10 @@ class User {
 
   // Check if user has specific permission
   hasPermission(resource, action) {
+    // Admins always have full permissions
+    if (this.isAdmin()) {
+      return true;
+    }
     if (!this.permissions || !this.permissions[resource]) {
       return false;
     }
@@ -60,8 +64,19 @@ class User {
   // Check if user has any of the specified roles
   hasRole(...roleNames) {
     if (!this.role) return false;
-    const normalizedUserRole = this.role.toLowerCase();
-    return roleNames.some(r => r.toLowerCase() === normalizedUserRole);
+    // Normalize user role: lowercase, remove spaces and underscores to handle "Super Admin", "super_admin", etc.
+    const normalizedUserRole = this.role.toLowerCase().replace(/[\s_]/g, '');
+    
+    // Also check roleDisplayName if available (e.g., this.role="admin" but displayName="Super Admin")
+    // This handles cases where ID lookup sets role to "admin", but display is "Super Admin" and we check for "Super Admin"
+    const normalizedDisplayName = this.roleDisplayName 
+      ? this.roleDisplayName.toLowerCase().replace(/[\s_]/g, '') 
+      : '';
+
+    return roleNames.some(r => {
+      const normalizedCheckRole = r.toLowerCase().replace(/[\s_]/g, '');
+      return normalizedCheckRole === normalizedUserRole || normalizedCheckRole === normalizedDisplayName;
+    });
   }
 
   // Check if user is admin or superadmin
@@ -226,8 +241,9 @@ class User {
     }
 
     if (!isUpdate || data.role) {
-      if (!['Admin', 'Pharmacovigilance', 'Sponsor/Auditor', 'Data Entry', 'Medical Reviewer', 'superadmin', 'admin', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'].includes(data.role)) {
-        errors.push('Role must be Admin, Pharmacovigilance, Sponsor/Auditor, Data Entry, Medical Reviewer, superadmin, admin, pharmacovigilance, sponsor_auditor, data_entry, or medical_examiner');
+      // Allow any string for role as we now support dynamic roles
+      if (data.role && (typeof data.role !== 'string' || data.role.trim().length === 0)) {
+        errors.push('Role must be a valid string');
       }
     }
 

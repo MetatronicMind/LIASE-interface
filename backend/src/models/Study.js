@@ -81,9 +81,12 @@ class Study {
     medicalReviewStatus = 'not_started', // not_started, in_progress, completed, revoked
     medicalReviewedBy = null,
     medicalReviewedAt = null,
+    reviews = [],
     // Allocation fields
     assignedTo = null,
     lockedAt = null,
+    priority = 'normal', // 'normal', 'high'
+    classifiedBy = null,
     fieldComments = [], // Array of field-level comments
     revokedBy = null,
     revokedAt = null,
@@ -148,6 +151,8 @@ class Study {
     this.clientName = clientName;
     this.sponsor = sponsor;
     this.userTag = userTag; // Manual user classification
+    this.priority = priority;
+    this.classifiedBy = classifiedBy;
     
     // QC workflow fields
     this.qaApprovalStatus = qaApprovalStatus;
@@ -241,6 +246,7 @@ class Study {
     
     const previousTag = this.userTag;
     this.userTag = tag;
+    this.classifiedBy = userId;
 
     // Clear assignment/lock when classification is submitted
     // This allows the user to pick up a new case immediately
@@ -316,6 +322,15 @@ class Study {
     this.qaComments = reason;
     this.updatedAt = new Date().toISOString();
     
+    // Assign back to original user with high priority
+    if (this.classifiedBy || this.reviewedBy) {
+      this.assignedTo = this.classifiedBy || this.reviewedBy;
+      this.priority = 'high';
+      this.lockedAt = new Date().toISOString(); // Auto-lock for them
+    } else {
+      this.priority = 'high'; // High priority for pool if no user known
+    }
+
     // If targetStage is provided, update status
     if (targetStage) {
       this.status = targetStage;
@@ -388,6 +403,15 @@ class Study {
     this.r3FormStatus = 'in_progress'; // Reset to allow data entry to fix
     this.updatedAt = new Date().toISOString();
     
+    // Assign back to Data Entry user with high priority
+    if (this.r3FormCompletedBy) {
+      this.assignedTo = this.r3FormCompletedBy;
+      this.priority = 'high';
+      this.lockedAt = new Date().toISOString();
+    } else {
+      this.priority = 'high';
+    }
+
     // Add rejection comment
     this.addComment({
       userId,
@@ -451,14 +475,24 @@ class Study {
     this.revokedBy = userId;
     this.revokedAt = new Date().toISOString();
     this.revocationReason = reason;
+    this.priority = 'high'; // Always high priority on revocation
     
     // Update the main status field if a target stage is provided
     if (targetStage) {
-      this.status = targetStage;
+      // Normalize 'triage' to 'Pending Review' to ensure it's picked up by allocation logic
+      if (targetStage === 'triage') {
+        this.status = 'Pending Review';
+      } else {
+        this.status = targetStage;
+      }
     }
 
     // Handle specific stage logic
     if (targetStage === 'triage') {
+      // Assign back to the user who revoked it (highest priority)
+      this.assignedTo = userId;
+      this.lockedAt = new Date().toISOString();
+      
       // If revoking to triage, we reset QA approval status completely
       // This removes it from QC queue and allows re-classification in Triage
       this.qaApprovalStatus = null;
@@ -473,6 +507,13 @@ class Study {
       this.r3FormStatus = 'not_started';
     } else {
       // Default behavior (revoke to Data Entry)
+      
+      // Assign back to Data Entry user
+      if (this.r3FormCompletedBy) {
+        this.assignedTo = this.r3FormCompletedBy;
+        this.lockedAt = new Date().toISOString();
+      }
+
       this.r3FormStatus = 'in_progress'; // Reset to allow data entry to fix
     }
 

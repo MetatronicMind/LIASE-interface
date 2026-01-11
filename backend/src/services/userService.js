@@ -3,6 +3,25 @@ const roleService = require('./roleService');
 const User = require('../models/User');
 
 class UserService {
+
+  // Helper to deep merge permissions
+  mergePermissions(rolePermissions, userPermissions) {
+    const merged = { ...rolePermissions };
+    
+    // Iterate over user permissions and merge deeply
+    if (userPermissions) {
+      Object.keys(userPermissions).forEach(resource => {
+        if (merged[resource] && typeof merged[resource] === 'object' && typeof userPermissions[resource] === 'object') {
+          // If resource exists in both, merge the actions
+          merged[resource] = { ...merged[resource], ...userPermissions[resource] };
+        } else {
+          // Otherwise just overwrite/add
+          merged[resource] = userPermissions[resource];
+        }
+      });
+    }
+    return merged;
+  }
   
   // Get all users for an organization with their role information
   async getUsersByOrganization(organizationId) {
@@ -33,8 +52,9 @@ class UserService {
           if (role) {
             user.role = role.name;
             user.roleDisplayName = role.displayName;
-            // Merge role permissions with user's custom permissions (user permissions take priority)
-            user.setPermissions({ ...role.permissions, ...userCustomPermissions });
+            // Deep merge role permissions with user's custom permissions
+            const mergedPermissions = this.mergePermissions(role.permissions, userCustomPermissions);
+            user.setPermissions(mergedPermissions);
           }
         } else if (user.role) {
           // Handle legacy users with role names instead of roleId
@@ -47,8 +67,9 @@ class UserService {
           if (role) {
             user.roleId = role.id;
             user.roleDisplayName = role.displayName;
-            // Merge role permissions with user's custom permissions (user permissions take priority)
-            user.setPermissions({ ...role.permissions, ...userCustomPermissions });
+            // Deep merge role permissions with user's custom permissions
+            const mergedPermissions = this.mergePermissions(role.permissions, userCustomPermissions);
+            user.setPermissions(mergedPermissions);
           }
         }
         
@@ -81,8 +102,9 @@ class UserService {
         if (role) {
           user.role = role.name;
           user.roleDisplayName = role.displayName;
-          // Merge role permissions with user's custom permissions (user permissions take priority)
-          user.setPermissions({ ...role.permissions, ...userCustomPermissions });
+          // Deep merge role permissions with user's custom permissions
+          const mergedPermissions = this.mergePermissions(role.permissions, userCustomPermissions);
+          user.setPermissions(mergedPermissions);
         }
       } else if (user.role) {
         // Handle legacy users
@@ -95,8 +117,9 @@ class UserService {
         if (role) {
           user.roleId = role.id;
           user.roleDisplayName = role.displayName;
-          // Merge role permissions with user's custom permissions (user permissions take priority)
-          user.setPermissions({ ...role.permissions, ...userCustomPermissions });
+          // Deep merge role permissions with user's custom permissions
+          const mergedPermissions = this.mergePermissions(role.permissions, userCustomPermissions);
+          user.setPermissions(mergedPermissions);
         }
       }
 
@@ -175,8 +198,45 @@ class UserService {
         createdBy: createdBy.id
       });
 
-      // Set permissions from role
-      user.setPermissions(role.permissions);
+      // Special handling for Admin/SuperAdmin: Grant ALL permissions explicitly
+      const normalizedRoleName = role.name.toLowerCase().replace(/[\s_]/g, '');
+      const normalizedDisplayName = role.displayName ? role.displayName.toLowerCase().replace(/[\s_]/g, '') : '';
+      
+      if (['admin', 'superadmin'].includes(normalizedRoleName) || ['admin', 'superadmin'].includes(normalizedDisplayName)) {
+        console.log('Creating Admin/SuperAdmin user - granting FULL explicit permissions');
+        // Construct a full permission set where everything is true
+        const fullPermissions = {
+          dashboard: { read: true, write: true },
+          users: { read: true, write: true, delete: true, create: true, update: true },
+          roles: { read: true, write: true, delete: true },
+          drugs: { read: true, write: true, delete: true },
+          studies: { read: true, write: true, delete: true },
+          audit: { read: true, write: true, delete: true },
+          settings: { 
+            read: true, write: true, 
+            viewDateTime: true, viewRoleManagement: true, viewOrganization: true, 
+            viewWorkflow: true, viewNotifications: true, viewEmail: true, 
+            viewArchival: true, viewAdminConfig: true, viewStudyQueue: true, 
+            viewTriageConfig: true, viewSystemConfig: true 
+          },
+          organizations: { read: true, write: true, delete: true },
+          reports: { read: true, write: true, delete: true, export: true },
+          triage: { read: true, write: true, classify: true, manual_drug_test: true },
+          QA: { read: true, write: true, approve: true, reject: true },
+          QC: { read: true, write: true, approve: true, reject: true },
+          data_entry: { read: true, write: true, r3_form: true },
+          medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true },
+          notifications: { read: true, write: true, delete: true },
+          email: { read: true, write: true, delete: true },
+          admin_config: { read: true, write: true, manage_jobs: true }
+        };
+        user.setPermissions(fullPermissions);
+      } else {
+        // Normal user: Do NOT allow the static permissions to override the role.
+        // We set permissions to empty object so that the runtime merge (in getUsers/getUserById)
+        // uses the current Role permissions as the truth, rather than a stale snapshot.
+        user.setPermissions({});
+      }
 
       // Hash password
       await user.hashPassword();
@@ -243,7 +303,39 @@ class UserService {
       if (newRole) {
         updatedUser.roleId = newRole.id;
         updatedUser.role = newRole.name;
-        updatedUser.setPermissions(newRole.permissions);
+        
+        const normalizedRoleName = newRole.name.toLowerCase().replace(/[\s_]/g, '');
+        if (['admin', 'superadmin'].includes(normalizedRoleName)) {
+             const fullPermissions = {
+              dashboard: { read: true, write: true },
+              users: { read: true, write: true, delete: true, create: true, update: true },
+              roles: { read: true, write: true, delete: true },
+              drugs: { read: true, write: true, delete: true },
+              studies: { read: true, write: true, delete: true },
+              audit: { read: true, write: true, delete: true },
+              settings: { 
+                read: true, write: true, 
+                viewDateTime: true, viewRoleManagement: true, viewOrganization: true, 
+                viewWorkflow: true, viewNotifications: true, viewEmail: true, 
+                viewArchival: true, viewAdminConfig: true, viewStudyQueue: true, 
+                viewTriageConfig: true, viewSystemConfig: true 
+              },
+              organizations: { read: true, write: true, delete: true },
+              reports: { read: true, write: true, delete: true, export: true },
+              triage: { read: true, write: true, classify: true, manual_drug_test: true },
+              QA: { read: true, write: true, approve: true, reject: true },
+              QC: { read: true, write: true, approve: true, reject: true },
+              data_entry: { read: true, write: true, r3_form: true },
+              medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true },
+              notifications: { read: true, write: true, delete: true },
+              email: { read: true, write: true, delete: true },
+              admin_config: { read: true, write: true, manage_jobs: true }
+            };
+            updatedUser.setPermissions(fullPermissions);
+        } else {
+             // For normal roles, clear static permissions to allow dynamic inheritance
+             updatedUser.setPermissions({});
+        }
       }
 
       // Hash password if being changed

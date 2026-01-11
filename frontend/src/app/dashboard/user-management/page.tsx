@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
-import { PencilIcon, TrashIcon, UserCircleIcon, PlusIcon } from "@heroicons/react/24/solid";
+import { float } from "@heroicons/react/24/solid";
+import { UserCircleIcon, TrashIcon, PencilIcon, PlusIcon } from "@heroicons/react/24/solid";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 import { PermissionGate, useConditionalPermissions } from "@/components/PermissionProvider";
 import { userService, User } from "@/services/userService";
 import { useDateTime } from "@/hooks/useDateTime";
@@ -78,9 +80,11 @@ export default function UserManagementPage() {
     try {
       await userService.deleteUser(userId, hardDelete);
       await fetchUsers();
-      setError(null);
+      // setError(null);
+      toast.success(`User "${username}" deleted successfully`);
     } catch (err: any) {
-      setError(err.message || 'Failed to delete user');
+      // setError(err.message || 'Failed to delete user');
+      toast.error(err.message || 'Failed to delete user');
     }
   };
 

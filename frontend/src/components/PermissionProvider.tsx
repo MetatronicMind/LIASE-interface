@@ -14,24 +14,40 @@ const PermissionContext = createContext<PermissionContextType | null>(null);
 export function PermissionProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
 
+  // Helper to normalize role names for comparison
+  const normalizeRole = (role: string) => role?.toLowerCase().replace(/[\s_]/g, '') || '';
+
+  // Check if user is an Admin or Super Admin
+  const isAdmin = (): boolean => {
+    if (!user || !isAuthenticated || !user.role) return false;
+    const role = normalizeRole(user.role);
+    return role === 'admin' || role === 'superadmin';
+  };
+
+  // Check if user is strictly Super Admin
+  const isSuperAdmin = (): boolean => {
+    if (!user || !isAuthenticated || !user.role) return false;
+    const role = normalizeRole(user.role);
+    return role === 'superadmin';
+  };
+
   const hasPermission = (resource: string, action: string): boolean => {
-    if (!user || !isAuthenticated || !user.permissions) return false;
+    if (!user || !isAuthenticated) return false;
+
+    // implicit: Admin and Super Admin have all permissions
+    if (isAdmin()) {
+      return true;
+    }
+
+    if (!user.permissions) return false;
     return user.permissions[resource]?.[action] === true;
   };
 
   const hasRole = (roleName: string): boolean => {
-    if (!user || !isAuthenticated) return false;
-    return user.role === roleName;
-  };
-
-  const isAdmin = (): boolean => {
-    if (!user || !isAuthenticated) return false;
-    return user.role === 'Admin' || user.role === 'Super Admin';
-  };
-
-  const isSuperAdmin = (): boolean => {
-    if (!user || !isAuthenticated) return false;
-    return user.role === 'Super Admin';
+    if (!user || !isAuthenticated || !user.role) return false;
+    const normalizedUserRole = normalizeRole(user.role);
+    const normalizedCheckRole = normalizeRole(roleName);
+    return normalizedUserRole === normalizedCheckRole;
   };
 
   const value = {

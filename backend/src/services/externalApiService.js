@@ -1,13 +1,14 @@
 // External API Service for sending data to AI inference API
 const batchAiInferenceService = require('./batchAiInferenceService');
+const adminConfigService = require('./adminConfigService');
 
 class ExternalApiService {
   constructor() {
     this.aiInferenceUrls = [
-   'http://20.242.200.176/get_AI_inference',
-    'http://20.246.204.143/get_AI_inference2',
-    'http://20.242.192.125/get_AI_inference3',
-    'http://52.191.200.41/get_AI_inference4'
+      'http://48.217.12.7/get_AI_inference',
+      'http://4.157.127.230/get_AI_inference',
+      'http://4.157.29.153/get_AI_inference',
+      'http://4.236.195.153/get_AI_inference'
     ];
  
     this.apiKey = process.env.EXTERNAL_API_KEY || '';
@@ -40,6 +41,62 @@ class ExternalApiService {
     
     // Start periodic health checks for unhealthy endpoints
     this.startHealthMonitoring();
+  }
+
+  /**
+   * Update endpoints from Admin Configuration
+   */
+  async updateEndpointsFromConfig(organizationId) {
+    if (!organizationId) return;
+    try {
+      const config = await adminConfigService.getConfig(organizationId, 'system_config');
+      if (config && config.configData && config.configData.aiInferenceEndpoints) {
+        const eps = config.configData.aiInferenceEndpoints;
+        const newUrls = [eps.primary, eps.secondary, eps.tertiary, eps.quaternary]
+          .filter(url => url && url.startsWith('http')); // Simple validation
+        
+        if (newUrls.length > 0) {
+          // Check if changed
+          const currentSet = new Set(this.aiInferenceUrls);
+          const newSet = new Set(newUrls);
+          
+          // Only update if different (ignoring order)
+          let changed = newUrls.length !== this.aiInferenceUrls.length;
+          if (!changed) {
+            for (const url of newUrls) {
+              if (!currentSet.has(url)) {
+                changed = true;
+                break;
+              }
+            }
+          }
+
+          if (changed) {
+            console.log('Updating AI Inference Endpoints from System Config:', newUrls);
+            this.aiInferenceUrls = newUrls;
+            
+            // Re-initialize health tracking, preserving existing valid endpoints
+            this.endpointHealth = this.aiInferenceUrls.map(url => {
+              const existing = this.endpointHealth.find(ep => ep.url === url);
+              if (existing) return existing;
+              
+              return {
+                url,
+                isHealthy: true,
+                consecutiveFailures: 0,
+                lastSuccessAt: new Date(),
+                lastFailureAt: null,
+                responseTimeMs: 0
+              };
+            });
+            
+            this.config.maxRetries = this.aiInferenceUrls.length;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to update endpoints from config:', error.message);
+    }
   }
 
   /**
@@ -149,6 +206,11 @@ class ExternalApiService {
    * @returns {Promise<Array>} Array of AI inference responses
    */
   async sendDrugData(drugs, searchParams = {}, options = {}) {
+    // 0. Update endpoints if organizationId is present
+    if (searchParams.organizationId) {
+      await this.updateEndpointsFromConfig(searchParams.organizationId);
+    }
+    
     const startTime = Date.now();
     const drugCount = drugs.length;
 
@@ -160,7 +222,11 @@ class ExternalApiService {
 
     if (shouldUseBatch) {
       console.log(`[ExternalAPI] Using batch processing for ${drugCount} items`);
-      return await this.sendDrugDataBatch(drugs, searchParams, options);
+      // Pass current endpoints to batch service
+      return await this.sendDrugDataBatch(drugs, searchParams, { 
+        ...options, 
+        endpoints: this.aiInferenceUrls 
+      });
     } else {
       console.log(`[ExternalAPI] Using sequential processing for ${drugCount} items`);
       return await this.sendDrugDataSequential(drugs, searchParams, options);
@@ -183,7 +249,8 @@ class ExternalApiService {
         maxConcurrency: options.maxConcurrency || 16,
         enableDetailedLogging: options.enableDetailedLogging !== false,
         enableRetries: options.enableRetries !== false,
-        progressCallback: options.progressCallback
+        progressCallback: options.progressCallback,
+        endpoints: options.endpoints // Pass through dynamic endpoints to batch service
       };
 
       // Use the new batch processing service

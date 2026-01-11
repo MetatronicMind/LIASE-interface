@@ -154,7 +154,8 @@ class DrugSearchScheduler {
                 sponsor: config.sponsor,
                 frequency: config.frequency,
                 configId: config.id,
-                configName: config.name
+                configName: config.name,
+                organizationId: config.organizationId
               });
               
               externalApiSuccess = true;

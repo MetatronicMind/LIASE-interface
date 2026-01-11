@@ -227,7 +227,7 @@ class AdminConfig {
       errors.push('Config type is required');
     }
 
-    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security', 'workflow', 'study_queue', 'triage'];
+    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security', 'workflow', 'study_queue', 'triage', 'system_config'];
     if (!validTypes.includes(this.configType)) {
       errors.push(`Invalid config type. Must be one of: ${validTypes.join(', ')}`);
     }

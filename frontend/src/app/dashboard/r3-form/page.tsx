@@ -122,74 +122,61 @@ interface R3FormData {
 }
 
 const R3_FORM_FIELDS = [
-  // Reporter Information (Category A)
-  { key: "C.2.r.1", label: "Reporter's Name", category: "A", required: true, section: "reporter" },
-  { key: "C.2.r.1.1", label: "Reporter's Title", category: "A", required: false, section: "reporter" },
-  { key: "C.2.r.1.2", label: "Reporter's Given Name", category: "A", required: true, section: "reporter" },
-  { key: "C.2.r.1.3", label: "Reporter's Middle Name", category: "A", required: false, section: "reporter" },
-  { key: "C.2.r.1.4", label: "Reporter's Family Name", category: "A", required: true, section: "reporter" },
-  { key: "C.2.r.2.1", label: "Reporter's Organisation", category: "A", required: false, section: "reporter" },
-  { key: "C.4.r.1", label: "Literature Reference(s)", category: "A", required: true, section: "reporter" },
-  
-  // Patient Characteristics (Category B & C)
-  { key: "D", label: "Patient Characteristics", category: "B", required: false, section: "patient", isHeader: true },
-  { key: "D.1", label: "Patient (name or initials)", category: "C", required: true, section: "patient" },
-  { key: "D.2.1", label: "Date of Birth", category: "C", required: false, section: "patient" },
-  { key: "D.2.2", label: "Age at Time of Onset of Reaction / Event", category: "C", required: false, section: "patient" },
-  { key: "D.2.2a", label: "Age at Time of Onset of Reaction / Event (number)", category: "B", required: false, section: "patient" },
-  { key: "D.2.2b", label: "Age at Time of Onset of Reaction / Event (unit)", category: "B", required: false, section: "patient" },
-  { key: "D.2.2.1a", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (number)", category: "C", required: false, section: "patient" },
-  { key: "D.2.2.1b", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (unit)", category: "B", required: false, section: "patient" },
-  { key: "D.2.3", label: "Patient Age Group (as per reporter)", category: "C", required: false, section: "patient" },
-  { key: "D.3", label: "Body Weight (kg)", category: "C", required: false, section: "patient" },
-  { key: "D.4", label: "Height (cm)", category: "C", required: false, section: "patient" },
-  { key: "D.5", label: "Sex", category: "C", required: false, section: "patient" },
-  { key: "D.7", label: "Relevant Medical History and Concurrent Conditions (not including reaction / event)", category: "C", required: false, section: "patient" },
-  { key: "D.7.1.r", label: "Structured Information on Relevant Medical History (repeat as necessary)", category: "C", required: false, section: "patient" },
-  { key: "D.7.1.r.2", label: "Start Date", category: "C", required: false, section: "patient" },
-  { key: "D.7.1.r.3", label: "Continuing", category: "C", required: false, section: "patient" },
-  { key: "D.7.1.r.4", label: "End Date", category: "C", required: false, section: "patient" },
-  { key: "D.7.1.r.5", label: "Comments", category: "C", required: false, section: "patient" },
-  { key: "D.7.1.r.6", label: "Family History", category: "C", required: false, section: "patient" },
-  { key: "D.7.2", label: "Text for Relevant Medical History and Concurrent Conditions (not including reaction / event)", category: "C", required: false, section: "patient" },
-  { key: "D.7.3", label: "Concomitant Therapies", category: "C", required: false, section: "patient" },
-  { key: "D.8.r", label: "Relevant Past Drug History (repeat as necessary)", category: "C", required: false, section: "patient" },
-  { key: "D.8.r.1", label: "Name of Drug as Reported", category: "C", required: true, section: "patient" },
-  { key: "D.8.r.4", label: "Start Date", category: "C", required: false, section: "patient" },
-  { key: "D.8.r.5", label: "End Date", category: "C", required: false, section: "patient" },
-  { key: "D.9.1", label: "Date of Death", category: "C", required: false, section: "patient" },
-  { key: "D.9.2.r", label: "Reported Cause(s) of Death (repeat as necessary)", category: "C", required: false, section: "patient" },
-  { key: "D.9.2.r.2", label: "Reported Cause(s) of Death (free text)", category: "C", required: false, section: "patient" },
-  
-  // Reaction/Event Information (Category E)
-  { key: "E.i.1.1a", label: "Reaction / Event as Reported by the Primary Source in Native Language", category: "C", required: true, section: "reaction" },
-  { key: "E.i.1.1b", label: "Reaction / Event as Reported by the Primary Source Language", category: "C", required: false, section: "reaction" },
-  { key: "E.i.1.2", label: "Reaction / Event as Reported by the Primary Source for Translation", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.1", label: "Term Highlighted by the Reporter", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2", label: "Seriousness Criteria at Event Level", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2a", label: "Results in Death", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2b", label: "Life Threatening", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2c", label: "Caused / Prolonged Hospitalisation", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2d", label: "Disabling / Incapacitating", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2e", label: "Congenital Anomaly / Birth Defect", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2f", label: "Other Medically Important Condition", category: "C", required: false, section: "reaction" },
-  { key: "E.i.4", label: "Date of Start of Reaction / Event", category: "C", required: false, section: "reaction" },
-  { key: "E.i.5", label: "Date of End of Reaction / Event", category: "C", required: false, section: "reaction" },
-  { key: "E.i.6a", label: "Duration of Reaction / Event (number)", category: "C", required: false, section: "reaction" },
-  { key: "E.i.6b", label: "Duration of Reaction / Event (unit)", category: "C", required: false, section: "reaction" },
-  { key: "E.i.7", label: "Outcome of Reaction / Event at the Time of Last Observation", category: "C", required: false, section: "reaction" },
-  { key: "E.i.9", label: "Identification of the Country Where the Reaction / Event Occurred", category: "C", required: false, section: "reaction" },
-  
-  // Tests and Procedures (Category F)
-  { key: "F.r", label: "Results of Tests and Procedures Relevant to the Investigation of the Patient (repeat as necessary)", category: "C", required: false, section: "tests" },
-  
-  // Drug Information (Category G)
-  { key: "G.k.1", label: "Characterisation of Drug Role", category: "C", required: true, section: "drug" },
-  { key: "G.k.2", label: "Drug Identification", category: "C", required: true, section: "drug" },
-  
-  // Case Narrative (Category H)
-  { key: "H.1", label: "Case Narrative Including Clinical Course, Therapeutic Measures, Outcome and Additional Relevant Information", category: "C", required: false, section: "narrative" },
+  // Header / Batch Information (Category N)
+  { key: "N_1_2", label: "Batch Number", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_5", label: "Date of Batch Transmission", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_1", label: "Message Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_2", label: "Message Sender Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_3", label: "Message Receiver Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_4", label: "Date of Message Creation", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_3", label: "Client Organization ID", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_4", label: "Sender Organization ID", category: "N", required: true, section: "header", readOnly: true },
+
+  // Safety Report / Case Creation (Category C)
+  { key: "C_1_2", label: "Date of Creation", category: "C", required: true, section: "safety", readOnly: true },
+  { key: "C_1_4", label: "Date report was first received from source", category: "C", required: true, section: "safety", readOnly: true },
+  { key: "C_4_r_1", label: "Literature Reference(s)", category: "C", required: false, section: "safety" },
+
+  // Patient Characteristics (Category D)
+  { key: "D_1", label: "Patient (Name or Initials)", category: "D", required: false, section: "patient" },
+  { key: "D_5", label: "Sex", category: "D", required: false, section: "patient" },
+  { key: "D_2_2_a", label: "Age at time of onset of reaction/event (number)", category: "D", required: false, section: "patient", type: "number" },
+  { key: "D_2_2_b", label: "Age at time of onset of reaction/event (unit)", category: "D", required: false, section: "patient", type: "select", options: ["a", "mo", "d", "wk"] },
+  { key: "D_7_1_r_3", label: "Continuing", category: "D", required: false, section: "patient", type: "select", options: ["false", "true", "MSK", "NASK", "ASKU"] },
+  { key: "D_8_r_1", label: "Name of Drug as Reported", category: "D", required: false, section: "patient" },
+
+  // Reaction/Event (Category E)
+  { key: "E_i_1_a", label: "Reaction/Event as reported by the primary source", category: "E", required: false, section: "reaction" },
+  { key: "E_i_1_b", label: "Reaction/Event as reported by the primary source (language)", category: "E", required: false, section: "reaction" },
+  { key: "E_i_1_2", label: "Reaction / event as reported by the primary source for translation", category: "E", required: false, section: "reaction" },
+  { key: "E_i_3_2a", label: "Results in Death", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2b", label: "Life Threatening", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2c", label: "Caused/Prolonged Hospitalisation", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2d", label: "Disabling/Incapacitating", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2e", label: "Congenital Anomaly/Birth Defect", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2f", label: "Other Medically Important Condition", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_7", label: "Outcome of reaction/event at the time of last observation", category: "E", required: false, section: "reaction", type: "select", options: ["0 - Unknown", "1 - Recovered/Resolved", "2 - Recovering/Resolving", "3 - Not Recovered/Not Resolved/Ongoing", "4 - Recovered/Resolved with sequelae", "5 - Fatal"] },
+  { key: "E_i_8", label: "Medical Confirmation by Healthcare Professional", category: "E", required: false, section: "reaction", type: "select", options: ["true", "false"] },
+
+  // Narrative (Category H)
+  { key: "H1", label: "Case Narrative", category: "H", required: false, section: "narrative" },
+  { key: "H_4", label: "Sender's Comments", category: "H", required: false, section: "narrative" },
 ];
+
+const formatR3Date = (date: Date) => {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  const ss = String(date.getSeconds()).padStart(2, '0');
+  const offset = -date.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const absOffset = Math.abs(offset);
+  const offH = String(Math.floor(absOffset / 60)).padStart(2, '0');
+  const offM = String(absOffset % 60).padStart(2, '0');
+  return `${yyyy}${mm}${dd}${hh}${min}${ss}${sign}${offH}${offM}`;
+};
 
 export default function R3FormPage() {
   const { user } = useAuth();
@@ -315,9 +302,55 @@ export default function R3FormPage() {
     fetchWorkflowConfig();
   }, [studyId]);
 
+  // Auto-populate R3 fields
+  useEffect(() => {
+    if (study) {
+      setR3FormData(prev => {
+        const next = { ...prev };
+        const now = new Date();
+        const timestamp = formatR3Date(now);
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const dateOnly = `${yyyy}${mm}${dd}`;
+
+        const setIfMissing = (key: string, val: string) => {
+          if (!next[key]) next[key] = val;
+        };
+
+        // Batch / Header
+        setIfMissing("N_1_2", `BATCH-${timestamp}`); // Batch Number
+        setIfMissing("N_1_5", timestamp); // Date of Batch Transmission
+        setIfMissing("N_2_r_1", `NP-MMT-${dateOnly}-MMT-000001`); // Message Identifier
+        setIfMissing("N_2_r_2", "MetatronicMind"); // Message Sender
+        setIfMissing("N_2_r_3", "CLIENT-CODE"); // Message Receiver
+        setIfMissing("N_2_r_4", timestamp); // Date of Message Creation
+        setIfMissing("N_1_3", "CLIENT-ORG-ID");
+        setIfMissing("N_1_4", "MetatronicMind Technologies");
+
+        // Safety Report
+        setIfMissing("C_1_2", timestamp); // Date of Creation
+        setIfMissing("C_1_4", study.createdAt ? formatR3Date(new Date(study.createdAt)) : timestamp);
+
+        // AI Autofill / Mappings
+        if (study.summary) setIfMissing("H1", study.summary);
+        if (study.vancouverCitation) setIfMissing("C_4_r_1", study.vancouverCitation);
+        if (study.drugName) setIfMissing("D_8_r_1", study.drugName);
+
+        // Check if changed
+        const isChanged = Object.keys(next).some(k => next[k] !== prev[k]) || 
+                          Object.keys(prev).some(k => next[k] !== prev[k]);
+        
+        return isChanged ? next : prev;
+      });
+    }
+  }, [study]);
+
   const fetchWorkflowConfig = async () => {
     try {
       const token = localStorage.getItem("auth_token");
+      // Don't fetch workflow config if simple logic is enough
+      // But keeping it for determining "revokeTo" target if customized
       const response = await fetch(`${getApiBaseUrl()}/admin-config/workflow`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -326,17 +359,34 @@ export default function R3FormPage() {
       if (response.ok) {
         const data = await response.json();
         const config = data.configData;
+        
         // Find transition from data_entry
-        const transition = config.transitions.find((t: any) => t.from === 'data_entry');
-        if (transition && transition.canRevoke) {
-          setCanRevoke(true);
-          setRevokeToStage(transition.revokeTo);
+        const transitions = config.transitions || [];
+        const transition = transitions.find((t: any) => t.from === 'data_entry');
+        
+        // Determine target stage from workflow config
+        if (transition) {
+          setRevokeToStage(transition.revokeTo || 'triage');
         } else {
-          setCanRevoke(false);
+          setRevokeToStage('triage');
         }
+      } else {
+        // Fallback if config fetch fails (e.g. strict permissions)
+        console.warn('Could not fetch workflow config, using defaults');
+        setRevokeToStage('triage');
       }
+
+      // Determine button visibility based on ROLE PERMISSIONS (independent of workflow config fetch)
+      // Check if user has explicit permission to revoke studies in data_entry module
+      const hasRevokePermission = user?.permissions?.data_entry?.revoke_studies === true;
+      setCanRevoke(hasRevokePermission);
+
     } catch (error) {
       console.error('Error fetching workflow config:', error);
+      // Fallback
+      setRevokeToStage('triage');
+      const hasRevokePermission = user?.permissions?.data_entry?.revoke_studies === true;
+      setCanRevoke(hasRevokePermission);
     }
   };
 
@@ -724,11 +774,7 @@ export default function R3FormPage() {
 
       if (response.ok) {
         alert("Study revoked successfully!");
-        if (revokeToStage === 'triage') {
-          router.push("/dashboard/triage");
-        } else {
-          router.push("/dashboard/data-entry");
-        }
+        router.push("/dashboard/data-entry");
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to revoke study");
@@ -1247,392 +1293,94 @@ export default function R3FormPage() {
             </div>
             
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              {/* Reporter Information Section */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  Reporter Information
-                </h2>
-                
-                <div className="grid gap-6">
-                  {R3_FORM_FIELDS.filter(field => field.section === 'reporter' && !field.isHeader).map((field) => {
-                    const isPrefilled = isFieldPrefilled(field.key);
-                    const fieldComments = getFieldComments(field.key);
-                    
-                    return (
-                      <div key={field.key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          {field.key} - {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                          <span className="ml-2 text-xs text-gray-500">
-                            (Category: {field.category})
-                          </span>
-                        </label>
-                        
-                        {/* Medical Reviewer Comments */}
-                        {fieldComments.length > 0 && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
-                            <div className="flex items-center text-yellow-800">
-                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                              </svg>
-                              <span className="text-sm font-semibold">Comments:</span>
-                            </div>
-                            {fieldComments.map((comment) => (
-                              <div key={comment.id} className="bg-yellow-100 rounded p-2">
-                                <p className="text-sm text-yellow-900">{comment.comment}</p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {formatDate(comment.createdAt)}
-                                </p>
+              {[
+                { id: 'header', title: 'Header / Batch Information (Category N)' },
+                { id: 'safety', title: 'Safety Report / Case Creation (Category C)' },
+                { id: 'patient', title: 'Patient Characteristics (Category D)' },
+                { id: 'reaction', title: 'Reaction/Event (Category E)' },
+                { id: 'narrative', title: 'Narrative (Category H)' }
+              ].map((section) => (
+                <div key={section.id} className="mb-8">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                    {section.title}
+                  </h2>
+                  <div className="grid gap-6">
+                    {R3_FORM_FIELDS.filter(field => field.section === section.id).map((field) => {
+                      const isPrefilled = isFieldPrefilled(field.key);
+                      const fieldComments = getFieldComments(field.key);
+                      
+                      return (
+                        <div key={field.key} className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            {field.key} - {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                            <span className="ml-2 text-xs text-gray-500">
+                              (Category: {field.category})
+                            </span>
+                          </label>
+                          
+                          {/* Medical Reviewer Comments */}
+                          {fieldComments.length > 0 && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
+                              <div className="flex items-center text-yellow-800">
+                                <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm font-semibold">Comments:</span>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        <textarea
-                          value={getFieldValue(field.key)}
-                          onChange={(e) => handleFormChange(field.key, e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
-                            ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
-                            ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
-                          `}
-                          rows={field.key === 'C.4.r.1' ? 3 : 2}
-                          placeholder="Auto-filled from PubMed/study data - editable"
-                        />
-                        {isPrefilled && (
-                          <p className="text-xs text-blue-600">
-                            Pre-filled from external API - you can edit this field
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Patient Characteristics Section */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  Patient Characteristics (Category B & C)
-                </h2>
-                
-                <div className="grid gap-6">
-                  {R3_FORM_FIELDS.filter(field => field.section === 'patient' && !field.isHeader).map((field) => {
-                    const isPrefilled = isFieldPrefilled(field.key);
-                    const fieldComments = getFieldComments(field.key);
-                    
-                    return (
-                      <div key={field.key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          {field.key} - {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                          <span className="ml-2 text-xs text-gray-500">
-                            (Category: {field.category})
-                          </span>
-                        </label>
-                        
-                        {/* Medical Reviewer Comments */}
-                        {fieldComments.length > 0 && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
-                            <div className="flex items-center text-yellow-800">
-                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                              </svg>
-                              <span className="text-sm font-semibold">Medical Reviewer Comments:</span>
+                              {fieldComments.map((comment) => (
+                                <div key={comment.id} className="bg-yellow-100 rounded p-2">
+                                  <p className="text-sm text-yellow-900">{comment.comment}</p>
+                                  <p className="text-xs text-yellow-700 mt-1">
+                                    {comment.userName} on {formatDateTime(comment.createdAt)}
+                                  </p>
+                                </div>
+                              ))}
                             </div>
-                            {fieldComments.map((comment) => (
-                              <div key={comment.id} className="bg-yellow-100 rounded p-2">
-                                <p className="text-sm text-yellow-900">{comment.comment}</p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        <textarea
-                          value={getFieldValue(field.key)}
-                          onChange={(e) => handleFormChange(field.key, e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
-                            ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
-                            ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
-                          `}
-                          rows={field.key.includes('D.7.1.r') ? 4 : 2}
-                          placeholder="Enter value here..."
-                        />
-                        {isPrefilled && (
-                          <p className="text-xs text-blue-600">
-                            Pre-filled from external API - you can edit this field
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+                          )}
+                          
+                          {field.type === 'select' ? (
+                            <select
+                              value={getFieldValue(field.key)}
+                              onChange={(e) => handleFormChange(field.key, e.target.value)}
+                              disabled={field.readOnly}
+                              className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black
+                                ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                                ${field.readOnly ? "bg-gray-100 text-gray-500" : ""}
+                                ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
+                              `}
+                            >
+                              <option value="">Select...</option>
+                              {field.options && field.options.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <textarea
+                              value={getFieldValue(field.key)}
+                              onChange={(e) => handleFormChange(field.key, e.target.value)}
+                              disabled={field.readOnly}
+                              className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
+                                ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                                ${field.readOnly ? "bg-gray-100 text-gray-500" : ""}
+                                ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
+                              `}
+                              rows={2}
+                              placeholder={field.readOnly ? "Auto-generated" : "Enter value here..."}
+                            />
+                          )}
+                          
+                          {isPrefilled && (
+                            <p className="text-xs text-blue-600">
+                              Pre-filled from external API
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-
-              {/* Reaction/Event Information Section */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  Reaction/Event Information (Category C)
-                </h2>
-                
-                <div className="grid gap-6">
-                  {R3_FORM_FIELDS.filter(field => field.section === 'reaction').map((field) => {
-                    const isPrefilled = isFieldPrefilled(field.key);
-                    const fieldComments = getFieldComments(field.key);
-                    
-                    return (
-                      <div key={field.key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          {field.key} - {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                          <span className="ml-2 text-xs text-gray-500">
-                            (Category: {field.category})
-                          </span>
-                        </label>
-                        
-                        {/* Medical Reviewer Comments */}
-                        {fieldComments.length > 0 && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
-                            <div className="flex items-center text-yellow-800">
-                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                              </svg>
-                              <span className="text-sm font-semibold">Medical Reviewer Comments:</span>
-                            </div>
-                            {fieldComments.map((comment) => (
-                              <div key={comment.id} className="bg-yellow-100 rounded p-2">
-                                <p className="text-sm text-yellow-900">{comment.comment}</p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {field.key.startsWith('E.i.3.2') ? (
-                          <select
-                            value={getFieldValue(field.key)}
-                            onChange={(e) => handleFormChange(field.key, e.target.value)}
-                            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black
-                              ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
-                              ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
-                            `}
-                          >
-                            <option value="">Select...</option>
-                            <option value="True">True</option>
-                            <option value="False">False</option>
-                          </select>
-                        ) : (
-                          <textarea
-                            value={getFieldValue(field.key)}
-                            onChange={(e) => handleFormChange(field.key, e.target.value)}
-                            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
-                              ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
-                              ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
-                            `}
-                            rows={2}
-                            placeholder="Enter value here..."
-                          />
-                        )}
-                        {isPrefilled && (
-                          <p className="text-xs text-blue-600">
-                            Pre-filled from external API - you can edit this field
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Tests and Procedures Section */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  Tests and Procedures (Category F)
-                </h2>
-                
-                <div className="grid gap-6">
-                  {R3_FORM_FIELDS.filter(field => field.section === 'tests').map((field) => {
-                    const isPrefilled = isFieldPrefilled(field.key);
-                    const fieldComments = getFieldComments(field.key);
-                    
-                    return (
-                      <div key={field.key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          {field.key} - {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                          <span className="ml-2 text-xs text-gray-500">
-                            (Category: {field.category})
-                          </span>
-                        </label>
-                        
-                        {/* Medical Reviewer Comments */}
-                        {fieldComments.length > 0 && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
-                            <div className="flex items-center text-yellow-800">
-                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                              </svg>
-                              <span className="text-sm font-semibold">Medical Reviewer Comments:</span>
-                            </div>
-                            {fieldComments.map((comment) => (
-                              <div key={comment.id} className="bg-yellow-100 rounded p-2">
-                                <p className="text-sm text-yellow-900">{comment.comment}</p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        <textarea
-                          value={getFieldValue(field.key)}
-                          onChange={(e) => handleFormChange(field.key, e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
-                            ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
-                            ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
-                          `}
-                          rows={3}
-                          placeholder="Enter value here..."
-                        />
-                        {isPrefilled && (
-                          <p className="text-xs text-blue-600">
-                            Pre-filled from external API - you can edit this field
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Drug Information Section */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  Drug Information (Category G)
-                </h2>
-                
-                <div className="grid gap-6">
-                  {R3_FORM_FIELDS.filter(field => field.section === 'drug').map((field) => {
-                    const isPrefilled = isFieldPrefilled(field.key);
-                    const fieldComments = getFieldComments(field.key);
-                    
-                    return (
-                      <div key={field.key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          {field.key} - {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                          <span className="ml-2 text-xs text-gray-500">
-                            (Category: {field.category})
-                          </span>
-                        </label>
-                        
-                        {/* Medical Reviewer Comments */}
-                        {fieldComments.length > 0 && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
-                            <div className="flex items-center text-yellow-800">
-                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                              </svg>
-                              <span className="text-sm font-semibold">Medical Reviewer Comments:</span>
-                            </div>
-                            {fieldComments.map((comment) => (
-                              <div key={comment.id} className="bg-yellow-100 rounded p-2">
-                                <p className="text-sm text-yellow-900">{comment.comment}</p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        <textarea
-                          value={getFieldValue(field.key)}
-                          onChange={(e) => handleFormChange(field.key, e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
-                            ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
-                            ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
-                          `}
-                          rows={2}
-                          placeholder="Enter value here..."
-                        />
-                        {isPrefilled && (
-                          <p className="text-xs text-blue-600">
-                            Pre-filled from external API - you can edit this field
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Case Narrative Section */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  Case Narrative (Category H)
-                </h2>
-                
-                <div className="grid gap-6">
-                  {R3_FORM_FIELDS.filter(field => field.section === 'narrative').map((field) => {
-                    const isPrefilled = isFieldPrefilled(field.key);
-                    const fieldComments = getFieldComments(field.key);
-                    
-                    return (
-                      <div key={field.key} className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          {field.key} - {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                          <span className="ml-2 text-xs text-gray-500">
-                            (Category: {field.category})
-                          </span>
-                        </label>
-                        
-                        {/* Medical Reviewer Comments */}
-                        {fieldComments.length > 0 && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
-                            <div className="flex items-center text-yellow-800">
-                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                              </svg>
-                              <span className="text-sm font-semibold">Medical Reviewer Comments:</span>
-                            </div>
-                            {fieldComments.map((comment) => (
-                              <div key={comment.id} className="bg-yellow-100 rounded p-2">
-                                <p className="text-sm text-yellow-900">{comment.comment}</p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                  By {comment.userName} on {formatDateTime(comment.createdAt)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        <textarea
-                          value={getFieldValue(field.key)}
-                          onChange={(e) => handleFormChange(field.key, e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-black
-                            ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
-                            ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
-                          `}
-                          rows={6}
-                          placeholder="Enter value here..."
-                        />
-                        {isPrefilled && (
-                          <p className="text-xs text-blue-600">
-                            Pre-filled from external API - you can edit this field
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              ))}
 
               {/* Triage Assessment Section */}
               <div className="mb-8">

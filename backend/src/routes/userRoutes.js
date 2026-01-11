@@ -67,7 +67,7 @@ router.get('/:userId',
 
 // Create new user (Admin only)
 router.post('/',
-  authorizePermission('users', 'write'),
+  authorizePermission('users', 'create'),
   [
     body('username').isLength({ min: 3 }).matches(/^[a-zA-Z0-9_]+$/),
     body('email').isEmail().normalizeEmail(),

@@ -51,9 +51,22 @@ function getChangedFields(beforeObj, afterObj) {
   const changes = {};
   
   if (!beforeObj && !afterObj) return changes;
-  if (!beforeObj) return afterObj;
-  if (!afterObj) return {};
   
+  // If no before object, everything is new/added
+  if (!beforeObj) {
+    Object.keys(afterObj || {}).forEach(key => {
+      changes[key] = {
+        before: undefined,
+        after: afterObj[key]
+      };
+    });
+    return changes;
+  }
+  
+  if (!afterObj) return {}; // Should probably handle deletion similarly if needed, but for now empty is fine as partial update? 
+  // Actually, if afterObj becomes null, maybe we should track all deletions?
+  // But usually updateR3FormData merges, so afterObj won't be null unless explicitly unset.
+
   // Compare all keys from both objects
   const allKeys = new Set([...Object.keys(beforeObj), ...Object.keys(afterObj)]);
   
@@ -991,7 +1004,7 @@ router.post('/:studyId/comments',
         'comment',
         'study',
         studyId,
-        `Added comment to study PMID ${study.pmid}: "${comment}"`,
+        `Commented "${comment}" in ${type} section for study ${study.pmid}`,
         { commentType: type, pmid: study.pmid },
         null,
         { commentText: comment, commentType: type }
@@ -1437,11 +1450,16 @@ router.patch('/:id/tag',
       // Save to database
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
 
-      auditAction(req, 'study_tag_updated', { 
-        studyId: id, 
-        userTag,
-        previousTag: existingStudy.userTag 
-      });
+      await auditAction(
+        req.user,
+        'update',
+        'study',
+        id,
+        `Updated tag for study ${id} to ${userTag}`,
+        { studyId: id, userTag, previousTag: existingStudy.userTag },
+        { userTag: existingStudy.userTag },
+        { userTag: userTag }
+      );
 
       res.json({
         message: 'Study tag updated successfully',
@@ -1475,8 +1493,30 @@ router.get('/:id/r3-form-data',
 
       // Call external API to get R3 field data
       const axios = require('axios');
-      // Removed drug_code and client from external API call as requested
-      let apiUrl = `http://20.246.204.3/get_r3_fields/?PMID=${pmid}&drugname=${drugname}`;
+      
+      // Get configured endpoint (Dynamic Configuration Support)
+      let r3BaseUrl = 'http://20.246.204.3/get_r3_fields/';
+      try {
+        const sysConfig = await adminConfigService.getConfig(req.user.organizationId, 'system_config');
+        if (sysConfig && sysConfig.configData && sysConfig.configData.r3XmlEndpoint) {
+          r3BaseUrl = sysConfig.configData.r3XmlEndpoint;
+        }
+      } catch (e) {
+        console.warn('Failed to load system config for R3 endpoint:', e.message);
+      }
+
+      // Construct API URL
+      let apiUrl;
+      try {
+        const url = new URL(r3BaseUrl);
+        url.searchParams.append('PMID', pmid);
+        url.searchParams.append('drugname', drugname);
+        apiUrl = url.toString();
+      } catch (e) {
+        // Fallback if URL parsing fails
+        console.error('Invalid R3 endpoint URL:', r3BaseUrl);
+        apiUrl = `http://20.246.204.3/get_r3_fields/?PMID=${pmid}&drugname=${drugname}`;
+      }
       
       console.log('Calling external R3 API:', apiUrl);
       
@@ -1553,15 +1593,42 @@ router.put('/:id/r3-form',
         changedFieldNames: Object.keys(changedFields)
       });
 
+      // Unwrap changed fields for audit log
+      const auditBefore = {};
+      const auditAfter = {};
+      const changeDetails = [];
+
+      const formatVal = (v) => {
+        if (v === null || v === undefined) return 'empty';
+        if (v === '') return '""';
+        let s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        if (s.length > 20) return s.substring(0, 17) + '...';
+        return s;
+      };
+
+      Object.keys(changedFields).forEach(key => {
+        const before = changedFields[key].before;
+        const after = changedFields[key].after;
+        
+        auditBefore[key] = before;
+        auditAfter[key] = after;
+        
+        if (before !== undefined && before !== null && before !== '') {
+          changeDetails.push(`${key}: "${formatVal(before)}" -> "${formatVal(after)}"`);
+        } else {
+          changeDetails.push(`${key}: "${formatVal(after)}"`);
+        }
+      });
+
       await auditAction(
         req.user,
         'update',
         'study',
         id,
-        `Updated R3 form data for study ${id} (${Object.keys(changedFields).length} fields changed)`,
+        `Updated R3 form fields for study ${id}: ${changeDetails.join(', ')}`,
         { studyId: id, pmid: study.pmid },
-        { r3FormChanges: changedFields },
-        { r3FormChanges: changedFields }
+        auditBefore,
+        auditAfter
       );
 
       res.json({
@@ -1622,29 +1689,61 @@ router.post('/:id/r3-form/complete',
       // Get only the changed R3 form fields
       const changedR3Fields = getChangedFields(beforeR3FormData, afterR3FormData);
       
+      // Unwrap changed R3 fields
+      const r3AuditBefore = {};
+      const r3AuditAfter = {};
+      const changeDetails = [];
+
+      const formatVal = (v) => {
+        if (v === null || v === undefined) return 'empty';
+        if (v === '') return '""';
+        let s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        if (s.length > 20) return s.substring(0, 17) + '...';
+        return s;
+      };
+
+      Object.keys(changedR3Fields).forEach(key => {
+        const before = changedR3Fields[key].before;
+        const after = changedR3Fields[key].after;
+
+        r3AuditBefore[key] = before;
+        r3AuditAfter[key] = after;
+        
+        if (before !== undefined && before !== null && before !== '') {
+           changeDetails.push(`${key}: "${formatVal(before)}" -> "${formatVal(after)}"`);
+        } else {
+           changeDetails.push(`${key}: "${formatVal(after)}"`);
+        }
+      });
+
       // Combine status changes with R3 field changes
-      const beforeValue = {
+      const finalBeforeValue = {
         ...beforeStatus,
-        r3FormFieldsChanged: Object.keys(changedR3Fields).length
+        ...r3AuditBefore
       };
       
-      const afterValue = {
+      const finalAfterValue = {
         ...afterStatus,
-        r3FormChanges: changedR3Fields
+        ...r3AuditAfter
       };
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      let detailsStr = `Completed R3 form for study ${id}`;
+      if (changeDetails.length > 0) {
+        detailsStr += `. Changes: ${changeDetails.join(', ')}`;
+      }
 
       await auditAction(
         req.user,
         'complete',
         'study',
         id,
-        `Completed R3 form for study ${id}`,
+        detailsStr,
         { studyId: id, pmid: study.pmid },
-        beforeValue,
-        afterValue
+        finalBeforeValue,
+        finalAfterValue
       );
 
       res.json({
@@ -1952,7 +2051,7 @@ router.post('/:id/QA/approve',
         'approve',
         'study',
         id,
-        `Approved classification for study ${id}${comments ? ': "' + comments + '"' : ''}`,
+        `Approved classification for study ${id}${comments ? ' with comment: "' + comments + '"' : ''}`,
         { studyId: id, classification: study.userTag, pmid: study.pmid },
         beforeValue,
         afterValue
@@ -1995,8 +2094,20 @@ router.post('/:id/QA/reject',
         return res.status(404).json({ error: 'Study not found' });
       }
 
+      const beforeValue = {
+        qaApprovalStatus: studyData.qaApprovalStatus,
+        qaApprovedBy: studyData.qaApprovedBy,
+        qaApprovedAt: studyData.qaApprovedAt
+      };
+
       const study = new Study(studyData);
       study.rejectClassification(req.user.id, req.user.name, reason, targetStage);
+
+      const afterValue = {
+        qaApprovalStatus: study.qaApprovalStatus,
+        qaApprovedBy: study.qaApprovedBy,
+        qaApprovedAt: study.qaApprovedAt
+      };
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
@@ -2006,8 +2117,10 @@ router.post('/:id/QA/reject',
         'reject',
         'study',
         'QC_classification',
-        `Rejected classification for study ${id}`,
-        { studyId: id, classification: study.userTag, reason, targetStage }
+        `Rejected classification for study ${id} with reason: "${reason}"`,
+        { studyId: id, classification: study.userTag, reason, targetStage },
+        beforeValue,
+        afterValue
       );
 
       res.json({
@@ -2200,7 +2313,7 @@ router.post('/:id/field-comment',
         'comment',
         'study',
         id,
-        `Added comment to field ${fieldKey} in study ${id}: "${comment}"`,
+        `Added comment to field ${fieldKey} in study ${study.pmid}: "${comment}"`,
         { studyId: id, fieldKey, pmid: study.pmid },
         null,
         { fieldKey, commentText: comment }
@@ -2388,6 +2501,59 @@ router.post('/allocate-case',
       const userId = req.user.id;
       const organizationId = req.user.organizationId;
 
+      // Fetch Triage Configuration for Priority
+      const triageConfig = await adminConfigService.getConfig(organizationId, 'triage');
+      const priorityQueue = triageConfig?.configData?.priorityQueue || [
+        'Probable ICSR',
+        'Probable AOI',
+        'Probable ICSR/AOI',
+        'No Case',
+        'Manual Review'
+      ];
+
+      // Helper to determine study type (consistent with allocate-batch)
+      const getStudyType = (study) => {
+        const icsr = study.icsrClassification || study.ICSR_classification || study.aiInferenceData?.ICSR_classification || '';
+        const aoi = study.aoiClassification || study.AOI_classification || study.aiInferenceData?.AOI_classification || '';
+        const userTag = study.userTag || '';
+        const icsrLower = String(icsr).toLowerCase();
+        const aoiLower = String(aoi).toLowerCase();
+        const userTagLower = String(userTag).toLowerCase();
+
+        // Trust User Tag first if present
+        if (userTagLower.includes('icsr') && userTagLower.includes('aoi')) return 'Probable ICSR/AOI';
+        if (userTagLower.includes('icsr')) return 'Probable ICSR';
+        if (userTagLower.includes('aoi')) return 'Probable AOI';
+        if (userTagLower === 'no case') return 'No Case';
+
+        if (icsrLower.includes('manual review')) return 'Manual Review';
+        if (icsrLower.includes('probable icsr/aoi')) return 'Probable ICSR/AOI';
+
+        const isProbableICSR = icsrLower.includes('probable') || icsrLower === 'yes' || icsrLower.includes('yes (icsr)') || icsrLower.includes('potential');
+        const isProbableAOI = aoiLower.includes('probable') || aoiLower === 'yes' || aoiLower.includes('yes (aoi)') || aoiLower.includes('potential');
+        
+        if (isProbableICSR && isProbableAOI) return 'Probable ICSR/AOI';
+        if (isProbableICSR) return 'Probable ICSR';
+        if (isProbableAOI) return 'Probable AOI';
+        if (userTag === 'No Case' || icsrLower === 'no case') return 'No Case';
+
+        return 'Manual Review';
+      };
+
+      const getPriority = (study) => {
+        if (study.priority === 'high') return -1;
+        const type = getStudyType(study);
+        let index = priorityQueue.indexOf(type);
+        if (index === -1 && type === 'Probable ICSR/AOI') {
+            const indexICSR = priorityQueue.indexOf('Probable ICSR');
+            const indexAOI = priorityQueue.indexOf('Probable AOI');
+            if (indexICSR !== -1 && indexAOI !== -1) index = Math.min(indexICSR, indexAOI);
+            else if (indexICSR !== -1) index = indexICSR;
+            else if (indexAOI !== -1) index = indexAOI;
+        }
+        return index === -1 ? 999 : index;
+      };
+
       // 1. Check if user already has a locked case
       const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId';
       const parameters = [
@@ -2405,19 +2571,49 @@ router.post('/allocate-case',
         });
       }
 
-      // 2. Find and lock a new case
-      // We need to find a case that is not assigned (assignedTo is null or missing)
-      // And status is 'Pending Review' or 'Under Triage Review'
-      const findQuery = 'SELECT TOP 1 * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")';
+      // 2. Find and lock a new case using Priority Queue
       const findParams = [
         { name: '@orgId', value: organizationId }
       ];
 
-      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+      // Step 2a: Try to find High Priority cases specifically first (Probable/Potential/Tagged)
+      // This ensures we priority allocate them even if they are buried behind 1000+ Manual Review cases
+      // We use LOWER() for case-insensitive matching
+      const highPriorityQuery = `
+          SELECT TOP 50 * FROM c 
+          WHERE c.organizationId = @orgId 
+          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
+          AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+          AND (
+            CONTAINS(LOWER(c.icsrClassification), "probable") OR 
+            CONTAINS(LOWER(c.aoiClassification), "probable") OR
+            CONTAINS(LOWER(c.icsrClassification), "potential") OR 
+            CONTAINS(LOWER(c.aoiClassification), "potential") OR
+            CONTAINS(LOWER(c.userTag), "icsr") OR
+            CONTAINS(LOWER(c.userTag), "aoi")
+          )
+      `;
+
+      let availableCases = [];
+      try {
+        availableCases = await cosmosService.queryItems('studies', highPriorityQuery, findParams);
+      } catch (err) {
+        console.warn('High priority query failed, falling back to standard query', err);
+      }
+
+      if (!availableCases || availableCases.length === 0) {
+        // Step 2b: Fallback to general query if no high priority cases found
+        const fetchLimit = 100;
+        const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
+        availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+      }
 
       if (!availableCases || availableCases.length === 0) {
         return res.status(404).json({ success: false, message: "No available cases at the moment." });
       }
+
+      // Sort by priority
+      availableCases.sort((a, b) => getPriority(a) - getPriority(b));
 
       const caseToLock = availableCases[0];
       caseToLock.assignedTo = userId;
@@ -2493,6 +2689,7 @@ router.post('/allocate-batch',
 
       // Helper to get priority index (lower is higher priority)
       const getPriority = (study) => {
+        if (study.priority === 'high') return -1;
         const type = getStudyType(study);
         let index = priorityQueue.indexOf(type);
 

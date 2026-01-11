@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const archivalService = require('../services/archivalService');
 const authenticateToken = require('../middleware/auth');
+const { authorizePermission } = require('../middleware/authorization');
 
 /**
  * @route   GET /api/archival/config
@@ -44,16 +45,11 @@ router.get('/config', authenticateToken, async (req, res) => {
  * @desc    Create or update archival configuration
  * @access  Private (Admin)
  */
-router.post('/config', authenticateToken, async (req, res) => {
+router.post('/config', authenticateToken, authorizePermission('archival', 'manage'), async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
     const userId = req.user.id;
     const configData = req.body;
-
-    // Validate admin role
-    if (!req.user.role || !['Super Admin', 'Admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
 
     const result = await archivalService.saveArchivalConfig(
       organizationId,
@@ -77,15 +73,10 @@ router.post('/config', authenticateToken, async (req, res) => {
  * @desc    Test Google Drive connection
  * @access  Private (Admin)
  */
-router.post('/test-google-drive', authenticateToken, async (req, res) => {
+router.post('/test-google-drive', authenticateToken, authorizePermission('archival', 'manage'), async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
     const { googleDrive } = req.body;
-
-    // Validate admin role
-    if (!req.user.role || !['Super Admin', 'Admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
 
     if (!googleDrive) {
       return res.status(400).json({ error: 'Google Drive configuration is required' });
@@ -111,16 +102,11 @@ router.post('/test-google-drive', authenticateToken, async (req, res) => {
  * @desc    Archive a single study
  * @access  Private (Admin)
  */
-router.post('/archive-study/:studyId', authenticateToken, async (req, res) => {
+router.post('/archive-study/:studyId', authenticateToken, authorizePermission('archival', 'manage'), async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
     const userId = req.user.id;
     const { studyId } = req.params;
-
-    // Validate admin role
-    if (!req.user.role || !['Super Admin', 'Admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
 
     const result = await archivalService.archiveStudy(
       studyId,
@@ -148,16 +134,11 @@ router.post('/archive-study/:studyId', authenticateToken, async (req, res) => {
  * @desc    Archive multiple studies in batch
  * @access  Private (Admin)
  */
-router.post('/archive-batch', authenticateToken, async (req, res) => {
+router.post('/archive-batch', authenticateToken, authorizePermission('archival', 'manage'), async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
     const userId = req.user.id;
     const { studyIds } = req.body;
-
-    // Validate admin role
-    if (!req.user.role || !['Super Admin', 'Admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
 
     if (!studyIds || !Array.isArray(studyIds) || studyIds.length === 0) {
       return res.status(400).json({ error: 'studyIds array is required' });
@@ -188,15 +169,10 @@ router.post('/archive-batch', authenticateToken, async (req, res) => {
  * @desc    Run auto-archival process for eligible studies
  * @access  Private (Admin)
  */
-router.post('/auto-archive', authenticateToken, async (req, res) => {
+router.post('/auto-archive', authenticateToken, authorizePermission('archival', 'manage'), async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
     const userId = req.user.id;
-
-    // Validate admin role
-    if (!req.user.role || !['Super Admin', 'Admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
 
     const result = await archivalService.autoArchiveStudies(
       organizationId,
@@ -222,15 +198,10 @@ router.post('/auto-archive', authenticateToken, async (req, res) => {
  * @desc    Get archival records with filters
  * @access  Private (Admin)
  */
-router.get('/records', authenticateToken, async (req, res) => {
+router.get('/records', authenticateToken, authorizePermission('archival', 'view'), async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
     const { status, startDate, endDate, studyId, drugName, page = 1, limit = 50 } = req.query;
-
-    // Validate admin role
-    if (!req.user.role || !['Super Admin', 'Admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
 
     const filters = {};
     if (status) filters.status = status;
@@ -258,14 +229,9 @@ router.get('/records', authenticateToken, async (req, res) => {
  * @desc    Get archival statistics
  * @access  Private (Admin)
  */
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', authenticateToken, authorizePermission('archival', 'view'), async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
-
-    // Validate admin role
-    if (!req.user.role || !['Super Admin', 'Admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
 
     const config = await archivalService.getArchivalConfig(organizationId);
     

@@ -27,9 +27,11 @@ interface DrugSearchConfig {
 
 export default function DrugManagementPage() {
   const { hasPermission } = usePermissions();
-  const canAdd = hasPermission('literatureSearch', 'create');
-  const canModify = hasPermission('literatureSearch', 'update');
-  const canSearch = hasPermission('literatureSearch', 'search');
+  // Map permissions to 'drugs' resource to match backend/role definition
+  // Users with 'write' permission on 'drugs' can create and update configurations
+  const canAdd = hasPermission('drugs', 'write');
+  const canModify = hasPermission('drugs', 'write');
+  const canSearch = hasPermission('drugs', 'read');
 
   const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const [searchConfigs, setSearchConfigs] = useState<DrugSearchConfig[]>([]);

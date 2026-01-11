@@ -125,8 +125,10 @@ class AdminConfigService {
     await this._createAuditLog(
       organizationId,
       userId,
-      'admin_config_updated',
-      { configId: config.id, configType, updates: Object.keys(updates) }
+      'update', // action
+      { configId: config.id, configType, updates: Object.keys(updates) }, // details/metadata
+      config.configData, // beforeValue (the actual config data)
+      configObj.configData // afterValue
     );
 
     return updated;
@@ -451,17 +453,49 @@ class AdminConfigService {
   /**
    * Create audit log entry
    */
-  async _createAuditLog(organizationId, userId, action, details) {
+  async _createAuditLog(organizationId, userId, action, details, beforeValue = null, afterValue = null) {
     try {
+      // Coerce details to string if it is an object
+      let detailsStr = '';
+      let metadata = {};
+      
+      if (typeof details === 'string') {
+        detailsStr = details;
+      } else if (typeof details === 'object') {
+        // If details is an object, treat it as metadata and create a generic message
+        metadata = details;
+        if (metadata.updates) {
+           detailsStr = `Updated admin config: ${metadata.configType}`;
+        } else {
+           detailsStr = JSON.stringify(details);
+        }
+      }
+
+      // Import audit helper to extract changes properly if needed
+      const { extractChanges } = require('../utils/auditHelpers');
+      let changes = [];
+      if (beforeValue && afterValue) {
+        changes = extractChanges(beforeValue, afterValue);
+      }
+
       const auditLog = new AuditLog({
         organizationId,
         userId,
+        // userName is not available here, but AuditLog model allows it to be missing or fetched later?
+        // Actually AuditLog requires userName usually. But here we only have userId.
+        // We might need to fetch user or just store userId. 
+        // The previous code didn't pass userName either.
+        userName: 'System/Admin', // Placeholder
         action,
-        entityType: 'admin_config',
-        details
+        resource: 'admin_config', // resource, not entityType
+        details: detailsStr,
+        metadata,
+        beforeValue,
+        afterValue,
+        changes
       });
 
-      await cosmosService.createItem('AuditLogs', auditLog.toJSON());
+      await cosmosService.createItem('audit-logs', auditLog.toJSON()); // Correct container name is audit-logs (lowercase?)
     } catch (error) {
       console.error('Failed to create audit log:', error);
     }

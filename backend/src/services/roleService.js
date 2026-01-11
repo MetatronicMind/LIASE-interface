@@ -384,72 +384,77 @@ class RoleService {
         displayName: 'Dashboard',
         description: 'Access to main dashboard and overview',
         actions: {
-          read: 'Can view dashboard only'
+          read: 'Can view dashboard',
+          write: 'Can edit dashboard'
         }
       },
-      literatureSearch: {
+      drugs: {
         displayName: 'Literature Search Configuration',
         description: 'Manage literature search configurations',
         actions: {
-          create: 'Can Add New Configuration',
-          update: 'Can Modify Configuration',
-          search: 'Can Search Configuration'
+          read: 'Can View Section',
+          write: 'Can Modify/Create Configuration',
+          delete: 'Can Delete Configuration'
         }
       },
-      literatureTriage: {
-        displayName: 'Literature Triage Section',
-        description: 'Access to literature triage',
+      triage: {
+        displayName: 'Literature Triage',
+        description: 'Access to literature triage and classification',
         actions: {
-          read: 'Can View Section'
+          read: 'Can View Section',
+          write: 'Can Edit Triage Data',
+          classify: 'Can Classify Studies',
+          manual_drug_test: 'Can Run Manual Drug Test'
         }
       },
-      qcAllocation: {
-        displayName: 'QC Allocation',
+      QA: {
+        displayName: 'QC Allocation (QA)',
         description: 'Manage QC allocation',
         actions: {
           read: 'Can View Section',
-          allocate: 'Can allocate case'
+          write: 'Can Allocate',
+          approve: 'Can Approve Allocation',
+          reject: 'Can Reject Allocation'
         }
       },
-      qcTriage: {
-        displayName: 'QC Triage Page',
-        description: 'Quality control for triage',
+      QC: {
+        displayName: 'QC Triage & Data Entry',
+        description: 'Quality control for triage and data entry',
         actions: {
           read: 'Can View Section',
-          approveReject: 'Can Approve/Reject'
+          write: 'Can Edit QC Data',
+          approve: 'Can Approve QC',
+          reject: 'Can Reject QC'
         }
       },
-      dataEntry: {
+      data_entry: {
         displayName: 'Data Entry',
         description: 'Data entry operations',
         actions: {
           read: 'Can View Section',
-          openXml: 'Can Open R3 XML Form'
+          write: 'Can Edit Data',
+          r3_form: 'Can Open/Edit R3 XML Form',
+          revoke_studies: 'Can Revoke Studies'
         }
       },
-      qcDataEntry: {
-        displayName: 'QC Data Entry',
-        description: 'Quality control for data entry',
-        actions: {
-          read: 'Can View Section',
-          approveReject: 'Can Approve/Reject'
-        }
-      },
-      medicalReview: {
+      medical_examiner: {
         displayName: 'Medical Review',
         description: 'Medical review operations',
         actions: {
           read: 'Can View Section',
-          approveReject: 'Can Approve/Reject Study',
-          comment: 'Can comment'
+          write: 'Can Edit Medical Data',
+          comment_fields: 'Can Comment',
+          edit_fields: 'Can Edit Fields',
+          revoke_studies: 'Can Revoke Studies'
         }
       },
-      icsrReports: {
-        displayName: 'ICSR Reports',
-        description: 'Access to ICSR reports',
+      reports: {
+        displayName: 'Reports & ICSR',
+        description: 'Access to Reports and ICSR Reports',
         actions: {
           read: 'Can View Section',
-          viewFullReport: 'Can View Full Report',
+          write: 'Can Generate Reports',
+          delete: 'Can Delete Reports',
           export: 'Can Export'
         }
       },
@@ -461,19 +466,13 @@ class RoleService {
           save: 'Can Save Assessment'
         }
       },
-      reports: {
-        displayName: 'Reports',
-        description: 'General reports',
-        actions: {
-          read: 'Can View Section',
-          export: 'Can Export'
-        }
-      },
-      auditTrail: {
+      audit: {
         displayName: 'Audit Trail',
         description: 'System audit logs',
         actions: {
           read: 'Can View Section',
+          write: 'Can Write Audit Logs', // Usually automatic
+          delete: 'Can Delete Audit Logs',
           export: 'Can Export'
         }
       },
@@ -483,7 +482,18 @@ class RoleService {
         actions: {
           read: 'Can view Section',
           create: 'Can Add New User',
-          update: 'Can Edit Users'
+          update: 'Can Edit Users',
+          write: 'Can Write Users',
+          delete: 'Can Delete Users'
+        }
+      },
+      roles: {
+        displayName: 'Role Management',
+        description: 'Manage roles',
+        actions: {
+          read: 'Can view Roles',
+          write: 'Can create/edit Roles',
+          delete: 'Can delete Roles'
         }
       },
       legacyData: {
@@ -507,6 +517,7 @@ class RoleService {
         description: 'System settings',
         actions: {
           read: 'Can View Section',
+          write: 'Can Edit Settings',
           viewDateTime: 'Can view Date/Time Settings',
           viewRoleManagement: 'Can view Role Management Settings',
           viewOrganization: 'Can view Organization Settings',
@@ -516,8 +527,52 @@ class RoleService {
           viewArchival: 'Can view Archival Settings',
           viewAdminConfig: 'Can view Admin Configuration',
           viewStudyQueue: 'Can view Study Queue Configuration',
-          viewTriageConfig: 'Can view Triage Configuration',
           viewSystemConfig: 'Can view System Configuration'
+        }
+      },
+      drugs: {
+        displayName: 'Drugs Configuration',
+        description: 'Manage drug configurations',
+        actions: {
+          read: 'Can View',
+          write: 'Can Edit',
+          delete: 'Can Delete'
+        }
+      },
+      organizations: {
+        displayName: 'Organizations',
+        description: 'Manage organizations',
+        actions: {
+          read: 'Can View',
+          write: 'Can Edit',
+          delete: 'Can Delete'
+        }
+      },
+      notifications: {
+        displayName: 'Notifications',
+        description: 'Manage notifications',
+        actions: {
+          read: 'Can View',
+          write: 'Can Edit',
+          delete: 'Can Delete'
+        }
+      },
+      email: {
+        displayName: 'Email',
+        description: 'Manage email',
+        actions: {
+          read: 'Can View',
+          write: 'Can Edit',
+          delete: 'Can Delete'
+        }
+      },
+      admin_config: {
+        displayName: 'Admin Config',
+        description: 'Administrative configuration',
+        actions: {
+          read: 'Can View',
+          write: 'Can Edit',
+          manage_jobs: 'Can Manage Jobs'
         }
       }
     };

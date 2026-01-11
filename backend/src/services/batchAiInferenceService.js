@@ -52,6 +52,23 @@ class BatchAiInferenceService {
       ...options
     };
 
+    // Update endpoints if provided in options (Dynamic Configuration Support)
+    if (options.endpoints && Array.isArray(options.endpoints) && options.endpoints.length > 0) {
+      // Re-initialize endpoint health to use the dynamically provided endpoints
+      this.endpointHealth = options.endpoints.map(url => ({
+        url,
+        isHealthy: true,
+        consecutiveFailures: 0,
+        lastSuccessAt: new Date(),
+        lastFailureAt: null,
+        responseTimeMs: 0,
+        currentRequests: 0
+      }));
+      if (options.enableDetailedLogging !== false) {
+          console.log(`[BatchAiInferenceService] Updated endpoints dynamically: ${options.endpoints.length} endpoints active`);
+      }
+    }
+
     if (batchOptions.enableDetailedLogging) {
       console.log(`[BatchAI] Starting batch processing for ${totalItems} items`);
       console.log(`[BatchAI] Configuration:`, batchOptions);
