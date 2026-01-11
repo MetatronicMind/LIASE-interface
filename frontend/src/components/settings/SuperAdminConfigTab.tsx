@@ -105,7 +105,7 @@ export default function SuperAdminConfigTab() {
   const fetchConfig = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
       const response = await fetch(`${apiUrl}/admin-config/system-config`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -194,7 +194,7 @@ export default function SuperAdminConfigTab() {
     
     try {
       const token = localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
       const response = await fetch(`${apiUrl}/admin-config/system-config`, {
         method: "POST",
         headers: {
@@ -223,7 +223,7 @@ export default function SuperAdminConfigTab() {
     
     try {
       const token = localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
       const response = await fetch(`${apiUrl}/admin-config/test-endpoint`, {
         method: "POST",
         headers: {
