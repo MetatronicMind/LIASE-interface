@@ -2321,5 +2321,93 @@
     "_etag": "\"00000000-0000-0000-6cd8-0a8e440501dc\"",
     "_attachments": "attachments/",
     "_ts": 1765702806
+  },
+  {
+    "id": "notification_a5362f6d-7772-4f67-983e-9bb3f854ff8c",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "type": "info",
+    "title": "New Articles Available",
+    "message": "Hey there ! , Your Articles are ready , Happy Classification !",
+    "templateId": null,
+    "templateData": {},
+    "recipients": [
+      {
+        "userId": "8ecfefd9-2cbe-4ffd-8040-64bf6c875e84",
+        "email": "arnabnath809@gmail.com",
+        "name": "Arnab Nath"
+      }
+    ],
+    "channels": [
+      "email"
+    ],
+    "priority": "urgent",
+    "status": "delivered",
+    "scheduleType": "immediate",
+    "scheduledAt": null,
+    "cronExpression": null,
+    "retryCount": 0,
+    "maxRetries": 3,
+    "lastRetryAt": null,
+    "deliveryAttempts": [],
+    "metadata": {
+      "triggeredByRule": "notification_rule_03d483fd-318b-4ce8-a841-0b539cc5c208",
+      "ruleName": "Daily New Articles Alert",
+      "context": {}
+    },
+    "createdBy": "system",
+    "createdAt": "2026-01-08T09:00:00.556Z",
+    "updatedAt": "2026-01-08T09:00:13.722Z",
+    "sentAt": null,
+    "deliveredAt": "2026-01-08T09:00:13.716Z",
+    "type_doc": "notification",
+    "_rid": "Vf9WAPz-sNAsAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAPz-sNA=/docs/Vf9WAPz-sNAsAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-807d-337b680501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1767862813
+  },
+  {
+    "id": "notification_03a7de36-bfff-42dc-9dd3-5410a7de9374",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "type": "info",
+    "title": "New Classification Have been made",
+    "message": "Hey There ! There is a new classification been made !",
+    "templateId": null,
+    "templateData": {},
+    "recipients": [
+      {
+        "userId": "8ecfefd9-2cbe-4ffd-8040-64bf6c875e84",
+        "email": "arnabnath809@gmail.com",
+        "name": "Arnab Nath"
+      }
+    ],
+    "channels": [
+      "email"
+    ],
+    "priority": "urgent",
+    "status": "delivered",
+    "scheduleType": "immediate",
+    "scheduledAt": null,
+    "cronExpression": null,
+    "retryCount": 0,
+    "maxRetries": 3,
+    "lastRetryAt": null,
+    "deliveryAttempts": [],
+    "metadata": {
+      "triggeredByRule": "notification_rule_72ae301f-00a3-4dd6-948a-df7c8dd2f978",
+      "ruleName": "Alert On Classfication",
+      "context": {}
+    },
+    "createdBy": "system",
+    "createdAt": "2026-01-08T09:00:00.584Z",
+    "updatedAt": "2026-01-08T09:00:14.849Z",
+    "sentAt": null,
+    "deliveredAt": "2026-01-08T09:00:14.840Z",
+    "type_doc": "notification",
+    "_rid": "Vf9WAPz-sNAtAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAPz-sNA=/docs/Vf9WAPz-sNAtAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-807d-3428040501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1767862814
   }
 ]

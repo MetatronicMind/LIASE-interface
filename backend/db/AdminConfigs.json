@@ -133,5 +133,139 @@
     "_etag": "\"00000000-0000-0000-6f92-950af40501dc\"",
     "_attachments": "attachments/",
     "_ts": 1766002827
+  },
+  {
+    "id": "admin_config_773b2f3b-8991-4b75-8a23-ed44c7709462",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "configType": "triage",
+    "configData": {
+      "batchSize": 20,
+      "priorityQueue": [
+        "Probable AOI",
+        "Probable ICSR",
+        "Probable ICSR/AOI",
+        "Manual Review",
+        "No Case"
+      ]
+    },
+    "isActive": true,
+    "version": 36,
+    "createdBy": "system",
+    "updatedBy": "8ecfefd9-2cbe-4ffd-8040-64bf6c875e84",
+    "createdAt": "2025-12-21T19:28:26.670Z",
+    "updatedAt": "2025-12-21T21:08:00.396Z",
+    "metadata": {},
+    "type_doc": "admin_config",
+    "_rid": "Vf9WAKIEmUUDAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAKIEmUU=/docs/Vf9WAKIEmUUDAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-72bd-e36a240501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1766351280
+  },
+  {
+    "id": "admin_config_326cba1a-ab14-4179-b715-f2e2b8847b29",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "configType": "study_queue",
+    "configData": {
+      "mode": "default",
+      "statusQueue": [
+        "Probable ICSR",
+        "Probable AOI",
+        "Probable ICSR/AOI",
+        "No Case",
+        "Manual Review"
+      ],
+      "clientList": [],
+      "allowUserClientEntry": false
+    },
+    "isActive": true,
+    "version": 3,
+    "createdBy": "system",
+    "updatedBy": "8ecfefd9-2cbe-4ffd-8040-64bf6c875e84",
+    "createdAt": "2025-12-21T20:29:00.674Z",
+    "updatedAt": "2025-12-21T20:42:28.588Z",
+    "metadata": {},
+    "type_doc": "admin_config",
+    "_rid": "Vf9WAKIEmUUEAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAKIEmUU=/docs/Vf9WAKIEmUUEAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-72ba-5262c40501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1766349748
+  },
+  {
+    "id": "admin_config_f4eb1494-0f41-498e-b92d-8e60f59f2102",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "configType": "system_config",
+    "configData": {
+      "aiInferenceEndpoints": {
+        "primary": "http://48.217.12.7/get_AI_inference",
+        "secondary": "http://4.157.127.230/get_AI_inference",
+        "tertiary": "http://4.157.29.153/get_AI_inference",
+        "quaternary": "http://4.236.195.153/get_AI_inference"
+      },
+      "r3XmlEndpoint": "http://4.236.195.153/get_r3_fields",
+      "pubmedApiEndpoint": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/",
+      "pmidListEndpoint": "http://48.217.12.7/get_pmidlist/",
+      "backendPort": 8000,
+      "frontendPort": 3000,
+      "backendUrl": "http://localhost:8000",
+      "frontendUrl": "http://localhost:3000",
+      "aiProcessing": {
+        "maxConcurrentRequests": 5,
+        "requestTimeout": 30000,
+        "retryAttempts": 3,
+        "batchSize": 10,
+        "enableCircuitBreaker": true,
+        "circuitBreakerThreshold": 5
+      },
+      "database": {
+        "cosmosDbEndpoint": "https://localhost:8081",
+        "databaseId": "liase-saas-local",
+        "maxConnectionPoolSize": 100,
+        "requestTimeout": 30000
+      },
+      "rateLimiting": {
+        "enabled": true,
+        "windowMs": 900000,
+        "maxRequests": 100
+      },
+      "email": {
+        "smtpHost": "",
+        "smtpPort": 587,
+        "smtpSecure": false,
+        "fromName": "LIASE Notifications",
+        "fromEmail": ""
+      },
+      "scheduler": {
+        "drugSearchInterval": "0 */6 * * *",
+        "dailyReportsTime": "0 9 * * *",
+        "notificationProcessingInterval": 10
+      },
+      "security": {
+        "jwtExpiresIn": "24h",
+        "passwordMinLength": 8,
+        "enableMfa": false,
+        "sessionTimeout": 60,
+        "maxLoginAttempts": 5
+      },
+      "maintenance": {
+        "enabled": false,
+        "message": "System is under maintenance. Please try again later.",
+        "allowedIps": []
+      }
+    },
+    "isActive": true,
+    "version": 2,
+    "createdBy": "system",
+    "updatedBy": "user_5e2b8ae4-6911-49e9-baf8-cf8e9e620d7e",
+    "createdAt": "2026-01-11T11:29:05.305Z",
+    "updatedAt": "2026-01-11T11:29:17.020Z",
+    "metadata": {},
+    "type_doc": "admin_config",
+    "_rid": "Vf9WAKIEmUUFAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAKIEmUU=/docs/Vf9WAKIEmUUFAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-82ed-8558300501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1768130957
   }
 ]

@@ -16,22 +16,22 @@
     "replyTo": "arnabdeepnath@gmail.com",
     "maxEmailsPerHour": 100,
     "rateLimitWindow": 3600000,
-    "currentUsage": 3,
-    "resetTime": "2025-12-16T01:00:46.030Z",
+    "currentUsage": 1,
+    "resetTime": "2026-01-08T10:00:09.196Z",
     "tlsOptions": {},
     "metadata": {},
     "createdBy": "8ecfefd9-2cbe-4ffd-8040-64bf6c875e84",
     "createdAt": "2025-12-02T12:36:41.811Z",
-    "updatedAt": "2025-12-16T00:08:01.153Z",
-    "lastUsedAt": "2025-12-16T00:08:01.142Z",
+    "updatedAt": "2026-01-08T09:00:14.802Z",
+    "lastUsedAt": "2026-01-08T09:00:14.793Z",
     "lastTestAt": null,
     "testStatus": null,
     "type_doc": "smtp_config",
     "_rid": "Vf9WAJPQsskBAAAAAAAAAA==",
     "_self": "dbs/Vf9WAA==/colls/Vf9WAJPQssk=/docs/Vf9WAJPQsskBAAAAAAAAAA==/",
-    "_etag": "\"00000000-0000-0000-6e20-0ab0540501dc\"",
+    "_etag": "\"00000000-0000-0000-807d-3420980501dc\"",
     "_attachments": "attachments/",
-    "_ts": 1765843681
+    "_ts": 1767862814
   },
   {
     "id": "email_log_724a9dba-b468-44e0-b9cb-7c4c2e91a2fd",
@@ -3311,5 +3311,133 @@
     "_etag": "\"00000000-0000-0000-6e20-0aa44c0501dc\"",
     "_attachments": "attachments/",
     "_ts": 1765843681
+  },
+  {
+    "id": "email_log_70c34283-c92c-47fa-beb8-519ba083389b",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "notificationId": null,
+    "templateId": null,
+    "to": [
+      "arnabnath809@gmail.com"
+    ],
+    "cc": [],
+    "bcc": [],
+    "subject": "New Classification Have been made",
+    "bodyHtml": "\n      <!DOCTYPE html>\n      <html>\n        <head>\n          <meta charset=\"utf-8\">\n          <style>\n            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n            .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n            .header { background: #dc2626; color: white; padding: 20px; border-radius: 5px 5px 0 0; }\n            .content { background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; }\n            .footer { background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; }\n            .priority { display: inline-block; padding: 5px 10px; border-radius: 3px; color: white; background: #dc2626; font-size: 12px; font-weight: bold; }\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <div class=\"header\">\n              <h2 style=\"margin: 0;\">New Classification Have been made</h2>\n              <span class=\"priority\">URGENT</span>\n            </div>\n            <div class=\"content\">\n              <p>Hey There ! There is a new classification been made !</p>\n              \n                <div style=\"margin-top: 20px; padding: 15px; background: white; border-radius: 5px;\">\n                  <strong>Additional Information:</strong>\n                  <ul style=\"margin: 10px 0 0 0; padding-left: 20px;\">\n                    <li><strong>triggeredByRule:</strong> notification_rule_72ae301f-00a3-4dd6-948a-df7c8dd2f978</li><li><strong>ruleName:</strong> Alert On Classfication</li><li><strong>context:</strong> [object Object]</li>\n                  </ul>\n                </div>\n              \n            </div>\n            <div class=\"footer\">\n              <p>This is an automated notification from LIASE Interface System</p>\n              <p style=\"margin: 5px 0 0 0;\">Sent: 8/1/2026, 2:30:00 pm</p>\n            </div>\n          </div>\n        </body>\n      </html>\n    ",
+    "status": "sent",
+    "priority": "normal",
+    "scheduledAt": null,
+    "sentAt": "2026-01-08T09:00:14.757Z",
+    "deliveredAt": null,
+    "failedAt": null,
+    "errorMessage": null,
+    "retryCount": 0,
+    "maxRetries": 3,
+    "providerResponse": {
+      "accepted": [
+        "arnabnath809@gmail.com"
+      ],
+      "rejected": [],
+      "ehlo": [
+        "SIZE 35882577",
+        "8BITMIME",
+        "AUTH LOGIN PLAIN XOAUTH2 PLAIN-CLIENTTOKEN OAUTHBEARER XOAUTH",
+        "ENHANCEDSTATUSCODES",
+        "PIPELINING",
+        "CHUNKING",
+        "SMTPUTF8"
+      ],
+      "envelopeTime": 846,
+      "messageTime": 910,
+      "messageSize": 2409,
+      "response": "250 2.0.0 OK  1767862813 98e67ed59e1d1-34f5fb64b3esm7180585a91.10 - gsmtp",
+      "envelope": {
+        "from": "arnabdeepnath@gmail.com",
+        "to": [
+          "arnabnath809@gmail.com"
+        ]
+      },
+      "messageId": "<f0ef0867-db08-180e-a6ac-17dbf8536c3d@gmail.com>"
+    },
+    "smtpConfig": {
+      "id": "smtp_config_297162af-350f-4613-9fd7-e526727844fd",
+      "name": "GMAIL TEST Arnab"
+    },
+    "metadata": {
+      "notificationId": "notification_03a7de36-bfff-42dc-9dd3-5410a7de9374",
+      "notificationType": "info"
+    },
+    "createdAt": "2026-01-08T09:00:09.196Z",
+    "updatedAt": "2026-01-08T09:00:14.774Z",
+    "type_doc": "email_log",
+    "_rid": "Vf9WAJPQsslCAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAJPQssk=/docs/Vf9WAJPQsslCAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-807d-341c940501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1767862814
+  },
+  {
+    "id": "email_log_fce1507b-72a7-4ee7-a745-dcb66200a05a",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "notificationId": null,
+    "templateId": null,
+    "to": [
+      "arnabnath809@gmail.com"
+    ],
+    "cc": [],
+    "bcc": [],
+    "subject": "New Articles Available",
+    "bodyHtml": "\n      <!DOCTYPE html>\n      <html>\n        <head>\n          <meta charset=\"utf-8\">\n          <style>\n            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n            .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n            .header { background: #dc2626; color: white; padding: 20px; border-radius: 5px 5px 0 0; }\n            .content { background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; }\n            .footer { background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666; }\n            .priority { display: inline-block; padding: 5px 10px; border-radius: 3px; color: white; background: #dc2626; font-size: 12px; font-weight: bold; }\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <div class=\"header\">\n              <h2 style=\"margin: 0;\">New Articles Available</h2>\n              <span class=\"priority\">URGENT</span>\n            </div>\n            <div class=\"content\">\n              <p>Hey there ! , Your Articles are ready , Happy Classification !</p>\n              \n                <div style=\"margin-top: 20px; padding: 15px; background: white; border-radius: 5px;\">\n                  <strong>Additional Information:</strong>\n                  <ul style=\"margin: 10px 0 0 0; padding-left: 20px;\">\n                    <li><strong>triggeredByRule:</strong> notification_rule_03d483fd-318b-4ce8-a841-0b539cc5c208</li><li><strong>ruleName:</strong> Daily New Articles Alert</li><li><strong>context:</strong> [object Object]</li>\n                  </ul>\n                </div>\n              \n            </div>\n            <div class=\"footer\">\n              <p>This is an automated notification from LIASE Interface System</p>\n              <p style=\"margin: 5px 0 0 0;\">Sent: 8/1/2026, 2:30:00 pm</p>\n            </div>\n          </div>\n        </body>\n      </html>\n    ",
+    "status": "sent",
+    "priority": "normal",
+    "scheduledAt": null,
+    "sentAt": "2026-01-08T09:00:13.630Z",
+    "deliveredAt": null,
+    "failedAt": null,
+    "errorMessage": null,
+    "retryCount": 0,
+    "maxRetries": 3,
+    "providerResponse": {
+      "accepted": [
+        "arnabnath809@gmail.com"
+      ],
+      "rejected": [],
+      "ehlo": [
+        "SIZE 35882577",
+        "8BITMIME",
+        "AUTH LOGIN PLAIN XOAUTH2 PLAIN-CLIENTTOKEN OAUTHBEARER XOAUTH",
+        "ENHANCEDSTATUSCODES",
+        "PIPELINING",
+        "CHUNKING",
+        "SMTPUTF8"
+      ],
+      "envelopeTime": 836,
+      "messageTime": 739,
+      "messageSize": 2398,
+      "response": "250 2.0.0 OK  1767862812 98e67ed59e1d1-34f5f7b19ebsm7111926a91.3 - gsmtp",
+      "envelope": {
+        "from": "arnabdeepnath@gmail.com",
+        "to": [
+          "arnabnath809@gmail.com"
+        ]
+      },
+      "messageId": "<3f89ecf2-7cc3-4491-e7c2-2125a63bfbe8@gmail.com>"
+    },
+    "smtpConfig": {
+      "id": "smtp_config_297162af-350f-4613-9fd7-e526727844fd",
+      "name": "GMAIL TEST Arnab"
+    },
+    "metadata": {
+      "notificationId": "notification_a5362f6d-7772-4f67-983e-9bb3f854ff8c",
+      "notificationType": "info"
+    },
+    "createdAt": "2026-01-08T09:00:09.199Z",
+    "updatedAt": "2026-01-08T09:00:13.645Z",
+    "type_doc": "email_log",
+    "_rid": "Vf9WAJPQsslDAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAJPQssk=/docs/Vf9WAJPQsslDAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-807d-3370a40501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1767862813
   }
 ]

@@ -48,7 +48,13 @@ async function exportData() {
     const client = new CosmosClient({ endpoint, key });
     const database = client.database(dbId);
 
-    for (const containerId of containersToExport) {
+    // Fetch all containers dynamically
+    console.log('Fetching all containers...');
+    const { resources: containers } = await database.containers.readAll().fetchAll();
+    const containerIds = containers.map(c => c.id);
+    console.log(`Found ${containerIds.length} containers: ${containerIds.join(', ')}`);
+
+    for (const containerId of containerIds) {
       console.log(`Exporting container: ${containerId}...`);
       const container = database.container(containerId);
       
