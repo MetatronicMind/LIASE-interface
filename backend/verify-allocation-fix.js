@@ -2,7 +2,7 @@ const axios = require('axios');
 const { CosmosClient } = require('@azure/cosmos');
 
 // CONFIGURATION
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api';
 // Using the same users as test-race-condition.js
 const USERS = [
     { email: 'testadmin10012026@gmail.com', password: 'Aa123!@#', label: 'User 1' },
@@ -64,7 +64,7 @@ async function allocateBatch(user) {
 }
 
 async function runVerification() {
-    console.log('🚀 Starting Aggressive Race Condition Verification');
+    console.log('🚀 Starting Aggressive Race Condition Verification in Prod Server');
     
     // 1. Log in all users
     console.log('🔑 Logging in users...');
@@ -89,10 +89,21 @@ async function runVerification() {
         } catch (e) { /* ignore */ }
     }
 
-    // 3. Fire simultaneous batch requests
-    console.log(`\n🏁 Firing ${loggedInUsers.length} simultaneous BATCH requests...`);
+    // 3. Fire staggered batch requests to simulate "clicking while others are processing"
+    console.log(`\n🏁 Firing ${loggedInUsers.length} STAGGERED batch requests...`);
     
-    const promises = loggedInUsers.map(u => allocateBatch(u));
+    // We want the requests to overlap. If an allocation takes ~4000ms, 
+    // starting them 500ms apart ensures they all run in parallel but start at different times.
+    const promises = loggedInUsers.map((u, index) => {
+        const delay = index * 500; // 0ms, 500ms, 1000ms, 1500ms...
+        return new Promise(resolve => {
+            setTimeout(() => {
+                console.log(`👉 ${u.label} clicking allocate (T+${delay}ms)...`);
+                allocateBatch(u).then(resolve);
+            }, delay);
+        });
+    });
+
     const results = await Promise.all(promises);
     
     // 4. Analyze Results

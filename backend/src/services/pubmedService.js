@@ -2,9 +2,19 @@ const xml2js = require('xml2js'); // This stays for XML parsing
 
 // Step 1: Search for articles related to drugs using the new custom endpoint
 async function getDrugArticles(term, maxResults = 10) {
-    // 1. Search for PMIDs using the new custom endpoint
-    const searchUrl = `http://20.242.200.176/get_pmidlist/?search=${encodeURIComponent(term)}`;
+    // 1. Search for PMIDs using the custom endpoint from admin config
+    // Using IP from AdminConfigs.json (pmidListEndpoint)
+    // The endpoint requires start_date and end_date
+    const defaultStartDate = '2000-01-01'; 
+    const defaultEndDate = new Date().toISOString().split('T')[0];
+    
+    const searchUrl = `http://48.217.12.7/get_pmidlist/?search=${encodeURIComponent(term)}&start_date=${defaultStartDate}&end_date=${defaultEndDate}`;
     const searchResp = await fetch(searchUrl);
+    
+    if (!searchResp.ok) {
+        throw new Error(`PubMed search failed: ${searchResp.status} ${searchResp.statusText}`);
+    }
+
     const searchJson = await searchResp.json();
     
     // The new endpoint returns PMIDs directly in an array or object
