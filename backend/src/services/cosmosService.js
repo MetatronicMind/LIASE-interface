@@ -339,6 +339,34 @@ class CosmosService {
     }
   }
 
+  async patchItem(containerName, id, partitionKey, operations, filterPredicate) {
+    try {
+      const container = this.getContainer(containerName);
+      
+      // Determine the correct partition key
+      const actualPartitionKey = this.getPartitionKey(containerName, id, partitionKey);
+      
+      const options = {};
+      if (filterPredicate) {
+        options.filterPredicate = filterPredicate;
+      }
+
+      // Note: container.item returns an Item object. 
+      // patch returns { resource: ... }
+      const { resource } = await container.item(id, actualPartitionKey).patch(operations, options);
+      return resource;
+    } catch (error) {
+      if (error.code === 412 || error.statusCode === 412) {
+        // We throw a standardized error so the caller can detect it easily
+        const err = new Error('PreconditionFailed');
+        err.statusCode = 412;
+        throw err;
+      }
+      console.error(`Error patching item in ${containerName}:`, error);
+      throw error;
+    }
+  }
+
   async deleteItem(containerName, id, partitionKey) {
     try {
       const container = this.getContainer(containerName);

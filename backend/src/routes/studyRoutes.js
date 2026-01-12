@@ -2572,57 +2572,91 @@ router.post('/allocate-case',
       }
 
       // 2. Find and lock a new case using Priority Queue
-      const findParams = [
-        { name: '@orgId', value: organizationId }
-      ];
+      let allocatedCase = null;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 3;
 
-      // Step 2a: Try to find High Priority cases specifically first (Probable/Potential/Tagged)
-      // This ensures we priority allocate them even if they are buried behind 1000+ Manual Review cases
-      // We use LOWER() for case-insensitive matching
-      const highPriorityQuery = `
-          SELECT TOP 50 * FROM c 
-          WHERE c.organizationId = @orgId 
-          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
-          AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
-          AND (
-            CONTAINS(LOWER(c.icsrClassification), "probable") OR 
-            CONTAINS(LOWER(c.aoiClassification), "probable") OR
-            CONTAINS(LOWER(c.icsrClassification), "potential") OR 
-            CONTAINS(LOWER(c.aoiClassification), "potential") OR
-            CONTAINS(LOWER(c.userTag), "icsr") OR
-            CONTAINS(LOWER(c.userTag), "aoi")
-          )
-      `;
+      while (!allocatedCase && attempts < MAX_ATTEMPTS) {
+        attempts++;
+        const findParams = [
+          { name: '@orgId', value: organizationId }
+        ];
 
-      let availableCases = [];
-      try {
-        availableCases = await cosmosService.queryItems('studies', highPriorityQuery, findParams);
-      } catch (err) {
-        console.warn('High priority query failed, falling back to standard query', err);
+        // Step 2a: Try to find High Priority cases specifically first (Probable/Potential/Tagged)
+        // This ensures we priority allocate them even if they are buried behind 1000+ Manual Review cases
+        // We use LOWER() for case-insensitive matching
+        const highPriorityQuery = `
+            SELECT TOP 50 * FROM c 
+            WHERE c.organizationId = @orgId 
+            AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
+            AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+            AND (
+              CONTAINS(LOWER(c.icsrClassification), "probable") OR 
+              CONTAINS(LOWER(c.aoiClassification), "probable") OR
+              CONTAINS(LOWER(c.icsrClassification), "potential") OR 
+              CONTAINS(LOWER(c.aoiClassification), "potential") OR
+              CONTAINS(LOWER(c.userTag), "icsr") OR
+              CONTAINS(LOWER(c.userTag), "aoi")
+            )
+        `;
+
+        let availableCases = [];
+        try {
+          availableCases = await cosmosService.queryItems('studies', highPriorityQuery, findParams);
+        } catch (err) {
+          console.warn('High priority query failed, falling back to standard query', err);
+        }
+
+        if (!availableCases || availableCases.length === 0) {
+          // Step 2b: Fallback to general query if no high priority cases found
+          const fetchLimit = 100;
+          const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
+          availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+        }
+
+        if (!availableCases || availableCases.length === 0) {
+          if (attempts === 1) {
+             return res.status(404).json({ success: false, message: "No available cases at the moment." });
+          }
+          break; // If subsequent attempts fail to find cases, stop
+        }
+
+        // Sort by priority
+        availableCases.sort((a, b) => getPriority(a) - getPriority(b));
+
+        // Try to allocate one of the top cases (try top 5 to reduce retries)
+        const casesToTry = availableCases.slice(0, 5);
+
+        for (const caseToLock of casesToTry) {
+           try {
+             const operations = [
+               { op: 'set', path: '/assignedTo', value: userId },
+               { op: 'set', path: '/lockedAt', value: new Date().toISOString() },
+               { op: 'set', path: '/updatedAt', value: new Date().toISOString() }
+             ];
+             
+             // Optimistic concurrency: ensure assignedTo is still null/undefined
+             // The SDK expects the condition using 'from' as alias. Do not use 'WHERE' or 'SELECT'.
+             const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
+             
+             allocatedCase = await cosmosService.patchItem('studies', caseToLock.id, organizationId, operations, filterPredicate);
+             break; // Successfully allocated
+           } catch (err) {
+             if (err.statusCode === 412) {
+               console.log(`Race condition encountered for case ${caseToLock.id}, user collision avoided. Trying next candidate.`);
+               continue; // Try next case
+             }
+             throw err;
+           }
+        }
       }
 
-      if (!availableCases || availableCases.length === 0) {
-        // Step 2b: Fallback to general query if no high priority cases found
-        const fetchLimit = 100;
-        const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
-        availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+      if (allocatedCase) {
+        res.json({ success: true, message: "Case allocated successfully", case: allocatedCase });
+      } else {
+        // If we exhausted attempts or cases ran out during retry
+        res.status(409).json({ success: false, message: "System busy optimizing allocation. Please try again." });
       }
-
-      if (!availableCases || availableCases.length === 0) {
-        return res.status(404).json({ success: false, message: "No available cases at the moment." });
-      }
-
-      // Sort by priority
-      availableCases.sort((a, b) => getPriority(a) - getPriority(b));
-
-      const caseToLock = availableCases[0];
-      caseToLock.assignedTo = userId;
-      caseToLock.lockedAt = new Date().toISOString();
-      caseToLock.updatedAt = new Date().toISOString();
-
-      const updatedCase = await cosmosService.updateItem('studies', caseToLock.id, organizationId, caseToLock);
-
-      res.json({ success: true, message: "Case allocated successfully", case: updatedCase });
 
     } catch (error) {
       console.error('Allocation error:', error);
@@ -2759,13 +2793,24 @@ router.post('/allocate-batch',
       // 5. Lock them
       const lockedCases = [];
       for (const study of casesToLock) {
-        study.assignedTo = userId;
-        study.lockedAt = new Date().toISOString();
-        study.updatedAt = new Date().toISOString();
-        
-        // Update in DB
-        const updated = await cosmosService.updateItem('studies', study.id, organizationId, study);
-        lockedCases.push(updated);
+        try {
+          const operations = [
+            { op: 'set', path: '/assignedTo', value: userId },
+            { op: 'set', path: '/lockedAt', value: new Date().toISOString() },
+            { op: 'set', path: '/updatedAt', value: new Date().toISOString() }
+          ];
+          
+          const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
+          
+          const updated = await cosmosService.patchItem('studies', study.id, organizationId, operations, filterPredicate);
+          lockedCases.push(updated);
+        } catch (err) {
+          if (err.statusCode === 412) {
+             // Race condition - case already taken. Skip it.
+             continue;
+          }
+          console.error(`Error locking case ${study.id}:`, err);
+        }
       }
 
       res.json({ success: true, message: "Cases allocated successfully", cases: lockedCases });

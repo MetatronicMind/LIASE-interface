@@ -27,6 +27,17 @@ interface PermissionStructure {
   };
 }
 
+const countActiveResources = (permissions: Record<string, any> | undefined) => {
+  if (!permissions) return 0;
+  return Object.values(permissions).filter(resourcePermissions => {
+    // Check if the resource object has any action set to true
+    if (typeof resourcePermissions === 'object' && resourcePermissions !== null) {
+      return Object.values(resourcePermissions).some(value => value === true);
+    }
+    return false;
+  }).length;
+};
+
 export default function RoleManagementPage() {
   const router = useRouter();
   const [roles, setRoles] = useState<Role[]>([]);
@@ -322,7 +333,7 @@ export default function RoleManagementPage() {
                     </td>
                     <td className="py-4 px-4">
                       <div className="text-xs text-gray-500">
-                        {Object.keys(role.permissions || {}).length} resources configured
+                        {countActiveResources(role.permissions)} resources configured
                       </div>
                     </td>
                     <td className="py-4 px-4">

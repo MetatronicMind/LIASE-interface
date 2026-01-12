@@ -60,21 +60,7 @@ export default function OverviewPage() {
           ))}
         </div>
 
-        {/* AI Processing Section */}
-        <div className="bg-cyan-50 rounded-xl shadow border border-cyan-100 mb-8 p-6">
-          <div className="font-bold text-lg mb-2 text-cyan-900">AI Processing</div>
-          <div className="text-cyan-800 mb-2">Process new studies from PubMed databases for all active drugs.</div>
-          <div className="bg-blue-100 border-l-4 border-blue-400 p-3 mb-4 text-sm text-blue-900">
-            <span className="font-semibold">Note:</span> AI processing typically runs automatically at midnight. Use this button for manual processing or testing.
-          </div>
-          <button
-            className="bg-blue-600 text-white px-5 py-2 rounded font-semibold hover:bg-blue-700 transition disabled:opacity-60"
-            onClick={handleAIProcessing}
-            disabled={processing}
-          >
-            {processing ? "Processing..." : "Start AI Processing"}
-          </button>
-        </div>
+        {/* AI Processing Section - Removed */}
 
         {/* Recent Activity Section */}
         <div className="bg-white/90 rounded-xl shadow border border-blue-100 p-6">

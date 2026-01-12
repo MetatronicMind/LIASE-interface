@@ -178,13 +178,7 @@ export default function DashboardPage() {
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
               <p className="text-sm text-gray-500">Overview for {user?.firstName || "User"}</p>
             </div>
-            <button
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-60 shadow-sm"
-              onClick={handleAIProcessing}
-              disabled={processing}
-            >
-              {processing ? "Processing..." : "Start AI Processing"}
-            </button>
+            {/* AI Processing Button Removed */}
           </div>
 
           {/* {loading ? (
