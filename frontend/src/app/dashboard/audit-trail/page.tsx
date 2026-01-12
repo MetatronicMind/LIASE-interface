@@ -693,9 +693,20 @@ export default function AuditTrailPage() {
                                 const technicalFields = ['rid', 'self', 'etag', 'attachments', 'ts', '_rid', '_self', '_etag', '_ts'];
                                 return !technicalFields.includes(field);
                               })
+                              .sort((a, b) => {
+                                // Put isActive at the top
+                                if (a.field === 'isActive') return -1;
+                                if (b.field === 'isActive') return 1;
+                                return 0;
+                              })
                               .map((change, changeIdx) => (
                               <div key={changeIdx} className="text-xs bg-blue-50 rounded p-2 border border-blue-100">
                                 {(() => {
+                                  if (change.field === 'isActive') {
+                                    const isReactivated = change.after === true || change.after === 'true' || change.after === 'Yes';
+                                    return <div className="text-blue-900 font-bold">{isReactivated ? 'Reactivated' : 'Deactivated'}</div>;
+                                  }
+
                                   const label = formatFieldLabel(change.field);
                                   const before = formatValueForHumans(change.before);
                                   const after = formatValueForHumans(change.after);

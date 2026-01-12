@@ -82,6 +82,7 @@ interface Study {
   listedness?: string;
   seriousness?: string;
   fullTextAvailability?: string;
+  fullTextSource?: string;
   
   // Legacy fields for backward compatibility
   Drugname?: string;
@@ -92,46 +93,45 @@ interface Study {
 }
 
 const R3_FORM_FIELDS = [
-  // Reporter Information (Category A)
-  { key: "C.2.r.1", label: "Reporter's Name", category: "A", required: true, section: "reporter" },
-  { key: "C.2.r.1.1", label: "Reporter's Title", category: "A", required: false, section: "reporter" },
-  { key: "C.2.r.1.2", label: "Reporter's Given Name", category: "A", required: true, section: "reporter" },
-  { key: "C.2.r.1.3", label: "Reporter's Middle Name", category: "A", required: false, section: "reporter" },
-  { key: "C.2.r.1.4", label: "Reporter's Family Name", category: "A", required: true, section: "reporter" },
-  { key: "C.2.r.2.1", label: "Reporter's Organisation", category: "A", required: false, section: "reporter" },
-  { key: "C.4.r.1", label: "Literature Reference(s)", category: "A", required: true, section: "reporter" },
-  
-  // Patient Characteristics
-  { key: "D.1", label: "Patient (name or initials)", category: "C", required: false, section: "patient" },
-  { key: "D.2.1", label: "Date of Birth", category: "C", required: false, section: "patient" },
-  { key: "D.2.2a", label: "Age at Time of Onset (number)", category: "B", required: false, section: "patient" },
-  { key: "D.2.2b", label: "Age at Time of Onset (unit)", category: "B", required: false, section: "patient" },
-  { key: "D.2.3", label: "Patient Age Group", category: "C", required: false, section: "patient" },
-  { key: "D.3", label: "Body Weight (kg)", category: "C", required: false, section: "patient" },
-  { key: "D.4", label: "Height (cm)", category: "C", required: false, section: "patient" },
-  { key: "D.5", label: "Sex", category: "C", required: false, section: "patient" },
-  { key: "D.7.2", label: "Relevant Medical History", category: "C", required: false, section: "patient" },
-  { key: "D.9.1", label: "Date of Death", category: "C", required: false, section: "patient" },
-  
-  // Reaction/Event Information
-  { key: "E.i.1.1a", label: "Reaction / Event as Reported", category: "C", required: true, section: "reaction" },
-  { key: "E.i.3.2a", label: "Results in Death", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2b", label: "Life Threatening", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2c", label: "Caused / Prolonged Hospitalisation", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2d", label: "Disabling / Incapacitating", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2e", label: "Congenital Anomaly / Birth Defect", category: "C", required: false, section: "reaction" },
-  { key: "E.i.3.2f", label: "Other Medically Important Condition", category: "C", required: false, section: "reaction" },
-  { key: "E.i.4", label: "Date of Start of Reaction / Event", category: "C", required: false, section: "reaction" },
-  { key: "E.i.5", label: "Date of End of Reaction / Event", category: "C", required: false, section: "reaction" },
-  { key: "E.i.7", label: "Outcome of Reaction / Event", category: "C", required: false, section: "reaction" },
-  { key: "E.i.9", label: "Country Where Reaction Occurred", category: "C", required: false, section: "reaction" },
-  
-  // Drug Information
-  { key: "G.k.1", label: "Characterisation of Drug Role", category: "C", required: true, section: "drug" },
-  { key: "G.k.2", label: "Drug Identification", category: "C", required: true, section: "drug" },
-  
-  // Case Narrative
-  { key: "H.1", label: "Case Narrative", category: "C", required: false, section: "narrative" },
+  // Header / Batch Information (Category N)
+  { key: "N_1_2", label: "Batch Number", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_5", label: "Date of Batch Transmission", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_1", label: "Message Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_2", label: "Message Sender Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_3", label: "Message Receiver Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_4", label: "Date of Message Creation", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_3", label: "Client Organization ID", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_4", label: "Sender Organization ID", category: "N", required: true, section: "header", readOnly: true },
+
+  // Safety Report / Case Creation (Category C)
+  { key: "C_1_2", label: "Date of Creation", category: "C", required: true, section: "safety", readOnly: true },
+  { key: "C_1_4", label: "Date report was first received from source", category: "C", required: true, section: "safety", readOnly: true },
+  { key: "C_4_r_1", label: "Literature Reference(s)", category: "C", required: false, section: "safety" },
+
+  // Patient Characteristics (Category D)
+  { key: "D_1", label: "Patient (Name or Initials)", category: "D", required: false, section: "patient" },
+  { key: "D_5", label: "Sex", category: "D", required: false, section: "patient" },
+  { key: "D_2_2_a", label: "Age at time of onset of reaction/event (number)", category: "D", required: false, section: "patient", type: "number" },
+  { key: "D_2_2_b", label: "Age at time of onset of reaction/event (unit)", category: "D", required: false, section: "patient", type: "select", options: ["a", "mo", "d", "wk"] },
+  { key: "D_7_1_r_3", label: "Continuing", category: "D", required: false, section: "patient", type: "select", options: ["false", "true", "MSK", "NASK", "ASKU"] },
+  { key: "D_8_r_1", label: "Name of Drug as Reported", category: "D", required: false, section: "patient" },
+
+  // Reaction/Event (Category E)
+  { key: "E_i_1_a", label: "Reaction/Event as reported by the primary source", category: "E", required: false, section: "reaction" },
+  { key: "E_i_1_b", label: "Reaction/Event as reported by the primary source (language)", category: "E", required: false, section: "reaction" },
+  { key: "E_i_1_2", label: "Reaction / event as reported by the primary source for translation", category: "E", required: false, section: "reaction" },
+  { key: "E_i_3_2a", label: "Results in Death", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2b", label: "Life Threatening", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2c", label: "Caused/Prolonged Hospitalisation", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2d", label: "Disabling/Incapacitating", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2e", label: "Congenital Anomaly/Birth Defect", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2f", label: "Other Medically Important Condition", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_7", label: "Outcome of reaction/event at the time of last observation", category: "E", required: false, section: "reaction", type: "select", options: ["0 - Unknown", "1 - Recovered/Resolved", "2 - Recovering/Resolving", "3 - Not Recovered/Not Resolved/Ongoing", "4 - Recovered/Resolved with sequelae", "5 - Fatal"] },
+  { key: "E_i_8", label: "Medical Confirmation by Healthcare Professional", category: "E", required: false, section: "reaction", type: "select", options: ["true", "false"] },
+
+  // Narrative (Category H)
+  { key: "H1", label: "Case Narrative", category: "H", required: false, section: "narrative" },
+  { key: "H_4", label: "Sender's Comments", category: "H", required: false, section: "narrative" },
 ];
 
 export default function QCPage() {
@@ -238,7 +238,7 @@ export default function QCPage() {
   });
 
   useEffect(() => {
-    console.log('QC Page mounted, fetching studies...');
+    console.log('QC Page mounted, fetching article');
     fetchPendingR3Studies();
   }, [selectedOrganizationId]);
 
@@ -248,7 +248,7 @@ export default function QCPage() {
       setError(null);
       const token = localStorage.getItem("auth_token");
       
-      console.log('Fetching QC pending R3 studies...');
+      console.log('Fetching QC pending R3 articles');
       
       const queryParams = selectedOrganizationId ? `?organizationId=${selectedOrganizationId}` : '';
       const response = await fetch(`${getApiBaseUrl()}/studies/QC-r3-pending${queryParams}`, {
@@ -476,15 +476,15 @@ export default function QCPage() {
     );
   }
 
-  console.log('QC Page rendering - Studies:', studies.length, 'Error:', error);
+  console.log('QC Page rendering - Article:', studies.length, 'Error:', error);
   console.log('User:', user);
   console.log('Loading:', loading);
-  console.log('Selected Study:', selectedStudy?.id);
+  console.log('Selected Article:', selectedStudy?.id);
 
   // Render content directly without PermissionGate for debugging
   const content = (
     <div className="min-h-screen bg-gray-50">
-      {console.log('Rendering QC content...')}
+   
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto">
@@ -526,12 +526,12 @@ export default function QCPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Study ID</label>
+                <label className="block text-sm font-medium text-gray-700">Article ID</label>
                 <div className="relative">
                   <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Search Study ID..."
+                    placeholder="Search Article ID..."
                     value={studyIdFilter}
                     onChange={e => setStudyIdFilter(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
@@ -670,9 +670,9 @@ export default function QCPage() {
                           <p className="text-xs text-gray-500">
                             <span className="font-medium">Drug:</span> {study.drugName}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          {/* <p className="text-xs text-gray-500">
                             <span className="font-medium">Adverse Event:</span> {study.adverseEvent}
-                          </p>
+                          </p> */}
                         </div>
                       </div>
                       <div className="ml-4">
@@ -713,7 +713,7 @@ export default function QCPage() {
                   <h4 className="font-semibold text-gray-900 mb-3">Literature Information</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="font-bold text-gray-700">Study ID:</span>
+                      <span className="font-bold text-gray-700">Article ID:</span>
                       <p className="mt-1 text-gray-900 font-mono">{selectedStudy.id}</p>
                     </div>
                     <div>
@@ -990,6 +990,15 @@ export default function QCPage() {
                       </div>
                     </div>
 
+                    {selectedStudy.fullTextSource && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-500">Full Text Source</span>
+                        <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                          {selectedStudy.fullTextSource}
+                        </p>
+                      </div>
+                    )}
+
                     {selectedStudy.justification && (
                       <div>
                         <span className="text-sm font-medium text-gray-500">AI Opinion on Literature</span>
@@ -1028,20 +1037,30 @@ export default function QCPage() {
 
                 {/* R3 Form Fields with Comments */}
                 <div className="space-y-6">
-                  {/* Reporter Information */}
+                  {/* Header / Batch Information */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                      Reporter Information (Category A)
+                      Header / Batch Information (Category N)
                     </h3>
                     <div className="space-y-4">
-                      {R3_FORM_FIELDS.filter(f => f.section === "reporter").map(renderFieldWithComments)}
+                      {R3_FORM_FIELDS.filter(f => f.section === "header").map(renderFieldWithComments)}
+                    </div>
+                  </div>
+
+                  {/* Safety Report / Case Creation */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                      Safety Report / Case Creation (Category C)
+                    </h3>
+                    <div className="space-y-4">
+                      {R3_FORM_FIELDS.filter(f => f.section === "safety").map(renderFieldWithComments)}
                     </div>
                   </div>
 
                   {/* Patient Characteristics */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                      Patient Characteristics
+                      Patient Characteristics (Category D)
                     </h3>
                     <div className="space-y-4">
                       {R3_FORM_FIELDS.filter(f => f.section === "patient").map(renderFieldWithComments)}
@@ -1051,27 +1070,17 @@ export default function QCPage() {
                   {/* Reaction/Event Information */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                      Reaction/Event Information
+                      Reaction/Event Information (Category E)
                     </h3>
                     <div className="space-y-4">
                       {R3_FORM_FIELDS.filter(f => f.section === "reaction").map(renderFieldWithComments)}
                     </div>
                   </div>
 
-                  {/* Drug Information */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                      Drug Information
-                    </h3>
-                    <div className="space-y-4">
-                      {R3_FORM_FIELDS.filter(f => f.section === "drug").map(renderFieldWithComments)}
-                    </div>
-                  </div>
-
                   {/* Case Narrative */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                      Case Narrative
+                      Case Narrative (Category H)
                     </h3>
                     <div className="space-y-4">
                       {R3_FORM_FIELDS.filter(f => f.section === "narrative").map(renderFieldWithComments)}

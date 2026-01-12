@@ -172,11 +172,19 @@ router.get('/QA-pending',
       }
       console.log('Target Org ID:', targetOrgId);
 
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND IS_DEFINED(c.userTag) AND c.qaApprovalStatus = @status';
+      let query = "SELECT * FROM c WHERE c.organizationId = @orgId AND c.status = 'qc_triage'";
       const parameters = [
-        { name: '@orgId', value: targetOrgId },
-        { name: '@status', value: status }
+        { name: '@orgId', value: targetOrgId }
       ];
+
+      // Filter by qaApprovalStatus based on status query param
+      // This separates items in "QC Allocation" (pending) from "QC Triage" (manual_qc)
+      if (status === 'manual_qc') {
+        query += " AND c.qaApprovalStatus = 'manual_qc'";
+      } else {
+        // Default to pending for QC Allocation page
+        query += " AND (c.qaApprovalStatus = 'pending' OR NOT IS_DEFINED(c.qaApprovalStatus))";
+      }
 
       if (search) {
         query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
@@ -867,13 +875,15 @@ router.put('/:studyId',
         if (updates.listedness !== undefined) study.listedness = updates.listedness;
         if (updates.seriousness !== undefined) study.seriousness = updates.seriousness;
         if (updates.fullTextAvailability !== undefined) study.fullTextAvailability = updates.fullTextAvailability;
+        if (updates.fullTextSource !== undefined) study.fullTextSource = updates.fullTextSource;
         
         const afterValue = { 
           userTag: study.userTag,
           justification: study.justification,
           listedness: study.listedness,
           seriousness: study.seriousness,
-          fullTextAvailability: study.fullTextAvailability
+          fullTextAvailability: study.fullTextAvailability,
+          fullTextSource: study.fullTextSource
         };
         
         // Save updated study with qaApprovalStatus set to pending

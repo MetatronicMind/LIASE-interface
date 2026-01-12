@@ -36,7 +36,7 @@ class Role {
 
   validatePermissions(permissions) {
     const defaultStructure = {
-      dashboard: { read: false, write: false },
+      dashboard: { read: false },
       users: { read: false, write: false, delete: false },
       roles: { read: false, write: false, delete: false },
       drugs: { read: false, write: false, delete: false },
@@ -135,7 +135,7 @@ class Role {
         displayName: 'Super Administrator',
         description: 'Full system access with organization management capabilities',
         permissions: {
-          dashboard: { read: true, write: true },
+          dashboard: { read: true },
           users: { read: true, write: true, delete: true },
           roles: { read: true, write: true, delete: true },
           drugs: { read: true, write: true, delete: true },
@@ -159,7 +159,7 @@ class Role {
         displayName: 'Administrator',
         description: 'Organization administrator with user and role management access',
         permissions: {
-          dashboard: { read: true, write: true },
+          dashboard: { read: true },
           users: { read: true, write: true, delete: true },
           roles: { read: true, write: true, delete: true },
           drugs: { read: true, write: true, delete: true },
@@ -183,7 +183,7 @@ class Role {
         displayName: 'Triage Specialist',
         description: 'Can run manual drug tests and classify studies as ICSR, AOI, or No Case',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: true, delete: false }, // write: true to enable drug test execution
@@ -207,7 +207,7 @@ class Role {
         displayName: 'Quality Assurance',
         description: 'Can approve or reject triage classifications',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: false, delete: false },
@@ -231,7 +231,7 @@ class Role {
         displayName: 'Quality Control',
         description: 'Can approve or reject R3 XML forms before medical review',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: false, delete: false },
@@ -303,7 +303,7 @@ class Role {
         displayName: 'Data Entry Specialist',
         description: 'Access to QC-approved ICSR studies for R3 XML form completion',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: false, delete: false },
@@ -327,7 +327,7 @@ class Role {
         displayName: 'Medical Reviewer',
         description: 'Review completed ICSR studies, comment on fields, edit data, and manage revocations',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: false, delete: false },
@@ -357,7 +357,7 @@ class Role {
         displayName: 'Triage Specialist Template',
         description: 'Template for roles that classify studies and run manual drug tests',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: true, delete: false }, // write: true to enable drug test execution
@@ -378,7 +378,7 @@ class Role {
         displayName: 'Quality Assurance Template',
         description: 'Template for roles that approve or reject triage classifications',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: false, delete: false },
@@ -398,7 +398,7 @@ class Role {
         displayName: 'Quality Control Template',
         description: 'Template for roles that approve or reject R3 XML forms',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: false, delete: false },
@@ -418,7 +418,7 @@ class Role {
         displayName: 'Data Entry Specialist Template',
         description: 'Template for roles that fill R3 forms for approved ICSR studies',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: false, delete: false },
@@ -439,7 +439,7 @@ class Role {
         displayName: 'Medical Reviewer Template',
         description: 'Template for roles that review, comment, edit, and revoke completed studies',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: false, delete: false },
@@ -460,7 +460,7 @@ class Role {
         displayName: 'Pharmacovigilance User Template',
         description: 'Template for standard pharmacovigilance users with drug and study access',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: true, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: true, delete: false },
@@ -480,7 +480,7 @@ class Role {
         displayName: 'Read-Only Auditor Template',
         description: 'Template for sponsors and auditors with read-only access',
         permissions: {
-          dashboard: { read: true, write: false },
+          dashboard: { read: true },
           users: { read: false, write: false, delete: false },
           roles: { read: false, write: false, delete: false },
           drugs: { read: true, write: false, delete: false },

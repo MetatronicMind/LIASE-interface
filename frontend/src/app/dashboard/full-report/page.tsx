@@ -84,62 +84,45 @@ interface Study {
 }
 
 const R3_FORM_FIELDS = [
-  { key: "C.2.r.1", label: "Reporter's Name", category: "A" },
-  { key: "C.2.r.1.1", label: "Reporter's Title", category: "A" },
-  { key: "C.2.r.1.2", label: "Reporter's Given Name", category: "A" },
-  { key: "C.2.r.1.3", label: "Reporter's Middle Name", category: "A" },
-  { key: "C.2.r.1.4", label: "Reporter's Family Name", category: "A" },
-  { key: "C.2.r.2.1", label: "Reporter's Organisation", category: "A" },
-  { key: "C.4.r.1", label: "Literature Reference(s)", category: "A" },
-  { key: "D", label: "Patient Characteristics", category: "B" },
-  { key: "D.1", label: "Patient (name or initials)", category: "C" },
-  { key: "D.2.1", label: "Date of Birth", category: "C" },
-  { key: "D.2.2", label: "Age at Time of Onset of Reaction / Event", category: "C" },
-  { key: "D.2.2a", label: "Age at Time of Onset of Reaction / Event (number)", category: "B" },
-  { key: "D.2.2b", label: "Age at Time of Onset of Reaction / Event (unit)", category: "B" },
-  { key: "D.2.2.1a", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (number)", category: "C" },
-  { key: "D.2.2.1b", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (unit)", category: "B" },
-  { key: "D.2.3", label: "Patient Age Group (as per reporter)", category: "C" },
-  { key: "D.3", label: "Body Weight (kg)", category: "C" },
-  { key: "D.4", label: "Height (cm)", category: "C" },
-  { key: "D.5", label: "Sex", category: "C" },
-  { key: "D.7", label: "Relevant Medical History and Concurrent Conditions (not including reaction / event)", category: "C" },
-  { key: "D.7.1.r", label: "Structured Information on Relevant Medical History (repeat as necessary)", category: "C" },
-  { key: "D.7.1.r.2", label: "Start Date", category: "C" },
-  { key: "D.7.1.r.3", label: "Continuing", category: "C" },
-  { key: "D.7.1.r.4", label: "End Date", category: "C" },
-  { key: "D.7.1.r.5", label: "Comments", category: "B" },
-  { key: "D.7.1.r.6", label: "Family History", category: "B" },
-  { key: "D.7.2", label: "Text for Relevant Medical History and Concurrent Conditions (not including reaction / event)", category: "B" },
-  { key: "D.7.3", label: "Concomitant Therapies", category: "C" },
-  { key: "D.8.r", label: "Relevant Past Drug History (repeat as necessary)", category: "B" },
-  { key: "D.8.r.1", label: "Name of Drug as Reported", category: "B" },
-  { key: "D.8.r.4", label: "Start Date", category: "B" },
-  { key: "D.8.r.5", label: "End Date", category: "B" },
-  { key: "D.9.1", label: "Date of Death", category: "C" },
-  { key: "D.9.2.r", label: "Reported Cause(s) of Death (repeat as necessary)", category: "C" },
-  { key: "D.9.2.r.2", label: "Reported Cause(s) of Death (free text)", category: "B" },
-  { key: "E.i.1.1a", label: "Reaction / Event as Reported by the Primary Source in Native Language", category: "C" },
-  { key: "E.i.1.1b", label: "Reaction / Event as Reported by the Primary Source Language", category: "B" },
-  { key: "E.i.1.2", label: "Reaction / Event as Reported by the Primary Source for Translation", category: "B" },
-  { key: "E.i.3.1", label: "Term Highlighted by the Reporter", category: "B" },
-  { key: "E.i.3.2", label: "Seriousness Criteria at Event Level", category: "B" },
-  { key: "E.i.3.2a", label: "Results in Death", category: "C" },
-  { key: "E.i.3.2b", label: "Life Threatening", category: "C" },
-  { key: "E.i.3.2c", label: "Caused / Prolonged Hospitalisation", category: "C" },
-  { key: "E.i.3.2d", label: "Disabling / Incapacitating", category: "C" },
-  { key: "E.i.3.2e", label: "Congenital Anomaly / Birth Defect", category: "C" },
-  { key: "E.i.3.2f", label: "Other Medically Important Condition", category: "C" },
-  { key: "E.i.4", label: "Date of Start of Reaction / Event", category: "C" },
-  { key: "E.i.5", label: "Date of End of Reaction / Event", category: "C" },
-  { key: "E.i.6a", label: "Duration of Reaction / Event (number)", category: "Null" },
-  { key: "E.i.6b", label: "Duration of Reaction / Event (unit)", category: "Null" },
-  { key: "E.i.7", label: "Outcome of Reaction / Event at the Time of Last Observation", category: "C" },
-  { key: "E.i.9", label: "Identification of the Country Where the Reaction / Event Occurred", category: "A" },
-  { key: "F.r", label: "Results of Tests and Procedures Relevant to the Investigation of the Patient (repeat as necessary)", category: "Null" },
-  { key: "G.k.1", label: "Characterisation of Drug Role", category: "Null" },
-  { key: "G.k.2", label: "Drug Identification", category: "Null" },
-  { key: "H.1", label: "Case Narrative Including Clinical Course, Therapeutic Measures, Outcome and Additional Relevant Information", category: "Null" }
+  // Header / Batch Information (Category N)
+  { key: "N_1_2", label: "Batch Number", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_5", label: "Date of Batch Transmission", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_1", label: "Message Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_2", label: "Message Sender Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_3", label: "Message Receiver Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_4", label: "Date of Message Creation", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_3", label: "Client Organization ID", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_4", label: "Sender Organization ID", category: "N", required: true, section: "header", readOnly: true },
+
+  // Safety Report / Case Creation (Category C)
+  { key: "C_1_2", label: "Date of Creation", category: "C", required: true, section: "safety", readOnly: true },
+  { key: "C_1_4", label: "Date report was first received from source", category: "C", required: true, section: "safety", readOnly: true },
+  { key: "C_4_r_1", label: "Literature Reference(s)", category: "C", required: false, section: "safety" },
+
+  // Patient Characteristics (Category D)
+  { key: "D_1", label: "Patient (Name or Initials)", category: "D", required: false, section: "patient" },
+  { key: "D_5", label: "Sex", category: "D", required: false, section: "patient" },
+  { key: "D_2_2_a", label: "Age at time of onset of reaction/event (number)", category: "D", required: false, section: "patient", type: "number" },
+  { key: "D_2_2_b", label: "Age at time of onset of reaction/event (unit)", category: "D", required: false, section: "patient", type: "select", options: ["a", "mo", "d", "wk"] },
+  { key: "D_7_1_r_3", label: "Continuing", category: "D", required: false, section: "patient", type: "select", options: ["false", "true", "MSK", "NASK", "ASKU"] },
+  { key: "D_8_r_1", label: "Name of Drug as Reported", category: "D", required: false, section: "patient" },
+
+  // Reaction/Event (Category E)
+  { key: "E_i_1_a", label: "Reaction/Event as reported by the primary source", category: "E", required: false, section: "reaction" },
+  { key: "E_i_1_b", label: "Reaction/Event as reported by the primary source (language)", category: "E", required: false, section: "reaction" },
+  { key: "E_i_1_2", label: "Reaction / event as reported by the primary source for translation", category: "E", required: false, section: "reaction" },
+  { key: "E_i_3_2a", label: "Results in Death", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2b", label: "Life Threatening", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2c", label: "Caused/Prolonged Hospitalisation", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2d", label: "Disabling/Incapacitating", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2e", label: "Congenital Anomaly/Birth Defect", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2f", label: "Other Medically Important Condition", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_7", label: "Outcome of reaction/event at the time of last observation", category: "E", required: false, section: "reaction", type: "select", options: ["0 - Unknown", "1 - Recovered/Resolved", "2 - Recovering/Resolving", "3 - Not Recovered/Not Resolved/Ongoing", "4 - Recovered/Resolved with sequelae", "5 - Fatal"] },
+  { key: "E_i_8", label: "Medical Confirmation by Healthcare Professional", category: "E", required: false, section: "reaction", type: "select", options: ["true", "false"] },
+
+  // Narrative (Category H)
+  { key: "H1", label: "Case Narrative", category: "H", required: false, section: "narrative" },
+  { key: "H_4", label: "Sender's Comments", category: "H", required: false, section: "narrative" },
 ];
 
 export default function FullReportPage() {
@@ -295,22 +278,39 @@ export default function FullReportPage() {
           ? Math.round((Object.keys(selectedStudy.r3FormData).length / R3_FORM_FIELDS.length) * 100)
           : 0,
         categoryBreakdown: {
-          categoryA: {
-            total: R3_FORM_FIELDS.filter(field => field.category === 'A').length,
+          categoryN: {
+            label: "Header / Batch",
+            total: R3_FORM_FIELDS.filter(field => field.category === 'N').length,
             completed: selectedStudy.r3FormData 
-              ? R3_FORM_FIELDS.filter(field => field.category === 'A' && selectedStudy.r3FormData[field.key]).length
-              : 0
-          },
-          categoryB: {
-            total: R3_FORM_FIELDS.filter(field => field.category === 'B').length,
-            completed: selectedStudy.r3FormData 
-              ? R3_FORM_FIELDS.filter(field => field.category === 'B' && selectedStudy.r3FormData[field.key]).length
+              ? R3_FORM_FIELDS.filter(field => field.category === 'N' && selectedStudy.r3FormData[field.key]).length
               : 0
           },
           categoryC: {
+            label: "Safety / Case",
             total: R3_FORM_FIELDS.filter(field => field.category === 'C').length,
             completed: selectedStudy.r3FormData 
               ? R3_FORM_FIELDS.filter(field => field.category === 'C' && selectedStudy.r3FormData[field.key]).length
+              : 0
+          },
+          categoryD: {
+            label: "Patient",
+            total: R3_FORM_FIELDS.filter(field => field.category === 'D').length,
+            completed: selectedStudy.r3FormData 
+              ? R3_FORM_FIELDS.filter(field => field.category === 'D' && selectedStudy.r3FormData[field.key]).length
+              : 0
+          },
+          categoryE: {
+            label: "Reaction",
+            total: R3_FORM_FIELDS.filter(field => field.category === 'E').length,
+            completed: selectedStudy.r3FormData 
+              ? R3_FORM_FIELDS.filter(field => field.category === 'E' && selectedStudy.r3FormData[field.key]).length
+              : 0
+          },
+          categoryH: {
+            label: "Narrative",
+            total: R3_FORM_FIELDS.filter(field => field.category === 'H').length,
+            completed: selectedStudy.r3FormData 
+              ? R3_FORM_FIELDS.filter(field => field.category === 'H' && selectedStudy.r3FormData[field.key]).length
               : 0
           }
         }
@@ -336,136 +336,59 @@ export default function FullReportPage() {
     URL.revokeObjectURL(url);
   };
 
-  const exportToR3XML = () => {
+  const exportToR3XML = async () => {
     if (!selectedStudy) return;
 
-    const generateR3XML = () => {
+    try {
       const xmlData = selectedStudy.r3FormData || {};
-      const timestamp = new Date().toISOString();
-      
-      let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<ichicsr lang="en" xmlns="http://www.ich.org/ICSR">
-  <!-- ICH E2B(R3) Individual Case Safety Report -->
-  <ichicsrmessageheader>
-    <messagetype>ichicsr</messagetype>
-    <messageformatversion>2.1</messageformatversion>
-    <messageformatrelease>2.0</messageformatrelease>
-    <messagenumb>LIASE-${selectedStudy.pmid}-${Date.now()}</messagenumb>
-    <messagesenderidentifier>LIASE-SYSTEM</messagesenderidentifier>
-    <messagereceiveridentifier>REGULATORY-AUTHORITY</messagereceiveridentifier>
-    <messagedateformat>204</messagedateformat>
-    <messagedate>${formatDateForXML(timestamp, 14)}</messagedate>
-  </ichicsrmessageheader>
-  
-  <safetyreport>
-    <!-- Primary source information -->
-    <primarysourcereaction>
-      <primarysourcereaction>${selectedStudy.adverseEvent}</primarysourcereaction>
-    </primarysourcereaction>
-    
-    <!-- Study information -->
-    <companynumb>LIASE-${selectedStudy.pmid}</companynumb>
-    <reporttype>1</reporttype>
-    <serious>1</serious>
-    <seriousnessdeath>${xmlData['E.i.3.2a'] === 'True' ? '1' : '0'}</seriousnessdeath>
-    <seriousnesslifethreatening>${xmlData['E.i.3.2b'] === 'True' ? '1' : '0'}</seriousnesslifethreatening>
-    <seriousnesshospitalization>${xmlData['E.i.3.2c'] === 'True' ? '1' : '0'}</seriousnesshospitalization>
-    <seriousnessdisabling>${xmlData['E.i.3.2d'] === 'True' ? '1' : '0'}</seriousnessdisabling>
-    <seriousnesscongenitalanomali>${xmlData['E.i.3.2e'] === 'True' ? '1' : '0'}</seriousnesscongenitalanomali>
-    <seriousnessother>${xmlData['E.i.3.2f'] === 'True' ? '1' : '0'}</seriousnessother>
-    
-    <!-- Literature reference -->
-    <literaturereference>
-      <literaturereference>PMID: ${selectedStudy.pmid} - ${selectedStudy.title}</literaturereference>
-    </literaturereference>
-    
-    <!-- Patient information -->
-    <patient>
-      <patientinitial>${xmlData['D.1'] || 'N/A'}</patientinitial>
-      <patientbirthdate>${xmlData['D.2.1'] || ''}</patientbirthdate>
-      <patientagegroup>${xmlData['D.2.3'] || ''}</patientagegroup>
-      <patientweight>${xmlData['D.3'] || ''}</patientweight>
-      <patientheight>${xmlData['D.4'] || ''}</patientheight>
-      <patientsex>${xmlData['D.5'] || ''}</patientsex>
-      
-      <!-- Medical history -->
-      ${xmlData['D.7.1.r.3'] ? `
-      <medicalhistoryepisode>
-        <patientepisodename>${xmlData['D.7.1.r.3']}</patientepisodename>
-        <patientepisodestartdate>${xmlData['D.7.1.r.4'] || ''}</patientepisodestartdate>
-      </medicalhistoryepisode>` : ''}
-      
-      <!-- Death information -->
-      ${xmlData['D.9.2.r'] ? `
-      <patientdeathdate>${xmlData['D.9.2.r']}</patientdeathdate>` : ''}
-      
-      <!-- Reaction information -->
-      <reaction>
-        <primarysourcereaction>${selectedStudy.adverseEvent}</primarysourcereaction>
-        <reactionmeddraversionllt>24.1</reactionmeddraversionllt>
-        <reactionmeddrallt>${selectedStudy.adverseEvent}</reactionmeddrallt>
-        <reactionstartdate>${xmlData['E.i.4'] || ''}</reactionstartdate>
-        <reactionenddate>${xmlData['E.i.5'] || ''}</reactionenddate>
-        <reactionoutcome>6</reactionoutcome>
-      </reaction>
-      
-      <!-- Drug information -->
-      <drug>
-        <drugcharacterization>1</drugcharacterization>
-        <medicinalproduct>${selectedStudy.drugName}</medicinalproduct>
-        <drugauthorizationnumb>${xmlData['G.k.2'] || ''}</drugauthorizationnumb>
-        <drugstructuredosagenumb>${xmlData['G.k.1'] || ''}</drugstructuredosagenumb>
-        <drugstartdate>${xmlData['E.i.4'] || ''}</drugstartdate>
-        <drugenddate>${xmlData['E.i.5'] || ''}</drugenddate>
-        <actiondrug>6</actiondrug>
-      </drug>
-    </patient>
-    
-    <!-- Reporter information -->
-    <primarysource>
-      <reportertitle>${xmlData['C.2.r.1.1'] || ''}</reportertitle>
-      <reportergivename>${xmlData['C.2.r.1.2'] || ''}</reportergivename>
-      <reportermiddlename>${xmlData['C.2.r.1.3'] || ''}</reportermiddlename>
-      <reporterfamilyname>${xmlData['C.2.r.1.4'] || ''}</reporterfamilyname>
-      <reporterorganization>${xmlData['C.2.r.2.1'] || ''}</reporterorganization>
-      <qualification>5</qualification>
-    </primarysource>
-    
-    <!-- Report dates -->
-    <receiptdate>${selectedStudy.createdAt ? formatDateForXML(selectedStudy.createdAt, 8) : ''}</receiptdate>
-    <receivedate>${selectedStudy.r3FormCompletedAt ? formatDateForXML(selectedStudy.r3FormCompletedAt, 8) : ''}</receivedate>
-    
-    <!-- Additional form data as narrative -->
-    <narrative>
-      <narrativeincludeclinical>Study Title: ${selectedStudy.title}
+      const queryParams = new URLSearchParams();
 
-PMID: ${selectedStudy.pmid}
-Drug: ${selectedStudy.drugName}
-Adverse Event: ${selectedStudy.adverseEvent}
+      // Map all R3 form fields to query parameters
+      R3_FORM_FIELDS.forEach(field => {
+        let value = xmlData[field.key];
+        
+        // Handle potential dot notation in source data if underscore lookup fails
+        if (value === undefined) {
+          const dotKey = field.key.replace(/_/g, '.');
+          value = xmlData[dotKey];
+        }
+        
+        queryParams.append(field.key, value || '');
+      });
 
-R3 Form Data:
-${Object.entries(xmlData).map(([key, value]) => `${key}: ${value}`).join('\n')}
+      const baseUrl = getApiBaseUrl(); 
+      // Use the proxy endpoint in our backend
+      const url = `${baseUrl}/r3/generate?${queryParams.toString()}`;
 
-Form completed on: ${selectedStudy.r3FormCompletedAt ? formatDateTime(selectedStudy.r3FormCompletedAt) : 'N/A'}
-Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
-      </narrativeincludeclinical>
-    </narrative>
-  </safetyreport>
-</ichicsr>`;
+      // Log the URL for debugging
+      console.log('Exporting R3 XML via proxy:', url);
 
-      return xml;
-    };
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+           // Authorization is now required for our own backend
+          'Authorization': `Bearer ${localStorage.getItem("auth_token")}`
+        }
+      });
 
-    const xmlContent = generateR3XML();
-    const blob = new Blob([xmlContent], { type: "application/xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ICSR_R3_Report_${selectedStudy.pmid}_${new Date().toISOString().split('T')[0]}.xml`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      if (!response.ok) {
+        throw new Error(`Failed to generate R3 XML: ${response.status} ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = `ICSR_R3_Report_${selectedStudy.pmid}_${new Date().toISOString().split('T')[0]}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+
+    } catch (error) {
+      console.error('Error exporting R3 XML:', error);
+      alert('Failed to export R3 XML. Please check the console for details.');
+    }
   };
 
   const exportToCSV = () => {
@@ -610,12 +533,16 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case "A":
+      case "N": // Header
+        return "bg-gray-100 text-gray-800";
+      case "C": // Safety/Case
+        return "bg-red-100 text-red-800";
+      case "D": // Patient
         return "bg-blue-100 text-blue-800";
-      case "B":
+      case "E": // Reaction
         return "bg-yellow-100 text-yellow-800";
-      case "C":
-        return "bg-green-100 text-green-800";
+      case "H": // Narrative
+        return "bg-purple-100 text-purple-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -638,7 +565,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-black mb-2">Full Report (Medical Reviewer)</h1>
           <p className="text-black">
-            Review completed ICSR studies with R3 form data
+            Review completed ICSR articles with R3 form data
           </p>
         </div>
 
@@ -658,7 +585,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                   <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Search completed ICSR studies..."
+                    placeholder="Search completed ICSR articles"
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
@@ -671,7 +598,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
               
               {/* Study ID */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Study ID</label>
+                <label className="block text-sm font-medium text-gray-700">Article ID</label>
                 <div className="relative">
                   <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
@@ -681,7 +608,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                       setStudyIdFilter(e.target.value);
                       setCurrentPage(1);
                     }}
-                    placeholder="Search by Study ID..."
+                    placeholder="Search by Article ID"
                     className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
                   />
                 </div>
@@ -814,13 +741,13 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                         {study.title}
                       </h3>
                       <div className="flex gap-4 text-sm text-gray-800 mb-2">
-                        <span><strong>Study ID:</strong> {study.id}</span>
+                        <span><strong>Article ID:</strong> {study.id}</span>
                         <span><strong>PMID:</strong> <PmidLink pmid={study.pmid} className="text-blue-600 hover:underline" /></span>
                         <span><strong>Drug:</strong> {study.drugName}</span>
                       </div>
-                      <p className="text-sm text-black mb-2">
+                      {/* <p className="text-sm text-black mb-2">
                         <strong>Adverse Event:</strong> {study.adverseEvent}
-                      </p>
+                      </p> */}
                       {study.r3FormCompletedAt && (
                         <p className="text-sm text-black">
                           <strong>Completed:</strong> {formatDateTime(study.r3FormCompletedAt)}
@@ -863,7 +790,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
 
               {studies.length === 0 && !loading && (
                 <div className="text-center py-8 text-gray-500">
-                  No completed ICSR studies available for review.
+                  No completed ICSR articles available for review.
                 </div>
               )}
             </div>
@@ -1277,7 +1204,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                   )}
                   
                   {/* Raw AI Inference Data */}
-                  {selectedStudy?.aiInferenceData && (
+                  {/* {selectedStudy?.aiInferenceData && (
                     <div className="mb-4">
                       <p className="text-sm font-medium text-black mb-2">Raw AI Inference Data:</p>
                       <details className="cursor-pointer">
@@ -1291,12 +1218,12 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                         </div>
                       </details>
                     </div>
-                  )}
+                  )} */}
                 </div>
               )}
 
               {/* R3 Form Data Summary */}
-              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              {/* <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <h3 className="text-lg font-semibold text-black mb-3">R3 Form Data Summary</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
                   <div>
@@ -1354,7 +1281,7 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
                     <p className="text-gray-600">Additional information that may provide context</p>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Comment Thread */}
               <div className="mb-6">
@@ -1365,25 +1292,29 @@ Completed by: ${selectedStudy.r3FormCompletedBy || 'N/A'}
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-black mb-4">Complete R3 Form Data (All Fields)</h3>
                 
-                {/* Group fields by category */}
-                {['A', 'B', 'C', 'Null'].map(category => {
-                  const categoryFields = R3_FORM_FIELDS.filter(field => field.category === category);
-                  if (categoryFields.length === 0) return null;
+                {/* Group fields by section */}
+                {['header', 'safety', 'patient', 'reaction', 'drug', 'narrative'].map(section => {
+                  const sectionFields = R3_FORM_FIELDS.filter(field => field.section === section);
+                  if (sectionFields.length === 0) return null;
                   
+                  const sectionTitle = {
+                    'header': 'Header / Batch Information',
+                    'safety': 'Safety Report / Case Creation',
+                    'patient': 'Patient Characteristics',
+                    'reaction': 'Reaction/Event Information',
+                    'drug': 'Drug Information',
+                    'narrative': 'Case Narrative'
+                  }[section];
+
                   return (
-                    <div key={category} className="mb-8">
-                      <h4 className="text-md font-semibold text-black mb-4 flex items-center">
-                        Category {category} Fields
-                        <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${getCategoryColor(category)}`}>
-                          {category === 'A' ? 'Mandatory for transmission' : 
-                           category === 'B' ? 'Mandatory if available' : 
-                           category === 'C' ? 'Optional' : 'Other'}
-                        </span>
+                    <div key={section} className="mb-8">
+                      <h4 className="text-md font-semibold text-black mb-4 flex items-center border-b pb-2">
+                        {sectionTitle}
                       </h4>
                       
                       <div className="space-y-3">
-                        {categoryFields.map((field) => {
-                          const value = selectedStudy?.r3FormData?.[field.key] || "";
+                        {sectionFields.map((field) => {
+                          const value = selectedStudy?.r3FormData?.[field.key];
                           const hasValue = !!value;
                           
                           return (

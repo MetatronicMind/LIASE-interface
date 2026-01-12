@@ -34,6 +34,7 @@ interface Study {
   listedness?: string;
   seriousness?: string;
   fullTextAvailability?: string;
+  fullTextSource?: string;
   substanceGroup?: string;
   countryOfFirstAuthor?: string;
   countryOfOccurrence?: string;
@@ -290,6 +291,8 @@ export default function ReportsPage() {
       'Medical Review',
       'Serious',
       'Listedness',
+      'Full Text',
+      'Full Text Source',
       'Authors',
       'Journal',
       'Publication Date',
@@ -322,6 +325,8 @@ export default function ReportsPage() {
         study.medicalReviewStatus || '',
         study.serious ? 'Yes' : 'No',
         study.listedness || '',
+        study.fullTextAvailability || '',
+        `"${(study.fullTextSource || '').replace(/"/g, '""')}"`,
         `"${authorsStr.replace(/"/g, '""')}"`,
         study.journal || '',
         study.publicationDate || '',
@@ -511,7 +516,7 @@ export default function ReportsPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Study ID</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Article ID</label>
             <input
               type="text"
               value={studyIdFilter}
@@ -519,7 +524,7 @@ export default function ReportsPage() {
                 setStudyIdFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search by Study ID..."
+              placeholder="Search by Article ID..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -709,7 +714,7 @@ export default function ReportsPage() {
                   className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1">
-                    Study ID
+                    Article ID
                     {sortField === 'id' && (
                       <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}

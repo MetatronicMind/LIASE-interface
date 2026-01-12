@@ -26,12 +26,16 @@ import ClientSelector from "@/components/ClientSelector";
 import { auditService } from "@/services/auditService";
 
 // Base navigation items - always visible
-const baseNavItems = [
-  { name: "Dashboard", href: "/dashboard", icon: <HomeIcon className="w-5 h-5 mr-2" />, permission: null },
-];
+const baseNavItems: any[] = [];
 
 // Permission-based navigation items
 const permissionBasedNavItems = [
+  { 
+    name: "Dashboard", 
+    href: "/dashboard", 
+    icon: <HomeIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'dashboard', action: 'read' } 
+  },
   { 
     name: "Literature Search Configuration", 
     href: "/dashboard/drug-management", 
@@ -264,11 +268,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <ClientSelector />
           </div>
           <div className="flex items-center gap-4">
-            <button className="bg-blue-700/40 rounded-full p-2 text-white hover:bg-blue-800/60 transition">
+            {/* <button className="bg-blue-700/40 rounded-full p-2 text-white hover:bg-blue-800/60 transition">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-            </button>
+            </button> */}
             <div className="relative" ref={userMenuRef}>
               <button
                 className="inline-flex items-center gap-2 bg-blue-700/40 rounded-full px-4 py-2 text-white font-semibold text-base focus:outline-none"
@@ -281,7 +285,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
               {userMenuOpen && (
                 <div className="absolute right-0 mt-2 w-40 bg-white border border-blue-100 shadow-lg rounded py-2 z-50 animate-fade-in">
-                  <button
+                  {/* <button
                     className="block w-full text-left px-4 py-2 text-blue-900 hover:bg-blue-50 font-semibold"
                     onClick={() => {
                       setUserMenuOpen(false);
@@ -289,7 +293,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     }}
                   >
                     Profile
-                  </button>
+                  </button> */}
                   <button
                     className="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 font-semibold"
                     onClick={async () => {

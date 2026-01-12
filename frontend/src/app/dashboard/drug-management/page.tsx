@@ -31,6 +31,7 @@ export default function DrugManagementPage() {
   // Users with 'write' permission on 'drugs' can create and update configurations
   const canAdd = hasPermission('drugs', 'write');
   const canModify = hasPermission('drugs', 'write');
+  const canDelete = hasPermission('drugs', 'delete');
   const canSearch = hasPermission('drugs', 'read');
 
   const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
@@ -112,29 +113,19 @@ export default function DrugManagementPage() {
   const handleJobComplete = (results: any) => {
     console.log('Job completed with results:', results);
     
-    // Clear job state
+    // Stop the loading spinner on the button and hide progress
+    setRunningConfigs(new Set());
     setActiveJobId(null);
     setShowProgressTracker(false);
     setRunningConfigName('');
-    setRunningConfigs(new Set());
     
-    // Clear localStorage
+    // Clear localStorage (so it doesn't auto-resume on reload)
     localStorage.removeItem('activeJobId');
     localStorage.removeItem('showProgressTracker');
     localStorage.removeItem('runningConfigName');
     
     // Refresh configurations to show updated stats
     fetchSearchConfigs();
-    
-    // Show completion message
-    const studiesCreated = results?.results?.studiesCreated || 0;
-    const totalFound = results?.results?.totalFound || 0;
-    
-    if (studiesCreated > 0) {
-      alert(`Discovery completed successfully!\nFound ${totalFound} articles and created ${studiesCreated} studies.`);
-    } else {
-      alert(`Discovery completed!\nFound ${totalFound} articles but no studies were created.`);
-    }
   };
 
   const fetchAllowedDays = async () => {
@@ -292,30 +283,33 @@ export default function DrugManagementPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDeactivate = async (configId: string) => {
-    if (!confirm('Are you sure you want to deactivate this configuration?')) return;
+  const handleToggleActive = async (config: DrugSearchConfig) => {
+    const isInactive = config.isActive === false;
+    const action = isInactive ? 'reactivate' : 'deactivate';
+
+    if (!confirm(`Are you sure you want to ${action} this configuration?`)) return;
     
     try {
       const token = localStorage.getItem('auth_token');
-      // Use PUT to update isActive to false
-      const response = await fetch(`${API_BASE}/search-configs/${configId}`, {
+      // Use PUT to update isActive
+      const response = await fetch(`${API_BASE}/search-configs/${config.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
-        body: JSON.stringify({ isActive: false })
+        body: JSON.stringify({ isActive: isInactive })
       });
       
       if (response.ok) {
-        alert('Configuration deactivated successfully');
+        alert(`Configuration ${action}d successfully`);
         fetchSearchConfigs();
       } else {
-        alert('Failed to deactivate configuration');
+        alert(`Failed to ${action} configuration`);
       }
     } catch (error) {
-      console.error('Error deactivating config:', error);
-      alert('Error deactivating configuration');
+      console.error(`Error ${action}ing config:`, error);
+      alert(`Error ${action}ing configuration`);
     }
   };
 
@@ -556,7 +550,7 @@ export default function DrugManagementPage() {
                   {frequency === 'custom' && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Date From (Optional)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
                         <input
                           type="date"
                           value={dateFromInput}
@@ -573,7 +567,7 @@ export default function DrugManagementPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Date To (Optional)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date To</label>
                         <input
                           type="date"
                           value={dateToInput}
@@ -608,7 +602,7 @@ export default function DrugManagementPage() {
                       </div>
                     </>
                   )}
-                  {frequency !== 'custom' && (
+                  {/* {frequency !== 'custom' && (
                     <div className="md:col-span-2">
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                         <p className="text-sm text-blue-800">
@@ -620,7 +614,7 @@ export default function DrugManagementPage() {
                         </p>
                       </div>
                     </div>
-                  )}
+                  )} */}
                 </div>
                 
                 <div className="mt-4 flex gap-2">
@@ -639,37 +633,6 @@ export default function DrugManagementPage() {
                       Cancel Edit
                     </button>
                   )}
-                  <button
-                    onClick={async () => {
-                      const token = localStorage.getItem('auth_token');
-                      const response = await fetch(`${API_BASE}/search-configs/debug`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          ...(token && { 'Authorization': `Bearer ${token}` })
-                        },
-                        body: JSON.stringify({
-                          name: `${inn.trim()}_${sponsor.trim()}_${brandName.trim() || 'NoBrand'}_${new Date().toISOString()}`,
-                          inn: inn.trim(),
-                          query: query.trim(),
-                          sponsor: sponsor.trim() || '',
-                          frequency: frequency,
-                          maxResults: 1000,
-                          includeAdverseEvents: true,
-                          includeSafety: true,
-                          sendToExternalApi: true,
-                          dateFrom: dateFrom && dateFrom.trim() ? dateFrom.trim() : null,
-                          dateTo: dateTo && dateTo.trim() ? dateTo.trim() : null
-                        })
-                      });
-                      const result = await response.json();
-                      console.log('Debug result:', result);
-                      alert(`Debug result: ${JSON.stringify(result, null, 2)}`);
-                    }}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
-                  >
-                    Debug
-                  </button>
                 </div>
               </div>
 
@@ -707,9 +670,14 @@ export default function DrugManagementPage() {
                     </h3>
                     <button
                       onClick={() => {
-                        if (confirm('Are you sure you want to hide the progress tracker? The job will continue running in the background.')) {
+                        // If runningConfigs is empty, the job is completed, so no confirmation needed
+                        const isRunning = runningConfigs.size > 0;
+                        if (!isRunning || confirm('Are you sure you want to hide the progress tracker? The job will continue running in the background.')) {
                           setShowProgressTracker(false);
-                          localStorage.setItem('showProgressTracker', 'false');
+                          setActiveJobId(null);
+                          localStorage.removeItem('showProgressTracker');
+                          localStorage.removeItem('activeJobId');
+                          localStorage.removeItem('runningConfigName');
                         }
                       }}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -735,7 +703,7 @@ export default function DrugManagementPage() {
                     <div className="relative w-64">
                       <input
                         type="text"
-                        placeholder="Search by PMID, Drug Name or Client..."
+                        placeholder="Search by INN or Client"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
@@ -807,6 +775,11 @@ export default function DrugManagementPage() {
                                   ({new Date(config.dateFrom).toLocaleDateString()} - {new Date(config.dateTo).toLocaleDateString()})
                                 </span>
                               )}
+                              {config.frequency === 'weekly' && config.nextRunAt && (
+                                <span className="ml-1">
+                                  ({new Date(config.nextRunAt).toLocaleDateString('en-US', { weekday: 'long' })})
+                                </span>
+                              )}
                             </p>
                             {config.sponsor && (
                               <p className="text-sm text-gray-600">Client: {config.sponsor}</p>
@@ -848,20 +821,24 @@ export default function DrugManagementPage() {
                               )}
                             </button>
                             {canModify && (
-                              <>
-                                <button
-                                  onClick={() => handleEdit(config)}
-                                  className="px-4 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 w-full"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeactivate(config.id)}
-                                  className="px-4 py-2 text-sm font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 w-full"
-                                >
-                                  Deactivate
-                                </button>
-                              </>
+                              <button
+                                onClick={() => handleEdit(config)}
+                                className="px-4 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 w-full"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleToggleActive(config)}
+                                className={`px-4 py-2 text-sm font-medium rounded-md w-full ${
+                                  config.isActive === false
+                                    ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                    : "bg-red-100 text-red-700 hover:bg-red-200"
+                                }`}
+                              >
+                                {config.isActive === false ? 'Reactivate' : 'Deactivate'}
+                              </button>
                             )}
                           </div>
                         </div>

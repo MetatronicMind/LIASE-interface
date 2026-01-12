@@ -1860,7 +1860,9 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
       message: `Found ${results.totalFound} articles from PubMed. Starting AI processing...`,
       metadata: { 
         phase: 'pubmed_completed',
-        studiesFound: results.totalFound
+        studiesFound: results.totalFound,
+        totalStudies: results.totalFound, // Ensure totalStudies is set
+        searchParams: searchParams // Preserve search params
       }
     });
 
@@ -1873,7 +1875,12 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
         progress: 30,
         currentStep: 3,
         message: `Processing ${results.drugs.length} articles with AI inference (guaranteed mode)...`,
-        metadata: { phase: 'ai_inference_guaranteed' }
+        metadata: { 
+          phase: 'ai_inference_guaranteed',
+          studiesFound: results.totalFound,
+          totalStudies: results.totalFound,
+          searchParams: searchParams
+        }
       });
 
       console.log(`[DrugDiscovery] Using ArticleRetryQueue for GUARANTEED processing of ${results.drugs.length} articles`);
@@ -1896,7 +1903,10 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
               message: `AI processing: ${progress.processed}/${progress.total} articles (${Math.round((progress.processed / progress.total) * 100)}%)...`,
               metadata: { 
                 phase: 'ai_inference',
-                aiProgress: progress
+                aiProgress: progress,
+                totalStudies: progress.total,
+                currentStudy: progress.processed,
+                studiesFound: results.totalFound
               }
             });
           }

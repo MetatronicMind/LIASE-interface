@@ -497,7 +497,7 @@ router.post('/create-admin-user', async (req, res) => {
       console.log(`Creating ${roleType} role...`);
       
       const rolePermissions = roleType === 'superadmin' ? {
-        dashboard: { read: true, write: true },
+        dashboard: { read: true },
         users: { read: true, write: true, delete: true },
         roles: { read: true, write: true, delete: true },
         drugs: { read: true, write: true, delete: true },
@@ -507,7 +507,7 @@ router.post('/create-admin-user', async (req, res) => {
         organizations: { read: true, write: true, delete: true },
         reports: { read: true, write: true, delete: true }
       } : {
-        dashboard: { read: true, write: true },
+        dashboard: { read: true },
         users: { read: true, write: true, delete: true },
         roles: { read: true, write: true, delete: true },
         drugs: { read: true, write: true, delete: true },

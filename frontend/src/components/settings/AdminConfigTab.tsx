@@ -232,7 +232,7 @@ export default function AdminConfigTab() {
 
       {/* Section Tabs */}
       <div className="flex gap-4 border-b border-gray-200">
-        <button
+        {/* <button
           onClick={() => setActiveSection('jobs')}
           className={`px-4 py-2 font-semibold transition-all ${
             activeSection === 'jobs'
@@ -241,8 +241,8 @@ export default function AdminConfigTab() {
           }`}
         >
           Scheduled Jobs
-        </button>
-        <button
+        </button> */}
+        {/* <button
           onClick={() => setActiveSection('configs')}
           className={`px-4 py-2 font-semibold transition-all ${
             activeSection === 'configs'
@@ -251,7 +251,7 @@ export default function AdminConfigTab() {
           }`}
         >
           System Configs
-        </button>
+        </button> */}
         <button
           onClick={() => setActiveSection('scheduler-settings')}
           className={`px-4 py-2 font-semibold transition-all ${

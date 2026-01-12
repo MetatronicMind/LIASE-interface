@@ -75,6 +75,7 @@ interface Study {
   listedness?: string;
   seriousness?: string;
   fullTextAvailability?: string;
+  fullTextSource?: string;
   clientName?: string;
   sponsor?: string;
 }
@@ -410,11 +411,11 @@ export default function R3FormPage() {
         // Fetch AI inference data
         await fetchAIInferenceData(studyData);
       } else {
-        throw new Error("Failed to fetch study data");
+        throw new Error("Failed to fetch article data");
       }
     } catch (error) {
-      console.error("Error fetching study data:", error);
-      alert("Error loading study data. Redirecting back to data entry.");
+      console.error("Error fetching article data:", error);
+      alert("Error loading article data. Redirecting back to data entry.");
       router.push("/dashboard/data-entry");
     } finally {
       setLoading(false);
@@ -860,7 +861,7 @@ export default function R3FormPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading study data...</p>
+          <p className="mt-4 text-gray-600">Loading article data...</p>
         </div>
       </div>
     );
@@ -870,7 +871,7 @@ export default function R3FormPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Study Not Found</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Article Not Found</h2>
           <button
             onClick={() => router.push("/dashboard/data-entry")}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -892,7 +893,7 @@ export default function R3FormPage() {
           {/* Header */}
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             {!sidebarCollapsed && (
-              <h3 className="text-lg font-semibold text-gray-900">Study Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Article Information</h3>
             )}
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -926,7 +927,19 @@ export default function R3FormPage() {
                         {study.userTag}
                       </span>
                    )}
+                   
+                   {study.fullTextAvailability && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        Full Text: {study.fullTextAvailability}
+                      </span>
+                   )}
                 </div>
+
+                {study.fullTextSource && (
+                   <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <span className="font-medium">Full Text Source:</span> {study.fullTextSource}
+                   </div>
+                )}
               </div>
 
               {/* Revocation Notice */}
@@ -940,7 +953,7 @@ export default function R3FormPage() {
                     </div>
                     <div className="ml-3 flex-1">
                       <h3 className="text-sm font-medium text-red-800">
-                        Study Revoked
+                        Article Revoked
                       </h3>
                       <div className="mt-2 text-sm text-red-700">
                         <p className="font-semibold">Reason:</p>
@@ -961,7 +974,7 @@ export default function R3FormPage() {
                 <h4 className="font-semibold text-gray-900 mb-3">Literature Information</h4>
                 <div className="space-y-3 text-sm">
                   <div>
-                    <span className="font-bold text-gray-700 block">Study ID:</span>
+                    <span className="font-bold text-gray-700 block">Article ID:</span>
                     <p className="mt-1 text-gray-900 font-mono">{study.id}</p>
                   </div>
                   <div>

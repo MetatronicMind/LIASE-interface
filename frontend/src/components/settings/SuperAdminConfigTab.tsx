@@ -960,7 +960,7 @@ export default function SuperAdminConfigTab() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -975,7 +975,7 @@ export default function SuperAdminConfigTab() {
                 <p className="text-xs text-gray-500">
                   Require additional verification for user logins
                 </p>
-              </div>
+              </div> */}
             </div>
           </div>
         )}

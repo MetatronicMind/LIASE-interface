@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "@/hooks/useAuth";
+// import { useAuth } from "@/hooks/useAuth"; // Remove unused import
 import { useDateTime } from "@/hooks/useDateTime";
 import { getApiBaseUrl } from "@/config/api";
 import { PermissionGate } from "@/components/PermissionProvider";
@@ -69,6 +69,7 @@ interface Study {
   listedness?: string;
   seriousness?: string;
   fullTextAvailability?: string;
+  fullTextSource?: string;
   clientName?: string;
   sponsor?: string;
   effectiveClassification?: string;
@@ -86,9 +87,16 @@ interface Study {
 }
 
 export default function QAPage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useSelector((state: RootState) => state.auth);
   const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { formatDate } = useDateTime();
+  
+  const permissions = user?.permissions?.QA;
+  const canView = permissions?.read;
+  const canAllocate = permissions?.write;
+  const canApprove = permissions?.approve;
+  const canReject = permissions?.reject;
+  
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,11 +136,35 @@ export default function QAPage() {
   };
 
   useEffect(() => {
-    fetchPendingStudies();
-    fetchWorkflowConfig();
-  }, [selectedOrganizationId]);
+    // Only fetch studies if user has allocated permissions or view permissions
+    if (canView) {
+      fetchPendingStudies();
+      fetchWorkflowConfig();
+    }
+  }, [selectedOrganizationId, canView]);
 
-  // Helper function to normalize classification values from backend
+  // Access control check
+  if (isLoading) {
+      return (
+        <div className="flex h-full items-center justify-center bg-gray-50 min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      );
+  }
+
+  if (user && canView === false) {
+    return (
+      <div className="flex h-full items-center justify-center bg-gray-50 min-h-screen">
+        <div className="text-center p-8 bg-white rounded-lg shadow-md border border-gray-200 max-w-md">
+           <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
+           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
+           <p className="text-gray-600">You do not have permission to view the QC Allocation section.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Helper function to normalize classification values from backend (moved out of useEffect to avoid dep warning)
   const normalizeClassification = (value?: string): string | undefined => {
     if (!value) return value;
     let normalized = value.replace(/^Classification:\s*/i, '').trim();
@@ -330,11 +362,11 @@ export default function QAPage() {
         const data = await response.json();
         setStudies(data.data || []);
       } else {
-        throw new Error("Failed to fetch pending QA studies");
+        throw new Error("Failed to fetch pending QC articles");
       }
     } catch (error) {
-      console.error("Error fetching QA studies:", error);
-      setError("Failed to load studies for QA review");
+      console.error("Error fetching QC articles:", error);
+      setError("Failed to load articles for QC review");
     } finally {
       setLoading(false);
     }
@@ -357,7 +389,7 @@ export default function QAPage() {
         setStudies(prev => prev.filter(study => study.id !== studyId));
         setSelectedStudy(null);
         setComments("");
-        alert("Classification approved successfully! Study will proceed to Data Entry.");
+        alert("Classification approved successfully! Article will proceed to Data Entry.");
         fetchPendingStudies();
       } else {
         throw new Error("Failed to approve classification");
@@ -401,7 +433,7 @@ export default function QAPage() {
         setSelectedStudy(null);
         setRejectionReason("");
         setShowRejectModal(false);
-        alert(`Classification rejected successfully! Study has been returned to ${revokeToStage || 'Triage'}.`);
+        alert(`Classification rejected successfully! Article has been returned to ${revokeToStage || 'Triage'}.`);
         fetchPendingStudies();
       } else {
         throw new Error("Failed to reject classification");
@@ -458,13 +490,12 @@ export default function QAPage() {
     return (
       <div className="p-6">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="text-center mt-2 text-gray-600">Loading QA queue...</p>
+        <p className="text-center mt-2 text-gray-600">Loading QC queue...</p>
       </div>
     );
   }
 
   return (
-    <PermissionGate resource="studies" action="read">
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
@@ -475,12 +506,14 @@ export default function QAPage() {
                 Review and approve triage classifications before Data Entry
               </p>
             </div>
+            {canAllocate && (
             <button
               onClick={handleBulkProcess}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
               Process QC Allocation
             </button>
+            )}
           </div>
         </div>
 
@@ -515,12 +548,12 @@ export default function QAPage() {
               </div>
               
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Study ID</label>
+                <label className="block text-sm font-medium text-gray-700">Article ID</label>
                 <div className="relative">
                   <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Search by Study ID..."
+                    placeholder="Search by Article ID..."
                     value={studyIdFilter}
                     onChange={e => setStudyIdFilter(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
@@ -662,14 +695,14 @@ export default function QAPage() {
                           <p className="text-xs text-gray-500">
                             <span className="font-medium">Drug:</span> {study.drugName}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          {/* <p className="text-xs text-gray-500">
                             <span className="font-medium">Adverse Event:</span> {study.adverseEvent}
-                          </p>
-                          {study.justification && (
+                          </p> */}
+                          {/* {study.justification && (
                             <p className="text-xs text-gray-500">
                               <span className="font-medium">Justification:</span> {study.justification}
                             </p>
-                          )}
+                          )} */}
                         </div>
                       </div>
                       <div className="ml-4">
@@ -684,26 +717,33 @@ export default function QAPage() {
             )}
           </div>
 
-          {/* Study Details Panel */}
+          {/* Study Details Modal */}
           {selectedStudy && (
-            <div className="mt-6 bg-white shadow rounded-lg" ref={detailsRef}>
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Classification Review</h3>
-                <button
-                  onClick={() => {
-                    setSelectedStudy(null);
-                    setComments("");
-                    setRejectionReason("");
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
+            <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+              <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setSelectedStudy(null)}></div>
+                <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                <div 
+                  className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
+                  ref={detailsRef}
                 >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+                  <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+                    <h3 className="text-lg font-semibold text-gray-900">Classification Review</h3>
+                    <button
+                      onClick={() => {
+                        setSelectedStudy(null);
+                        setComments("");
+                        setRejectionReason("");
+                      }}
+                      className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
 
-              <div className="px-4 sm:px-6 py-4 space-y-6">
+                  <div className="px-4 sm:px-6 py-4 space-y-6 max-h-[80vh] overflow-y-auto">
                 {/* QC Rejection Notice */}
                 {selectedStudy.qaApprovalStatus === 'rejected' && selectedStudy.qaComments && (
                   <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-lg">
@@ -1062,6 +1102,15 @@ export default function QAPage() {
                         </div>
                       </div>
 
+                      {selectedStudy.fullTextAvailability === 'Yes' && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">Full Text Source</span>
+                          <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                            {selectedStudy.fullTextSource || "Not specified"}
+                          </p>
+                        </div>
+                      )}
+
                       {selectedStudy.justification && (
                         <div>
                           <span className="text-sm font-medium text-gray-500">Justification</span>
@@ -1107,7 +1156,7 @@ export default function QAPage() {
 
                 {/* QA Actions */}
                 <div className="border-t border-gray-200 pt-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-4">QA Decision</h4>
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">QC Decision</h4>
                   {/* Comments */}
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1118,14 +1167,14 @@ export default function QAPage() {
                       onChange={(e) => setComments(e.target.value)}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      placeholder="Add any comments for the Data Entryer..."
+                      placeholder="Add any comments "
                     />
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex space-x-3">
-                    <PermissionGate resource="studies" action="write">
-                      <button
+                    {canApprove && (
+                    <button
                         onClick={() => approveClassification(selectedStudy.id)}
                         disabled={actionInProgress === selectedStudy.id}
                         className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center"
@@ -1147,10 +1196,9 @@ export default function QAPage() {
                           </>
                         )}
                       </button>
-                    </PermissionGate>
+                    )}
 
-                    {canRevoke && (
-                      <PermissionGate resource="studies" action="write">
+                    {canReject && (
                         <button
                           onClick={() => setShowRejectModal(true)}
                           disabled={actionInProgress === selectedStudy.id}
@@ -1161,18 +1209,19 @@ export default function QAPage() {
                           </svg>
                           Reject Classification
                         </button>
-                      </PermissionGate>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
         </div>
 
         {/* Reject Modal */}
         {showRejectModal && selectedStudy && (
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-[60]">
             <div className="bg-white rounded-lg max-w-md w-full p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Reject Classification</h3>
               <p className="text-sm text-gray-600 mb-4">
@@ -1207,6 +1256,5 @@ export default function QAPage() {
           </div>
         )}
       </div>
-    </PermissionGate>
   );
 }

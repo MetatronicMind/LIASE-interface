@@ -98,6 +98,7 @@ interface TriageStudyDetailsProps {
   formatDate: (date: string) => string;
   API_BASE: string;
   fetchStudies: () => void;
+  canClassify?: boolean;
 }
 
 export default function TriageStudyDetails({
@@ -122,7 +123,8 @@ export default function TriageStudyDetails({
   getFinalClassification,
   formatDate,
   API_BASE,
-  fetchStudies
+  fetchStudies,
+  canClassify = true
 }: TriageStudyDetailsProps) {
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
@@ -448,6 +450,7 @@ export default function TriageStudyDetails({
       )}
 
       {/* Classification Actions - Primary Feature for Triage */}
+      {canClassify && (
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
         <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
           <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -598,7 +601,7 @@ export default function TriageStudyDetails({
                     listedness: selectedClassification === 'ICSR' ? listedness : undefined,
                     seriousness: selectedClassification === 'ICSR' ? seriousness : undefined,
                     fullTextAvailability: fullTextAvailability,
-                    fullTextSource: fullTextAvailability === 'Yes' ? fullTextSource : undefined
+                    fullTextSource: fullTextAvailability === 'Yes' ? (fullTextSource || '') : null
                   })}
                   disabled={!justification || classifying === study.id}
                   className={`px-4 py-2 text-white rounded-md text-sm font-medium flex items-center ${
@@ -717,6 +720,8 @@ export default function TriageStudyDetails({
                   setJustification(study.justification || "");
                   setListedness(study.listedness || "");
                   setSeriousness(study.seriousness || "");
+                  setFullTextAvailability(study.fullTextAvailability || "");
+                  setFullTextSource(study.fullTextSource || "");
                 }}
                 className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 text-sm transition-colors"
               >
@@ -728,6 +733,8 @@ export default function TriageStudyDetails({
                   setJustification(study.justification || "");
                   setListedness("");
                   setSeriousness("");
+                  setFullTextAvailability(study.fullTextAvailability || "");
+                  setFullTextSource(study.fullTextSource || "");
                 }}
                 className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200 text-sm transition-colors"
               >
@@ -739,6 +746,8 @@ export default function TriageStudyDetails({
                   setJustification(study.justification || "");
                   setListedness("");
                   setSeriousness("");
+                  setFullTextAvailability(study.fullTextAvailability || "");
+                  setFullTextSource(study.fullTextSource || "");
                 }}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm transition-colors"
               >
@@ -748,8 +757,10 @@ export default function TriageStudyDetails({
           </div>
         )}
       </div>
+      )}
 
       {/* PDF Attachments */}
+      {canClassify && (
       <PDFAttachmentUpload
         studyId={study.id}
         attachments={study.attachments || []}
@@ -777,9 +788,12 @@ export default function TriageStudyDetails({
           }
         }}
       />
+      )}
 
       {/* Comment Thread */}
+      {canClassify && (
       <CommentThread study={study} />
+      )}
     </div>
   );
 }

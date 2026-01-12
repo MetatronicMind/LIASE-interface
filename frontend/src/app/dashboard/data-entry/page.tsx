@@ -239,9 +239,9 @@ export default function DataEntryPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-black mb-2">Data Entry</h1>
-        <p className="text-black">
+        {/* <p className="text-black">
           Fill out R3 XML forms for ICSR classified studies
-        </p>
+        </p> */}
       </div>
 
       {/* Search and Filters */}
@@ -374,7 +374,7 @@ export default function DataEntryPage() {
                     {study.title}
                   </h3>
                   <div className="flex gap-4 text-sm text-gray-800 mb-2">
-                    <span><strong>Study ID:</strong> {study.id}</span>
+                    <span><strong>Article ID:</strong> {study.id}</span>
                     <span><strong>PMID:</strong> {study.pmid}</span>
                     <span><strong>Drug:</strong> {study.drugName}</span>
                   </div>
@@ -440,7 +440,7 @@ export default function DataEntryPage() {
 
           {studies.length === 0 && !loading && (
             <div className="text-center py-8 text-gray-500">
-              No ICSR studies available for data entry.
+              No articles available for data entry.
             </div>
           )}
         </div>

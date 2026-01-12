@@ -110,7 +110,7 @@ class User {
         QA: { read: true, approve: true, reject: true }
       },
       pharmacovigilance: {
-        dashboard: { read: true, write: false },
+        dashboard: { read: true },
         users: { read: true, write: false, delete: false },
         drugs: { read: true, write: true, delete: false },
         studies: { read: true, write: true, delete: false },
@@ -135,7 +135,7 @@ class User {
         settings: { read: false, write: false }
       },
       medical_examiner: {
-        dashboard: { read: true, write: false },
+        dashboard: { read: true },
         users: { read: false, write: false, delete: false },
         drugs: { read: true, write: false, delete: false },
         studies: { read: true, write: true, delete: false },

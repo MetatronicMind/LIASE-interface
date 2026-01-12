@@ -59,6 +59,7 @@ interface Study {
   listedness?: string;
   seriousness?: string;
   fullTextAvailability?: string;
+  fullTextSource?: string;
   countryOfFirstAuthor?: string;
   countryOfOccurrence?: string;
   patientDetails?: any;
@@ -90,72 +91,45 @@ interface FieldComment {
 }
 
 const R3_FORM_FIELDS = [
-  // Reporter Information (Category A)
-  { key: "C.2.r.1", label: "Reporter's Name", category: "A" },
-  { key: "C.2.r.1.1", label: "Reporter's Title", category: "A" },
-  { key: "C.2.r.1.2", label: "Reporter's Given Name", category: "A" },
-  { key: "C.2.r.1.3", label: "Reporter's Middle Name", category: "A" },
-  { key: "C.2.r.1.4", label: "Reporter's Family Name", category: "A" },
-  { key: "C.2.r.2.1", label: "Reporter's Organisation", category: "A" },
-  { key: "C.4.r.1", label: "Literature Reference(s)", category: "A" },
-  
-  // Patient Characteristics (Category B & C)
-  { key: "D.1", label: "Patient (name or initials)", category: "C" },
-  { key: "D.2.1", label: "Date of Birth", category: "C" },
-  { key: "D.2.2", label: "Age at Time of Onset of Reaction / Event", category: "C" },
-  { key: "D.2.2a", label: "Age at Time of Onset of Reaction / Event (number)", category: "B" },
-  { key: "D.2.2b", label: "Age at Time of Onset of Reaction / Event (unit)", category: "B" },
-  { key: "D.2.2.1a", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (number)", category: "C" },
-  { key: "D.2.2.1b", label: "Gestation Period When Reaction / Event Was Observed in the Foetus (unit)", category: "B" },
-  { key: "D.2.3", label: "Patient Age Group (as per reporter)", category: "C" },
-  { key: "D.3", label: "Body Weight (kg)", category: "C" },
-  { key: "D.4", label: "Height (cm)", category: "C" },
-  { key: "D.5", label: "Sex", category: "C" },
-  { key: "D.7", label: "Relevant Medical History and Concurrent Conditions (not including reaction / event)", category: "C" },
-  { key: "D.7.1.r", label: "Structured Information on Relevant Medical History (repeat as necessary)", category: "C" },
-  { key: "D.7.1.r.2", label: "Start Date", category: "C" },
-  { key: "D.7.1.r.3", label: "Continuing", category: "C" },
-  { key: "D.7.1.r.4", label: "End Date", category: "C" },
-  { key: "D.7.1.r.5", label: "Comments", category: "C" },
-  { key: "D.7.1.r.6", label: "Family History", category: "C" },
-  { key: "D.7.2", label: "Text for Relevant Medical History and Concurrent Conditions (not including reaction / event)", category: "C" },
-  { key: "D.7.3", label: "Concomitant Therapies", category: "C" },
-  { key: "D.8.r", label: "Relevant Past Drug History (repeat as necessary)", category: "C" },
-  { key: "D.8.r.1", label: "Name of Drug as Reported", category: "C" },
-  { key: "D.8.r.4", label: "Start Date", category: "C" },
-  { key: "D.8.r.5", label: "End Date", category: "C" },
-  { key: "D.9.1", label: "Date of Death", category: "C" },
-  { key: "D.9.2.r", label: "Reported Cause(s) of Death (repeat as necessary)", category: "C" },
-  { key: "D.9.2.r.2", label: "Reported Cause(s) of Death (free text)", category: "C" },
-  
-  // Reaction/Event Information (Category E)
-  { key: "E.i.1.1a", label: "Reaction / Event as Reported by the Primary Source in Native Language", category: "C" },
-  { key: "E.i.1.1b", label: "Reaction / Event as Reported by the Primary Source Language", category: "C" },
-  { key: "E.i.1.2", label: "Reaction / Event as Reported by the Primary Source for Translation", category: "C" },
-  { key: "E.i.3.1", label: "Term Highlighted by the Reporter", category: "C" },
-  { key: "E.i.3.2", label: "Seriousness Criteria at Event Level", category: "C" },
-  { key: "E.i.3.2a", label: "Results in Death", category: "C" },
-  { key: "E.i.3.2b", label: "Life Threatening", category: "C" },
-  { key: "E.i.3.2c", label: "Caused / Prolonged Hospitalisation", category: "C" },
-  { key: "E.i.3.2d", label: "Disabling / Incapacitating", category: "C" },
-  { key: "E.i.3.2e", label: "Congenital Anomaly / Birth Defect", category: "C" },
-  { key: "E.i.3.2f", label: "Other Medically Important Condition", category: "C" },
-  { key: "E.i.4", label: "Date of Start of Reaction / Event", category: "C" },
-  { key: "E.i.5", label: "Date of End of Reaction / Event", category: "C" },
-  { key: "E.i.6a", label: "Duration of Reaction / Event (number)", category: "C" },
-  { key: "E.i.6b", label: "Duration of Reaction / Event (unit)", category: "C" },
-  { key: "E.i.7", label: "Outcome of Reaction / Event at the Time of Last Observation", category: "C" },
-  { key: "E.i.9", label: "Identification of the Country Where the Reaction / Event Occurred", category: "C" },
-  
-  // Tests and Procedures (Category F)
-  { key: "F.r", label: "Results of Tests and Procedures Relevant to the Investigation of the Patient (repeat as necessary)", category: "C" },
-  
-  // Drug Information (Category G)
-  { key: "G.k.1", label: "Characterisation of Drug Role", category: "C" },
-  { key: "G.k.2", label: "Drug Identification", category: "C" },
-  
-  // Case Narrative (Category H)
-  { key: "H.1", label: "Case Narrative Including Clinical Course, Therapeutic Measures, Outcome and Additional Relevant Information", category: "C" },
+  // Header / Batch Information (Category N)
+  { key: "N_1_2", label: "Batch Number", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_5", label: "Date of Batch Transmission", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_1", label: "Message Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_2", label: "Message Sender Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_3", label: "Message Receiver Identifier", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_2_r_4", label: "Date of Message Creation", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_3", label: "Client Organization ID", category: "N", required: true, section: "header", readOnly: true },
+  { key: "N_1_4", label: "Sender Organization ID", category: "N", required: true, section: "header", readOnly: true },
+
+  // Safety Report / Case Creation (Category C)
+  { key: "C_1_2", label: "Date of Creation", category: "C", required: true, section: "safety", readOnly: true },
+  { key: "C_1_4", label: "Date report was first received from source", category: "C", required: true, section: "safety", readOnly: true },
+  { key: "C_4_r_1", label: "Literature Reference(s)", category: "C", required: false, section: "safety" },
+
+  // Patient Characteristics (Category D)
+  { key: "D_1", label: "Patient (Name or Initials)", category: "D", required: false, section: "patient" },
+  { key: "D_5", label: "Sex", category: "D", required: false, section: "patient" },
+  { key: "D_2_2_a", label: "Age at time of onset of reaction/event (number)", category: "D", required: false, section: "patient", type: "number" },
+  { key: "D_2_2_b", label: "Age at time of onset of reaction/event (unit)", category: "D", required: false, section: "patient", type: "select", options: ["a", "mo", "d", "wk"] },
+  { key: "D_7_1_r_3", label: "Continuing", category: "D", required: false, section: "patient", type: "select", options: ["false", "true", "MSK", "NASK", "ASKU"] },
+  { key: "D_8_r_1", label: "Name of Drug as Reported", category: "D", required: false, section: "patient" },
+
+  // Reaction/Event (Category E)
+  { key: "E_i_1_a", label: "Reaction/Event as reported by the primary source", category: "E", required: false, section: "reaction" },
+  { key: "E_i_1_b", label: "Reaction/Event as reported by the primary source (language)", category: "E", required: false, section: "reaction" },
+  { key: "E_i_1_2", label: "Reaction / event as reported by the primary source for translation", category: "E", required: false, section: "reaction" },
+  { key: "E_i_3_2a", label: "Results in Death", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2b", label: "Life Threatening", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2c", label: "Caused/Prolonged Hospitalisation", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2d", label: "Disabling/Incapacitating", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2e", label: "Congenital Anomaly/Birth Defect", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_3_2f", label: "Other Medically Important Condition", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
+  { key: "E_i_7", label: "Outcome of reaction/event at the time of last observation", category: "E", required: false, section: "reaction", type: "select", options: ["0 - Unknown", "1 - Recovered/Resolved", "2 - Recovering/Resolving", "3 - Not Recovered/Not Resolved/Ongoing", "4 - Recovered/Resolved with sequelae", "5 - Fatal"] },
+  { key: "E_i_8", label: "Medical Confirmation by Healthcare Professional", category: "E", required: false, section: "reaction", type: "select", options: ["true", "false"] },
+
+  // Narrative (Category H)
+  { key: "H1", label: "Case Narrative", category: "H", required: false, section: "narrative" },
+  { key: "H_4", label: "Sender's Comments", category: "H", required: false, section: "narrative" },
 ];
 
 export default function MedicalExaminerPage() {
@@ -255,11 +229,11 @@ export default function MedicalExaminerPage() {
         const data = await response.json();
         setStudies(data.data || []);
       } else {
-        throw new Error("Failed to fetch studies");
+        throw new Error("Failed to fetch articles");
       }
     } catch (error) {
-      console.error("Error fetching studies:", error);
-      setError("Failed to load studies for medical review");
+      console.error("Error fetching articles:", error);
+      setError("Failed to load articles for medical review");
     } finally {
       setLoading(false);
     }
@@ -411,6 +385,105 @@ export default function MedicalExaminerPage() {
     return selectedStudy?.fieldComments?.filter(comment => comment.fieldKey === fieldKey) || [];
   };
 
+  const renderR3Field = (field: any) => {
+    const value = getFieldValue(field.key);
+    const comments = getFieldComments(field.key);
+    const isEditing = editingField === field.key;
+
+    return (
+      <div key={field.key} className="border border-gray-200 rounded-lg p-4 bg-white">
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex-1">
+            <h4 className="text-sm font-medium text-gray-900">
+              {field.key} - {field.label}
+              {field.required && <span className="text-red-500 ml-1">*</span>}
+            </h4>
+            <span className="text-xs text-gray-500">Category: {field.category}</span>
+          </div>
+          <div className="flex space-x-2">
+            <PermissionGate resource="medical_examiner" action="comment_fields">
+              <button
+                onClick={() => {
+                  setCommentingField(field.key);
+                  setShowCommentModal(true);
+                }}
+                className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+              >
+                Comment
+              </button>
+            </PermissionGate>
+            <PermissionGate resource="medical_examiner" action="edit_fields">
+              <button
+                onClick={() => {
+                  setEditingField(field.key);
+                  setFieldValue(value);
+                }}
+                className="text-green-600 hover:text-green-800 text-xs font-medium"
+              >
+                Edit
+              </button>
+            </PermissionGate>
+          </div>
+        </div>
+
+        {/* Field Value */}
+        <div className="mb-2">
+          {isEditing ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={fieldValue}
+                onChange={(e) => setFieldValue(e.target.value)}
+                className="w-full px-2 py-1 border border-blue-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => updateFieldValue(field.key, fieldValue)}
+                  className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingField(null);
+                    setFieldValue('');
+                  }}
+                  className="text-xs px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 p-2 rounded border border-gray-100 min-h-[2rem]">
+              <p className={`text-sm ${value ? 'text-gray-900' : 'text-gray-400 italic'}`}>
+                {value || 'No value entered'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Field Comments */}
+        {comments.length > 0 && (
+          <div className="space-y-2 mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-700">Comments:</p>
+            {comments.map((comment) => (
+              <div key={comment.id} className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                <p className="text-xs text-gray-800">{comment.comment}</p>
+                <div className="flex justify-between items-center mt-1">
+                  <p className="text-xs text-gray-500">
+                    By <span className="font-medium">{comment.userName}</span> on {formatDate(comment.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Filter logic
   const filteredStudies = studies.filter(study => {
     const matchesSearch = search === "" || 
@@ -456,9 +529,9 @@ export default function MedicalExaminerPage() {
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
           <div className="max-w-7xl mx-auto">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Medical Reviewer</h1>
-            <p className="mt-1 text-sm text-gray-600">
+            {/* <p className="mt-1 text-sm text-gray-600">
               Review completed ICSR studies, comment on fields, and manage quality control
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -470,7 +543,7 @@ export default function MedicalExaminerPage() {
                 { key: 'pending', label: 'Pending Review' },
                 { key: 'completed', label: 'Completed' },
                 { key: 'revoked', label: 'Revoked' },
-                { key: 'all', label: 'All Studies' }
+                { key: 'all', label: 'All Articles' }
               ].map((filter) => (
                 <button
                   key={filter.key}
@@ -518,7 +591,7 @@ export default function MedicalExaminerPage() {
               {/* Study ID Filter */}
               <div className="space-y-2">
                 <label htmlFor="studyId" className="block text-sm font-medium text-gray-700">
-                  Study ID
+                  Article ID
                 </label>
                 <div className="relative">
                   <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -527,7 +600,7 @@ export default function MedicalExaminerPage() {
                     name="studyId"
                     id="studyId"
                     className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
-                    placeholder="Search by Study ID..."
+                    placeholder="Search by Article ID..."
                     value={studyIdFilter}
                     onChange={(e) => setStudyIdFilter(e.target.value)}
                   />
@@ -671,7 +744,7 @@ export default function MedicalExaminerPage() {
                             {study.title}
                           </h3>
                           <p className="text-xs text-gray-600 mb-1">
-                            Drug: {study.drugName} | Event: {study.adverseEvent}
+                            Drug: {study.drugName} 
                           </p>
                           <div className="flex items-center gap-2">
                             {study.r3FormCompletedAt && (
@@ -735,13 +808,13 @@ export default function MedicalExaminerPage() {
                     
                     {/* Comprehensive Study Information */}
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-3">Study Details</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-3">Article Details</h3>
                       <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                         <h4 className="font-semibold text-gray-900 text-base">{selectedStudy.title}</h4>
                         
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
-                            <span className="font-medium text-gray-700">Study ID:</span>
+                            <span className="font-medium text-gray-700">Article ID:</span>
                             <p className="text-gray-900 font-mono">{selectedStudy.id}</p>
                           </div>
                           <div>
@@ -956,8 +1029,23 @@ export default function MedicalExaminerPage() {
                               {selectedStudy.seriousness}
                             </span>
                           )}
+
+                          {selectedStudy.fullTextAvailability && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                              Full Text: {selectedStudy.fullTextAvailability}
+                            </span>
+                          )}
                         </div>
                       </div>
+
+                      {selectedStudy.fullTextSource && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">Full Text Source</span>
+                          <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                            {selectedStudy.fullTextSource}
+                          </p>
+                        </div>
+                      )}
 
                       {selectedStudy.justification && (
                         <div>
@@ -971,7 +1059,7 @@ export default function MedicalExaminerPage() {
                   </div>
 
                           {/* Raw AI Data Expandable */}
-                          {selectedStudy.aiInferenceData && (
+                          {/* {selectedStudy.aiInferenceData && (
                             <div className="pt-2 border-t border-gray-200">
                               <details className="cursor-pointer">
                                 <summary className="text-sm font-medium text-blue-600 hover:text-blue-800">
@@ -984,7 +1072,7 @@ export default function MedicalExaminerPage() {
                                 </div>
                               </details>
                             </div>
-                          )}
+                          )} */}
 
                     {/* Abstract */}
                     {selectedStudy.abstract && (
@@ -999,99 +1087,56 @@ export default function MedicalExaminerPage() {
                     {/* R3 Form Fields Review */}
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 mb-3">R3 Form Fields</h3>
-                      <div className="space-y-4">
-                        {R3_FORM_FIELDS.map((field) => {
-                          const value = getFieldValue(field.key);
-                          const comments = getFieldComments(field.key);
-                          const isEditing = editingField === field.key;
+                      <div className="space-y-6">
+                        {/* Header / Batch Information */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                            Header / Batch Information (Category N)
+                          </h3>
+                          <div className="space-y-4">
+                            {R3_FORM_FIELDS.filter(f => f.section === "header").map(renderR3Field)}
+                          </div>
+                        </div>
 
-                          return (
-                            <div key={field.key} className="border border-gray-200 rounded-lg p-4">
-                              <div className="flex justify-between items-start mb-2">
-                                <div className="flex-1">
-                                  <h4 className="text-sm font-medium text-gray-900">
-                                    {field.key} - {field.label}
-                                  </h4>
-                                  <span className="text-xs text-gray-500">Category: {field.category}</span>
-                                </div>
-                                <div className="flex space-x-2">
-                                  <PermissionGate resource="medical_examiner" action="comment_fields">
-                                    <button
-                                      onClick={() => {
-                                        setCommentingField(field.key);
-                                        setShowCommentModal(true);
-                                      }}
-                                      className="text-blue-600 hover:text-blue-800 text-xs"
-                                    >
-                                      Comment
-                                    </button>
-                                  </PermissionGate>
-                                  <PermissionGate resource="medical_examiner" action="edit_fields">
-                                    <button
-                                      onClick={() => {
-                                        setEditingField(field.key);
-                                        setFieldValue(value);
-                                      }}
-                                      className="text-green-600 hover:text-green-800 text-xs"
-                                    >
-                                      Edit
-                                    </button>
-                                  </PermissionGate>
-                                </div>
-                              </div>
+                        {/* Safety Report / Case Creation */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                            Safety Report / Case Creation (Category C)
+                          </h3>
+                          <div className="space-y-4">
+                            {R3_FORM_FIELDS.filter(f => f.section === "safety").map(renderR3Field)}
+                          </div>
+                        </div>
 
-                              {/* Field Value */}
-                              <div className="mb-2">
-                                {isEditing ? (
-                                  <div className="space-y-2">
-                                    <input
-                                      type="text"
-                                      value={fieldValue}
-                                      onChange={(e) => setFieldValue(e.target.value)}
-                                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                    />
-                                    <div className="flex space-x-2">
-                                      <button
-                                        onClick={() => updateFieldValue(field.key, fieldValue)}
-                                        className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          setEditingField(null);
-                                          setFieldValue('');
-                                        }}
-                                        className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <p className="text-sm text-gray-800 bg-gray-100 p-2 rounded">
-                                    {value || 'No value entered'}
-                                  </p>
-                                )}
-                              </div>
+                        {/* Patient Characteristics */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                            Patient Characteristics (Category D)
+                          </h3>
+                          <div className="space-y-4">
+                            {R3_FORM_FIELDS.filter(f => f.section === "patient").map(renderR3Field)}
+                          </div>
+                        </div>
 
-                              {/* Field Comments */}
-                              {comments.length > 0 && (
-                                <div className="space-y-1">
-                                  <p className="text-xs font-medium text-gray-700">Comments:</p>
-                                  {comments.map((comment) => (
-                                    <div key={comment.id} className="bg-yellow-50 border border-yellow-200 rounded p-2">
-                                      <p className="text-xs text-gray-800">{comment.comment}</p>
-                                      <p className="text-xs text-gray-500 mt-1">
-                                        By {comment.userName} on {formatDate(comment.createdAt)}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                        {/* Reaction/Event Information */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                            Reaction/Event Information (Category E)
+                          </h3>
+                          <div className="space-y-4">
+                            {R3_FORM_FIELDS.filter(f => f.section === "reaction").map(renderR3Field)}
+                          </div>
+                        </div>
+
+                        {/* Case Narrative */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                            Case Narrative (Category H)
+                          </h3>
+                          <div className="space-y-4">
+                            {R3_FORM_FIELDS.filter(f => f.section === "narrative").map(renderR3Field)}
+                          </div>
+                        </div>
                       </div>
                       
                       {/* Additional Fields - Show all other fields that exist in r3FormData but not in predefined list */}
@@ -1099,8 +1144,8 @@ export default function MedicalExaminerPage() {
                         !R3_FORM_FIELDS.some(field => field.key === key) && selectedStudy.r3FormData?.[key]
                       ).length > 0 && (
                         <div className="mt-6">
-                          <h4 className="text-md font-semibold text-gray-800 mb-3 border-t pt-4">Additional R3 Fields</h4>
-                          <div className="space-y-3">
+                          {/* <h4 className="text-md font-semibold text-gray-800 mb-3 border-t pt-4">Additional R3 Fields</h4> */}
+                          {/* <div className="space-y-3">
                             {Object.keys(selectedStudy.r3FormData)
                               .filter(key => !R3_FORM_FIELDS.some(field => field.key === key) && selectedStudy.r3FormData?.[key])
                               .sort()
@@ -1191,7 +1236,7 @@ export default function MedicalExaminerPage() {
                                   </div>
                                 );
                               })}
-                          </div>
+                          </div> */}
                         </div>
                       )}
                     </div>
@@ -1244,7 +1289,7 @@ export default function MedicalExaminerPage() {
                             disabled={actionInProgress === 'revoke'}
                             className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium transition-colors"
                           >
-                            Revoke Study
+                            Revoke Article
                           </button>
                         </PermissionGate>
                       </div>
@@ -1256,8 +1301,8 @@ export default function MedicalExaminerPage() {
                   <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">Select a study to review</h3>
-                  <p className="mt-1 text-sm text-gray-500">Choose a study from the list to begin medical review.</p>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Select an article to review</h3>
+                  <p className="mt-1 text-sm text-gray-500">Choose an article from the list to begin medical review.</p>
                 </div>
               )}
             </div>

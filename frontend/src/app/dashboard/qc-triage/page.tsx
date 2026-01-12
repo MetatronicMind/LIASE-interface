@@ -17,6 +17,7 @@ interface Study {
   title: string;
   authors: string;
   journal: string;
+  publicationDate?: string;
   drugName: string;
   adverseEvent: string;
   userTag: 'ICSR' | 'AOI' | 'No Case';
@@ -66,6 +67,8 @@ interface Study {
   justification?: string;
   listedness?: string;
   seriousness?: string;
+  fullTextAvailability?: string;
+  fullTextSource?: string;
   clientName?: string;
   sponsor?: string;
   effectiveClassification?: string;
@@ -189,11 +192,11 @@ export default function QCTriagePage() {
         const data = await response.json();
         setStudies(data.data || []);
       } else {
-        throw new Error("Failed to fetch pending QA studies");
+        throw new Error("Failed to fetch pending QC studies");
       }
     } catch (error) {
-      console.error("Error fetching QA studies:", error);
-      setError("Failed to load studies for QA review");
+      console.error("Error fetching QC studies:", error);
+      setError("Failed to load studies for QC review");
     } finally {
       setLoading(false);
     }
@@ -259,7 +262,7 @@ export default function QCTriagePage() {
         setStudies(prev => prev.filter(study => study.id !== studyId));
         setSelectedStudy(null);
         setComments("");
-        alert("Classification approved successfully! Study will proceed to Data Entry.");
+        alert("Classification approved successfully! Article will proceed to Data Entry.");
         fetchPendingStudies();
       } else {
         throw new Error("Failed to approve classification");
@@ -303,7 +306,7 @@ export default function QCTriagePage() {
         setSelectedStudy(null);
         setRejectionReason("");
         setShowRejectModal(false);
-        alert(`Classification rejected successfully! Study has been returned to ${revokeToStage || 'Triage'}.`);
+        alert(`Classification rejected successfully! Article has been returned to ${revokeToStage || 'Triage'}.`);
         fetchPendingStudies();
       } else {
         throw new Error("Failed to reject classification");
@@ -329,7 +332,7 @@ export default function QCTriagePage() {
     return (
       <div className="p-6">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="text-center mt-2 text-gray-600">Loading QA queue...</p>
+        <p className="text-center mt-2 text-gray-600">Loading QC queue...</p>
       </div>
     );
   }
@@ -380,12 +383,12 @@ export default function QCTriagePage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Study ID</label>
+                <label className="block text-sm font-medium text-gray-700">Article ID</label>
                 <div className="relative">
                   <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Search by Study ID..."
+                    placeholder="Search by Article ID..."
                     value={studyIdFilter}
                     onChange={e => setStudyIdFilter(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
@@ -528,9 +531,9 @@ export default function QCTriagePage() {
                           <p className="text-xs text-gray-500">
                             <span className="font-medium">Drug:</span> {study.drugName}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          {/* <p className="text-xs text-gray-500">
                             <span className="font-medium">Adverse Event:</span> {study.adverseEvent}
-                          </p>
+                          </p> */}
                         </div>
                       </div>
                       <div className="ml-4">
@@ -569,10 +572,10 @@ export default function QCTriagePage() {
                   {/* Study Information */}
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-500">Study Details</h4>
+                    <h4 className="text-sm font-medium text-gray-500">Article Details</h4>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <p className="text-xs text-gray-500">Study ID</p>
+                        <p className="text-xs text-gray-500">Article ID</p>
                         <p className="text-sm text-gray-900 font-mono">{selectedStudy.id}</p>
                       </div>
                       <div>
@@ -859,8 +862,23 @@ export default function QCTriagePage() {
                               {selectedStudy.seriousness}
                             </span>
                           )}
+
+                          {selectedStudy.fullTextAvailability && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                              Full Text: {selectedStudy.fullTextAvailability}
+                            </span>
+                          )}
                         </div>
                       </div>
+
+                      {selectedStudy.fullTextAvailability === 'Yes' && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">Full Text Source</span>
+                          <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                            {selectedStudy.fullTextSource || "Not specified"}
+                          </p>
+                        </div>
+                      )}
 
                       {selectedStudy.justification && (
                         <div>
@@ -912,7 +930,7 @@ export default function QCTriagePage() {
                       onChange={(e) => setComments(e.target.value)}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      placeholder="Add any comments for the Data Entryer..."
+                      placeholder="Add any comments"
                     />
                   </div>
 

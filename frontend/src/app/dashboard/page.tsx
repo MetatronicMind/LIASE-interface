@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
 import AnalyticsCharts from "@/components/dashboard/AnalyticsCharts";
+import { PermissionGate } from "@/components/PermissionProvider";
 
 interface Stats {
   total: number;
@@ -170,55 +171,65 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="bg-gray-50 h-screen flex flex-col overflow-hidden">
-      <div className="flex-none p-4 sm:p-6 bg-white shadow-sm z-10">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-sm text-gray-500">Overview for {user?.firstName || "User"}</p>
+    <PermissionGate 
+      resource="dashboard" 
+      action="read"
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-xl text-gray-500">Access Denied</div>
+        </div>
+      }
+    >
+      <div className="bg-gray-50 h-screen flex flex-col overflow-hidden">
+        <div className="flex-none p-4 sm:p-6 bg-white shadow-sm z-10">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+                <p className="text-sm text-gray-500">Overview for {user?.firstName || "User"}</p>
+              </div>
+              {/* AI Processing Button Removed */}
             </div>
-            {/* AI Processing Button Removed */}
-          </div>
 
-          {/* {loading ? (
-            <div className="h-24 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {statsArray.map((stat, i) => (
-                <div
-                  key={stat.label}
-                  className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="p-2 bg-gray-50 rounded-lg">{stat.icon}</div>
-                  <div>
-                    <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-                    <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">{stat.label}</div>
+            {/* {loading ? (
+              <div className="h-24 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {statsArray.map((stat, i) => (
+                  <div
+                    key={stat.label}
+                    className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="p-2 bg-gray-50 rounded-lg">{stat.icon}</div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+                      <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">{stat.label}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )} */}
+                ))}
+              </div>
+            )} */}
+          </div>
         </div>
-      </div>
 
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <div className="relative w-full min-h-[800px]">
-              <Image
-                src="/liase-architecture.jpg"
-                alt="LIASE System Architecture"
-                fill
-                className="object-contain"
-                priority
-              />
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <div className="relative w-full min-h-[800px]">
+                <Image
+                  src="/liase-architecture.jpg"
+                  alt="LIASE System Architecture"
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </PermissionGate>
   );
 }

@@ -103,7 +103,13 @@ const statusStyles: Record<string, string> = {
 export default function TriagePage() {
   const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { formatDate } = useDateTime();
+  const { user, isLoading } = useSelector((state: RootState) => state.auth);
+  const permissions = user?.permissions?.triage;
   
+  const canView = permissions?.read;
+  const canAllocate = permissions?.write;
+  const canClassify = permissions?.classify;
+
   // Allocation state
   const [allocatedCases, setAllocatedCases] = useState<Study[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -124,7 +130,6 @@ export default function TriagePage() {
   // UI state
   const [showRawData, setShowRawData] = useState(false);
 
-  const { user } = useSelector((state: RootState) => state.auth);
   const API_BASE = getApiBaseUrl();
 
   // Normalize API studies to ensure proper data types
@@ -372,6 +377,26 @@ export default function TriagePage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center bg-gray-50 min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (user && canView === false) {
+    return (
+      <div className="flex h-full items-center justify-center bg-gray-50 min-h-screen">
+        <div className="text-center p-8 bg-white rounded-lg shadow-md border border-gray-200 max-w-md">
+           <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
+           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
+           <p className="text-gray-600">You do not have permission to view the Triage Assessment section.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-gray-50 min-h-screen">
       {/* Header */}
@@ -426,6 +451,7 @@ export default function TriagePage() {
                 Cases are prioritized by AI classification (Probable ICSR/AOI).
               </p> */}
               
+              {canAllocate ? (
               <button
                 onClick={handleStartTriage}
                 disabled={isAllocating}
@@ -446,6 +472,13 @@ export default function TriagePage() {
                   </>
                 )}
               </button>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-6 bg-red-50 rounded-xl border border-red-200 shadow-sm max-w-md">
+                  <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mb-2" />
+                  <h3 className="text-red-800 font-bold text-lg mb-1">Permission Denied</h3>
+                  <p className="text-red-700 text-sm">You do not have permission to allocate cases.</p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -500,6 +533,7 @@ export default function TriagePage() {
                     formatDate={formatDate}
                     API_BASE={API_BASE}
                     fetchStudies={() => {}} // No-op since we don't fetch list anymore
+                    canClassify={canClassify}
                  />
               </div>
             </div>

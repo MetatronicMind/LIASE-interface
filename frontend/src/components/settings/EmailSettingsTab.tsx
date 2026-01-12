@@ -178,7 +178,7 @@ export default function EmailSettingsTab() {
 
       {/* Section Tabs */}
       <div className="flex gap-4 border-b border-gray-200">
-        <button
+        {/* <button
           onClick={() => setActiveSection('templates')}
           className={`px-4 py-2 font-semibold transition-all ${
             activeSection === 'templates'
@@ -187,7 +187,7 @@ export default function EmailSettingsTab() {
           }`}
         >
           Templates
-        </button>
+        </button> */}
         <button
           onClick={() => setActiveSection('logs')}
           className={`px-4 py-2 font-semibold transition-all ${

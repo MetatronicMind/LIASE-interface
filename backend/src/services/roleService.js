@@ -298,6 +298,29 @@ class RoleService {
       });
 
       await cosmosService.updateItem('roles', roleId, organizationId, updatedRole.toJSON());
+      
+      // Propagate permission changes to all users with this role
+      if (updateData.permissions) {
+        console.log(`Propagating permission changes for role ${roleId} to associated users...`);
+        const users = await this.getUsersWithRole(roleId, organizationId);
+        
+        let updateCount = 0;
+        for (const user of users) {
+          try {
+            // Update permissions on the user object
+            // Use updateItem with partial update object containing JUST the new permissions
+            // cosmosService.updateItem merges the update with existing item
+            await cosmosService.updateItem('users', user.id, organizationId, {
+              permissions: updatedRole.permissions
+            });
+            updateCount++;
+          } catch (err) {
+            console.error(`Failed to update permissions for user ${user.id}:`, err);
+          }
+        }
+        console.log(`Updated permissions for ${updateCount} users.`);
+      }
+
       return updatedRole;
     } catch (error) {
       console.error('Error updating role:', error);
@@ -384,8 +407,7 @@ class RoleService {
         displayName: 'Dashboard',
         description: 'Access to main dashboard and overview',
         actions: {
-          read: 'Can view dashboard',
-          write: 'Can edit dashboard'
+          read: 'Can view dashboard'
         }
       },
       drugs: {
@@ -403,8 +425,7 @@ class RoleService {
         actions: {
           read: 'Can View Section',
           write: 'Can Edit Triage Data',
-          classify: 'Can Classify Studies',
-          manual_drug_test: 'Can Run Manual Drug Test'
+          classify: 'Can Classify Studies'
         }
       },
       QA: {

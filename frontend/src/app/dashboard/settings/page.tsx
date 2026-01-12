@@ -91,12 +91,12 @@ export default function SettingsPage() {
       icon: <Cog6ToothIcon className="w-5 h-5" />,
       requiredPermission: { resource: 'settings', action: 'viewAdminConfig' }
     },
-    {
-      id: 'study-queue',
-      name: 'Study Queue Config',
-      icon: <QueueListIcon className="w-5 h-5" />,
-      requiredPermission: { resource: 'settings', action: 'viewStudyQueue' }
-    },
+    // {
+    //   id: 'study-queue',
+    //   name: 'Study Queue Config',
+    //   icon: <QueueListIcon className="w-5 h-5" />,
+    //   requiredPermission: { resource: 'settings', action: 'viewStudyQueue' }
+    // },
     {
       id: 'triage-config',
       name: 'Triage Settings',
@@ -136,8 +136,8 @@ export default function SettingsPage() {
         return <WorkflowSettingsTab />;
       case 'admin-config':
         return <AdminConfigTab />;
-      case 'study-queue':
-        return <StudyQueueConfigTab />;
+      // case 'study-queue':
+      //   return <StudyQueueConfigTab />;
       case 'triage-config':
         return <TriageConfigTab />;
       case 'notifications':

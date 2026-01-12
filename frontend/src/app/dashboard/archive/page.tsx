@@ -122,7 +122,7 @@ export default function ArchivePage() {
           Archive Management
         </h1>
         <p className="mt-2 text-gray-600">
-          Manage archived studies and view historical records.
+          Manage archived articles and view historical records.
         </p>
       </div>
 
@@ -132,7 +132,7 @@ export default function ArchivePage() {
         <form onSubmit={handleManualArchive} className="flex gap-4 items-end">
           <div className="flex-1 max-w-md">
             <label htmlFor="studyId" className="block text-sm font-medium text-gray-700 mb-1">
-              Article ID (Study ID)
+              Article ID
             </label>
             <div className="relative">
               <input
@@ -177,7 +177,7 @@ export default function ArchivePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Search ID */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Study ID</label>
+            <label className="block text-sm font-medium text-gray-700">Article ID</label>
             <div className="relative">
               <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input

@@ -58,6 +58,7 @@ interface Study {
   listedness?: string;
   seriousness?: string;
   fullTextAvailability?: string;
+  fullTextSource?: string;
   aoiComments?: string;
   
   // Legacy fields
@@ -161,11 +162,11 @@ export default function AOIAssessmentPage() {
         );
         setStudies(aoiStudies);
       } else {
-        throw new Error("Failed to fetch AOI studies");
+        throw new Error("Failed to fetch AOI articles");
       }
     } catch (error) {
-      console.error("Error fetching AOI studies:", error);
-      setError("Failed to load AOI studies");
+      console.error("Error fetching AOI articles:", error);
+      setError("Failed to load AOI articles");
     } finally {
       setLoading(false);
     }
@@ -268,7 +269,7 @@ export default function AOIAssessmentPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading AOI studies...</p>
+          <p className="mt-4 text-gray-600">Loading AOI articles...</p>
         </div>
       </div>
     );
@@ -419,9 +420,9 @@ export default function AOIAssessmentPage() {
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No studies found</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No articles found</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  {studies.length === 0 ? "No studies classified as AOI are available for assessment." : "Try adjusting your search terms."}
+                  {studies.length === 0 ? "No articles classified as AOI are available for assessment." : "Try adjusting your search terms."}
                 </p>
               </div>
             ) : (
@@ -451,9 +452,9 @@ export default function AOIAssessmentPage() {
                           <p className="text-xs text-gray-500">
                             <span className="font-medium">Drug:</span> {study.drugName}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          {/* <p className="text-xs text-gray-500">
                             <span className="font-medium">Adverse Event:</span> {study.adverseEvent}
-                          </p>
+                          </p> */}
                           {study.listedness && (
                             <p className="text-xs text-gray-500">
                               <span className="font-medium">Listedness:</span> {study.listedness}
@@ -478,10 +479,17 @@ export default function AOIAssessmentPage() {
             )}
           </div>
 
-          {/* Study Details Panel */}
+          {/* Study Details Modal */}
           {selectedStudy && (
-            <div className="mt-6 bg-white shadow rounded-lg">
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div 
+              className="fixed inset-0 z-50 overflow-y-auto bg-gray-500 bg-opacity-75 flex items-center justify-center p-4"
+              onClick={() => setSelectedStudy(null)}
+            >
+              <div 
+                className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                 <h3 className="text-lg font-semibold text-gray-900">AOI Assessment</h3>
                 <button
                   onClick={() => {
@@ -489,22 +497,22 @@ export default function AOIAssessmentPage() {
                     setListedness('');
                     setSeriousness('');
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
                 >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
-              <div className="px-4 sm:px-6 py-4 max-h-[600px] overflow-y-auto">
+              <div className="px-6 py-4 overflow-y-auto flex-1">
                 <div className="space-y-4">
                   {/* Study Information */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-500">Study Details</h4>
+                    <h4 className="text-sm font-medium text-gray-500">Article Details</h4>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <p className="text-xs text-gray-500">Study ID</p>
+                        <p className="text-xs text-gray-500">Article ID</p>
                         <p className="text-sm text-gray-900 font-mono">{selectedStudy.id}</p>
                       </div>
                       <div>
@@ -682,6 +690,15 @@ export default function AOIAssessmentPage() {
                         </div>
                       </div>
 
+                      {selectedStudy.fullTextSource && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">Full Text Source</span>
+                          <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                            {selectedStudy.fullTextSource}
+                          </p>
+                        </div>
+                      )}
+
                       {selectedStudy.justification && (
                         <div>
                           <span className="text-sm font-medium text-gray-500">AI Opinion on Literature</span>
@@ -789,6 +806,7 @@ export default function AOIAssessmentPage() {
                 </div>
               </div>
             </div>
+          </div>
           )}
         </div>
       </div>

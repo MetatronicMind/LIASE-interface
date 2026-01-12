@@ -121,15 +121,23 @@ export default function WorkflowSettingsTab() {
     const newTransitions = [...config.transitions];
     const transition = { ...newTransitions[index] };
     
+    // Allow empty value to clear it
+    if (value === '') {
+      transition.qcPercentage = undefined;
+      newTransitions[index] = transition;
+      setConfig({ ...config, transitions: newTransitions });
+      return;
+    }
+
+    // Only allow numbers
+    if (!/^\d*$/.test(value)) return;
+
     const percentage = parseInt(value);
     if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
       transition.qcPercentage = percentage;
-    } else if (value === '') {
-      transition.qcPercentage = undefined;
+      newTransitions[index] = transition;
+      setConfig({ ...config, transitions: newTransitions });
     }
-    
-    newTransitions[index] = transition;
-    saveConfig({ ...config, transitions: newTransitions });
   };
 
   if (loading) return <div>Loading...</div>;
@@ -193,20 +201,28 @@ export default function WorkflowSettingsTab() {
                 
                 <div className="flex items-center space-x-4">
                   {transition.from === 'triage' && (
-                    <div className="flex items-center">
-                      <label htmlFor={`qc-percent-${index}`} className="mr-2 text-sm text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <label htmlFor={`qc-percent-${index}`} className="text-sm text-gray-900">
                         QC Sample %:
                       </label>
-                      <input
-                        id={`qc-percent-${index}`}
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={transition.qcPercentage || ''}
-                        onChange={(e) => handleQcPercentageChange(index, e.target.value)}
-                        className="w-20 border border-gray-300 rounded-md shadow-sm p-1 text-sm"
-                        placeholder="0-100"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          id={`qc-percent-${index}`}
+                          type="text"
+                          inputMode="numeric"
+                          value={transition.qcPercentage?.toString() ?? ''}
+                          onChange={(e) => handleQcPercentageChange(index, e.target.value)}
+                          className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
+                          placeholder="0-100"
+                        />
+                        <button
+                          onClick={() => saveConfig(config)}
+                          disabled={saving}
+                          className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+                        >
+                          {saving ? '...' : 'Save'}
+                        </button>
+                      </div>
                     </div>
                   )}
 

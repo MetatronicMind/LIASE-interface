@@ -277,75 +277,76 @@ export default function StudyProgressTracker({ jobId, onComplete }: StudyProgres
 
   // Extract values from metadata for display
   const studiesFound = job.metadata?.studiesFound || 0;
-  const studiesCreated = job.results?.studiesCreated || job.metadata?.studiesCreated || 0;
+  // backend doesn't update studiesCreated in real-time metadata, only currentStudy
+  const rawStudiesCreated = job.results?.studiesCreated || job.metadata?.studiesCreated || 0;
   const currentStudy = job.metadata?.currentStudy || 0;
-  const totalStudies = job.metadata?.totalStudies || 0;
+  const totalStudies = job.metadata?.totalStudies || studiesFound || 0;
   const phase = job.metadata?.phase || 'starting';
 
+  // Calculate simplified progress based on user request
+  // Use currentStudy - 1 as proxt for completed count during processing
+  const effectiveCompleted = (job.status === 'completed') 
+    ? rawStudiesCreated 
+    : Math.max(rawStudiesCreated, currentStudy > 0 ? currentStudy - 1 : 0);
+
+  let displayProgress = 0;
+  let progressText = '';
+  
+  if (job.status === 'completed') {
+    displayProgress = 100;
+    progressText = `Completed: Found ${studiesFound}, processed ${effectiveCompleted}`;
+  } else if (phase === 'searching' || phase === 'pubmed_search' || (phase === 'starting' && totalStudies === 0)) {
+     // Search phase
+     displayProgress = 5; 
+     progressText = 'Searching for studies...';
+  } else if (totalStudies > 0) {
+    // Processing phase
+    displayProgress = Math.round((effectiveCompleted / totalStudies) * 100);
+    progressText = `Processed: ${effectiveCompleted} / ${totalStudies} studies`;
+  } else if (phase === 'pubmed_completed') {
+    displayProgress = 10;
+    progressText = `Found ${studiesFound} studies. Preparing to process...`;
+  } else if (phase === 'ai_inference_guaranteed' || phase === 'ai_inference') {
+    // Fallback if totalStudies is 0 but we are in inference phase
+    displayProgress = 15;
+    progressText = 'Starting AI Analysis...';
+  } else {
+    displayProgress = 0;
+    progressText = `Initializing... (${phase})`;
+  }
+
   return (
-    <div className={`border rounded-lg p-4 ${getStatusColor(job.status)}`}>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-medium">Discovery Progress</h3>
-        <span className="text-sm font-medium capitalize">{job.status}</span>
+    <div className={`border rounded-lg p-6 ${getStatusColor(job.status)}`}>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-medium text-lg">Discovery Progress</h3>
+        
       </div>
       
-      {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+      {/* Simple Progress Bar */}
+      <div className="w-full bg-gray-200 rounded-full h-6 mb-3 overflow-hidden shadow-inner">
         <div 
-          className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${job.progress}%` }}
-        ></div>
+          className={`h-6 rounded-full transition-all duration-500 ease-out flex items-center justify-center text-xs text-white font-medium ${
+            phase === 'searching' ? 'animate-pulse bg-blue-400' : 'bg-blue-600'
+          }`}
+          style={{ width: `${Math.max(displayProgress, 5)}%` }}
+        >
+        </div>
       </div>
       
-      {/* Current Message */}
-      <div className="mb-3 text-sm text-gray-700">
+      {/* Simplified Status Text */}
+      <div className="flex justify-between items-center text-sm font-medium text-gray-700">
         <div className="flex items-center">
           {(job.status === 'started' || job.status === 'running') && (
-            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2"></div>
+             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
           )}
-          {job.message}
+          <span>{progressText}</span>
         </div>
+        {totalStudies > 0 && <span>{displayProgress}%</span>}
       </div>
-      
-      {/* Progress Details */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div>
-          <div className="font-medium">Progress</div>
-          <div>{job.currentStep} / {job.totalSteps} ({job.progress}%)</div>
-        </div>
-        <div>
-          <div className="font-medium">Studies Found</div>
-          <div className="text-blue-600">{studiesFound}</div>
-        </div>
-        <div>
-          <div className="font-medium">Studies Created</div>
-          <div className="text-green-600">{studiesCreated}</div>
-        </div>
-        <div>
-          <div className="font-medium">Phase</div>
-          <div className="text-gray-600 capitalize">{phase.replace(/_/g, ' ')}</div>
-        </div>
-      </div>
-
-      {/* Phase-specific details */}
-      {phase === 'creating_studies' && totalStudies > 0 && (
-        <div className="mt-3 text-sm text-gray-600">
-          <div className="flex items-center">
-            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2"></div>
-            Creating study {currentStudy} of {totalStudies}...
-          </div>
-        </div>
-      )}
-
-      {job.status === 'completed' && (
-        <div className="mt-3 text-sm text-green-700">
-          ✓ Discovery completed successfully!
-        </div>
-      )}
 
       {job.status === 'failed' && (
-        <div className="mt-3 text-sm text-red-700">
-          ✗ Discovery failed: {job.error || 'Unknown error'}
+        <div className="mt-3 p-3 bg-red-100 rounded text-sm text-red-700 font-medium">
+          Error: {job.error || 'Unknown error'}
         </div>
       )}
     </div>

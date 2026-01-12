@@ -33,6 +33,7 @@ const emailRoutes = require('./routes/emailRoutes');
 const adminConfigRoutes = require('./routes/adminConfigRoutes');
 const archivalRoutes = require('./routes/archivalRoutes');
 const legacyDataRoutes = require('./routes/legacyDataRoutes');
+const r3Routes = require('./routes/r3Routes');
 
 console.log('drugRoutes loaded:', typeof drugRoutes);
 console.log('drugRoutes methods:', drugRoutes.stack ? drugRoutes.stack.length : 'no stack');
@@ -274,6 +275,7 @@ app.use('/api/emails', authenticateToken, emailRoutes);
 app.use('/api/admin-config', authenticateToken, adminConfigRoutes);
 app.use('/api/archival', authenticateToken, archivalRoutes);
 app.use('/api/legacy-data', legacyDataRoutes);
+app.use('/api/r3', authenticateToken, r3Routes);
 
 // Root endpoint
 app.get('/', (req, res) => {
