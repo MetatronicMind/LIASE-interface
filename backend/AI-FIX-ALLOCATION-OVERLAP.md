@@ -7,15 +7,17 @@ Users reported that when multiple users attempt to allocate cases simultaneously
 ## Root Cause Analysis
 
 - The previous implementation relied solely on a `filterPredicate` (`condition`) in the Cosmos DB Patch operation: `NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null`.
-- While technically correct for atomic updates, in high-concurrency scenarios or depending on the SDK version/configuration, reliance solely on the predicate without strict Optimistic Concurrency Control (OCC) via ETags might have allowed edge cases or race conditions where the check passed momentarily or was evaluated against a stale replica state (if consistency levels were relaxed).
-- Additionally, the batch allocation logic only tried to lock the first N (e.g., 10) cases. If all N collided with another user, the second user received 0 cases (starvation), which might be perceived as a system failure or encouraged repeated clicking.
+- **CRITICAL FINDING**: In the currently used version of the `@azure/cosmos` SDK (v4.0.0) or due to the specific environment/emulator behavior, the `filterPredicate` was being **silently ignored** during `patch` operations, and standard `ifMatch` options were also ineffective. This allowed "last-writer-wins" overwrites where multiple users believed they successfully locked the same case.
+- Because the predicate was ignored, multiple users could "successfully" write to the same document, overwriting the `assignedTo` field. Both operations would return success 200 OK.
+- Additionally, the batch allocation logic only tried to lock the first N (e.g., 10) cases.
 
 ## Fix Implemented
 
 ### 1. Enhanced `CosmosService.patchItem`
 
 - Updated `backend/src/services/cosmosService.js` to accept an `etag` parameter.
-- Pass `ifMatch: etag` in the `PatchOptions`. This enforces strict Optimistic Concurrency Control. If the document has changed (e.g., assigned to another user) since it was read, the ETag will mismatch, and Cosmos DB will reject the write with `412 Precondition Failed` immediately, guaranteeing zero overlap.
+- **IMPORTANT**: Implemented the fix using `accessCondition: { type: 'IfMatch', condition: etag }`. Rigorous testing confirmed that `ifMatch` top-level property is ignored in this environment, while `accessCondition` properly enforces concurrency control.
+- If the document has changed (e.g., assigned to another user) since it was read, the ETag will mismatch, and Cosmos DB rejects the write with `412 Precondition Failed` (or error code 412) immediately.
 
 ### 2. Updated `/allocate-batch` (`studyRoutes.js`)
 
@@ -30,5 +32,5 @@ Users reported that when multiple users attempt to allocate cases simultaneously
 
 ## Verification
 
-- Code analysis confirms that `ifMatch` provides the strongest possible guarantee against concurrent modifications in Azure Cosmos DB.
-- The retry loops ensure a smooth user experience even under heavy contention.
+- Code analysis confirms that `ifMatch` (via `accessCondition`) provides the strongest possible guarantee against concurrent modifications in Azure Cosmos DB.
+- The `verify-allocation-fix.js` script (simulating 5 concurrent users allocating 100 cases total) passed successfully with **zero overlaps**.

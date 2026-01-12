@@ -351,7 +351,9 @@ class CosmosService {
         options.filterPredicate = filterPredicate;
       }
       if (etag) {
-        options.ifMatch = etag;
+        // Use older Azure Cosmos SDK syntax for optimistic concurrency
+        // "ifMatch" top-level property is ignored in some environments/versions
+        options.accessCondition = { type: 'IfMatch', condition: etag };
       }
 
       // Note: container.item returns an Item object. 
