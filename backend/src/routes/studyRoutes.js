@@ -2624,8 +2624,9 @@ router.post('/allocate-case',
         // Sort by priority
         availableCases.sort((a, b) => getPriority(a) - getPriority(b));
 
-        // Try to allocate one of the top cases (try top 5 to reduce retries)
-        const casesToTry = availableCases.slice(0, 5);
+        // Try to allocate one of the available cases in priority order.
+        // We try all fetched cases to maximize chance of success without re-fetching.
+        const casesToTry = availableCases;
 
         for (const caseToLock of casesToTry) {
            try {
@@ -2639,7 +2640,15 @@ router.post('/allocate-case',
              // The SDK expects the condition using 'from' as alias. Do not use 'WHERE' or 'SELECT'.
              const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
              
-             allocatedCase = await cosmosService.patchItem('studies', caseToLock.id, organizationId, operations, filterPredicate);
+             // Use etag for strong consistency check
+             allocatedCase = await cosmosService.patchItem(
+               'studies', 
+               caseToLock.id, 
+               organizationId, 
+               operations, 
+               filterPredicate,
+               caseToLock._etag // Pass etag
+             );
              break; // Successfully allocated
            } catch (err) {
              if (err.statusCode === 412) {
@@ -2787,12 +2796,16 @@ router.post('/allocate-batch',
       // 3. Sort by priority
       availableCases.sort((a, b) => getPriority(a) - getPriority(b));
 
-      // 4. Take top N (batchSize)
-      const casesToLock = availableCases.slice(0, batchSize);
-
       // 5. Lock them
       const lockedCases = [];
-      for (const study of casesToLock) {
+      // Iterate through ALL available cases until we fill the batch
+      // This ensures that even if some cases are taken by others during the process, 
+      // the user still gets their requested number of cases (if available).
+      for (const study of availableCases) {
+        if (lockedCases.length >= batchSize) {
+            break; 
+        }
+
         try {
           const operations = [
             { op: 'set', path: '/assignedTo', value: userId },
@@ -2802,11 +2815,19 @@ router.post('/allocate-batch',
           
           const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
           
-          const updated = await cosmosService.patchItem('studies', study.id, organizationId, operations, filterPredicate);
+          // Use etag for strong consistency check + filterPredicate as backup
+          const updated = await cosmosService.patchItem(
+            'studies', 
+            study.id, 
+            organizationId, 
+            operations, 
+            filterPredicate,
+            study._etag // Pass etag for optimistic concurrency control
+          );
           lockedCases.push(updated);
         } catch (err) {
           if (err.statusCode === 412) {
-             // Race condition - case already taken. Skip it.
+             // Race condition - case already taken or modified. Skip it and try next one.
              continue;
           }
           console.error(`Error locking case ${study.id}:`, err);

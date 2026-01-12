@@ -339,7 +339,7 @@ class CosmosService {
     }
   }
 
-  async patchItem(containerName, id, partitionKey, operations, filterPredicate) {
+  async patchItem(containerName, id, partitionKey, operations, filterPredicate, etag) {
     try {
       const container = this.getContainer(containerName);
       
@@ -349,6 +349,9 @@ class CosmosService {
       const options = {};
       if (filterPredicate) {
         options.filterPredicate = filterPredicate;
+      }
+      if (etag) {
+        options.ifMatch = etag;
       }
 
       // Note: container.item returns an Item object. 
