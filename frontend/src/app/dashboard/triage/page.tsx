@@ -7,8 +7,9 @@ import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 import { CommentThread } from "@/components/CommentThread";
 import TriageStudyDetails from "@/components/TriageStudyDetails";
 import { useDateTime } from "@/hooks/useDateTime";
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/redux/store';
+import { setSidebarLocked } from '@/redux/slices/uiSlice';
 
 interface Study {
   id: string;
@@ -101,6 +102,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function TriagePage() {
+  const dispatch = useDispatch();
   const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { formatDate } = useDateTime();
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
@@ -129,6 +131,13 @@ export default function TriagePage() {
   
   // UI state
   const [showRawData, setShowRawData] = useState(false);
+
+  // Unlock sidebar on unmount
+  useEffect(() => {
+    return () => {
+      dispatch(setSidebarLocked(false));
+    };
+  }, [dispatch]);
 
   const API_BASE = getApiBaseUrl();
 
@@ -167,6 +176,7 @@ export default function TriagePage() {
       if (data.success) {
         setAllocatedCases(normalizeApiStudies(data.cases || []));
         setCurrentIndex(0);
+        dispatch(setSidebarLocked(true));
       } else {
         alert(data.message || "Failed to allocate cases");
       }
@@ -197,6 +207,7 @@ export default function TriagePage() {
       
       setAllocatedCases([]);
       setCurrentIndex(0);
+      dispatch(setSidebarLocked(false));
       // Reset classification state
       setSelectedClassification(null);
       setJustification("");

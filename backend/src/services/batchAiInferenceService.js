@@ -91,6 +91,20 @@ class BatchAiInferenceService {
         const batchPromises = batch.map(item => 
           this.processSingleItem(item, searchParams, batchOptions)
             .catch(error => ({ error, item }))
+            .then(result => {
+              processed++;
+              // Call progress callback immediately upon completion to ensure smooth progress bar
+              if (batchOptions.progressCallback) {
+                batchOptions.progressCallback({
+                  processed,
+                  total: totalItems,
+                  percentage: Math.round((processed / totalItems) * 100),
+                  currentBatch: Math.floor(i / batchOptions.batchSize) + 1,
+                  totalBatches: Math.ceil(drugData.length / batchOptions.batchSize)
+                });
+              }
+              return result;
+            })
         );
 
         const batchResults = await this.processConcurrently(
@@ -108,18 +122,6 @@ class BatchAiInferenceService {
             });
           } else if (result.success) {
             results.push(result.data);
-          }
-          processed++;
-
-          // Call progress callback if provided
-          if (batchOptions.progressCallback) {
-            batchOptions.progressCallback({
-              processed,
-              total: totalItems,
-              percentage: Math.round((processed / totalItems) * 100),
-              currentBatch: Math.floor(i / batchOptions.batchSize) + 1,
-              totalBatches: Math.ceil(drugData.length / batchOptions.batchSize)
-            });
           }
         }
 

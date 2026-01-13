@@ -3,6 +3,7 @@ import counterReducer from './slices/counterSlice';
 import authReducer from './slices/authSlice';
 import dateTimeReducer from './slices/dateTimeSlice';
 import filterReducer from './slices/filterSlice';
+import uiReducer from './slices/uiSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     auth: authReducer,
     dateTime: dateTimeReducer,
     filter: filterReducer,
+    ui: uiReducer,
   },
 });
 

@@ -24,6 +24,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/components/PermissionProvider";
 import ClientSelector from "@/components/ClientSelector";
 import { auditService } from "@/services/auditService";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
 
 // Base navigation items - always visible
 const baseNavItems: any[] = [];
@@ -155,6 +157,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { user, logout } = useAuth();
   const { hasPermission, isAdmin, isSuperAdmin } = usePermissions();
+  const isSidebarLocked = useSelector((state: RootState) => state.ui.isSidebarLocked);
   
   // Get navigation items based on user permissions
   const navItems = getNavItemsForUser(hasPermission, isAdmin, isSuperAdmin);
@@ -223,14 +226,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {navItems.map((item) => (
               <li key={item.name}>
                 <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg font-semibold text-base transition-all duration-200 ease-out hover:scale-105 hover:-translate-y-1 active:scale-95 gap-2
+                  href={isSidebarLocked ? '#' : item.href}
+                  aria-disabled={isSidebarLocked}
+                  className={`flex items-center px-4 py-3 rounded-lg font-semibold text-base transition-all duration-200 ease-out gap-2
+                    ${isSidebarLocked 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'hover:scale-105 hover:-translate-y-1 active:scale-95'}
                     ${pathname === item.href
                       ? 'bg-gradient-to-r from-blue-100/80 to-blue-300/60 text-blue-900 font-bold shadow-inner'
-                      : 'text-blue-100 hover:bg-gradient-to-r hover:from-blue-200/60 hover:to-blue-400/40 hover:text-blue-900'}
+                      : isSidebarLocked 
+                        ? 'text-blue-100' 
+                        : 'text-blue-100 hover:bg-gradient-to-r hover:from-blue-200/60 hover:to-blue-400/40 hover:text-blue-900'}
                   `}
                   style={{ willChange: 'transform' }}
-                  onClick={() => {
+                  onClick={(e) => {
+                    if (isSidebarLocked) {
+                      e.preventDefault();
+                      return;
+                    }
                     if (window.innerWidth < 1024) setSidebarOpen(false);
                     auditService.createLog({
                       action: 'view',

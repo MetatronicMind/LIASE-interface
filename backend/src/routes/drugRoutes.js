@@ -2059,7 +2059,22 @@ async function processSearchConfigJob(jobId, configObject, user, auditAction) {
         {
           enableDetailedLogging: true,
           batchSize: 16,
-          maxConcurrency: 16
+          maxConcurrency: 16,
+          progressCallback: async (progress) => {
+            const progressPercent = 30 + Math.round((progress.processed / progress.total) * 60);
+            await jobTrackingService.updateJob(jobId, {
+              progress: progressPercent,
+              currentStep: 3,
+              message: `AI processing: ${progress.processed}/${progress.total} articles (${Math.round((progress.processed / progress.total) * 100)}%)...`,
+              metadata: { 
+                phase: 'ai_inference',
+                aiProgress: progress,
+                totalStudies: progress.total,
+                currentStudy: progress.processed,
+                studiesFound: results.totalFound
+              }
+            });
+          }
         }
       );
 

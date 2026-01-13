@@ -284,10 +284,10 @@ export default function StudyProgressTracker({ jobId, onComplete }: StudyProgres
   const phase = job.metadata?.phase || 'starting';
 
   // Calculate simplified progress based on user request
-  // Use currentStudy - 1 as proxt for completed count during processing
+  // Use currentStudy as completed count during processing
   const effectiveCompleted = (job.status === 'completed') 
     ? rawStudiesCreated 
-    : Math.max(rawStudiesCreated, currentStudy > 0 ? currentStudy - 1 : 0);
+    : Math.max(rawStudiesCreated, currentStudy);
 
   let displayProgress = 0;
   let progressText = '';
