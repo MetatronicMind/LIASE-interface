@@ -461,10 +461,10 @@ export default function ReportsPage() {
           <div className="text-xs sm:text-sm text-gray-600 truncate">Unclassified</div>
           <div className="text-xl sm:text-2xl font-bold text-purple-600">{stats.unclassified}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-orange-500">
+        {/* <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-orange-500">
           <div className="text-xs sm:text-sm text-gray-600 truncate">Serious</div>
           <div className="text-xl sm:text-2xl font-bold text-orange-600">{stats.seriousCount}</div>
-        </div>
+        </div> */}
       </div>
 
       {/* Filters and Export Section */}

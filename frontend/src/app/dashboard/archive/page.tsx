@@ -5,10 +5,12 @@ import {
   ArchiveBoxIcon, 
   MagnifyingGlassIcon, 
   ArrowPathIcon,
-  FunnelIcon
+  FunnelIcon,
+  XMarkIcon
 } from "@heroicons/react/24/outline";
 import { getApiBaseUrl } from "@/config/api";
 import { useAuth } from "@/hooks/useAuth";
+import StudyDetailView from "@/components/StudyDetailView";
 
 interface ArchivedRecord {
   id: string;
@@ -27,6 +29,7 @@ export default function ArchivePage() {
   const [loading, setLoading] = useState(true);
   const [manualId, setManualId] = useState("");
   const [archiving, setArchiving] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<ArchivedRecord | null>(null);
   const [filters, setFilters] = useState({
     status: "",
     startDate: "",
@@ -340,7 +343,11 @@ export default function ArchivePage() {
                 </tr>
               ) : (
                 records.map((record) => (
-                  <tr key={record.id} className="hover:bg-gray-50">
+                  <tr 
+                    key={record.id} 
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => setSelectedRecord(record)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                       {record.studyId}
                     </td>
@@ -369,6 +376,38 @@ export default function ArchivePage() {
           </table>
         </div>
       </div>
+
+      {selectedRecord && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-6xl h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center px-6 py-4 border-b">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Archive Details: {selectedRecord.studyId}
+              </h3>
+              <button 
+                onClick={() => setSelectedRecord(null)} 
+                className="text-gray-400 hover:text-gray-500 transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-gray-50">
+                {selectedRecord.data ? (
+                     <StudyDetailView 
+                        study={selectedRecord.data} 
+                        readonly={true} 
+                        onClose={() => setSelectedRecord(null)} 
+                    />
+                ) : (
+                    <div className="p-10 text-center text-gray-500">
+                        No detailed data snapshot available for this archived record.
+                    </div>
+                )}
+             
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -15,6 +15,7 @@ export default function LegacyDataPage() {
   const [mapping, setMapping] = useState<{[key: string]: string}>({});
   const [existingData, setExistingData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filterTerm, setFilterTerm] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -118,6 +119,14 @@ export default function LegacyDataPage() {
     ? Array.from(new Set(existingData.flatMap(Object.keys)))
     : [];
 
+  const filteredData = existingData.filter(row => {
+    if (!filterTerm) return true;
+    const lowerTerm = filterTerm.toLowerCase();
+    return Object.values(row).some(val => 
+      String(val).toLowerCase().includes(lowerTerm)
+    );
+  });
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Legacy Data Management</h1>
@@ -175,7 +184,16 @@ export default function LegacyDataPage() {
 
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Current Data ({existingData.length} records)</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">Current Data ({filteredData.length} records)</h2>
+            <input
+              type="text"
+              placeholder="Filter records..."
+              value={filterTerm}
+              onChange={(e) => setFilterTerm(e.target.value)}
+              className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
           <button
             onClick={handleReset}
             disabled={loading || existingData.length === 0}
@@ -197,7 +215,7 @@ export default function LegacyDataPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {existingData.slice(0, 100).map((row, idx) => (
+              {filteredData.slice(0, 100).map((row, idx) => (
                 <tr key={idx}>
                   {tableHeaders.map(header => (
                     <td key={`${idx}-${header}`} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -208,9 +226,9 @@ export default function LegacyDataPage() {
               ))}
             </tbody>
           </table>
-          {existingData.length > 100 && (
+          {filteredData.length > 100 && (
             <div className="p-4 text-center text-gray-500">
-              Showing first 100 records
+              Showing first 100 records of {filteredData.length}
             </div>
           )}
         </div>

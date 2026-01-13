@@ -880,7 +880,16 @@ export default function MedicalExaminerPage() {
                           {selectedStudy.doi && (
                             <div className="col-span-2">
                               <span className="font-medium text-gray-700">DOI:</span>
-                              <p className="text-gray-900 break-all">{selectedStudy.doi}</p>
+                              <p className="text-gray-900 break-all">
+                                <a 
+                                  href={selectedStudy.doi.startsWith('http') ? selectedStudy.doi : `https://doi.org/${selectedStudy.doi}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  {selectedStudy.doi}
+                                </a>
+                              </p>
                             </div>
                           )}
                         </div>

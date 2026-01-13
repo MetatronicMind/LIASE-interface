@@ -111,7 +111,7 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b bg-gray-50 rounded-t-lg">
           <div className="flex-1">
-            <h2 className="text-xl font-semibold text-gray-900 mb-1">Study Details</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-1">Article Details</h2>
             <p className="text-sm text-gray-600">PMID: <PmidLink pmid={study.pmid} showIcon={true} /></p>
           </div>
           

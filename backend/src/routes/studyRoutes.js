@@ -856,7 +856,43 @@ router.put('/:studyId',
             
             debugInfo.transition = transition;
 
-            if (transition) {
+            // Check for ICSR Bypass - Override transition if enabled and classified as ICSR
+            // ROBUSTNESS IMPROVEMENT: Handle types, casing, and detailed logging
+            const configData = workflowConfig.configData;
+            const bypassKey = configData.bypassQcForIcsr;
+            
+            // Normalize tag: ensure string, trim, uppercase
+            const normalizedTag = String(updates.userTag || '').trim().toUpperCase();
+            
+            // Normalize config: support boolean true, string 'true', or number 1
+            const isBypassEnabled = bypassKey === true || String(bypassKey) === 'true' || bypassKey === 1;
+            
+            console.log(`[Classification DEBUG Route-2] ID: ${studyId}, UserTag: '${updates.userTag}' -> '${normalizedTag}'`);
+            console.log(`[Classification DEBUG Route-2] Bypass Config: ${bypassKey} (${typeof bypassKey}) -> Enabled: ${isBypassEnabled}`);
+            
+            if (normalizedTag === 'ICSR' && isBypassEnabled) {
+               // Look for data_entry stage
+               const dataEntryStage = configData.stages.find(s => s.id === 'data_entry') 
+                                   || configData.stages.find(s => s.label === 'Data Entry');
+               
+               if (dataEntryStage) {
+                  nextStage = dataEntryStage;
+                  
+                  // Set flags for debug info
+                  debugInfo.icsrBypassActive = true;
+                  debugInfo.targetStage = dataEntryStage.id;
+                  debugInfo.bypassReason = 'Configuration enabled and tag is ICSR';
+                  
+                  console.log(`>>> [Classification Route-2] ICSR Bypass ACTIVATED - Redirecting to ${dataEntryStage.id}`);
+               } else {
+                  console.error('>>> [Classification Route-2] ICSR Bypass FAILED - data_entry stage missing in workflow config');
+                  debugInfo.bypassError = 'data_entry stage missing';
+               }
+            } else {
+                console.log(`[Classification Route-2] ICSR Bypass SKIPPED. Match? ${normalizedTag === 'ICSR'}, Enabled? ${isBypassEnabled}`);
+            }
+
+            if (!nextStage && transition) {
               // Standard transition logic - always follow the configured transition
               // The QC Sampling logic is now handled in the bulk process endpoint
               nextStage = workflowConfig.configData.stages.find(s => s.id === transition.to);
@@ -1635,7 +1671,7 @@ router.put('/:id/r3-form',
         'update',
         'study',
         id,
-        `Updated R3 form fields for study ${id}: ${changeDetails.join(', ')}`,
+        `Updated R3 form fields for study ${id}`,
         { studyId: id, pmid: study.pmid },
         auditBefore,
         auditAfter
@@ -1741,9 +1777,6 @@ router.post('/:id/r3-form/complete',
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
 
       let detailsStr = `Completed R3 form for study ${id}`;
-      if (changeDetails.length > 0) {
-        detailsStr += `. Changes: ${changeDetails.join(', ')}`;
-      }
 
       await auditAction(
         req.user,
@@ -1856,7 +1889,46 @@ router.put('/:id',
             
             debugInfo.transition = transition;
 
-            if (transition) {
+            // Check for ICSR Bypass - Override transition if enabled and classified as ICSR
+            // ROBUSTNESS IMPROVEMENT: Handle types, casing, and detailed logging
+            const configData = workflowConfig.configData;
+            const bypassKey = configData.bypassQcForIcsr;
+            
+            // Normalize tag: ensure string, trim, uppercase
+            const normalizedTag = String(userTag || '').trim().toUpperCase();
+            
+            // Normalize config: support boolean true, string 'true', or number 1
+            const isBypassEnabled = bypassKey === true || String(bypassKey) === 'true' || bypassKey === 1;
+            
+            console.log(`[Classification DEBUG] ID: ${id}, UserTag: '${userTag}' -> '${normalizedTag}'`);
+            console.log(`[Classification DEBUG] Bypass Config: ${bypassKey} (${typeof bypassKey}) -> Enabled: ${isBypassEnabled}`);
+            
+            if (normalizedTag === 'ICSR' && isBypassEnabled) {
+               // Look for data_entry stage
+               // Fallback: search by label if ID is not exactly 'data_entry' in older configs
+               const dataEntryStage = configData.stages.find(s => s.id === 'data_entry') 
+                                   || configData.stages.find(s => s.label === 'Data Entry');
+               
+               if (dataEntryStage) {
+                  nextStage = dataEntryStage;
+                  
+                  // Set flags for debug info
+                  debugInfo.icsrBypassActive = true;
+                  debugInfo.targetStage = dataEntryStage.id;
+                  debugInfo.bypassReason = 'Configuration enabled and tag is ICSR';
+                  
+                  console.log(`>>> [Classification] ICSR Bypass ACTIVATED - Redirecting to ${dataEntryStage.id}`);
+               } else {
+                  console.error('>>> [Classification] ICSR Bypass FAILED - data_entry stage missing in workflow config');
+                  // console.log('Available stages:', configData.stages.map(s => s.id));
+                  debugInfo.bypassError = 'data_entry stage missing';
+               }
+            } else {
+                console.log(`[Classification] ICSR Bypass SKIPPED. Match? ${normalizedTag === 'ICSR'}, Enabled? ${isBypassEnabled}`);
+            }
+
+            // Only use standard transition if nextStage wasn't already set by bypass logic
+            if (!nextStage && transition) {
               // Standard transition logic - always follow the configured transition
               // The QC Sampling logic is now handled in the bulk process endpoint
               nextStage = workflowConfig.configData.stages.find(s => s.id === transition.to);

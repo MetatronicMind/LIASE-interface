@@ -6,13 +6,12 @@ async function checkConfig() {
   const endpoint = process.env.COSMOS_DB_ENDPOINT;
   const key = process.env.COSMOS_DB_KEY;
   const databaseId = process.env.COSMOS_DB_DATABASE_ID || 'LIASE-Database';
+  const containerId = 'AdminConfigs';
 
-  console.log('Endpoint:', endpoint);
-  console.log('Database:', databaseId);
-  const containerId = 'admin_config';
+  console.log(`Connecting to ${endpoint} db: ${databaseId}`);
 
-  if (!endpoint || !key || !databaseId) {
-    console.error('Missing Cosmos DB credentials');
+  if (!endpoint || !key) {
+    console.error('Missing credentials');
     return;
   }
 
@@ -20,19 +19,33 @@ async function checkConfig() {
   const container = client.database(databaseId).container(containerId);
 
   try {
+    // Try to find ANY workflow config to see what orgs we have
     const querySpec = {
       query: "SELECT * FROM c WHERE c.configType = 'workflow'"
     };
 
     const { resources: configs } = await container.items.query(querySpec).fetchAll();
 
-    if (configs.length === 0) {
-      console.log('No workflow config found');
-    } else {
-      const config = configs[0];
-      console.log('Workflow Config Found:');
-      console.log('Transitions:', JSON.stringify(config.configData.transitions, null, 2));
-      console.log('Stages:', JSON.stringify(config.configData.stages.map(s => ({id: s.id, label: s.label})), null, 2));
+    console.log(`Found ${configs.length} workflow configs.`);
+
+    for (const config of configs) {
+      const bypassVal = config.configData ? config.configData.bypassQcForIcsr : 'UNDEFINED';
+      
+      console.log(`\n--- Config for Org: ${config.organizationId} ---`);
+      console.log(`bypassQcForIcsr raw value: '${bypassVal}'`);
+      console.log(`bypassQcForIcsr type: ${typeof bypassVal}`);
+      
+      const isEnabled = bypassVal === true || String(bypassVal) === 'true';
+      console.log(`Logic Evaluation (isEnabled): ${isEnabled}`);
+      
+      if (config.configData && config.configData.stages) {
+          const dataEntry = config.configData.stages.find(s => s.id === 'data_entry');
+          console.log('Has Data Entry Stage:', !!dataEntry);
+          if (dataEntry) console.log('Data Entry Stage:', JSON.stringify(dataEntry, null, 2));
+          if (!dataEntry) console.log('Stages available:', config.configData.stages.map(s => s.id));
+      } else {
+          console.log('No configData.stages found!');
+      }
     }
   } catch (error) {
     console.error('Error:', error);

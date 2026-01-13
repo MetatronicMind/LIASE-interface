@@ -117,6 +117,13 @@ export default function TriagePage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAllocating, setIsAllocating] = useState(false);
   
+  // Ensure currentIndex is valid when allocatedCases changes (e.g. after classifying/removing a case)
+  useEffect(() => {
+    if (allocatedCases.length > 0 && currentIndex >= allocatedCases.length) {
+      setCurrentIndex(Math.max(0, allocatedCases.length - 1));
+    }
+  }, [allocatedCases.length, currentIndex]); // Only depend on length to avoid loops
+
   // Derived state for current case
   const currentCase = allocatedCases.length > 0 ? allocatedCases[currentIndex] : null;
   
@@ -138,6 +145,13 @@ export default function TriagePage() {
       dispatch(setSidebarLocked(false));
     };
   }, [dispatch]);
+
+  // Ensure sidebar is unlocked when there are no allocated cases (e.g. all processed)
+  useEffect(() => {
+    if (allocatedCases.length === 0) {
+      dispatch(setSidebarLocked(false));
+    }
+  }, [allocatedCases.length, dispatch]);
 
   const API_BASE = getApiBaseUrl();
 
@@ -276,13 +290,8 @@ export default function TriagePage() {
       });
       
       if (response.ok) {
-        const result = await response.json();
-        const updatedStudy = result.study;
-        
-        // Update the study in the allocatedCases state
-        setAllocatedCases(prev => prev.map(study => 
-          study.id === studyId ? updatedStudy : study
-        ));
+        // Remove the classified study from the list so the user moves to the next one
+        setAllocatedCases(prev => prev.filter(study => study.id !== studyId));
         
         // Reset classification state
         setSelectedClassification(null);
@@ -292,13 +301,14 @@ export default function TriagePage() {
         setFullTextAvailability("");
         setFullTextSource("");
         
-        alert(`Literature Article classified as ${classification}.`);
+        // Alert removed to improve workflow speed
+        // alert(`Literature Article classified as ${classification}.`);
       } else {
-        throw new Error("Failed to classify study");
+        throw new Error("Failed to classify article");
       }
     } catch (error) {
-      console.error("Error classifying study:", error);
-      alert("Error classifying study. Please try again.");
+      console.error("Error classifying article:", error);
+      alert("Error classifying article. Please try again.");
     } finally {
       setClassifying(null);
     }
@@ -499,7 +509,7 @@ export default function TriagePage() {
               {/* LEFT PANE: Abstract & Details */}
               <div className="w-full lg:w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
                  <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                    <h3 className="font-bold text-gray-900">Study Details</h3>
+                    <h3 className="font-bold text-gray-900">Article Details</h3>
                     <PmidLink pmid={currentCase.pmid} />
                  </div>
                  <div className="p-6 overflow-y-auto flex-1">

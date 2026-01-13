@@ -318,7 +318,7 @@ export default function StudyProgressTracker({ jobId, onComplete }: StudyProgres
   return (
     <div className={`border rounded-lg p-6 ${getStatusColor(job.status)}`}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-medium text-lg">Discovery Progress</h3>
+        <h3 className="font-medium text-lg">Scraping Progress</h3>
         
       </div>
       

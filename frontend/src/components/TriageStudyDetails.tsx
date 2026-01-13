@@ -146,7 +146,7 @@ export default function TriageStudyDetails({
                 <p className="mt-1">{study.qaComments}</p>
               </div>
               <p className="mt-3 text-xs text-orange-600">
-                Please review and re-classify this study based on the QC feedback.
+                Please review and re-classify this article based on the QC feedback.
               </p>
             </div>
           </div>
@@ -164,7 +164,7 @@ export default function TriageStudyDetails({
             </div>
             <div className="ml-3 flex-1">
               <h3 className="text-sm font-medium text-red-800">
-                Study Revoked
+                Article Revoked
               </h3>
               <div className="mt-2 text-sm text-red-700">
                 <p className="font-semibold">Reason:</p>
@@ -185,7 +185,7 @@ export default function TriageStudyDetails({
         <h4 className="font-semibold text-gray-900 mb-3">Literature Information</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="font-bold text-gray-700">Study ID:</span>
+            <span className="font-bold text-gray-700">Article ID:</span>
             <p className="mt-1 text-gray-900 font-mono">{study.id}</p>
           </div>
           <div>
@@ -686,7 +686,7 @@ export default function TriageStudyDetails({
                 <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="text-green-700 font-medium mr-2">Study classified as: {getClassificationLabel(study)}</span>
+                <span className="text-green-700 font-medium mr-2">Article classified as: {getClassificationLabel(study)}</span>
               </div>
               {study.justification && (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
@@ -710,7 +710,7 @@ export default function TriageStudyDetails({
               )}
             </div>
             <p className="text-sm text-gray-600 mb-4">
-              This study has been classified. You can reclassify it if needed:
+              This article has been classified. You can reclassify it if needed:
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <span className="text-sm text-gray-600 mr-2 flex items-center">Re-classify:</span>

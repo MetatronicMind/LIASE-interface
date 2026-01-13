@@ -644,7 +644,7 @@ export default function DrugManagementPage() {
                       <div className="flex items-center">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600 mr-2"></div>
                         <span className="text-yellow-800">
-                          A drug discovery job is running in the background: {runningConfigName}
+                          An Article Scraping job is running in the background: {runningConfigName}
                         </span>
                       </div>
                       <button
@@ -666,7 +666,7 @@ export default function DrugManagementPage() {
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-medium">
-                      Drug Discovery Progress: {runningConfigName}
+                      Article Scraping Progress: {runningConfigName}
                     </h3>
                     <button
                       onClick={() => {
@@ -733,7 +733,7 @@ export default function DrugManagementPage() {
                 {searchConfigs.length === 0 ? (
                   <div className="text-center py-8 bg-gray-50 rounded-lg">
                     <p className="text-gray-600">
-                      No search configurations yet. Create one above to start automatic drug discovery.
+                      No search configurations yet. Create one above to start automatic Article Scraping.
                     </p>
                   </div>
                 ) : !searchTerm ? (

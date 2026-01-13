@@ -24,6 +24,7 @@ interface Transition {
 interface WorkflowConfig {
   qcDataEntry?: boolean;
   medicalReview?: boolean;
+  bypassQcForIcsr?: boolean;
   stages: Stage[];
   transitions: Transition[];
 }
@@ -94,7 +95,7 @@ export default function WorkflowSettingsTab() {
     }
   };
 
-  const handleToggleStage = (key: 'qcDataEntry' | 'medicalReview', checked: boolean) => {
+  const handleToggleStage = (key: 'qcDataEntry' | 'medicalReview' | 'bypassQcForIcsr', checked: boolean) => {
     if (!config) return;
     saveConfig({ ...config, [key]: checked });
   };
@@ -149,6 +150,22 @@ export default function WorkflowSettingsTab() {
         <h2 className="text-xl font-semibold mb-4">Workflow Stages</h2>
         <div className="bg-white shadow overflow-hidden sm:rounded-md p-6 space-y-4">
           <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">ICSRs Bypass QC Allocation</h3>
+              <p className="text-sm text-gray-500">If enabled, ICSR cases go directly to Data Entry. Only AOI/No Case go to QC Allocation.</p>
+            </div>
+            <div className="flex items-center">
+              <input
+                id="toggle-icsr-bypass"
+                type="checkbox"
+                checked={config.bypassQcForIcsr || false} // Default to false
+                onChange={(e) => handleToggleStage('bypassQcForIcsr', e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t pt-4">
             <div>
               <h3 className="text-sm font-medium text-gray-900">QC Data Entry</h3>
               <p className="text-sm text-gray-500">Enable or disable the QC Data Entry stage.</p>

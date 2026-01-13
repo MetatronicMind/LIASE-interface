@@ -140,7 +140,7 @@ const R3_FORM_FIELDS = [
 
   // Patient Characteristics (Category D)
   { key: "D_1", label: "Patient (Name or Initials)", category: "D", required: false, section: "patient" },
-  { key: "D_5", label: "Sex", category: "D", required: false, section: "patient" },
+  { key: "D_5", label: "Sex", category: "D", required: false, section: "patient", type: "select", options: ["1", "2"] },
   { key: "D_2_2_a", label: "Age at time of onset of reaction/event (number)", category: "D", required: false, section: "patient", type: "number" },
   { key: "D_2_2_b", label: "Age at time of onset of reaction/event (unit)", category: "D", required: false, section: "patient", type: "select", options: ["a", "mo", "d", "wk"] },
   { key: "D_7_1_r_3", label: "Continuing", category: "D", required: false, section: "patient", type: "select", options: ["false", "true", "MSK", "NASK", "ASKU"] },
@@ -1368,6 +1368,19 @@ export default function R3FormPage() {
                                 <option key={opt} value={opt}>{opt}</option>
                               ))}
                             </select>
+                          ) : field.type === 'number' ? (
+                            <input
+                              type="number"
+                              value={getFieldValue(field.key)}
+                              onChange={(e) => handleFormChange(field.key, e.target.value)}
+                              disabled={field.readOnly}
+                              placeholder={field.readOnly ? "Auto-generated" : "Enter number..."}
+                              className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black
+                                ${isPrefilled ? "bg-blue-50 border-blue-200" : "border-gray-300"}
+                                ${field.readOnly ? "bg-gray-100 text-gray-500" : ""}
+                                ${fieldComments.length > 0 ? "border-yellow-300 focus:ring-yellow-400" : ""}
+                              `}
+                            />
                           ) : (
                             <textarea
                               value={getFieldValue(field.key)}

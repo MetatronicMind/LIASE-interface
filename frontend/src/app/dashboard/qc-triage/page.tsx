@@ -615,7 +615,7 @@ export default function QCTriagePage() {
 
                   {/* Study Metadata */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Study Metadata</h4>
+                    <h4 className="text-sm font-medium text-gray-500 mb-2">Article Metadata</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       {selectedStudy.authors && (
                         <div>
@@ -632,7 +632,16 @@ export default function QCTriagePage() {
                       {selectedStudy.doi && (
                         <div>
                           <span className="font-medium text-gray-700">DOI:</span>
-                          <p className="mt-1 text-gray-900 break-all">{selectedStudy.doi}</p>
+                          <p className="mt-1 text-gray-900 break-all">
+                            <a 
+                              href={selectedStudy.doi.startsWith('http') ? selectedStudy.doi : `https://doi.org/${selectedStudy.doi}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {selectedStudy.doi}
+                            </a>
+                          </p>
                         </div>
                       )}
                       {selectedStudy.vancouverCitation && (
@@ -882,7 +891,7 @@ export default function QCTriagePage() {
 
                       {selectedStudy.justification && (
                         <div>
-                          <span className="text-sm font-medium text-gray-500">AI Opinion on Literature</span>
+                          <span className="text-sm font-medium text-gray-500">Triage Justification</span>
                           <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
                             {selectedStudy.justification}
                           </p>
