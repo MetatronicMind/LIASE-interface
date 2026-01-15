@@ -334,6 +334,9 @@ class Study {
     // If targetStage is provided, update status
     if (targetStage) {
       this.status = targetStage;
+    } else {
+      // Default to Pending Review (Triage) if no stage specified
+      this.status = 'Pending Review';
     }
     
     // Clear the userTag so the study goes back to Triage for re-classification

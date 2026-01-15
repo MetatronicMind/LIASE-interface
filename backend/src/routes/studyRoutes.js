@@ -1300,6 +1300,32 @@ router.get('/stats/summary',
           noCase: 0
         },
         processedToday: 0,
+        // New statistics for Calendar Dashboard
+        dateStats: {
+            selectedDate: null,
+            totalCreated: 0,
+            aiClassification: {
+                icsr: 0,
+                aoi: 0,
+                noCase: 0,
+                other: 0
+            },
+            triageClassification: {
+                icsr: 0,
+                aoi: 0,
+                noCase: 0,
+                unclassified: 0
+            }
+        },
+        workflowStats: {
+            triage: 0,
+            qcAllocation: 0,
+            qcTriage: 0,
+            dataEntry: 0,
+            qcDataEntry: 0,
+            medicalReview: 0,
+            completed: 0
+        },
         byDrug: {},
         byMonth: {},
         byUser: {}
@@ -1331,6 +1357,10 @@ router.get('/stats/summary',
       const today = new Date();
       const todayStr = today.toDateString();
 
+      // Date for filtering
+      const filterDateStr = req.query.date; // Expects YYYY-MM-DD
+      stats.dateStats.selectedDate = filterDateStr || null;
+
       studies.forEach(study => {
         // Tag stats
         if (study.userTag === 'ICSR') stats.tagStats.icsr++;
@@ -1339,10 +1369,78 @@ router.get('/stats/summary',
 
         // Processed Today (using updatedAt)
         if (study.updatedAt) {
-          const updatedDate = new Date(study.updatedAt);
-          if (updatedDate.toDateString() === todayStr) {
-            stats.processedToday++;
-          }
+            const updatedDate = new Date(study.updatedAt);
+            if (updatedDate.toDateString() === todayStr) {
+              stats.processedToday++;
+            }
+        }
+
+        // --- Workflow Stats (Global) ---
+        // Triage: Not yet user tagged
+        if (!study.userTag && (study.status === 'Pending Review' || study.status === 'Pending' || study.status === 'Under Triage Review')) {
+            stats.workflowStats.triage++;
+        }
+        // QC Allocation: Tagged but awaiting QC assignment/action (pending)
+        else if (study.userTag && (!study.qaApprovalStatus || study.qaApprovalStatus === 'pending')) {
+            stats.workflowStats.qcAllocation++;
+        }
+        // QC Triage: Currently in QC status (manual_qc)
+        else if (study.qaApprovalStatus === 'manual_qc') {
+            stats.workflowStats.qcTriage++;
+        }
+        // Data Entry / QC Data Entry / Medical Review flow
+        else if (study.userTag === 'ICSR' && study.qaApprovalStatus === 'approved') {
+            // Check R3 QC Status
+            if (study.qcR3Status === 'pending') {
+                stats.workflowStats.qcDataEntry++;
+            }
+            else if (study.qcR3Status === 'approved') {
+                 // Moved to Medical Review?
+                 if (study.medicalReviewStatus === 'completed' || study.status === 'Approved') {
+                     stats.workflowStats.completed++;
+                 } else {
+                     stats.workflowStats.medicalReview++;
+                 }
+            }
+            else {
+                // Not pending R3 QC, not approved R3 QC -> Must be in Data Entry (or R3 rejected)
+                // Unless it's completed without R3 (legacy?)
+                if (study.status === 'Approved') {
+                     stats.workflowStats.completed++;
+                } else {
+                     stats.workflowStats.dataEntry++;
+                }
+            }
+        }
+        // Completed (Catch-all for other flows)
+        else if (study.status === 'Approved' || study.medicalReviewStatus === 'completed') {
+            stats.workflowStats.completed++;
+        }
+
+        // --- Date Specific Stats ---
+        if (filterDateStr && study.createdAt) {
+            const createdDate = new Date(study.createdAt);
+            // Format to YYYY-MM-DD
+            const createdYMD = createdDate.toISOString().split('T')[0];
+            
+            if (createdYMD === filterDateStr) {
+                stats.dateStats.totalCreated++;
+
+                // AI Classification Snapshot for this date
+                // Priority: icsrClassification field > aiInferenceData.icsrPrediction
+                const aiClass = (study.icsrClassification || study.aiInferenceData?.icsrPrediction || '').toLowerCase();
+                if (aiClass.includes('icsr')) stats.dateStats.aiClassification.icsr++;
+                else if (aiClass.includes('aoi')) stats.dateStats.aiClassification.aoi++;
+                else if (aiClass.includes('no case') || aiClass.includes('nocase')) stats.dateStats.aiClassification.noCase++;
+                else stats.dateStats.aiClassification.other++;
+
+                // Triage Classification Snapshot for this date
+                const userClass = (study.userTag || 'unclassified').toLowerCase();
+                if (userClass === 'icsr') stats.dateStats.triageClassification.icsr++;
+                else if (userClass === 'aoi') stats.dateStats.triageClassification.aoi++;
+                else if (userClass === 'no case' || userClass === 'nocase') stats.dateStats.triageClassification.noCase++;
+                else stats.dateStats.triageClassification.unclassified++;
+            }
         }
 
         // Count by status

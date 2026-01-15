@@ -110,8 +110,8 @@ export default function DrugManagementPage() {
   }, [selectedOrganizationId]);
 
   // Handle job completion
-  const handleJobComplete = (results: any) => {
-    console.log('Job completed with results:', results);
+  const handleJobComplete = (data: any) => {
+    console.log('Job completed with results:', data);
     
     // Stop the loading spinner on the button and hide progress
     setRunningConfigs(new Set());
@@ -123,6 +123,15 @@ export default function DrugManagementPage() {
     localStorage.removeItem('activeJobId');
     localStorage.removeItem('showProgressTracker');
     localStorage.removeItem('runningConfigName');
+
+    // Show completion prompt
+    if (data && data.message) {
+      alert(data.message);
+    } else {
+      const resultCount = data?.results?.totalFound || 0;
+      const studiesCreated = data?.results?.studiesCreated || 0;
+      alert(`Drug discovery completed.\nFound ${resultCount} articles.\nCreated ${studiesCreated} studies.`);
+    }
     
     // Refresh configurations to show updated stats
     fetchSearchConfigs();
