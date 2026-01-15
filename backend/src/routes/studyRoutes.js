@@ -1294,6 +1294,12 @@ router.get('/stats/summary',
           drugs: 0,
           qaReviewed: 0
         },
+        tagStats: {
+          icsr: 0,
+          aoi: 0,
+          noCase: 0
+        },
+        processedToday: 0,
         byDrug: {},
         byMonth: {},
         byUser: {}
@@ -1322,7 +1328,23 @@ router.get('/stats/summary',
         return acc;
       }, {});
 
+      const today = new Date();
+      const todayStr = today.toDateString();
+
       studies.forEach(study => {
+        // Tag stats
+        if (study.userTag === 'ICSR') stats.tagStats.icsr++;
+        else if (study.userTag === 'AOI') stats.tagStats.aoi++;
+        else if (study.userTag === 'No Case') stats.tagStats.noCase++;
+
+        // Processed Today (using updatedAt)
+        if (study.updatedAt) {
+          const updatedDate = new Date(study.updatedAt);
+          if (updatedDate.toDateString() === todayStr) {
+            stats.processedToday++;
+          }
+        }
+
         // Count by status
         switch (study.status) {
           case 'Pending Review':

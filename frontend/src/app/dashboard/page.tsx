@@ -49,6 +49,12 @@ interface Stats {
     inProgress: number;
     completed: number;
   };
+  tagStats?: {
+    icsr: number;
+    aoi: number;
+    noCase: number;
+  };
+  processedToday?: number;
   byDrug?: Record<string, number>;
   byMonth?: Record<string, number>;
   byUser?: Record<string, number>;
@@ -126,6 +132,8 @@ export default function DashboardPage() {
           qaStats: statsData.qaStats,
           medicalReviewStats: statsData.medicalReviewStats,
           r3Stats: statsData.r3Stats,
+          tagStats: statsData.tagStats,
+          processedToday: statsData.processedToday,
           byDrug: statsData.byDrug,
           byMonth: statsData.byMonth,
           byUser: statsData.byUser
@@ -216,17 +224,45 @@ export default function DashboardPage() {
 
         <div className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="max-w-7xl mx-auto">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="relative w-full min-h-[800px]">
-                <Image
-                  src="/liase-architecture.jpg"
-                  alt="LIASE System Architecture"
-                  fill
-                  className="object-contain"
-                  priority
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* ICSR Box */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:shadow-md transition-shadow">
+                <div className="p-3 bg-blue-50 rounded-full mb-4">
+                  <DocumentTextIcon className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">ICSR Cases</h3>
+                <p className="text-3xl font-bold text-blue-600 mt-2">{stats.tagStats?.icsr || 0}</p>
+              </div>
+
+              {/* AOI Box */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:shadow-md transition-shadow">
+                <div className="p-3 bg-purple-50 rounded-full mb-4">
+                  <EyeIcon className="w-8 h-8 text-purple-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">AOI Cases</h3>
+                <p className="text-3xl font-bold text-purple-600 mt-2">{stats.tagStats?.aoi || 0}</p>
+              </div>
+
+              {/* NO CASE Box */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:shadow-md transition-shadow">
+                <div className="p-3 bg-gray-50 rounded-full mb-4">
+                  <CheckCircleIcon className="w-8 h-8 text-gray-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">No Case</h3>
+                <p className="text-3xl font-bold text-gray-600 mt-2">{stats.tagStats?.noCase || 0}</p>
+              </div>
+
+              {/* Total Processed Today Box */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:shadow-md transition-shadow">
+                <div className="p-3 bg-green-50 rounded-full mb-4">
+                  <ClockIcon className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">Processed Today</h3>
+                <p className="text-3xl font-bold text-green-600 mt-2">{stats.processedToday || 0}</p>
               </div>
             </div>
+            
+            {/* Recent Activity Section could go here if needed */}
           </div>
         </div>
       </div>
