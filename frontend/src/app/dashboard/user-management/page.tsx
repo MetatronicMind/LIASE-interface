@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { float } from "@heroicons/react/24/solid";
-import { UserCircleIcon, TrashIcon, PencilIcon, PlusIcon } from "@heroicons/react/24/solid";
+import { UserCircleIcon, PencilIcon, PlusIcon } from "@heroicons/react/24/solid";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { PermissionGate, useConditionalPermissions } from "@/components/PermissionProvider";
@@ -52,39 +52,23 @@ export default function UserManagementPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string, username: string) => {
-    // First confirmation - soft or hard delete
-    const deleteType = confirm(
-      `Delete user "${username}"?\n\n` +
-      `Click OK for SOFT DELETE (recommended - can be recovered)\n` +
-      `Click Cancel to choose PERMANENT DELETE`
+  const handleToggleUserStatus = async (user: User) => {
+    const action = user.isActive ? 'deactivate' : 'reactivate';
+    
+    const confirmed = confirm(
+      `Are you sure you want to ${action} user "${user.username}"?`
     );
 
-    let hardDelete = false;
-    
-    if (!deleteType) {
-      // User clicked Cancel - ask if they want permanent deletion
-      const confirmPermanent = confirm(
-        `⚠️ PERMANENT DELETION ⚠️\n\n` +
-        `This will PERMANENTLY delete "${username}" from the database.\n` +
-        `This action CANNOT be undone!\n\n` +
-        `Are you absolutely sure you want to permanently delete this user?`
-      );
-      
-      if (!confirmPermanent) {
-        return; // User cancelled
-      }
-      hardDelete = true;
+    if (!confirmed) {
+      return;
     }
 
     try {
-      await userService.deleteUser(userId, hardDelete);
+      await userService.updateUser(user.id, { isActive: !user.isActive });
       await fetchUsers();
-      // setError(null);
-      toast.success(`User "${username}" deleted successfully`);
+      toast.success(`User "${user.username}" ${action}d successfully`);
     } catch (err: any) {
-      // setError(err.message || 'Failed to delete user');
-      toast.error(err.message || 'Failed to delete user');
+      toast.error(err.message || `Failed to ${action} user`);
     }
   };
 
@@ -199,11 +183,15 @@ export default function UserManagementPage() {
                         </PermissionGate>
                         <PermissionGate resource="users" action="delete">
                           <button 
-                            onClick={() => handleDeleteUser(user.id, user.username)}
-                            className="bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded transition" 
-                            title="Delete"
+                            onClick={() => handleToggleUserStatus(user)}
+                            className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                                !user.isActive 
+                                ? "bg-green-100 text-green-700 hover:bg-green-200" 
+                                : "bg-red-100 text-red-700 hover:bg-red-200"
+                            }`}
+                            title={user.isActive ? "Deactivate User" : "Reactivate User"}
                           >
-                            <TrashIcon className="w-4 h-4" />
+                            {user.isActive ? "Deactivate" : "Reactivate"}
                           </button>
                         </PermissionGate>
                       </div>

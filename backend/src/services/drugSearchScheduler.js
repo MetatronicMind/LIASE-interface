@@ -21,17 +21,18 @@ class DrugSearchScheduler {
       return;
     }
 
-    console.log('Starting drug search scheduler - will run every 12 hours');
+    console.log('Starting drug search scheduler - TEST MODE (Every minute)');
     
-    // Schedule to run every 12 hours (at 00:00 and 12:00)
-    this.cronJob = cron.schedule('0 0,12 * * *', async () => {
+    // TEST MODE: Run every minute so we can catch the 3 PM IST test case
+    // Original: '0 0,12 * * *' (Every 12 hours)
+    this.cronJob = cron.schedule('* * * * *', async () => {
       await this.runScheduledSearches();
     }, {
       scheduled: true,
       timezone: "UTC"
     });
 
-    console.log('Drug search scheduler started successfully - checking every 12 hours');
+    console.log('Drug search scheduler started successfully - checking every minute');
   }
 
   // Stop the scheduler

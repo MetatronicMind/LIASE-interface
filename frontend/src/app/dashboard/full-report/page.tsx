@@ -1034,7 +1034,14 @@ export default function FullReportPage() {
                     {selectedStudy?.doi && (
                       <div>
                         <p className="text-sm font-medium text-black">DOI:</p>
-                        <p className="text-sm text-black">{selectedStudy.doi}</p>
+                        <a 
+                          href={selectedStudy.doi.startsWith('http') ? selectedStudy.doi : `https://doi.org/${selectedStudy.doi}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"
+                        >
+                          {selectedStudy.doi}
+                        </a>
                       </div>
                     )}
                     {selectedStudy?.specialCase && (

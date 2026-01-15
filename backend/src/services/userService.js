@@ -30,7 +30,6 @@ class UserService {
         SELECT * FROM c 
         WHERE c.type = 'user' 
         AND c.organizationId = @organizationId 
-        AND c.isActive = true
         ORDER BY c.createdAt DESC
       `;
       
@@ -138,7 +137,6 @@ class UserService {
         WHERE c.type = 'user' 
         AND c.username = @username 
         AND c.organizationId = @organizationId
-        AND c.isActive = true
       `;
       
       const parameters = [

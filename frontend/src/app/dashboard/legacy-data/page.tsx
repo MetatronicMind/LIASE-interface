@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { legacyDataService } from '@/services/legacyDataService';
 import { toast } from 'react-hot-toast';
 import { usePermissions } from "@/components/PermissionProvider";
+import { FunnelIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 export default function LegacyDataPage() {
   const { hasPermission } = usePermissions();
@@ -16,9 +17,24 @@ export default function LegacyDataPage() {
   const [existingData, setExistingData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterTerm, setFilterTerm] = useState('');
+  const [columnFilters, setColumnFilters] = useState<{[key: string]: string}>({});
+  const [openFilter, setOpenFilter] = useState<string | null>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setOpenFilter(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const fetchData = async () => {
@@ -120,11 +136,21 @@ export default function LegacyDataPage() {
     : [];
 
   const filteredData = existingData.filter(row => {
-    if (!filterTerm) return true;
-    const lowerTerm = filterTerm.toLowerCase();
-    return Object.values(row).some(val => 
-      String(val).toLowerCase().includes(lowerTerm)
-    );
+    // Global filter
+    if (filterTerm) {
+      const lowerTerm = filterTerm.toLowerCase();
+      const matchesGlobal = Object.values(row).some(val => 
+        String(val).toLowerCase().includes(lowerTerm)
+      );
+      if (!matchesGlobal) return false;
+    }
+
+    // Column filters
+    return Object.entries(columnFilters).every(([key, value]) => {
+      if (!value) return true;
+      const cellValue = String(row[key] || '').toLowerCase();
+      return cellValue.includes(value.toLowerCase());
+    });
   });
 
   return (
@@ -203,27 +229,122 @@ export default function LegacyDataPage() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto min-h-[500px] border border-gray-100 rounded-lg">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50/80 sticky top-0 z-10 backdrop-blur-sm">
               <tr>
                 {tableHeaders.map(header => (
-                  <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {header}
+                  <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative group whitespace-nowrap">
+                    <div className="flex items-center justify-between gap-2">
+                       <span>{header}</span>
+                       <button 
+                         onClick={(e) => {
+                             e.stopPropagation();
+                             setOpenFilter(openFilter === header ? null : header);
+                         }}
+                         className={`p-1 rounded hover:bg-gray-200 transition-colors ${columnFilters[header] ? 'text-blue-600 bg-blue-50' : 'text-gray-400 opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+                         title="Filter column"
+                       >
+                         <FunnelIcon className="w-4 h-4" />
+                       </button>
+                    </div>
+                    {openFilter === header && (
+                        <div 
+                          ref={filterRef}
+                          className="absolute left-0 z-50 mt-2 w-72 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 p-4"
+                          style={{ minWidth: 'min-content' }}
+                        >
+                           <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
+                              <span className="text-xs font-semibold text-gray-700">Filter by {header}</span>
+                              <button onClick={() => setOpenFilter(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100">
+                                <XMarkIcon className="w-4 h-4" />
+                              </button>
+                           </div>
+                           <div className="relative mb-3">
+                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                               <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                             </div>
+                             <input
+                                type="text"
+                                placeholder={`Search in ${header}...`}
+                                value={columnFilters[header] || ''}
+                                onChange={(e) => setColumnFilters(prev => ({...prev, [header]: e.target.value}))}
+                                className="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                autoFocus
+                             />
+                           </div>
+                           <div className="flex justify-end gap-2">
+                             <button
+                               onClick={() => setOpenFilter(null)}
+                               className="text-xs text-gray-600 px-3 py-1.5 rounded hover:bg-gray-100"
+                             >
+                               Close
+                             </button>
+                             <button
+                               onClick={() => setColumnFilters(prev => {
+                                   const newFilters = {...prev};
+                                   delete newFilters[header];
+                                   return newFilters;
+                               })}
+                               className={`text-xs px-3 py-1.5 rounded text-white ${columnFilters[header] ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-300 cursor-not-allowed'}`}
+                               disabled={!columnFilters[header]}
+                             >
+                               Clear Filter
+                             </button>
+                           </div>
+                        </div>
+                    )}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredData.slice(0, 100).map((row, idx) => (
-                <tr key={idx}>
+            <tbody className="bg-white divide-y divide-gray-100">
+              {filteredData.length > 0 ? (
+                filteredData.slice(0, 100).map((row, idx) => (
+                <tr key={idx} className="hover:bg-blue-50/30 transition-colors duration-150 group">
                   {tableHeaders.map(header => (
-                    <td key={`${idx}-${header}`} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td key={`${idx}-${header}`} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 group-hover:text-gray-900 border-b border-gray-100 last:border-0">
                       {row[header]?.toString() || '-'}
                     </td>
                   ))}
                 </tr>
-              ))}
+              ))
+              ) : (
+                <tr>
+                   <td colSpan={tableHeaders.length > 0 ? tableHeaders.length : 1} className="px-6 py-12 text-center text-gray-500 bg-gray-50/50">
+                      {existingData.length === 0 ? (
+                         <div className="flex flex-col items-center justify-center py-8">
+                             <div className="bg-gray-100 p-3 rounded-full mb-3">
+                               <FunnelIcon className="h-6 w-6 text-gray-400" />
+                             </div>
+                             <p className="text-lg font-medium text-gray-900 mb-1">No Records Found</p>
+                             <p className="text-sm text-gray-500 max-w-sm">
+                               There is no legacy data uploaded yet. Use the upload section above to import your data.
+                             </p>
+                         </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-8">
+                           <div className="bg-blue-50 p-3 rounded-full mb-3">
+                               <MagnifyingGlassIcon className="h-6 w-6 text-blue-500" />
+                           </div>
+                           <p className="text-lg font-medium text-gray-900 mb-1">No Matching Records</p>
+                           <p className="text-sm text-gray-500 mb-4">
+                             No records match your current search criteria.
+                           </p>
+                           <button 
+                             onClick={() => {
+                               setFilterTerm('');
+                               setColumnFilters({});
+                             }}
+                             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                           >
+                             Clear all filters
+                           </button>
+                        </div>
+                      )}
+                   </td>
+                </tr>
+              )}
             </tbody>
           </table>
           {filteredData.length > 100 && (

@@ -489,8 +489,8 @@ class Study {
 
     // Handle specific stage logic
     if (targetStage === 'triage') {
-      // Assign back to the user who revoked it (highest priority)
-      this.assignedTo = userId;
+      // Assign back to the person who classified it (if available), otherwise the revoker
+      this.assignedTo = this.classifiedBy || userId;
       this.lockedAt = new Date().toISOString();
       
       // If revoking to triage, we reset QA approval status completely
@@ -508,8 +508,11 @@ class Study {
     } else {
       // Default behavior (revoke to Data Entry)
       
-      // Assign back to Data Entry user
-      if (this.r3FormCompletedBy) {
+      // Assign back to classifier if available, otherwise Data Entry user
+      if (this.classifiedBy) {
+        this.assignedTo = this.classifiedBy;
+        this.lockedAt = new Date().toISOString();
+      } else if (this.r3FormCompletedBy) {
         this.assignedTo = this.r3FormCompletedBy;
         this.lockedAt = new Date().toISOString();
       }

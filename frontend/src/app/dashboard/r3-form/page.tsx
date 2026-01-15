@@ -140,7 +140,16 @@ const R3_FORM_FIELDS = [
 
   // Patient Characteristics (Category D)
   { key: "D_1", label: "Patient (Name or Initials)", category: "D", required: false, section: "patient" },
-  { key: "D_5", label: "Sex", category: "D", required: false, section: "patient", type: "select", options: ["1", "2"] },
+  { 
+    key: "D_5", 
+    label: "Sex", 
+    category: "D", 
+    required: false, 
+    section: "patient", 
+    type: "select", 
+    options: ["1", "2"],
+    info: "1 = Male, 2 = Female"
+  },
   { key: "D_2_2_a", label: "Age at time of onset of reaction/event (number)", category: "D", required: false, section: "patient", type: "number" },
   { key: "D_2_2_b", label: "Age at time of onset of reaction/event (unit)", category: "D", required: false, section: "patient", type: "select", options: ["a", "mo", "d", "wk"] },
   { key: "D_7_1_r_3", label: "Continuing", category: "D", required: false, section: "patient", type: "select", options: ["false", "true", "MSK", "NASK", "ASKU"] },
@@ -156,7 +165,16 @@ const R3_FORM_FIELDS = [
   { key: "E_i_3_2d", label: "Disabling/Incapacitating", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
   { key: "E_i_3_2e", label: "Congenital Anomaly/Birth Defect", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
   { key: "E_i_3_2f", label: "Other Medically Important Condition", category: "E", required: false, section: "reaction", type: "select", options: ["true", "NI"] },
-  { key: "E_i_7", label: "Outcome of reaction/event at the time of last observation", category: "E", required: false, section: "reaction", type: "select", options: ["0 - Unknown", "1 - Recovered/Resolved", "2 - Recovering/Resolving", "3 - Not Recovered/Not Resolved/Ongoing", "4 - Recovered/Resolved with sequelae", "5 - Fatal"] },
+  { 
+    key: "E_i_7", 
+    label: "Outcome of reaction/event at the time of last observation", 
+    category: "E", 
+    required: false, 
+    section: "reaction", 
+    type: "select", 
+    options: ["0", "1", "2", "3", "4", "5"],
+    info: "0 - Unknown, 1 - Recovered/Resolved, 2 - Recovering/Resolving, 3 - Not Recovered/Not Resolved/Ongoing, 4 - Recovered/Resolved with sequelae, 5 - Fatal"
+  },
   { key: "E_i_8", label: "Medical Confirmation by Healthcare Professional", category: "E", required: false, section: "reaction", type: "select", options: ["true", "false"] },
 
   // Narrative (Category H)
@@ -1324,12 +1342,28 @@ export default function R3FormPage() {
                       
                       return (
                         <div key={field.key} className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            {field.key} - {field.label}
-                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          <label className="text-sm font-medium text-gray-700 flex items-center flex-wrap">
+                            <span>
+                              {field.key} - {field.label}
+                              {field.required && <span className="text-red-500 ml-1">*</span>}
+                            </span>
                             <span className="ml-2 text-xs text-gray-500">
                               (Category: {field.category})
                             </span>
+                            {/* @ts-ignore */}
+                            {field.info && (
+                              <div className="group relative ml-2 inline-block">
+                                <button type="button" className="text-blue-500 hover:text-blue-700 cursor-help">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </button>
+                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 text-center pointer-events-none">
+                                  {field.info}
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              </div>
+                            )}
                           </label>
                           
                           {/* Medical Reviewer Comments */}

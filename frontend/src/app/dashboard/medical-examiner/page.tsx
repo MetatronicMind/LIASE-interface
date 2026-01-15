@@ -1058,7 +1058,7 @@ export default function MedicalExaminerPage() {
 
                       {selectedStudy.justification && (
                         <div>
-                          <span className="text-sm font-medium text-gray-500">AI Opinion on Literature</span>
+                          <span className="text-sm font-medium text-gray-500">Triage Justification</span>
                           <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
                             {selectedStudy.justification}
                           </p>
