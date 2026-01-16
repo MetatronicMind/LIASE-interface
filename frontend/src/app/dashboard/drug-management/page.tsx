@@ -524,10 +524,7 @@ export default function DrugManagementPage() {
        exportToExcel(data, `${selectedConfigName}_pmids`, "Sheet1", exportPassword);
     }
   };
-        Link: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
-      }));
-      exportToExcel(data, `${selectedConfigName}_pmids`);
-    }
+       
   };
 
   return (
