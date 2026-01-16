@@ -482,6 +482,10 @@ export default function DrugManagementPage() {
         c.nextRunAt ? new Date(c.nextRunAt).toLocaleDateString() : '-'
       ]);
       // TODO: Fetch password from Admin Config
+      
+
+  // ...existing code...
+      // TODO: Fetch password from Admin Config
       const exportPassword = 'admin'; 
       exportToPDF("Drug Search Configurations", columns, data, "drug_search_configs", exportPassword);
     } else {
@@ -523,8 +527,6 @@ export default function DrugManagementPage() {
       }));
        exportToExcel(data, `${selectedConfigName}_pmids`, "Sheet1", exportPassword);
     }
-  };
-       
   };
 
   return (
