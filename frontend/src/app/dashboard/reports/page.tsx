@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
+import { exportToPDF } from '@/utils/exportUtils';
 import { useAuth } from '../../../hooks/useAuth';
 import { useDateTime } from '../../../hooks/useDateTime';
 import { API_CONFIG } from '../../../config/api';
@@ -75,6 +78,38 @@ export default function ReportsPage() {
   // Selected items for export
   const [selectedStudies, setSelectedStudies] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+
+  // Export Configuration
+  const [exportConfig, setExportConfig] = useState({ 
+    password: 'admin', 
+    footer: 'This was generated using the liase tool , MetatronicMinds Technologies 2026' 
+  });
+
+  useEffect(() => {
+    const fetchExportConfig = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+        const response = await fetch(`${API_CONFIG.BASE_URL}/admin-config`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const configs = await response.json();
+          // The endpoint returns an array of AdminConfig objects: { configType: 'x', configData: { ... } }
+          const expConf = configs.find((c: any) => c.configType === 'export');
+          if (expConf?.configData) {
+             setExportConfig({
+               password: expConf.configData.pdfPassword || 'admin',
+               footer: expConf.configData.footerText || 'This was generated using the liase tool , MetatronicMinds Technologies 2026'
+             });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch export config', err);
+      }
+    };
+    fetchExportConfig();
+  }, [user]);
 
   useEffect(() => {
     // Only fetch if user is available
@@ -274,100 +309,263 @@ export default function ReportsPage() {
     setSelectAll(newSelected.size === paginatedStudies.length);
   };
 
-  const exportToCSV = () => {
+  const handleExportPDF = () => {
     const studiesToExport = selectedStudies.size > 0
       ? filteredStudies.filter(s => selectedStudies.has(s.id))
       : filteredStudies;
 
     const headers = [
-      'PMID',
-      'Title',
-      'Drug Name',
-      'Classification',
-      'Triage Classification',
-      'AI Classification',
-      'QC Status',
-      'R3 Status',
-      'Medical Review',
-      'Serious',
-      'Listedness',
-      'Full Text',
-      'Full Text Source',
-      'Authors',
-      'Journal',
-      'Publication Date',
-      'Country of First Author',
-      'Country of Occurrence',
-      'Substance Group',
-      'Created At',
-      'Updated At',
+      'ID', 'PMID', 'Title', 'Authors', 'Journal', 'Publication Date', 'Created At', 'Updated At',
+      'Abstract', 'DOI', 'Full Text Availability', 'Full Text Source',
+      'Drug Name', 'Adverse Event', 'Substance Group', 'Administered Drugs', 'Patient Details',
+      'Triage Classification', 'AI Classification (ICSR)', 'AI Classification (AOI)', 'Effective Classification',
+      'Manual Review Required', 'Confirmed Potential ICSR',
+      'Listedness', 'Seriousness', 'Serious?', 'Client Name', 'Sponsor', 'Approved Indication',
+      'Justification', 'AOI Drug Effect',
+      'Country of First Author', 'Country of Occurrence', 'Test Subject', 'Specie', 'Study Type',
+      'Attributability', 'Drug Effect', 'Drug Effect on Fetus', 'Pregnancy', 'Pediatric', 'Elderly',
+      'Key Events', 'Relevant Dates', 'Summary', 'Special Case', 'Identifiable Human Subject',
+      'Author Perspective', 'Text Type', 'Vancouver Citation', 'Lead Author',
+      'Status', 'QA Approval Status', 'QA Approved By', 'Medical Review Status', 'R3 Form Status', 'QC R3 Status',
+      'Revoked By', 'Revoked At', 'Revocation Reason',
+      'R3: Batch Number', 'R3: Date of Creation', 'R3: Date Report First Received', 
+      'R3: Patient Initials', 'R3: Patient Sex', 'R3: Patient Age',
+      'R3: Reaction', 'R3: Death', 'R3: Life Threatening', 'R3: Hospitalisation', 'R3: Disabling',
+      'R3: Congenital Anomaly', 'R3: Medically Important', 'R3: Outcome',
+      'R3: Medical Confirmation', 'R3: Case Narrative', 'R3: Sender Comments'
     ];
 
-    const rows = studiesToExport.map(study => {
-      // Handle authors field - could be string or array
-      let authorsStr = '';
-      if (Array.isArray(study.authors)) {
-        authorsStr = study.authors.join('; ');
-      } else if (typeof study.authors === 'string') {
-        authorsStr = study.authors;
-      }
-      
+    const data = studiesToExport.map((study: any) => {
+      const r3 = (key: string) => study.r3FormData?.[key] || '';
+      const fmt = (val: any) => {
+        if (!val) return '';
+        if (Array.isArray(val)) return val.join('; ');
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val);
+      };
+      const fmtDate = (d: string) => d ? new Date(d).toLocaleString() : '';
+      const ai = study.aiInferenceData || {};
+
       return [
-        study.pmid || '',
-        `"${(study.title || '').replace(/"/g, '""')}"`,
-        study.drugName || '',
-        study.userTag || study.effectiveClassification || 'Unclassified',
-        getTriageClassification(study),
-        getAIClassification(study),
-        study.status || '',
-        study.qaApprovalStatus || '',
-        study.r3FormStatus || '',
-        study.medicalReviewStatus || '',
+        study.id,
+        study.pmid,
+        fmt(study.title),
+        fmt(study.authors),
+        fmt(study.journal),
+        study.publicationDate,
+        fmtDate(study.createdAt),
+        fmtDate(study.updatedAt),
+        fmt(study.abstract).substring(0, 500) + (study.abstract?.length > 500 ? '...' : ''), // Truncate abstract for PDF
+        study.doi,
+        study.fullTextAvailability,
+        fmt(study.fullTextSource),
+        study.drugName,
+        study.adverseEvent,
+        study.substanceGroup,
+        fmt(study.administeredDrugs),
+        fmt(study.patientDetails),
+        study.userTag,
+        study.icsrClassification || ai.ICSR_classification,
+        study.aoiClassification || ai.AOI_classification,
+        study.effectiveClassification,
+        study.requiresManualReview ? 'Yes' : 'No',
+        study.confirmedPotentialICSR ? 'Yes' : 'No',
+        study.listedness,
+        study.seriousness,
         study.serious ? 'Yes' : 'No',
-        study.listedness || '',
-        study.fullTextAvailability || '',
-        `"${(study.fullTextSource || '').replace(/"/g, '""')}"`,
-        `"${authorsStr.replace(/"/g, '""')}"`,
-        study.journal || '',
-        study.publicationDate || '',
-        study.countryOfFirstAuthor || '',
-        study.countryOfOccurrence || '',
-        study.substanceGroup || '',
-        formatDateTime(study.createdAt),
-        formatDateTime(study.updatedAt),
+        study.clientName,
+        study.sponsor,
+        study.approvedIndication,
+        fmt(study.justification),
+        study.aoiDrugEffect,
+        study.countryOfFirstAuthor,
+        study.countryOfOccurrence,
+        study.testSubject,
+        ai.specie || '',
+        ai.study_type || '', 
+        study.attributability,
+        study.drugEffect,
+        ai.drug_effect_on_fetus || '',
+        ai.pregnancy || '',
+        ai.pediatric || '',
+        ai.elderly || '',
+        fmt(study.keyEvents),
+        fmt(study.relevantDates),
+        fmt(study.summary),
+        study.specialCase,
+        study.identifiableHumanSubject ? 'Yes' : 'No',
+        study.authorPerspective,
+        study.textType,
+        fmt(study.vancouverCitation),
+        study.leadAuthor,
+        study.status,
+        study.qaApprovalStatus,
+        study.qaApprovedBy,
+        study.medicalReviewStatus,
+        study.r3FormStatus,
+        study.qcR3Status,
+        study.revokedBy,
+        fmtDate(study.revokedAt),
+        fmt(study.revocationReason),
+        r3('N_1_2'),
+        r3('C_1_2'),
+        r3('C_1_4'),
+        r3('D_1'),
+        r3('D_5'),
+        `${r3('D_2_2_a') || ''} ${r3('D_2_2_b') || ''}`,
+        r3('E_i_1_a'),
+        r3('E_i_3_2a'),
+        r3('E_i_3_2b'),
+        r3('E_i_3_2c'),
+        r3('E_i_3_2d'),
+        r3('E_i_3_2e'),
+        r3('E_i_3_2f'),
+        r3('E_i_7'),
+        r3('E_i_8'),
+        fmt(r3('H1')).substring(0, 500) + (r3('H1')?.length > 500 ? '...' : ''), // Truncate narrative
+        fmt(r3('H_4'))
       ];
     });
 
-    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `reports_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToPDF('Medical Reports Export', headers, data, `reports_export_${new Date().toISOString().split('T')[0]}`, exportConfig.password, exportConfig.footer);
   };
 
-  const exportToJSON = () => {
+  const handleExportCSV = () => {
     const studiesToExport = selectedStudies.size > 0
       ? filteredStudies.filter(s => selectedStudies.has(s.id))
       : filteredStudies;
 
-    const jsonContent = JSON.stringify(studiesToExport, null, 2);
-    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const headers = [
+      'Article ID', 'PMID', 'Title', 'Authors', 'Journal', 'Publication Date', 'Created At', 'Updated At',
+      'Abstract', 'DOI', 'Full Text Availability', 'Full Text Source',
+      'Drug Name', 'Adverse Event', 'Substance Group', 'Administered Drugs', 'Patient Details',
+      'Triage Classification', 'AI Classification (ICSR)', 'AI Classification (AOI)', 'Effective Classification',
+      'Manual Review Required', 'Confirmed Potential ICSR',
+      'Listedness', 'Seriousness', 'Serious?', 'Client Name', 'Sponsor', 'Approved Indication',
+      'Justification', 'AOI Drug Effect',
+      'Country of First Author', 'Country of Occurrence', 'Test Subject', 'Specie', 'Study Type',
+      'Attributability', 'Drug Effect', 'Drug Effect on Fetus', 'Pregnancy', 'Pediatric', 'Elderly',
+      'Key Events', 'Relevant Dates', 'Summary', 'Special Case', 'Identifiable Human Subject',
+      'Author Perspective', 'Text Type', 'Vancouver Citation', 'Lead Author',
+      'Status', 'QA Approval Status', 'QA Approved By', 'Medical Review Status', 'R3 Form Status', 'QC R3 Status',
+      'Revoked By', 'Revoked At', 'Revocation Reason',
+      'R3: Batch Number', 'R3: Date of Creation', 'R3: Date Report First Received', 
+      'R3: Patient Initials', 'R3: Patient Sex', 'R3: Patient Age',
+      'R3: Reaction', 'R3: Death', 'R3: Life Threatening', 'R3: Hospitalisation', 'R3: Disabling',
+      'R3: Congenital Anomaly', 'R3: Medically Important', 'R3: Outcome',
+      'R3: Medical Confirmation', 'R3: Case Narrative', 'R3: Sender Comments'
+    ];
+
+    const rows = studiesToExport.map((study : any) => {
+      const r3 = (key: string) => study.r3FormData?.[key] || '';
+      const fmt = (val: any) => {
+        if (!val) return '';
+        if (Array.isArray(val)) return val.join('; ');
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val).replace(/"/g, '""');
+      };
+      const fmtDate = (d: string) => d ? new Date(d).toLocaleString() : '';
+      const ai = study.aiInferenceData || {};
+
+      return [
+        study.id,
+        study.pmid,
+        fmt(study.title),
+        fmt(study.authors),
+        fmt(study.journal),
+        study.publicationDate,
+        fmtDate(study.createdAt),
+        fmtDate(study.updatedAt),
+        fmt(study.abstract),
+        study.doi,
+        study.fullTextAvailability,
+        fmt(study.fullTextSource),
+        study.drugName,
+        study.adverseEvent,
+        study.substanceGroup,
+        fmt(study.administeredDrugs),
+        fmt(study.patientDetails),
+        study.userTag,
+        study.icsrClassification || ai.ICSR_classification,
+        study.aoiClassification || ai.AOI_classification,
+        study.effectiveClassification,
+        study.requiresManualReview ? 'Yes' : 'No',
+        study.confirmedPotentialICSR ? 'Yes' : 'No',
+        study.listedness,
+        study.seriousness,
+        study.serious ? 'Yes' : 'No',
+        study.clientName,
+        study.sponsor,
+        study.approvedIndication,
+        fmt(study.justification),
+        study.aoiDrugEffect,
+        study.countryOfFirstAuthor,
+        study.countryOfOccurrence,
+        study.testSubject,
+        ai.specie || '',
+        ai.study_type || '', 
+        study.attributability,
+        study.drugEffect,
+        ai.drug_effect_on_fetus || '',
+        ai.pregnancy || '',
+        ai.pediatric || '',
+        ai.elderly || '',
+        fmt(study.keyEvents),
+        fmt(study.relevantDates),
+        fmt(study.summary),
+        study.specialCase,
+        study.identifiableHumanSubject ? 'Yes' : 'No',
+        study.authorPerspective,
+        study.textType,
+        fmt(study.vancouverCitation),
+        study.leadAuthor,
+        study.status,
+        study.qaApprovalStatus,
+        study.qaApprovedBy,
+        study.medicalReviewStatus,
+        study.r3FormStatus,
+        study.qcR3Status,
+        study.revokedBy,
+        fmtDate(study.revokedAt),
+        fmt(study.revocationReason),
+        r3('N_1_2'),
+        r3('C_1_2'),
+        r3('C_1_4'),
+        r3('D_1'),
+        r3('D_5'),
+        `${r3('D_2_2_a') || ''} ${r3('D_2_2_b') || ''}`,
+        r3('E_i_1_a'),
+        r3('E_i_3_2a'),
+        r3('E_i_3_2b'),
+        r3('E_i_3_2c'),
+        r3('E_i_3_2d'),
+        r3('E_i_3_2e'),
+        r3('E_i_3_2f'),
+        r3('E_i_7'),
+        r3('E_i_8'),
+        fmt(r3('H1')),
+        fmt(r3('H_4'))
+      ].map(val => `"${val || ''}"`).join(',');
+    });
+
+    const csvHeader = headers.join(',');
+    const csvRows = rows.join('\n');
+    const footerText = exportConfig.footer;
+    const generatedBy = `Generated by: ${user?.name || 'Unknown User'} on ${new Date().toLocaleString()}`;
+    const csvContent = `${csvHeader}\n${csvRows}\n\n"${footerText}"\n"${generatedBy}"`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
     link.setAttribute('href', url);
-    link.setAttribute('download', `reports_${new Date().toISOString().split('T')[0]}.json`);
+    link.setAttribute('download', `reports_detailed_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+
 
   const resetFilters = () => {
     setStudyType('all');
@@ -650,22 +848,22 @@ export default function ReportsPage() {
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button
-              onClick={exportToCSV}
+              onClick={handleExportCSV}
               className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Export CSV
             </button>
             <button
-              onClick={exportToJSON}
-              className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+              onClick={handleExportPDF}
+              className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
-              Export JSON
+              Export PDF
             </button>
           </div>
         </div>

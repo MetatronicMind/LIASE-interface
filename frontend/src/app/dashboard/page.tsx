@@ -78,6 +78,13 @@ interface Stats {
       noCase: number;
       unclassified: number;
     };
+    priorityQueue?: {
+      probableIcsr: number;
+      probableAoi: number;
+      probableIcsrAoi: number;
+      manualReview: number;
+      noCase: number;
+    };
   };
   workflowStats?: {
     triage: number;
@@ -297,47 +304,28 @@ export default function DashboardPage() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* AI Classification Graph Replacement */}
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 col-span-1 md:col-span-2">
                             <h3 className="text-lg font-medium text-gray-700 mb-4 text-center">AI Classification</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
-                                    <span className="text-sm font-medium text-gray-500">ICSR</span>
-                                    <span className="text-2xl font-bold text-blue-600 mt-1">{stats.dateStats?.aiClassification.icsr || 0}</span>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div className="p-3 bg-blue-50 rounded-lg flex flex-col items-center justify-center text-center">
+                                    <span className="text-xs font-medium text-blue-700">Probable AOI</span>
+                                    <span className="text-xl font-bold text-blue-800 mt-1">{stats.dateStats?.priorityQueue?.probableAoi || 0}</span>
                                 </div>
-                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
-                                    <span className="text-sm font-medium text-gray-500">AOI</span>
-                                    <span className="text-2xl font-bold text-purple-600 mt-1">{stats.dateStats?.aiClassification.aoi || 0}</span>
+                                <div className="p-3 bg-purple-50 rounded-lg flex flex-col items-center justify-center text-center">
+                                    <span className="text-xs font-medium text-purple-700">Probable ICSR</span>
+                                    <span className="text-xl font-bold text-purple-800 mt-1">{stats.dateStats?.priorityQueue?.probableIcsr || 0}</span>
                                 </div>
-                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
-                                    <span className="text-sm font-medium text-gray-500">No Case</span>
-                                    <span className="text-2xl font-bold text-gray-600 mt-1">{stats.dateStats?.aiClassification.noCase || 0}</span>
+                                <div className="p-3 bg-indigo-50 rounded-lg flex flex-col items-center justify-center text-center">
+                                    <span className="text-xs font-medium text-indigo-700">Probable ICSR/AOI</span>
+                                    <span className="text-xl font-bold text-indigo-800 mt-1">{stats.dateStats?.priorityQueue?.probableIcsrAoi || 0}</span>
                                 </div>
-                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
-                                    <span className="text-sm font-medium text-gray-500">Other</span>
-                                    <span className="text-2xl font-bold text-orange-600 mt-1">{stats.dateStats?.aiClassification.other || 0}</span>
+                                <div className="p-3 bg-orange-50 rounded-lg flex flex-col items-center justify-center text-center">
+                                    <span className="text-xs font-medium text-orange-700">Manual Review</span>
+                                    <span className="text-xl font-bold text-orange-800 mt-1">{stats.dateStats?.priorityQueue?.manualReview || 0}</span>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Triage Classification Graph Replacement */}
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                            <h3 className="text-lg font-medium text-gray-700 mb-4 text-center">Triage Classification</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
-                                    <span className="text-sm font-medium text-gray-500">ICSR</span>
-                                    <span className="text-2xl font-bold text-blue-600 mt-1">{stats.dateStats?.triageClassification.icsr || 0}</span>
-                                </div>
-                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
-                                    <span className="text-sm font-medium text-gray-500">AOI</span>
-                                    <span className="text-2xl font-bold text-purple-600 mt-1">{stats.dateStats?.triageClassification.aoi || 0}</span>
-                                </div>
-                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
-                                    <span className="text-sm font-medium text-gray-500">No Case</span>
-                                    <span className="text-2xl font-bold text-gray-600 mt-1">{stats.dateStats?.triageClassification.noCase || 0}</span>
-                                </div>
-                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
-                                    <span className="text-sm font-medium text-gray-500">Unclassified</span>
-                                    <span className="text-2xl font-bold text-orange-600 mt-1">{stats.dateStats?.triageClassification.unclassified || 0}</span>
+                                <div className="p-3 bg-gray-50 rounded-lg flex flex-col items-center justify-center text-center">
+                                    <span className="text-xs font-medium text-gray-700">No Case</span>
+                                    <span className="text-xl font-bold text-gray-800 mt-1">{stats.dateStats?.priorityQueue?.noCase || 0}</span>
                                 </div>
                             </div>
                         </div>

@@ -464,40 +464,66 @@ export default function DrugManagementPage() {
     });
 
     if (type === 'pdf') {
-      const columns = ["Name", "Query", "Client", "Frequency", "Last Result Count"];
+      const columns = [
+        "Name", "INN", "Query", "Client", "Brand Name", 
+        "Frequency", "Active", "Last Result", "Total Runs", "Last Run", "Next Run"
+      ];
       const data = filteredConfigs.map(c => [
         c.name, 
+        c.inn || '',
         c.query, 
         c.sponsor || '', 
+        c.brandName || '',
         c.frequency, 
-        c.lastResultCount.toString()
+        c.isActive ? 'Yes' : 'No',
+        c.lastResultCount.toString(),
+        c.totalRuns?.toString() || '0',
+        c.lastRunAt ? new Date(c.lastRunAt).toLocaleDateString() : 'Never',
+        c.nextRunAt ? new Date(c.nextRunAt).toLocaleDateString() : '-'
       ]);
-      exportToPDF("Drug Search Configurations", columns, data, "drug_search_configs");
+      // TODO: Fetch password from Admin Config
+      const exportPassword = 'admin'; 
+      exportToPDF("Drug Search Configurations", columns, data, "drug_search_configs", exportPassword);
     } else {
       const data = filteredConfigs.map(c => ({
         Name: c.name,
+        INN: c.inn,
         Query: c.query,
         Client: c.sponsor,
         BrandName: c.brandName,
         Frequency: c.frequency,
+        Active: c.isActive ? 'Yes' : 'No',
         LastResultCount: c.lastResultCount,
-        LastRunAt: c.lastRunAt
+        TotalRuns: c.totalRuns,
+        LastRunAt: c.lastRunAt,
+        NextRunAt: c.nextRunAt,
+        CreatedBy: c.createdBy
       }));
-      exportToExcel(data, "drug_search_configs");
+      // TODO: Fetch password from Admin Config
+      const exportPassword = 'admin';
+      exportToExcel(data, "drug_search_configs", "Sheet1", exportPassword);
     }
   };
 
   const handleExportPmids = (type: 'pdf' | 'excel') => {
+    // TODO: Fetch password from Admin Config
+    const exportPassword = 'admin';
+
     if (type === 'pdf') {
       const columns = ["PMID", "Link"];
       const data = selectedPmids.map(pmid => [
         pmid, 
         `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
       ]);
-      exportToPDF(`PMIDs for ${selectedConfigName}`, columns, data, `${selectedConfigName}_pmids`);
+      exportToPDF(`PMIDs for ${selectedConfigName}`, columns, data, `${selectedConfigName}_pmids`, exportPassword);
     } else {
       const data = selectedPmids.map(pmid => ({
         PMID: pmid,
+        Link: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
+      }));
+       exportToExcel(data, `${selectedConfigName}_pmids`, "Sheet1", exportPassword);
+    }
+  };
         Link: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
       }));
       exportToExcel(data, `${selectedConfigName}_pmids`);

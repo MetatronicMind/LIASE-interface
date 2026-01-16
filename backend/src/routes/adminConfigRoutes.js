@@ -258,6 +258,50 @@ router.post(
   }
 );
 
+// ========== Import/Export ==========
+
+// Export all configs (Data Dump)
+router.get(
+  '/export-data',
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const exportData = await adminConfigService.exportConfigs(
+        req.user.organizationId
+      );
+
+      res.json(exportData);
+    } catch (error) {
+      console.error('Error exporting configs:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Import configs
+router.post(
+  '/import',
+  authenticateToken,
+  requireAdmin,
+  [body('configs').isArray()],
+  validate,
+  async (req, res) => {
+    try {
+      const results = await adminConfigService.importConfigs(
+        req.user.organizationId,
+        { configs: req.body.configs },
+        req.user.id
+      );
+
+      res.json(results);
+    } catch (error) {
+      console.error('Error importing configs:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
 // ========== General Config Operations ==========
 
 // Get all configs for organization
@@ -294,7 +338,8 @@ router.get(
       'security',
       'workflow',
       'study_queue',
-      'triage'
+      'triage',
+      'export'
     ])
   ],
   validate,
@@ -328,7 +373,8 @@ router.put(
       'security',
       'workflow',
       'study_queue',
-      'triage'
+      'triage',
+      'export'
     ]),
     body('configData').isObject()
   ],
@@ -491,49 +537,7 @@ router.get(
   }
 );
 
-// ========== Import/Export ==========
 
-// Export all configs
-router.get(
-  '/export',
-  authenticateToken,
-  requireAdmin,
-  async (req, res) => {
-    try {
-      const exportData = await adminConfigService.exportConfigs(
-        req.user.organizationId
-      );
-
-      res.json(exportData);
-    } catch (error) {
-      console.error('Error exporting configs:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
-
-// Import configs
-router.post(
-  '/import',
-  authenticateToken,
-  requireAdmin,
-  [body('configs').isArray()],
-  validate,
-  async (req, res) => {
-    try {
-      const results = await adminConfigService.importConfigs(
-        req.user.organizationId,
-        { configs: req.body.configs },
-        req.user.id
-      );
-
-      res.json(results);
-    } catch (error) {
-      console.error('Error importing configs:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
 
 // ========== Scheduled Jobs ==========
 

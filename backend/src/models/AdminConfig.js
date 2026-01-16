@@ -78,6 +78,12 @@ class AdminConfig {
         retryAttempts: 3,
         retryDelayMinutes: 5
       },
+      export: {
+        pdfPassword: 'admin', // Default password, changes via Admin Config
+        excelPassword: 'admin',
+        includeFooter: true,
+        footerText: 'This was generated using the liase tool , MetatronicMinds Technologies 2026'
+      },
       scheduler: {
         enabled: true,
         timezone: 'UTC',
@@ -227,7 +233,7 @@ class AdminConfig {
       errors.push('Config type is required');
     }
 
-    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security', 'workflow', 'study_queue', 'triage', 'system_config'];
+    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security', 'workflow', 'study_queue', 'triage', 'system_config', 'export'];
     if (!validTypes.includes(this.configType)) {
       errors.push(`Invalid config type. Must be one of: ${validTypes.join(', ')}`);
     }

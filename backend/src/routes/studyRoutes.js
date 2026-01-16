@@ -1311,6 +1311,13 @@ router.get('/stats/summary',
                 noCase: 0,
                 other: 0
             },
+            priorityQueue: {
+                probableIcsr: 0,
+                probableAoi: 0,
+                probableIcsrAoi: 0,
+                manualReview: 0,
+                noCase: 0
+            },
             triageClassification: {
                 icsr: 0,
                 aoi: 0,
@@ -1435,6 +1442,46 @@ router.get('/stats/summary',
                 else if (aiClass.includes('aoi')) stats.dateStats.aiClassification.aoi++;
                 else if (aiClass.includes('no case') || aiClass.includes('nocase')) stats.dateStats.aiClassification.noCase++;
                 else stats.dateStats.aiClassification.other++;
+
+                // Priority Queue Calculation
+                const rawIcsr_pq = study.icsrClassification || study.ICSR_classification || study.aiInferenceData?.ICSR_classification || study.aiInferenceData?.icsrPrediction || '';
+                const rawAoi_pq = study.aoiClassification || study.AOI_classification || study.aiInferenceData?.AOI_classification || study.aiInferenceData?.aoiPrediction || '';
+                
+                const normalize_pq = (val) => {
+                     if (!val) return "";
+                     return val.replace(/^Classification:\s*/i, '').replace(/^\d+\.\s*/, '').trim();
+                };
+                
+                const icsr_pq = normalize_pq(rawIcsr_pq);
+                const aoi_pq = normalize_pq(rawAoi_pq);
+                
+                let finalStatus = 'Other';
+                
+                if (icsr_pq === "Article requires manual review" || icsr_pq === "Manual Review") {
+                    finalStatus = 'Manual Review';
+                } else if (icsr_pq === "Probable ICSR/AOI") {
+                    finalStatus = 'Probable ICSR/AOI';
+                } else if (icsr_pq === "Probable ICSR") {
+                    if (aoi_pq === "Yes" || aoi_pq === "Yes (ICSR)") {
+                        finalStatus = 'Probable ICSR/AOI';
+                    } else {
+                        finalStatus = 'Probable ICSR';
+                    }
+                } else if (icsr_pq === "No Case") {
+                    if (aoi_pq === "Yes" || aoi_pq === "Yes (AOI)") {
+                        finalStatus = 'Probable AOI';
+                    } else {
+                        finalStatus = 'No Case';
+                    }
+                } else if (icsr_pq === "Probable AOI") {
+                    finalStatus = 'Probable AOI';
+                }
+
+                if (finalStatus === 'Probable ICSR') stats.dateStats.priorityQueue.probableIcsr++;
+                else if (finalStatus === 'Probable AOI') stats.dateStats.priorityQueue.probableAoi++;
+                else if (finalStatus === 'Probable ICSR/AOI') stats.dateStats.priorityQueue.probableIcsrAoi++;
+                else if (finalStatus === 'Manual Review') stats.dateStats.priorityQueue.manualReview++;
+                else if (finalStatus === 'No Case') stats.dateStats.priorityQueue.noCase++;
 
                 // Triage Classification Snapshot for this date
                 const userClass = (study.userTag || 'unclassified').toLowerCase();

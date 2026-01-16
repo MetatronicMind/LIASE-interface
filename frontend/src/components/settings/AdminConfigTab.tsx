@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useDateTime } from '@/hooks/useDateTime';
-import { Cog6ToothIcon, ClockIcon, PlayIcon, PauseIcon, TrashIcon } from "@heroicons/react/24/solid";
+import { Cog6ToothIcon, ClockIcon, PlayIcon, PauseIcon, TrashIcon, DocumentTextIcon } from "@heroicons/react/24/solid";
 import { getApiBaseUrl } from '@/config/api';
 
 interface ScheduledJob {
@@ -30,9 +30,14 @@ export default function AdminConfigTab() {
   const [configs, setConfigs] = useState<AdminConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'jobs' | 'configs' | 'scheduler-settings'>('jobs');
+  const [activeSection, setActiveSection] = useState<'jobs' | 'configs' | 'scheduler-settings' | 'export-settings'>('jobs');
   const [allowedDays, setAllowedDays] = useState<string[]>([]);
   const [savingScheduler, setSavingScheduler] = useState(false);
+  
+  // Export settings state
+  const [exportPassword, setExportPassword] = useState('admin');
+  const [exportFooter, setExportFooter] = useState('This was generated using the liase tool , MetatronicMinds Technologies 2026');
+  const [savingExport, setSavingExport] = useState(false);
 
   const DAYS_OF_WEEK = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -44,12 +49,67 @@ export default function AdminConfigTab() {
 
   const fetchData = async () => {
     try {
-      await Promise.all([fetchJobs(), fetchConfigs(), fetchSchedulerSettings()]);
+      await Promise.all([fetchJobs(), fetchConfigs(), fetchSchedulerSettings(), fetchExportSettings()]);
     } catch (err: any) {
       console.error('Fetch error:', err);
       setError(err.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchExportSettings = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${getApiBaseUrl()}/admin-config/export`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.configData) {
+          if (data.configData.pdfPassword) setExportPassword(data.configData.pdfPassword);
+          if (data.configData.footerText) setExportFooter(data.configData.footerText);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching export settings:', err);
+    }
+  };
+
+  const saveExportSettings = async () => {
+    setSavingExport(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${getApiBaseUrl()}/admin-config/export`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          configData: {
+            pdfPassword: exportPassword,
+            excelPassword: exportPassword, // Sync passwords for simplicity
+            footerText: exportFooter,
+            includeFooter: true
+          }
+        })
+      });
+
+      if (response.ok) {
+        alert('Export settings saved successfully');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save export settings');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingExport(false);
     }
   };
 
@@ -262,6 +322,16 @@ export default function AdminConfigTab() {
         >
           Scheduler Settings
         </button>
+        <button
+          onClick={() => setActiveSection('export-settings')}
+          className={`px-4 py-2 font-semibold transition-all ${
+            activeSection === 'export-settings'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Export Settings
+        </button>
       </div>
 
       {/* Scheduled Jobs Section */}
@@ -414,6 +484,67 @@ export default function AdminConfigTab() {
                 'Save Settings'
               )}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Export Settings Section */}
+      {activeSection === 'export-settings' && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+            <DocumentTextIcon className="w-5 h-5 text-gray-500" />
+            PDF & Excel Export Configuration
+          </h3>
+          
+          <div className="space-y-6 max-w-3xl">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                PDF Protection Password
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                This password will be required to open any PDF generated by the system.
+              </p>
+              <input
+                type="text"
+                value={exportPassword}
+                onChange={(e) => setExportPassword(e.target.value)}
+                placeholder="Enter password..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Footer Text
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                This text will appear at the bottom of every page in PDF exports and as the last row in Excel exports.
+              </p>
+              <textarea
+                value={exportFooter}
+                onChange={(e) => setExportFooter(e.target.value)}
+                placeholder="Enter footer text..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-gray-100">
+              <button
+                onClick={saveExportSettings}
+                disabled={savingExport}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center"
+              >
+                {savingExport ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Export Settings'
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

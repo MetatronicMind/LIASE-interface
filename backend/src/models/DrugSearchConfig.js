@@ -55,9 +55,9 @@ class DrugSearchConfig {
         dateTo = now;
         break;
       case 'weekly':
-        // Last 7 days
+        // Last 7 days, ending yesterday to avoid overlap
         dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        dateTo = now;
+        dateTo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         break;
       case 'monthly':
         // Last 30 days
