@@ -16,9 +16,8 @@ import {
   DocumentCheckIcon,
   CheckBadgeIcon
 } from "@heroicons/react/24/outline";
-import { 
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend 
-} from 'recharts';
+
+
 import { API_CONFIG } from "@/config/api";
 import { useDateTime } from '@/hooks/useDateTime';
 import { useAuth } from "@/hooks/useAuth";
@@ -66,6 +65,7 @@ interface Stats {
   dateStats?: {
     selectedDate: string;
     totalCreated: number;
+    totalReportsCreated: number;
     aiClassification: {
       icsr: number;
       aoi: number;
@@ -102,7 +102,7 @@ interface AuditLog {
   details?: string;
 }
 
-const COLORS = ['#3b82f6', '#8b5cf6', '#6b7280', '#e5e7eb']; // Blue, Purple, Gray, LightGray
+
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -219,19 +219,6 @@ export default function DashboardPage() {
     setTimeout(() => setProcessing(false), 2000); // Simulate async
   };
 
-  const aiData = [
-    { name: 'ICSR', value: stats.dateStats?.aiClassification.icsr || 0 },
-    { name: 'AOI', value: stats.dateStats?.aiClassification.aoi || 0 },
-    { name: 'No Case', value: stats.dateStats?.aiClassification.noCase || 0 },
-    { name: 'Other', value: stats.dateStats?.aiClassification.other || 0 },
-  ].filter(d => d.value > 0);
-
-  const triageData = [
-    { name: 'ICSR', value: stats.dateStats?.triageClassification.icsr || 0 },
-    { name: 'AOI', value: stats.dateStats?.triageClassification.aoi || 0 },
-    { name: 'No Case', value: stats.dateStats?.triageClassification.noCase || 0 },
-    { name: 'Uncl.', value: stats.dateStats?.triageClassification.unclassified || 0 },
-  ].filter(d => d.value > 0);
 
   const workflowBoxes = [
     { label: "Triage", value: stats.workflowStats?.triage || 0, icon: InboxIcon, color: "text-blue-600", bg: "bg-blue-50" },
@@ -287,77 +274,72 @@ export default function DashboardPage() {
                     </span>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Total Created Card */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center">
-                        <div className="p-4 bg-blue-100 rounded-full mb-4">
-                            <ClockIcon className="w-10 h-10 text-blue-700" />
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Total Created Card */}
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center">
+                            <div className="p-4 bg-blue-100 rounded-full mb-4">
+                                <ClockIcon className="w-10 h-10 text-blue-700" />
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-700">Articles Created</h3>
+                            <p className="text-4xl font-bold text-gray-900 mt-2">{stats.dateStats?.totalCreated || 0}</p>
                         </div>
-                        <h3 className="text-lg font-medium text-gray-700">Articles Created</h3>
-                        <p className="text-4xl font-bold text-gray-900 mt-2">{stats.dateStats?.totalCreated || 0}</p>
-                    </div>
 
-                    {/* AI Classification Graph */}
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 min-h-[300px] flex flex-col">
-                        <h3 className="text-md font-medium text-gray-700 mb-4 text-center">AI Classification</h3>
-                        <div className="flex-1 w-full h-full min-h-[220px]">
-                           {aiData.length > 0 ? (
-                             <ResponsiveContainer width="100%" height="100%">
-                               <PieChart>
-                                 <Pie
-                                   data={aiData}
-                                   cx="50%"
-                                   cy="50%"
-                                   innerRadius={60}
-                                   outerRadius={80}
-                                   fill="#8884d8"
-                                   paddingAngle={5}
-                                   dataKey="value"
-                                   label={({name, percent}: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                 >
-                                   {aiData.map((entry, index) => (
-                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                   ))}
-                                 </Pie>
-                                 <Tooltip />
-                                 <Legend />
-                               </PieChart>
-                             </ResponsiveContainer>
-                           ) : (
-                               <div className="flex items-center justify-center h-full text-gray-400 text-sm">No data available</div>
-                           )}
+                         {/* Total Reports Created Card */}
+                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center">
+                            <div className="p-4 bg-green-100 rounded-full mb-4">
+                                <DocumentCheckIcon className="w-10 h-10 text-green-700" />
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-700">Reports Created</h3>
+                            <p className="text-4xl font-bold text-gray-900 mt-2">{stats.dateStats?.totalReportsCreated || 0}</p>
                         </div>
                     </div>
 
-                    {/* Triage Classification Graph */}
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 min-h-[300px] flex flex-col">
-                        <h3 className="text-md font-medium text-gray-700 mb-4 text-center">Triage Classification</h3>
-                        <div className="flex-1 w-full h-full min-h-[220px]">
-                           {triageData.length > 0 ? (
-                             <ResponsiveContainer width="100%" height="100%">
-                               <PieChart>
-                                 <Pie
-                                   data={triageData}
-                                   cx="50%"
-                                   cy="50%"
-                                   innerRadius={60}
-                                   outerRadius={80}
-                                   fill="#8884d8"
-                                   paddingAngle={5}
-                                   dataKey="value"
-                                   label={({name, percent}: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                 >
-                                   {triageData.map((entry, index) => (
-                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                   ))}
-                                 </Pie>
-                                 <Tooltip />
-                                 <Legend />
-                               </PieChart>
-                             </ResponsiveContainer>
-                           ) : (
-                               <div className="flex items-center justify-center h-full text-gray-400 text-sm">No data available</div>
-                           )}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* AI Classification Graph Replacement */}
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <h3 className="text-lg font-medium text-gray-700 mb-4 text-center">AI Classification</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-500">ICSR</span>
+                                    <span className="text-2xl font-bold text-blue-600 mt-1">{stats.dateStats?.aiClassification.icsr || 0}</span>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-500">AOI</span>
+                                    <span className="text-2xl font-bold text-purple-600 mt-1">{stats.dateStats?.aiClassification.aoi || 0}</span>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-500">No Case</span>
+                                    <span className="text-2xl font-bold text-gray-600 mt-1">{stats.dateStats?.aiClassification.noCase || 0}</span>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-500">Other</span>
+                                    <span className="text-2xl font-bold text-orange-600 mt-1">{stats.dateStats?.aiClassification.other || 0}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Triage Classification Graph Replacement */}
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <h3 className="text-lg font-medium text-gray-700 mb-4 text-center">Triage Classification</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-500">ICSR</span>
+                                    <span className="text-2xl font-bold text-blue-600 mt-1">{stats.dateStats?.triageClassification.icsr || 0}</span>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-500">AOI</span>
+                                    <span className="text-2xl font-bold text-purple-600 mt-1">{stats.dateStats?.triageClassification.aoi || 0}</span>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-500">No Case</span>
+                                    <span className="text-2xl font-bold text-gray-600 mt-1">{stats.dateStats?.triageClassification.noCase || 0}</span>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-lg flex flex-col items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-500">Unclassified</span>
+                                    <span className="text-2xl font-bold text-orange-600 mt-1">{stats.dateStats?.triageClassification.unclassified || 0}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

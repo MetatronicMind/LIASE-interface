@@ -749,6 +749,7 @@ class Study {
       sponsor: this.sponsor,
       userTag: this.userTag,
       effectiveClassification: this.getEffectiveClassification(),
+      classifiedBy: this.classifiedBy,
       
       // QC workflow fields
       qaApprovalStatus: this.qaApprovalStatus,

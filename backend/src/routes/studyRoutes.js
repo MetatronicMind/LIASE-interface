@@ -1304,6 +1304,7 @@ router.get('/stats/summary',
         dateStats: {
             selectedDate: null,
             totalCreated: 0,
+            totalReportsCreated: 0,
             aiClassification: {
                 icsr: 0,
                 aoi: 0,
@@ -1337,10 +1338,11 @@ router.get('/stats/summary',
       }
 
       // Fetch all required data in parallel
-      const [studies, users, drugs] = await Promise.all([
+      const [studies, users, drugs, reports] = await Promise.all([
         cosmosService.getStudiesByOrganization(targetOrgId),
         cosmosService.getUsersByOrganization(targetOrgId),
-        cosmosService.getDrugsByOrganization(targetOrgId)
+        cosmosService.getDrugsByOrganization(targetOrgId),
+        cosmosService.queryItems('Reports', 'SELECT * FROM c WHERE c.organizationId = @orgId', [{ name: '@orgId', value: targetOrgId }])
       ]);
       
       stats.total = studies.length;
@@ -1522,6 +1524,19 @@ router.get('/stats/summary',
           }
         }
       });
+
+      // Reports Stats - Count reports created on selected date
+      if (reports && reports.length > 0) {
+        reports.forEach(report => {
+            if (filterDateStr && report.createdAt) {
+                const createdDate = new Date(report.createdAt);
+                const createdYMD = createdDate.toISOString().split('T')[0];
+                if (createdYMD === filterDateStr) {
+                    stats.dateStats.totalReportsCreated++;
+                }
+            }
+        });
+      }
 
       // Fallback for drugs count: if no configured drugs, use unique drugs found in studies
       if (stats.counts.drugs === 0 && Object.keys(stats.byDrug).length > 0) {
@@ -2784,35 +2799,61 @@ router.post('/allocate-case',
           { name: '@orgId', value: organizationId }
         ];
 
-        // Step 2a: Try to find High Priority cases specifically first (Probable/Potential/Tagged)
-        // This ensures we priority allocate them even if they are buried behind 1000+ Manual Review cases
-        // We use LOWER() for case-insensitive matching
-        const highPriorityQuery = `
-            SELECT TOP 50 * FROM c 
+        // Step 2x: Prioritize cases previously classified by this user (Rejected/Returned)
+        // This ensures users fix their own errors or re-classify their own cases first.
+        const myReturnedCasesQuery = `
+            SELECT TOP 1 * FROM c 
             WHERE c.organizationId = @orgId 
+            AND c.classifiedBy = @userId
             AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
             AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
-            AND (
-              CONTAINS(LOWER(c.icsrClassification), "probable") OR 
-              CONTAINS(LOWER(c.aoiClassification), "probable") OR
-              CONTAINS(LOWER(c.icsrClassification), "potential") OR 
-              CONTAINS(LOWER(c.aoiClassification), "potential") OR
-              CONTAINS(LOWER(c.userTag), "icsr") OR
-              CONTAINS(LOWER(c.userTag), "aoi")
-            )
         `;
 
         let availableCases = [];
         try {
-          availableCases = await cosmosService.queryItems('studies', highPriorityQuery, findParams);
+             // Add userId param for this query
+             const myCasesParams = [...findParams, { name: '@userId', value: userId }];
+             const myCases = await cosmosService.queryItems('studies', myReturnedCasesQuery, myCasesParams);
+             
+             if (myCases && myCases.length > 0) {
+                 availableCases = myCases;
+                 console.log(`[Allocation] Found returned case ${myCases[0].id} for user ${userId}`);
+             }
         } catch (err) {
-          console.warn('High priority query failed, falling back to standard query', err);
+            console.warn('My returned cases query failed', err);
+        }
+
+        if (!availableCases || availableCases.length === 0) {
+            // Step 2a: Try to find High Priority cases specifically first (Probable/Potential/Tagged)
+            // This ensures we priority allocate them even if they are buried behind 1000+ Manual Review cases
+            // We use LOWER() for case-insensitive matching
+            const highPriorityQuery = `
+                SELECT TOP 50 * FROM c 
+                WHERE c.organizationId = @orgId 
+                AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
+                AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+                AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId)
+                AND (
+                  CONTAINS(LOWER(c.icsrClassification), "probable") OR 
+                  CONTAINS(LOWER(c.aoiClassification), "probable") OR
+                  CONTAINS(LOWER(c.icsrClassification), "potential") OR 
+                  CONTAINS(LOWER(c.aoiClassification), "potential") OR
+                  CONTAINS(LOWER(c.userTag), "icsr") OR
+                  CONTAINS(LOWER(c.userTag), "aoi")
+                )
+            `;
+
+            try {
+              availableCases = await cosmosService.queryItems('studies', highPriorityQuery, findParams);
+            } catch (err) {
+              console.warn('High priority query failed, falling back to standard query', err);
+            }
         }
 
         if (!availableCases || availableCases.length === 0) {
           // Step 2b: Fallback to general query if no high priority cases found
           const fetchLimit = 100;
-          const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
+          const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
           availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
         }
 
@@ -2981,22 +3022,63 @@ router.post('/allocate-batch',
 
       // 2. Find available cases
       // Fetch a large number of items to ensure we find the high priority ones even if they are deep in the DB
-      // The previous limit of 100 was causing issues where high-priority items (like Probable ICSR) were missed
-      // if they were stored after hundreds of Manual Review items.
       const fetchLimit = 1000;
-      const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
+      
+      // Step 2a: Prioritize cases classified by this user (Rejected/Returned)
+      const myReturnedCasesQuery = `
+            SELECT * FROM c 
+            WHERE c.organizationId = @orgId 
+            AND c.classifiedBy = @userId
+            AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
+            AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+      `;
+      
+      let availableCases = [];
+      
+      try {
+          const myCasesParams = [
+              { name: '@orgId', value: organizationId },
+              { name: '@userId', value: userId }
+          ];
+          const myCases = await cosmosService.queryItems('studies', myReturnedCasesQuery, myCasesParams);
+          if (myCases && myCases.length > 0) {
+              console.log(`[Batch Allocation] Found ${myCases.length} returned cases for user ${userId}`);
+              // Give returned cases TOP priority (priority = -2 to beat high priority -1)
+              const returnedCases = myCases.map(c => ({...c, _isReturned: true}));
+              availableCases = [...availableCases, ...returnedCases];
+          }
+      } catch (err) {
+          console.warn('My returned cases query failed in batch allocation', err);
+      }
+
+      // Step 2b: Standard fetch
+      const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
       const findParams = [
-        { name: '@orgId', value: organizationId }
+        { name: '@orgId', value: organizationId },
+        { name: '@userId', value: userId }
       ];
 
-      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+      const standardCases = await cosmosService.queryItems('studies', findQuery, findParams);
+      if (standardCases && standardCases.length > 0) {
+          // Avoid duplicates if a case was found in both queries
+          const existingIds = new Set(availableCases.map(c => c.id));
+          const newCases = standardCases.filter(c => !existingIds.has(c.id));
+          availableCases = [...availableCases, ...newCases];
+      }
 
       if (!availableCases || availableCases.length === 0) {
         return res.status(404).json({ success: false, message: "No available cases at the moment." });
       }
 
       // 3. Sort by priority
-      availableCases.sort((a, b) => getPriority(a) - getPriority(b));
+      // Modify getPriority to account for returned cases
+      const originalGetPriority = getPriority;
+      const enhancedGetPriority = (study) => {
+          if (study._isReturned) return -2; // Highest priority
+          return originalGetPriority(study);
+      };
+      
+      availableCases.sort((a, b) => enhancedGetPriority(a) - enhancedGetPriority(b));
 
       // 5. Lock them
       const lockedCases = [];
