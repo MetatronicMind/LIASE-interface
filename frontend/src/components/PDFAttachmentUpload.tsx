@@ -575,7 +575,7 @@ export default function PDFAttachmentUpload({
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={cancelUpload} />
           <div className="flex items-center justify-center min-h-screen p-4">
-            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 z-10">
+            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-[95vw] p-6 z-10">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 Enter Receipt Date
               </h3>
@@ -627,7 +627,7 @@ export default function PDFAttachmentUpload({
           
           {/* Modal Container */}
           <div className="flex items-center justify-center min-h-screen p-4">
-            <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col z-10">
+            <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-[95vw] h-[90vh] flex flex-col z-10">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
                 <div className="flex items-center">

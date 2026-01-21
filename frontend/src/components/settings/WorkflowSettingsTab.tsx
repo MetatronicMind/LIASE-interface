@@ -25,6 +25,7 @@ interface WorkflowConfig {
   qcDataEntry?: boolean;
   medicalReview?: boolean;
   bypassQcForIcsr?: boolean;
+  noCaseQcPercentage?: number;
   stages: Stage[];
   transitions: Transition[];
 }
@@ -100,17 +101,17 @@ export default function WorkflowSettingsTab() {
     saveConfig({ ...config, [key]: checked });
   };
 
-  const handleToggleRevoke = (index: number, checked: boolean) => {
+  const handleRevokeChange = (index: number, revokeToId: string) => {
     if (!config) return;
     const newTransitions = [...config.transitions];
     const transition = { ...newTransitions[index] };
     
-    if (checked) {
-      transition.canRevoke = true;
-      transition.revokeTo = 'triage';
-    } else {
+    if (revokeToId === 'no_revoke') {
       transition.canRevoke = false;
       transition.revokeTo = undefined;
+    } else {
+      transition.canRevoke = true;
+      transition.revokeTo = revokeToId;
     }
     
     newTransitions[index] = transition;
@@ -141,6 +142,24 @@ export default function WorkflowSettingsTab() {
     }
   };
 
+  const handleNoCaseQcPercentageChange = (value: string) => {
+    if (!config) return;
+
+    // Allow empty value to clear it
+    if (value === '') {
+      setConfig({ ...config, noCaseQcPercentage: undefined });
+      return;
+    }
+
+    // Only allow numbers
+    if (!/^\d*$/.test(value)) return;
+
+    const percentage = parseInt(value);
+    if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
+      setConfig({ ...config, noCaseQcPercentage: percentage });
+    }
+  };
+
   if (loading) return <div>Loading...</div>;
   if (!config) return <div>Error loading config</div>;
 
@@ -150,6 +169,31 @@ export default function WorkflowSettingsTab() {
         <h2 className="text-xl font-semibold mb-4">Workflow Stages</h2>
         <div className="bg-white shadow overflow-hidden sm:rounded-md p-6 space-y-4">
           <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">No Case QC Allocation</h3>
+              <p className="text-sm text-gray-500">Percentage of "No Case" studies sent back to Triage for re-evaluation.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={config.noCaseQcPercentage?.toString() ?? '10'}
+                onChange={(e) => handleNoCaseQcPercentageChange(e.target.value)}
+                className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
+                placeholder="0-100"
+              />
+              <span className="text-sm text-gray-500">%</span>
+              <button
+                onClick={() => saveConfig(config)}
+                disabled={saving}
+                className="ml-2 bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+              >
+                {saving ? '...' : 'Save'}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t pt-4">
             <div>
               <h3 className="text-sm font-medium text-gray-900">ICSRs Bypass QC Allocation</h3>
               <p className="text-sm text-gray-500">If enabled, ICSR cases go directly to Data Entry. Only AOI/No Case go to QC Allocation.</p>
@@ -242,24 +286,53 @@ export default function WorkflowSettingsTab() {
                       </div>
                     </div>
                   )}
-
-                  {transition.from === 'data_entry' && (
-                    <div className="flex items-center">
-                      <input
-                        id={`revoke-${index}`}
-                        type="checkbox"
-                        checked={transition.canRevoke || false}
-                        onChange={(e) => handleToggleRevoke(index, e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor={`revoke-${index}`} className="ml-2 block text-sm text-gray-900">
-                        Can Revoke to Triage
-                      </label>
-                    </div>
-                  )}
                 </div>
               </li>
             ))}
+          </ul>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Revocations</h2>
+        </div>
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <ul className="divide-y divide-gray-200">
+            {config.transitions.map((transition, index) => {
+               const fromStageLabel = config.stages.find(s => s.id === transition.from)?.label || transition.from;
+               return (
+                <li key={`revoke-${index}`} className="px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Revocation from {fromStageLabel}</p>
+                    <p className="text-sm text-gray-500">
+                      {transition.canRevoke && transition.revokeTo ? 
+                        `Revokes to ${config.stages.find(s => s.id === transition.revokeTo)?.label || transition.revokeTo}` 
+                        : 'No active revocation'}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <select
+                      value={transition.canRevoke && transition.revokeTo ? transition.revokeTo : 'no_revoke'}
+                      onChange={(e) => handleRevokeChange(index, e.target.value)}
+                      className="mt-1 block w-64 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                      disabled={saving}
+                    >
+                      <option value="no_revoke">No revoke</option>
+                      {config.stages
+                        .filter(stage => stage.id !== transition.from)
+                        .map(stage => (
+                          <option key={stage.id} value={stage.id}>
+                            {stage.label}
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>

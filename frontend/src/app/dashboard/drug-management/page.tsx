@@ -524,11 +524,6 @@ export default function DrugManagementPage() {
        exportToExcel(data, `${selectedConfigName}_pmids`, "Sheet1", exportPassword);
     }
   };
-        Link: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
-      }));
-      exportToExcel(data, `${selectedConfigName}_pmids`);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -889,7 +884,7 @@ export default function DrugManagementPage() {
       {/* PMID Modal */}
       {showPmidModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-          <div className="relative p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+          <div className="relative p-5 border w-full max-w-[95vw] shadow-lg rounded-md bg-white">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-gray-900">PMIDs for {selectedConfigName}</h3>
               <div className="flex items-center gap-2">

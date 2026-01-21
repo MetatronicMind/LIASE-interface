@@ -1522,7 +1522,7 @@ export default function R3FormPage() {
       {/* Revoke Modal */}
       {showRevokeModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-lg max-w-[95vw] w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Revoke Study</h3>
             <p className="text-sm text-gray-600 mb-4">
               Are you sure you want to revoke this study? It will be sent back to the previous stage.
@@ -1560,7 +1560,7 @@ export default function R3FormPage() {
       {/* Confirmation Modal */}
       {showConfirmationModal && pendingChange && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="bg-white rounded-lg max-w-[95vw] w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm Change</h3>
             <p className="text-sm text-gray-600 mb-4">
               You are changing <strong>{pendingChange.field === 'listedness' ? 'Listedness' : 'Seriousness'}</strong> to <strong>{pendingChange.value || 'None'}</strong>.

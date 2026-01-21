@@ -186,6 +186,18 @@ router.get('/QA-pending',
         query += " AND (c.qaApprovalStatus = 'pending' OR NOT IS_DEFINED(c.qaApprovalStatus))";
       }
 
+      // Filter by userTag if provided
+      if (req.query.userTag) {
+        query += " AND c.userTag = @userTag";
+        parameters.push({ name: '@userTag', value: req.query.userTag });
+      }
+
+      // Filter by excludeUserTag if provided
+      if (req.query.excludeUserTag) {
+        query += " AND c.userTag != @excludeUserTag";
+        parameters.push({ name: '@excludeUserTag', value: req.query.excludeUserTag });
+      }
+
       if (search) {
         query += ' AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))';
         parameters.push({ name: '@search', value: search });
@@ -375,6 +387,130 @@ router.post('/QA/bulk-process',
         error: 'Failed to process QC items',
         message: error.message
       });
+    }
+  }
+);
+
+// Process No Case QC items
+router.post('/QA/process-no-case',
+  authorizePermission('studies', 'write'),
+  async (req, res) => {
+    try {
+      // Find all No Case studies pending QA approval
+      const query = "SELECT * FROM c WHERE c.organizationId = @orgId AND c.status = 'qc_triage' AND c.userTag = 'No Case' AND (c.qaApprovalStatus = 'pending' OR NOT IS_DEFINED(c.qaApprovalStatus))";
+      const parameters = [
+        { name: '@orgId', value: req.user.organizationId }
+      ];
+      
+      const studies = await cosmosService.queryItems('studies', query, parameters);
+      
+      // Default sampling percentage (default 10%)
+      let targetPercentage = 10; 
+       try {
+        const workflowConfig = await adminConfigService.getConfig(req.user.organizationId, 'workflow');
+        if (workflowConfig && workflowConfig.configData) {
+          // Check for specific No Case setting
+          if (typeof workflowConfig.configData.noCaseQcPercentage !== 'undefined') {
+            targetPercentage = parseFloat(workflowConfig.configData.noCaseQcPercentage);
+          } else if (workflowConfig.configData.transitions) {
+            // Fallback to general Triage -> QC Triage transition
+            const transition = workflowConfig.configData.transitions.find(t => t.to === 'qc_triage');
+            if (transition && transition.qcPercentage) {
+              targetPercentage = parseFloat(transition.qcPercentage);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch workflow config for bulk process:', err);
+      }
+
+      // Calculate sample size for Reclassification (Send back to Triage)
+      const countToReclassify = Math.ceil(studies.length * (targetPercentage / 100));
+      // Shuffle
+      const shuffledStudies = studies.sort(() => 0.5 - Math.random());
+      const studiesToReclassify = shuffledStudies.slice(0, countToReclassify);
+      const studiesToApprove = shuffledStudies.slice(countToReclassify);
+
+      const results = {
+        reclassified: 0,
+        approved: 0,
+        errors: 0
+      };
+
+      // Process Reclassification (Sample -> Triage)
+      for (const studyData of studiesToReclassify) {
+        try {
+          const study = new Study(studyData);
+          const beforeValue = { status: study.status, userTag: study.userTag, qaApprovalStatus: study.qaApprovalStatus };
+          
+          study.status = 'triage'; 
+          study.userTag = null; 
+          study.qaApprovalStatus = 'rejected'; 
+          study.qaComments = 'Random QC Check - Sent for Reclassification';
+          
+          const afterValue = { status: study.status, userTag: study.userTag, qaApprovalStatus: study.qaApprovalStatus };
+          
+          await cosmosService.updateItem('studies', study.id, req.user.organizationId, study.toJSON());
+          
+          await auditAction(
+            req.user,
+            'update',
+            'study',
+            study.id,
+            `No Case QC Sample - Sent to Triage`,
+            { studyId: study.id, from: 'qc_triage', to: 'triage' },
+            beforeValue,
+            afterValue
+          );
+          results.reclassified++;
+        } catch (err) {
+          console.error(`Error reclassifying study ${studyData.id}:`, err);
+          results.errors++;
+        }
+      }
+
+      // Process Approval (Rest -> Reporting)
+      for (const studyData of studiesToApprove) {
+        try {
+          const study = new Study(studyData);
+          const beforeValue = { status: study.status, qaApprovalStatus: study.qaApprovalStatus };
+          
+          study.status = 'reporting'; 
+          study.qaApprovalStatus = 'approved';
+          study.qaApprovedBy = req.user.id;
+          study.qaApprovedAt = new Date().toISOString();
+          study.qaComments = 'Auto approved No Case';
+          
+          const afterValue = { status: study.status, qaApprovalStatus: study.qaApprovalStatus };
+          
+          await cosmosService.updateItem('studies', study.id, req.user.organizationId, study.toJSON());
+          
+          await auditAction(
+            req.user,
+            'bulk_approve',
+            'study',
+            study.id,
+            `Auto approved No Case`,
+            { studyId: study.id },
+            beforeValue,
+            afterValue
+          );
+          results.approved++;
+        } catch (err) {
+          console.error(`Error approving study ${studyData.id}:`, err);
+          results.errors++;
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Processed ${studies.length} items. ${results.reclassified} sent to Triage, ${results.approved} approved.`,
+        results
+      });
+
+    } catch (error) {
+       console.error('Error processing No Case studies:', error);
+       res.status(500).json({ error: error.message });
     }
   }
 );
@@ -605,11 +741,12 @@ router.get('/medical-examiner',
         targetOrgId = req.query.organizationId;
       }
 
-      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND c.qaApprovalStatus = @qaStatus AND c.r3FormStatus = @formStatus AND c.qcR3Status = @qcR3Status';
+      let query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND (c.qaApprovalStatus = @qaStatus OR c.qaApprovalStatus = @qaStatusNA) AND c.r3FormStatus = @formStatus AND c.qcR3Status = @qcR3Status';
       const parameters = [
         { name: '@orgId', value: targetOrgId },
         { name: '@userTag', value: 'ICSR' },
         { name: '@qaStatus', value: 'approved' },
+        { name: '@qaStatusNA', value: 'not_applicable' },
         { name: '@formStatus', value: 'completed' },
         { name: '@qcR3Status', value: 'approved' }
       ];
@@ -1384,46 +1521,65 @@ router.get('/stats/summary',
             }
         }
 
-        // --- Workflow Stats (Global) ---
-        // Triage: Not yet user tagged
-        if (!study.userTag && (study.status === 'Pending Review' || study.status === 'Pending' || study.status === 'Under Triage Review')) {
-            stats.workflowStats.triage++;
-        }
-        // QC Allocation: Tagged but awaiting QC assignment/action (pending)
-        else if (study.userTag && (!study.qaApprovalStatus || study.qaApprovalStatus === 'pending')) {
-            stats.workflowStats.qcAllocation++;
-        }
-        // QC Triage: Currently in QC status (manual_qc)
-        else if (study.qaApprovalStatus === 'manual_qc') {
-            stats.workflowStats.qcTriage++;
-        }
-        // Data Entry / QC Data Entry / Medical Review flow
-        else if (study.userTag === 'ICSR' && study.qaApprovalStatus === 'approved') {
-            // Check R3 QC Status
-            if (study.qcR3Status === 'pending') {
-                stats.workflowStats.qcDataEntry++;
-            }
-            else if (study.qcR3Status === 'approved') {
-                 // Moved to Medical Review?
-                 if (study.medicalReviewStatus === 'completed' || study.status === 'Approved') {
-                     stats.workflowStats.completed++;
-                 } else {
-                     stats.workflowStats.medicalReview++;
-                 }
-            }
-            else {
-                // Not pending R3 QC, not approved R3 QC -> Must be in Data Entry (or R3 rejected)
-                // Unless it's completed without R3 (legacy?)
-                if (study.status === 'Approved') {
-                     stats.workflowStats.completed++;
-                } else {
-                     stats.workflowStats.dataEntry++;
+        // Check date filter for workflow stats
+        let includeInWorkflow = true;
+        if (filterDateStr) {
+            // Default to excluding unless we find a match
+            includeInWorkflow = false;
+            
+            // Check createdAt
+            if (study.createdAt) {
+                const cDate = new Date(study.createdAt);
+                const cYMD = cDate.toISOString().split('T')[0];
+                if (cYMD === filterDateStr) {
+                    includeInWorkflow = true;
                 }
             }
         }
-        // Completed (Catch-all for other flows)
-        else if (study.status === 'Approved' || study.medicalReviewStatus === 'completed') {
-            stats.workflowStats.completed++;
+
+        // --- Workflow Stats ---
+        // Only count towards workflow stats if no date filter is applied, OR if the study matches the date filter
+        if (includeInWorkflow) {
+            // Triage: Not yet user tagged
+            if (!study.userTag && (study.status === 'Pending Review' || study.status === 'Pending' || study.status === 'Under Triage Review')) {
+                stats.workflowStats.triage++;
+            }
+            // QC Allocation: Tagged but awaiting QC assignment/action (pending)
+            else if (study.userTag && (!study.qaApprovalStatus || study.qaApprovalStatus === 'pending')) {
+                stats.workflowStats.qcAllocation++;
+            }
+            // QC Triage: Currently in QC status (manual_qc)
+            else if (study.qaApprovalStatus === 'manual_qc') {
+                stats.workflowStats.qcTriage++;
+            }
+            // Data Entry / QC Data Entry / Medical Review flow
+            else if (study.userTag === 'ICSR' && study.qaApprovalStatus === 'approved') {
+                // Check R3 QC Status
+                if (study.qcR3Status === 'pending') {
+                    stats.workflowStats.qcDataEntry++;
+                }
+                else if (study.qcR3Status === 'approved') {
+                    // Moved to Medical Review?
+                    if (study.medicalReviewStatus === 'completed' || study.status === 'Approved') {
+                        stats.workflowStats.completed++;
+                    } else {
+                        stats.workflowStats.medicalReview++;
+                    }
+                }
+                else {
+                    // Not pending R3 QC, not approved R3 QC -> Must be in Data Entry (or R3 rejected)
+                    // Unless it's completed without R3 (legacy?)
+                    if (study.status === 'Approved') {
+                        stats.workflowStats.completed++;
+                    } else {
+                        stats.workflowStats.dataEntry++;
+                    }
+                }
+            }
+            // Completed (Catch-all for other flows)
+            else if (study.status === 'Approved' || study.medicalReviewStatus === 'completed') {
+                stats.workflowStats.completed++;
+            }
         }
 
         // --- Date Specific Stats ---
@@ -2572,13 +2728,20 @@ router.post('/:id/field-comment',
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
 
+      // Format field name for more readable audit log
+      const formattedFieldName = fieldKey
+        .replace(/([A-Z])/g, ' $1') // insert space before capital
+        .replace(/_/g, ' ') // replace underscore with space
+        .replace(/\b\w/g, c => c.toUpperCase()) // capitalize first letter of each word
+        .trim();
+
       await auditAction(
         req.user,
         'comment',
         'study',
         id,
-        `Added comment to field ${fieldKey} in study ${study.pmid}: "${comment}"`,
-        { studyId: id, fieldKey, pmid: study.pmid },
+        `Commented on this field (${formattedFieldName})`,
+        { studyId: id, fieldKey, pmid: study.pmid, commentText: comment },
         null,
         { fieldKey, commentText: comment }
       );
@@ -2621,18 +2784,36 @@ router.put('/:id/field-value',
       }
 
       const study = new Study(studyData);
+
+      // Capture previous value before update (for audit log)
+      let oldValue;
+      if (['listedness', 'seriousness'].includes(fieldKey)) {
+          oldValue = study[fieldKey];
+      } else {
+          oldValue = study.r3FormData ? study.r3FormData[fieldKey] : undefined;
+      }
+
       study.updateFieldValue(fieldKey, value, req.user.id, req.user.name);
 
       // Save updated study
       await cosmosService.updateItem('studies', id, req.user.organizationId, study.toJSON());
+
+      // Format field name
+      const formattedFieldName = fieldKey
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase()) // capitalize first letter of each word
+        .trim();
 
       await auditAction(
         req.user,
         'edit',
         'study',
         'field_value',
-        `Updated field ${fieldKey} in study ${id}`,
-        { studyId: id, fieldKey, value }
+        `Edited this field (${formattedFieldName}) from "${oldValue || 'empty'}" to "${value}"`,
+        { studyId: id, fieldKey, value },
+        { [fieldKey]: oldValue },
+        { [fieldKey]: value }
       );
 
       res.json({
@@ -2698,8 +2879,8 @@ router.post('/:id/revoke',
         'revoke',
         'study',
         'medical_revocation',
-        `Revoked study ${id} back to ${targetStage || 'Data Entry'}`,
-        { studyId: id, reason, targetStage }
+        `Revoked study ${study.pmid} back to ${targetStage || 'Data Entry'}`,
+        { studyId: id, pmid: study.pmid, reason, targetStage }
       );
 
       res.json({
@@ -2739,8 +2920,8 @@ router.post('/:id/medical-review/complete',
         'complete',
         'study',
         'medical_review',
-        `Completed medical review for study ${id}`,
-        { studyId: id }
+        `Completed medical review for study ${study.pmid}`,
+        { studyId: id, pmid: study.pmid }
       );
 
       res.json({
@@ -3163,6 +3344,10 @@ router.post('/allocate-batch',
           }
           console.error(`Error locking case ${study.id}:`, err);
         }
+      }
+
+      if (lockedCases.length === 0) {
+        return res.status(409).json({ success: false, message: "System busy optimizing allocation. Please try again." });
       }
 
       res.json({ success: true, message: "Cases allocated successfully", cases: lockedCases });

@@ -451,6 +451,21 @@ class Study {
   }
 
   updateFieldValue(fieldKey, newValue, userId, userName) {
+    // Check if this is a top-level classification field
+    if (['listedness', 'seriousness'].includes(fieldKey)) {
+        const oldValue = this[fieldKey];
+        this[fieldKey] = newValue;
+        this.updatedAt = new Date().toISOString();
+
+        this.addComment({
+            userId,
+            userName,
+            text: `Updated ${fieldKey} from "${oldValue || 'empty'}" to "${newValue}"`,
+            type: 'field_edit'
+        });
+        return;
+    }
+
     if (!this.r3FormData) {
       this.r3FormData = {};
     }

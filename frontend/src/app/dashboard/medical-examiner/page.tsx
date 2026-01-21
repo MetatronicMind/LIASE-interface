@@ -132,6 +132,11 @@ const R3_FORM_FIELDS = [
   { key: "H_4", label: "Sender's Comments", category: "H", required: false, section: "narrative" },
 ];
 
+const CLASSIFICATION_FIELDS = [
+  { key: "listedness", label: "Listedness", category: "Classification", required: false, type: "select", options: ["Yes", "No", "Unknown"] },
+  { key: "seriousness", label: "Seriousness", category: "Classification", required: false, type: "select", options: ["Serious", "Non-Serious", "Unknown"] },
+];
+
 export default function MedicalExaminerPage() {
   const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const { user } = useAuth();
@@ -288,8 +293,16 @@ export default function MedicalExaminerPage() {
       if (response.ok) {
         // Update the local study data
         const updatedStudy = { ...selectedStudy };
-        if (!updatedStudy.r3FormData) updatedStudy.r3FormData = {};
-        updatedStudy.r3FormData[fieldKey] = value;
+        
+        if (fieldKey === 'listedness' || fieldKey === 'seriousness') {
+            // Update top-level
+            (updatedStudy as any)[fieldKey] = value;
+        } else {
+            // Update R3 data
+            if (!updatedStudy.r3FormData) updatedStudy.r3FormData = {};
+            updatedStudy.r3FormData[fieldKey] = value;
+        }
+        
         setSelectedStudy(updatedStudy);
         setEditingField(null);
         setFieldValue('');
@@ -378,6 +391,8 @@ export default function MedicalExaminerPage() {
   };
 
   const getFieldValue = (fieldKey: string) => {
+    if (fieldKey === 'listedness') return selectedStudy?.listedness || '';
+    if (fieldKey === 'seriousness') return selectedStudy?.seriousness || '';
     return selectedStudy?.r3FormData?.[fieldKey] || '';
   };
 
@@ -430,13 +445,35 @@ export default function MedicalExaminerPage() {
         <div className="mb-2">
           {isEditing ? (
             <div className="space-y-2">
-              <input
-                type="text"
-                value={fieldValue}
-                onChange={(e) => setFieldValue(e.target.value)}
-                className="w-full px-2 py-1 border border-blue-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-              />
+              {field.type === 'select' ? (
+                <select
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  className="w-full px-2 py-1 border border-blue-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                >
+                  <option value="">Select an option</option>
+                  {field.options?.map((opt: string) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              ) : field.type === 'textarea' ? (
+                 <textarea
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  className="w-full px-2 py-1 border border-blue-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={4}
+                  autoFocus
+                />
+              ) : (
+                  <input
+                    type={field.type === 'number' ? 'number' : 'text'}
+                    value={fieldValue}
+                    onChange={(e) => setFieldValue(e.target.value)}
+                    className="w-full px-2 py-1 border border-blue-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                  />
+              )}
               <div className="flex space-x-2">
                 <button
                   onClick={() => updateFieldValue(field.key, fieldValue)}
@@ -1095,7 +1132,18 @@ export default function MedicalExaminerPage() {
 
                     {/* R3 Form Fields Review */}
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-3">R3 Form Fields</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-3">Medical Review</h3>
+                      
+                      {/* Classification Tab */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                           Listedness & Seriousness Assessment
+                        </h3>
+                        <div className="space-y-4">
+                           {CLASSIFICATION_FIELDS.map(renderR3Field)}
+                        </div>
+                      </div>
+
                       <div className="space-y-6">
                         {/* Header / Batch Information */}
                         <div>
@@ -1321,7 +1369,7 @@ export default function MedicalExaminerPage() {
         {/* Comment Modal */}
         {showCommentModal && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="relative top-20 mx-auto p-5 border w-[95vw] shadow-lg rounded-md bg-white">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Add Field Comment</h3>
                 <p className="text-sm text-gray-600 mb-3">
@@ -1361,7 +1409,7 @@ export default function MedicalExaminerPage() {
         {/* Revoke Modal */}
         {showRevokeModal && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="relative top-20 mx-auto p-5 border w-[95vw] shadow-lg rounded-md bg-white">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Revoke Study</h3>
                 <p className="text-sm text-gray-600 mb-3">

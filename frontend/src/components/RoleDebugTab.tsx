@@ -462,7 +462,7 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-xl max-w-[95vw] w-full">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
@@ -497,7 +497,7 @@ export default function RoleDebugTab({ roles, onRolesChange, onError }: DebugTab
       {/* Force Delete Confirmation Modal */}
       {showForceDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-xl max-w-[95vw] w-full">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <ExclamationTriangleIcon className="w-8 h-8 text-purple-600" />

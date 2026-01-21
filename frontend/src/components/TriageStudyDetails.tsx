@@ -3,6 +3,7 @@ import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { PmidLink } from "@/components/PmidLink";
 import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
 import { CommentThread } from "@/components/CommentThread";
+import { generateArticleDisplayId } from "@/utils/articleIdGenerator";
 
 interface Study {
   id: string;
@@ -186,7 +187,7 @@ export default function TriageStudyDetails({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <span className="font-bold text-gray-700">Article ID:</span>
-            <p className="mt-1 text-gray-900 font-mono">{study.id}</p>
+            <p className="mt-1 text-gray-900 font-mono">{generateArticleDisplayId(study)}</p>
           </div>
           <div>
             <span className="font-bold text-gray-700">PMID:</span>

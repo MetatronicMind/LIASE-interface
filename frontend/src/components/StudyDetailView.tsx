@@ -107,7 +107,7 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-6xl max-h-[90vh] w-full flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl max-w-[95vw] max-h-[90vh] w-full flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b bg-gray-50 rounded-t-lg">
           <div className="flex-1">

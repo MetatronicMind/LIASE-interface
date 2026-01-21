@@ -690,7 +690,7 @@ export default function QCPage() {
           {/* Study R3 Form Review Modal */}
           {selectedStudy && (
             <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40 flex justify-center pt-10 pb-10">
-              <div className="relative bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 flex flex-col max-h-[90vh]">
+              <div className="relative bg-white rounded-lg shadow-xl max-w-[95vw] w-full mx-4 flex flex-col max-h-[90vh]">
                 <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-lg sticky top-0 z-10">
                   <h3 className="text-lg font-semibold text-gray-900">R3 XML Form Review</h3>
                   <button
@@ -1137,7 +1137,7 @@ export default function QCPage() {
         {/* Reject Modal */}
         {showRejectModal && selectedStudy && (
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="bg-white rounded-lg max-w-[95vw] w-full p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Reject R3 XML Form</h3>
               <p className="text-sm text-gray-600 mb-4">
                 Please provide a reason for rejecting this R3 XML form. The study will be returned to Data Entry for corrections.

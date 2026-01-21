@@ -351,7 +351,9 @@ export default function QAPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("auth_token");
-      const queryParams = selectedOrganizationId ? `?organizationId=${selectedOrganizationId}` : '';
+      const queryParams = selectedOrganizationId 
+        ? `?organizationId=${selectedOrganizationId}&excludeUserTag=No Case` 
+        : '?excludeUserTag=No Case';
       const response = await fetch(`${getApiBaseUrl()}/studies/QA-pending${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -724,7 +726,7 @@ export default function QAPage() {
                 <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setSelectedStudy(null)}></div>
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
                 <div 
-                  className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
+                  className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-[95vw] sm:w-full"
                   ref={detailsRef}
                 >
                   <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
@@ -1222,7 +1224,7 @@ export default function QAPage() {
         {/* Reject Modal */}
         {showRejectModal && selectedStudy && (
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-[60]">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="bg-white rounded-lg max-w-[95vw] w-full p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Reject Classification</h3>
               <p className="text-sm text-gray-600 mb-4">
                 Please provide a reason for rejecting this classification. The study will be returned to Data Entry for corrections.

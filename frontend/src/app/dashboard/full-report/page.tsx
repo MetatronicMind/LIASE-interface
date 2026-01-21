@@ -81,6 +81,8 @@ interface Study {
   justification?: string;
   clientName?: string;
   sponsor?: string;
+  listedness?: string;
+  seriousness?: string;
 }
 
 const R3_FORM_FIELDS = [
@@ -799,7 +801,7 @@ export default function FullReportPage() {
       ) : (
         /* Full Report Modal */
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg w-full max-w-[95vw] max-h-[90vh] overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <div>
                 <h2 className="text-xl font-bold text-black">
@@ -1135,6 +1137,30 @@ export default function FullReportPage() {
                         <p className="text-sm font-medium text-black">Client Name:</p>
                         <p className="text-sm text-black">{selectedStudy.clientName}</p>
                       </div>
+                    )}
+                    {selectedStudy?.listedness && (
+                      <div>
+                        <p className="text-sm font-medium text-black">Listedness:</p>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          selectedStudy.listedness === 'Yes' ? 'bg-red-100 text-red-800' : 
+                          selectedStudy.listedness === 'No' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedStudy.listedness}
+                        </span>
+                      </div>
+                    )}
+                    {selectedStudy?.seriousness && (
+                        <div>
+                            <p className="text-sm font-medium text-black">Seriousness:</p>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                selectedStudy.seriousness === 'Serious' ? 'bg-red-100 text-red-800' : 
+                                selectedStudy.seriousness === 'Non-Serious' ? 'bg-green-100 text-green-800' :
+                                'bg-gray-100 text-gray-800'
+                            }`}>
+                                {selectedStudy.seriousness}
+                            </span>
+                        </div>
                     )}
                   </div>
                   

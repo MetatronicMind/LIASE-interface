@@ -118,22 +118,23 @@ class AdminConfig {
       workflow: {
         qcDataEntry: true,
         medicalReview: true,
+        noCaseQcPercentage: 10,
         stages: [
           { id: 'triage', label: 'Triage', color: '#3B82F6', type: 'initial' },
           { id: 'qc_triage', label: 'QC Triage', color: '#8B5CF6', type: 'process' },
           { id: 'data_entry', label: 'Data Entry', color: '#10B981', type: 'process' },
+          { id: 'qc_data_entry', label: 'QC Data Entry', color: '#059669', type: 'process' },
           { id: 'medical_review', label: 'Medical Review', color: '#F59E0B', type: 'process' },
           { id: 'reporting', label: 'Reporting', color: '#EC4899', type: 'process' },
           { id: 'archived', label: 'Archived', color: '#6B7280', type: 'final' }
         ],
         transitions: [
-          { from: 'triage', to: 'qc_triage', label: 'Submit for QC' },
-          { from: 'qc_triage', to: 'data_entry', label: 'Approve & Move to Data Entry' },
-          { from: 'qc_triage', to: 'triage', label: 'Reject & Return to Triage' },
-          { from: 'data_entry', to: 'medical_review', label: 'Submit for Medical Review', canRevoke: true, revokeTo: 'triage' },
-          { from: 'medical_review', to: 'reporting', label: 'Approve & Move to Reporting' },
-          { from: 'medical_review', to: 'data_entry', label: 'Request More Info' },
-          { from: 'reporting', to: 'archived', label: 'Archive' }
+          { from: 'triage', to: 'qc_triage', label: 'Step 1' },
+          { from: 'qc_triage', to: 'data_entry', label: 'Step 2', canRevoke: true, revokeTo: 'triage' },
+          { from: 'data_entry', to: 'qc_data_entry', label: 'Step 3', canRevoke: true, revokeTo: 'triage' },
+          { from: 'qc_data_entry', to: 'medical_review', label: 'Step 4', canRevoke: true, revokeTo: 'data_entry' },
+          { from: 'medical_review', to: 'reporting', label: 'Step 5', canRevoke: true, revokeTo: 'qc_data_entry' },
+          { from: 'reporting', to: 'archived', label: 'Step 6' }
         ]
       },
       security: {

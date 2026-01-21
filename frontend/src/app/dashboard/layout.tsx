@@ -17,7 +17,8 @@ import {
   UserIcon,
   ChartBarIcon,
   BeakerIcon,
-  ArchiveBoxIcon
+  ArchiveBoxIcon,
+  XCircleIcon
 } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
@@ -54,6 +55,12 @@ const permissionBasedNavItems = [
     name: "QC Allocation", 
     href: "/dashboard/qa", 
     icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'QA', action: 'read' } 
+  },
+  { 
+    name: "No Case Allocation", 
+    href: "/dashboard/no-case-allocation", 
+    icon: <XCircleIcon className="w-5 h-5 mr-2" />, 
     permission: { resource: 'QA', action: 'read' } 
   },
   { 

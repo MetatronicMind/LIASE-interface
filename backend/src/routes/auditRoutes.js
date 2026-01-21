@@ -88,8 +88,14 @@ router.get('/',
       }
 
       if (endDate) {
+        let finalEndDate = endDate;
+        // If endDate is YYYY-MM-DD, append end of day time to make it inclusive
+        if (/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+          finalEndDate = `${endDate}T23:59:59.999Z`;
+        }
+
         query += ' AND c.timestamp <= @endDate';
-        parameters.push({ name: '@endDate', value: endDate });
+        parameters.push({ name: '@endDate', value: finalEndDate });
       }
 
       // Add sorting
@@ -257,8 +263,14 @@ router.get('/export/csv',
       }
 
       if (endDate) {
+        let finalEndDate = endDate;
+        // If endDate is YYYY-MM-DD, append end of day time to make it inclusive
+        if (/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+          finalEndDate = `${endDate}T23:59:59.999Z`;
+        }
+
         query += ' AND c.timestamp <= @endDate';
-        parameters.push({ name: '@endDate', value: endDate });
+        parameters.push({ name: '@endDate', value: finalEndDate });
       }
 
       query += ' ORDER BY c.timestamp DESC';
