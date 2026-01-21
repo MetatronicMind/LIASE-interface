@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
@@ -175,6 +176,11 @@ export default function LoginPage() {
                 Password must be 8-12 characters with at least 1 special character
               </div>
             )}
+            <div className="text-right mt-2">
+                <Link href="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-500">
+                    Forgot your password?
+                </Link>
+            </div>
           </div>
           {/* Role selection removed */}
           {error && <div className="mb-5 text-red-600 text-center font-semibold">{error}</div>}

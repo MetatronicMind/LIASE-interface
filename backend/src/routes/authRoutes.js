@@ -8,6 +8,8 @@ const Role = require('../models/Role');
 const AuditLog = require('../models/AuditLog');
 const authenticateToken = require('../middleware/auth');
 const geolocationService = require('../services/geolocationService');
+const emailSenderService = require('../services/emailSenderService');
+const crypto = require('crypto');
 
 const router = express.Router();
 
@@ -373,6 +375,109 @@ router.post('/logout', authenticateToken, async (req, res) => {
       message: 'Logout successful'
     });
   }
+});
+
+// Forgot Password endpoint
+router.post('/forgot-password', [
+  body('email').isEmail().normalizeEmail()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    const { email } = req.body;
+    const userDoc = await cosmosService.getUserByEmail(email);
+
+    if (!userDoc) {
+      // Return 200 security
+      return res.status(200).json({ message: 'If an account exists with that email, a password reset link has been sent.' });
+    }
+
+    const userInstance = new User(userDoc);
+    const resetToken = userInstance.createPasswordResetToken();
+
+    // Update user in DB
+    await cosmosService.updateUser(userInstance.id, userInstance.toJSON());
+
+    // Create reset URL
+    const resetUrl = `${req.headers.origin}/reset-password/${resetToken}`;
+
+    const message = `Forgot your password? Click the link to reset your password: ${resetUrl}.\nIf you didn't forget your password, please ignore this email!`;
+    const html = `<p>Forgot your password? Click <a href="${resetUrl}">here</a> to reset it.</p><p>If you didn't forget your password, please ignore this email!</p>`;
+
+    try {
+        await emailSenderService.sendEmail(userInstance.organizationId, {
+            to: userInstance.email,
+            subject: 'Your password reset request (valid for 10 min)',
+            text: message,
+            html: html
+        });
+        
+        res.status(200).json({ status: 'success', message: 'Token sent to email!' });
+    } catch (err) {
+        userInstance.passwordResetToken = undefined;
+        userInstance.passwordResetExpires = undefined;
+        await cosmosService.updateUser(userInstance.id, userInstance.toJSON());
+        console.error('Email send error:', err);
+        return res.status(500).json({ error: 'There was an error sending the email. Try again later!' });
+    }
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reset Password endpoint
+router.post('/reset-password/:token', [
+    body('password').isLength({ min: 8 })
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+          return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+        }
+        
+        const hashedToken = crypto
+            .createHash('sha256')
+            .update(req.params.token)
+            .digest('hex');
+
+        const query = `
+            SELECT * FROM c 
+            WHERE c.passwordResetToken = @token 
+            AND c.passwordResetExpires > @now
+        `;
+        const parameters = [
+            { name: '@token', value: hashedToken },
+            { name: '@now', value: new Date().toISOString() }
+        ];
+
+        const users = await cosmosService.queryItems('users', query, parameters);
+        const userDoc = users[0];
+
+        if (!userDoc) {
+            return res.status(400).json({ error: 'Token is invalid or has expired' });
+        }
+
+        const userInstance = new User(userDoc);
+        userInstance.password = req.body.password;
+        await userInstance.hashPassword(); // Hash the new password
+
+        userInstance.passwordResetToken = undefined;
+        userInstance.passwordResetExpires = undefined;
+        userInstance.passwordChangedAt = new Date().toISOString();
+
+        await cosmosService.updateUser(userInstance.id, userInstance.toJSON());
+        
+        res.status(200).json({ status: 'success', message: 'Password reset successful' });
+        
+    } catch(err) {
+        console.error('Reset password error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 module.exports = router;

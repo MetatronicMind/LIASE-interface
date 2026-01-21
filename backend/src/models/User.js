@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 class User {
   constructor({
@@ -16,6 +17,8 @@ class User {
     isActive = true,
     lastLogin = null,
     passwordChangedAt = null,
+    passwordResetToken = null,
+    passwordResetExpires = null,
     createdAt = new Date().toISOString(),
     updatedAt = new Date().toISOString(),
     createdBy = null
@@ -39,6 +42,8 @@ class User {
     this.isActive = isActive;
     this.lastLogin = lastLogin;
     this.passwordChangedAt = passwordChangedAt || createdAt;
+    this.passwordResetToken = passwordResetToken;
+    this.passwordResetExpires = passwordResetExpires;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
     this.createdBy = createdBy;
@@ -148,6 +153,20 @@ class User {
       ...legacyPermissions[role] || legacyPermissions['pharmacovigilance'],
       ...customPermissions
     };
+  }
+
+  createPasswordResetToken() {
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    this.passwordResetToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+    
+    // Token valid for 10 minutes
+    this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    
+    return resetToken;
   }
 
   async hashPassword() {

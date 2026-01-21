@@ -1,79 +1,35 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-# Deployment restart: 2025-09-28 - Force redeploy to ensure both services restart
-# Restart Command - 2
 name: Build and deploy Node.js app to Azure Web App - LIASE-backend
 
 on:
   push:
     branches:
-      - dev
       - main
+      - 'v-dev-*'
+      - 'v-client-*'
     paths:
       - 'backend/**'
       - '.github/workflows/backend-deploy.yml'
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
-
+    outputs:
+      slot: ${{ steps.context.outputs.SLOT }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Debug repository structure
+      
+      - name: Set Slot Context
+        id: context
         run: |
-          echo "=== Repository Debug Information ==="
-          echo "Repository root contents:"
-          ls -la
-          echo ""
-          echo "Backend directory contents:"
-          ls -la backend/
-          echo ""
-          echo "Checking backend package.json:"
-          cat backend/package.json | head -10
+          if [[ $GITHUB_REF_NAME == main ]]; then echo "SLOT=production" >> $GITHUB_OUTPUT;
+          elif [[ $GITHUB_REF_NAME == v-dev-* ]]; then echo "SLOT=liase-dev" >> $GITHUB_OUTPUT;
+          else echo "SLOT=liase-sandbox" >> $GITHUB_OUTPUT; fi
 
-      - name: Set up Node.js version
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20.x'
-          
-      - name: Install dependencies, build, and test
-        run: |
-          echo "Current working directory:"
-          pwd
-          echo ""
-          echo "Repository contents:"
-          ls -la
-          echo ""
-          echo "Changing to backend directory..."
-          cd backend
-          echo "Now in backend directory:"
-          pwd
-          echo ""
-          echo "Backend directory contents:"
-          ls -la
-          echo ""
-          echo "Verifying package.json exists:"
-          if [ ! -f "package.json" ]; then
-            echo "ERROR: package.json not found in backend directory"
-            echo "Available files:"
-            ls -la
-            exit 1
-          fi
-          echo "✅ package.json found"
-          echo ""
-          echo "Installing dependencies..."
-          npm ci --only=production
-          echo ""
-          echo "Running build if available..."
-          npm run build --if-present
-          echo ""
-          echo "Build completed successfully"
-
-      - name: Upload artifact for deployment job
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci --only=production
+        
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: node-app
@@ -82,184 +38,20 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
-
     steps:
-      - name: Download artifact from build job
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: node-app
 
-      - name: Prepare deployment files
-        run: |
-          echo "=== Deployment Preparation Debug ==="
-          pwd
-          echo "Current directory contents after artifact download:"
-          ls -la
-          echo ""
-          echo "Looking for package.json files:"
-          find . -name "package.json" -type f
-          echo ""
-          
-          # Check if files are in current directory or need to be moved
-          if [ -f "package.json" ]; then
-            echo "✅ package.json found at root level - ready for deployment"
-          else
-            echo "❌ package.json not found at root - checking structure"
-            echo ""
-            echo "Directory structure:"
-            find . -type f | head -20
-            echo ""
-            
-            # If there's a subdirectory with the files, move them up
-            if [ -d "backend" ]; then
-              echo "Found backend subdirectory, moving contents to root..."
-              mv backend/* . 2>/dev/null || true
-              mv backend/.[^.]* . 2>/dev/null || true
-              rmdir backend 2>/dev/null || true
-            fi
-            
-            # Final verification
-            if [ -f "package.json" ]; then
-              echo "✅ package.json now found at root level"
-            else
-              echo "❌ FATAL: Still cannot find package.json"
-              echo "Final directory contents:"
-              ls -la
-              exit 1
-            fi
-          fi
-          
-          echo "=== Final deployment structure ==="
-          ls -la
-          echo "✅ Ready for Azure deployment"
-
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_C686999406FB464790F64E3C71D31C63 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9FC45B7FDE2F490D91697B10ACD1CDCE }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B19280752E554AA892F23221EC6AB45E }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Configure Azure Web App Settings
-        env:
-          COSMOS_DB_ENDPOINT: ${{ secrets.COSMOS_DB_ENDPOINT }}
-          COSMOS_DB_KEY: ${{ secrets.COSMOS_DB_KEY }}
-          COSMOS_DB_DATABASE_ID: ${{ secrets.COSMOS_DB_DATABASE_ID }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
-        run: |
-          echo "🔧 Configuring Azure Web App environment variables..."
-
-          if [ -z "$COSMOS_DB_ENDPOINT" ]; then
-            echo "❌ COSMOS_DB_ENDPOINT secret is NOT available in this job."
-          else
-            echo "✅ COSMOS_DB_ENDPOINT detected (length: ${#COSMOS_DB_ENDPOINT})"
-          fi
-          
-          # First, let's find the resource group
-          echo "🔍 Finding resource group for LIASE-backend..."
-          RESOURCE_GROUP=$(az webapp list --query "[?name=='LIASE-backend'].resourceGroup | [0]" -o tsv)
-          
-          if [ -z "$RESOURCE_GROUP" ]; then
-            echo "❌ Could not find resource group for LIASE-backend"
-            echo "Available web apps:"
-            az webapp list --query "[].{name:name, resourceGroup:resourceGroup}" -o table
-            exit 1
-          fi
-          
-          echo "✅ Found resource group: $RESOURCE_GROUP"
-
-          COSMOS_DB_DATABASE_ID=${COSMOS_DB_DATABASE_ID:-liase-saas}
-          
-          # Configure the app settings
-          az webapp config appsettings set \
-            --resource-group "$RESOURCE_GROUP" \
-            --name LIASE-backend \
-            --settings \
-              COSMOS_DB_ENDPOINT="$COSMOS_DB_ENDPOINT" \
-              COSMOS_DB_KEY="$COSMOS_DB_KEY" \
-              COSMOS_DB_DATABASE_ID="$COSMOS_DB_DATABASE_ID" \
-              NODE_ENV="production" \
-              JWT_SECRET="$JWT_SECRET" \
-              JWT_EXPIRES_IN="$JWT_EXPIRES_IN" \
-              WEBSITE_NODE_DEFAULT_VERSION="~20" \
-              SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
-              ENABLE_ORYX_BUILD="false"
-          
-          echo "✅ Environment variables configured successfully"
-          
-          # Set the startup command for the Node.js app
-          echo "🚀 Setting startup command..."
-          az webapp config set \
-            --resource-group "$RESOURCE_GROUP" \
-            --name LIASE-backend \
-            --startup-file "node src/app.js"
-          
-          echo "✅ Startup command configured successfully"
-
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
+      - name: 'Deploy to Backend Slot'
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'LIASE-backend'
-          slot-name: 'Production'
+          slot-name: ${{ needs.build.outputs.slot }}
           package: .
-
-      - name: Health Check
-        run: |
-          sleep 60  # Give more time for Azure to start the app
-          webapp_url="${{ steps.deploy-to-webapp.outputs.webapp-url }}"
-          
-          echo "🔍 Checking Backend API health at $webapp_url"
-          echo "⏰ Started health check at $(date)"
-          
-          max_attempts=8  # Increased attempts
-          attempt=1
-          
-          while [ $attempt -le $max_attempts ]; do
-            echo ""
-            echo "🩺 Health check attempt $attempt/$max_attempts at $(date)"
-            
-            # Test each endpoint individually with more details
-            echo "Testing root endpoint: $webapp_url/"
-            if curl -f -s -w "HTTP %{http_code} in %{time_total}s\n" "$webapp_url/" -o /tmp/root_response.json; then
-              echo "✅ Root endpoint responded successfully"
-              cat /tmp/root_response.json
-              echo ""
-              echo "🎉 Backend deployment completed successfully!"
-              echo "📍 Backend URL: $webapp_url"
-              echo "🔗 API Health: $webapp_url/api/health"
-              break
-            fi
-            
-            echo "Testing API health endpoint: $webapp_url/api/health"
-            if curl -f -s -w "HTTP %{http_code} in %{time_total}s\n" "$webapp_url/api/health" -o /tmp/health_response.json; then
-              echo "✅ API health endpoint responded successfully"
-              cat /tmp/health_response.json
-              echo ""
-              echo "🎉 Backend deployment completed successfully!"
-              echo "📍 Backend URL: $webapp_url"
-              break
-            fi
-            
-            if [ $attempt -eq $max_attempts ]; then
-              echo ""
-              echo "❌ Backend health check failed after $max_attempts attempts"
-              echo "🔍 Final diagnostics:"
-              echo "- Testing basic connectivity:"
-              curl -v "$webapp_url/" || echo "Connection failed"
-              echo "- Testing with different timeout:"
-              curl --max-time 30 "$webapp_url/api/health" || echo "Health endpoint failed"
-              echo ""
-              echo "📝 Please check the Azure portal for detailed deployment logs"
-              echo "🌐 Manual check: $webapp_url"
-              exit 1
-            else
-              echo "⏳ API not ready yet, waiting 45 seconds..."
-              sleep 45
-              attempt=$((attempt + 1))
-            fi
-          done

@@ -1,360 +1,83 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-# Deployment restart: 2025-09-28 - Force redeploy to ensure environment variables are picked up
-
 name: Build and deploy Frontend to Azure Web App - LIASE-Frontend
 
 on:
   push:
     branches:
-      - dev
       - main
+      - 'v-dev-*'
+      - 'v-client-*'
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-deploy.yml'
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
+    outputs:
+      slot: ${{ steps.context.outputs.SLOT }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js version (no cache)
-        uses: actions/setup-node@v3
+      - name: Set Environment Context
+        id: context
+        run: |
+          if [[ $GITHUB_REF_NAME == main ]]; then
+            echo "SLOT=production" >> $GITHUB_OUTPUT
+            echo "API_URL=https://liase-backend.azurewebsites.net/api" >> $GITHUB_OUTPUT
+          elif [[ $GITHUB_REF_NAME == v-dev-* ]]; then
+            echo "SLOT=liase-dev" >> $GITHUB_OUTPUT
+            echo "API_URL=https://liase-backend-liase-dev-a3btbhewhmddgjbm.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
+          else
+            echo "SLOT=liase-sandbox" >> $GITHUB_OUTPUT
+            echo "API_URL=https://liase-backend-liase-sandbox-akbkcfgyc0bkdhfs.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          # Explicitly disable caching to ensure fresh build
-          cache: ''
 
-      - name: Nuclear cache clearing
+      - name: Install dependencies
         working-directory: ./frontend
-        run: |
-          echo "🧹 NUCLEAR CACHE CLEARING - Removing ALL cached artifacts..."
-          
-          # Remove ALL possible build/cache directories
-          rm -rf .next out dist build node_modules/.cache
-          rm -rf node_modules/.next node_modules/.cache
-          rm -rf ~/.npm ~/.cache /tmp/.next*
-          
-          # Clear npm cache completely
-          npm cache clean --force
-          
-          # Remove and reinstall node_modules to ensure no cached modules
-          rm -rf node_modules package-lock.json
-          
-          echo "✅ All caches and node_modules removed"
+        run: npm install
 
-      - name: Fresh dependency installation
+      - name: Build with Semantic Backend URL
         working-directory: ./frontend
-        run: |
-          echo "📦 Installing dependencies from scratch..."
-          # Generate new package-lock.json and install fresh
-          npm install
-          echo "✅ Fresh dependencies installed"
-
-      - name: Verify source code is correct
-        working-directory: ./frontend
-        run: |
-          echo "🔍 Verifying source code contains correct configuration..."
-          
-          # Check api.ts file
-          echo "Checking src/config/api.ts:"
-          cat src/config/api.ts
-          
-          # Verify no localhost:8000 in source
-          if grep -r "localhost:8000" src/ 2>/dev/null; then
-            echo "❌ ERROR: Found localhost:8000 in source code!"
-            exit 1
-          else
-            echo "✅ No localhost:8000 found in source code"
-          fi
-          
-          # Verify Azure URL is in source
-          if grep -r "liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net" src/ 2>/dev/null; then
-            echo "✅ Azure backend URL found in source code"
-          else
-            echo "⚠️ Warning: Azure URL not found in source - checking fallback..."
-          fi
-
-      - name: Create production environment file
-        working-directory: ./frontend
-        run: |
-          echo "Creating .env.production with correct API URL..."
-          echo "NEXT_PUBLIC_API_URL=https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api" > .env.production
-          echo "Environment file created:"
-          cat .env.production
-
-      - name: Apply lint fixes
-        working-directory: ./frontend
-        run: |
-          # Try to auto-fix linting issues
-          npm run lint --fix || echo "Some lint issues could not be auto-fixed"
-        continue-on-error: true
-
-      - name: Force cache invalidation and build
-        working-directory: ./frontend
-        run: |
-          # Add cache-busting timestamp
-          export BUILD_ID=$(date +%s)
-          echo "Cache-busting build ID: $BUILD_ID"
-          
-          # Completely remove any cached build artifacts
-          rm -rf .next out dist build
-          
-          # Verify environment variable is set correctly
-          echo "NEXT_PUBLIC_API_URL is set to: $NEXT_PUBLIC_API_URL"
-          
-          # Build with cache-busting
-          npm run build
+        run: npm run build
         env:
+          NEXT_PUBLIC_API_URL: ${{ steps.context.outputs.API_URL }}
           NODE_ENV: production
-          NEXT_TELEMETRY_DISABLED: 1
-          # Skip linting during build for deployment
-          ESLINT_NO_DEV_ERRORS: true
-          TYPESCRIPT_NO_TYPECHECK: true
-          # Backend API URL - FORCE CORRECT VALUE
-          NEXT_PUBLIC_API_URL: https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api
 
-      - name: Debug and verify build contents
+      # IMPORTANT: Ensure your build output (like .next or dist) is moved to a deployment folder
+      - name: Prepare Deployment Package
         working-directory: ./frontend
         run: |
-          echo "🔍 DEBUGGING BUILD CONTENTS..."
-          
-          # Show all JavaScript files in the build
-          echo "=== All JavaScript files in .next ==="
-          find .next -name "*.js" | head -20
-          
-          # Find files containing localhost:8000 and show their content
-          echo "=== Searching for localhost:8000 references ==="
-          localhost_files=$(find .next -name "*.js" -exec grep -l "localhost:8000" {} \; 2>/dev/null || true)
-          
-          if [ -n "$localhost_files" ]; then
-            echo "❌ ERROR: Found localhost:8000 in these files:"
-            echo "$localhost_files"
-            
-            echo "=== SHOWING CONTENT OF PROBLEMATIC FILES ==="
-            for file in $localhost_files; do
-              echo "--- Content of $file (first 50 lines with localhost) ---"
-              grep -n "localhost:8000" "$file" | head -5 || true
-              echo "--- Full context around localhost reference ---"
-              grep -B 5 -A 5 "localhost:8000" "$file" | head -20 || true
-              echo ""
-            done
-            
-            echo "This indicates build is using cached/wrong source."
-            exit 1
-          else
-            echo "✅ No localhost:8000 references found in built JavaScript"
-          fi
-          
-          # Check for Azure URL
-          azure_files=$(find .next -name "*.js" -exec grep -l "liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net" {} \; 2>/dev/null || true)
-          if [ -n "$azure_files" ]; then
-            echo "✅ Correct Azure backend URL found in: $azure_files"
-          else
-            echo "⚠️ Warning: Azure backend URL not found in built JavaScript files"
-          fi
-
-      - name: Run tests
-        working-directory: ./frontend
-        run: npm run test --if-present
-        env:
-          CI: true
-
-      - name: Create web.config for Azure
-        working-directory: ./frontend
-        run: |
-          cat > web.config << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <system.webServer>
-              <handlers>
-                <add name="iisnode" path="server.js" verb="*" modules="iisnode"/>
-              </handlers>
-              <rewrite>
-                <rules>
-                  <rule name="DynamicContent">
-                    <conditions>
-                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True"/>
-                    </conditions>
-                    <action type="Rewrite" url="server.js"/>
-                  </rule>
-                </rules>
-              </rewrite>
-              <httpErrors existingResponse="PassThrough" />
-              <iisnode 
-                watchedFiles="web.config;*.js"
-                loggingEnabled="true"
-                logDirectoryNameSuffix="logs"
-                debuggingEnabled="false"
-                nodeProcessCountPerApplication="1"
-                maxConcurrentRequestsPerProcess="1024"
-                maxNamedPipeConnectionRetry="3"
-                namedPipeConnectionRetryDelay="2000"
-                maxNamedPipeConnectionPoolSize="512"
-                maxNamedPipePooledConnectionAge="30000"
-                asyncCompletionThreadCount="0"
-                initialRequestBufferSize="4096"
-                maxRequestBufferSize="65536"
-                uncFileChangesPollingInterval="5000"
-                gracefulShutdownTimeout="60000"
-                promoteServerVars="LOGON_USER,AUTH_USER,AUTH_TYPE"
-                configOverrides="iisnode.yml"
-                recycleSignalEnabled="false"
-                idlePageOutTimePeriod="0"
-                interceptor=""
-                enableXFF="false"
-                promoteServerVars=""
-              />
-            </system.webServer>
-          </configuration>
-          EOF
-
-      - name: Prepare deployment package
-        working-directory: ./frontend
-        run: |
-          rm -rf deploy-package
           mkdir -p deploy-package
+          cp -r .next out public package.json next.config.js deploy-package/ 2>/dev/null || cp -r .next package.json deploy-package/
 
-          echo "Copying Next.js standalone output..."
-          if [ -d .next/standalone ]; then
-            cp -r .next/standalone/. deploy-package/
-            echo "✅ Copied .next/standalone"
-          else
-            echo "❌ Missing .next/standalone directory"
-            exit 1
-          fi
-
-          echo "Copying Next.js static assets..."
-          mkdir -p deploy-package/.next
-          if [ -d .next/static ]; then
-            cp -r .next/static deploy-package/.next/
-            echo "✅ Copied .next/static"
-          else
-            echo "❌ Missing .next/static directory"
-            exit 1
-          fi
-
-          if [ -d public ]; then
-            cp -r public deploy-package/public
-            echo "✅ Copied public directory"
-          else
-            echo "ℹ️ No public directory to copy"
-          fi
-
-          # Copy runtime config files if present
-          [ -f .env.production ] && cp .env.production deploy-package/.env.production
-          cp web.config deploy-package/ 2>/dev/null || echo "ℹ️ No web.config generated"
-
-          echo "=== Deployment package contents ==="
-          ls -la deploy-package/
-          echo "=== Verifying critical files ==="
-          [ -f deploy-package/server.js ] && echo "✅ server.js present" || echo "❌ server.js missing"
-          [ -d deploy-package/node_modules ] && echo "✅ node_modules present" || echo "❌ node_modules missing"
-          [ -f deploy-package/package.json ] && echo "✅ package.json present" || echo "❌ package.json missing"
-          [ -d deploy-package/.next/static ] && echo "✅ .next/static present" || echo "❌ .next/static missing"
-          
-      - name: Upload artifact for deployment job
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-app
           path: frontend/deploy-package/
-          include-hidden-files: true
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    permissions:
-      id-token: write
-      contents: read
-
     steps:
-      - name: Download artifact from build job
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: frontend-app
 
-      - name: Flatten artifact contents
-        run: |
-          if [ -d frontend-app ]; then
-            echo "Flattening artifact (including hidden files)..."
-            cp -a frontend-app/. .
-            rm -rf frontend-app
-          fi
-
-      - name: Debug deployment files
-        run: |
-          echo "=== Files in deployment directory ==="
-          ls -la
-          echo "=== package.json exists? ==="
-          [ -f package.json ] && echo "✅ package.json found" || echo "❌ package.json missing"
-          echo "=== server.js exists? ==="
-          [ -f server.js ] && echo "✅ server.js found" || echo "❌ server.js missing"
-          echo "=== .next directory exists? ==="
-          [ -d .next ] && echo "✅ .next directory found" || echo "❌ .next directory missing"
-          if [ -d .next ]; then
-            ls -la .next | head -20
-          fi
-
-      - name: Install production dependencies
-        run: npm install --prod --unsafe-perm
-
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BE9D826A0AAE4F8EBC51279088E9A87E }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_536334C5D8054125A2A2D05454C586FE }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_4090DB0E369A41E485ABAC5D7E6467B6 }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
+      - name: 'Deploy to Frontend Slot'
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'LIASE'
-          slot-name: 'Production'
+          slot-name: ${{ needs.build.outputs.slot }}
           package: .
-          clean: true
-          startup-command: 'node server.js'
-        env:
-          NODE_ENV: production
-          PORT: 8080
-          
-      - name: Health Check
-        run: |
-          sleep 45
-          webapp_url="https://liase.azurewebsites.net"
-          echo "Checking Frontend application health at $webapp_url"
-          
-          max_attempts=8
-          attempt=1
-          
-          while [ $attempt -le $max_attempts ]; do
-            echo "Health check attempt $attempt/$max_attempts"
-            
-            # Try health endpoint first, then main page
-            if curl -f -s "$webapp_url/health" -o /dev/null; then
-              echo "✅ Health endpoint responding"
-              echo "🎉 Frontend deployment completed successfully!"
-              break
-            elif curl -f -s "$webapp_url/" -o /dev/null; then
-              echo "✅ Main page responding"
-              echo "🎉 Frontend deployment completed successfully!"
-              break
-            else
-              if [ $attempt -eq $max_attempts ]; then
-                echo "❌ Frontend health check failed after $max_attempts attempts"
-                echo "Trying to get more info from the server..."
-                curl -v "$webapp_url/" || true
-                curl -v "$webapp_url/health" || true
-                exit 1
-              else
-                echo "⏳ Application not ready yet, waiting 20 seconds..."
-                sleep 20
-                attempt=$((attempt + 1))
-              fi
-            fi
-          done
