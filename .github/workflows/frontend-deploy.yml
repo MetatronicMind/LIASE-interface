@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - prod
       - dev
     tags:
       - 'v-dev-*'
@@ -24,7 +25,7 @@ jobs:
         id: context
         run: |
           # LOGIC: Frontend App Service = "LIASE"
-          if [[ $GITHUB_REF_NAME == main ]]; then
+          if [[ $GITHUB_REF_NAME == main || $GITHUB_REF_NAME == prod ]]; then
             echo "SLOT=production" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend.azurewebsites.net/api" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF_NAME == dev || $GITHUB_REF_NAME == v-dev-* ]]; then
