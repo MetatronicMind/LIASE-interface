@@ -23,13 +23,16 @@ jobs:
       - name: Set Environment Context
         id: context
         run: |
+          # LOGIC: Frontend App Service = "LIASE"
           if [[ $GITHUB_REF_NAME == main ]]; then
             echo "SLOT=production" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend.azurewebsites.net/api" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF_NAME == dev || $GITHUB_REF_NAME == v-dev-* ]]; then
+            # Slot is named "dev"
             echo "SLOT=dev" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend-liase-dev-a3btbhewhmddgjbm.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
           else
+            # Slot is named "sandbox"
             echo "SLOT=sandbox" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend-liase-sandbox-akbkcfgyc0bkdhfs.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
           fi
@@ -50,8 +53,8 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ steps.context.outputs.API_URL }}
           NEXT_PUBLIC_APP_VERSION: ${{ github.ref_name }}
           NODE_ENV: production
-
-      # IMPORTANT: Ensure your build output (like .next or dist) is moved to a deployment folder
+          
+      # STANDALONE PACKAGE PREPARATION (Trojan Horse Method)
       - name: Prepare Deployment Package
         working-directory: ./frontend
         run: |
@@ -62,7 +65,6 @@ jobs:
           
           # 2. THE FIX: Copy .next as a VISIBLE folder
           # We rename it to '_next_visible' so Azure doesn't filter it out.
-          # The startup.sh script will rename it back to .next.
           cp -r .next deploy-package/_next_visible
           
           # Cleanup cache
@@ -71,7 +73,7 @@ jobs:
           # 3. Copy public assets
           cp -r public deploy-package/public
 
-          # 4. Copy startup script
+          # 4. Copy startup script (CRITICAL)
           cp startup.sh deploy-package/
           
           # 5. Copy web.config
