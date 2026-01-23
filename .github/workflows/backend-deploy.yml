@@ -78,12 +78,3 @@ jobs:
           app-name: 'LIASE-backend'
           slot-name: ${{ needs.build.outputs.slot }}
           package: release.zip
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: 'Deploy to Backend Slot'
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: 'LIASE-backend'
-          slot-name: ${{ needs.build.outputs.slot }}
-          package: .
