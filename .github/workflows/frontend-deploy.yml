@@ -80,7 +80,13 @@ jobs:
           # 5. Copy web.config
           cp web.config deploy-package/ 2>/dev/null || true
           
-          echo "✅ Package Prepared with _next_visible."
+          # 6. FORCE START SCRIPT
+          # Azure often defaults to 'npm start'. We hijack this to run our startup script.
+          cd deploy-package
+          npm pkg set scripts.start="sh startup.sh"
+          cd ..
+          
+          echo "✅ Package Prepared with _next_visible and hijacked start script."
           ls -la deploy-package/
 
       - name: Upload Artifact
