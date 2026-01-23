@@ -27,10 +27,10 @@ jobs:
             echo "SLOT=production" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend.azurewebsites.net/api" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF_NAME == dev || $GITHUB_REF_NAME == v-dev-* ]]; then
-            echo "SLOT=liase-dev" >> $GITHUB_OUTPUT
+            echo "SLOT=dev" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend-liase-dev-a3btbhewhmddgjbm.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
           else
-            echo "SLOT=liase-sandbox" >> $GITHUB_OUTPUT
+            echo "SLOT=sandbox" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend-liase-sandbox-akbkcfgyc0bkdhfs.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
           fi
 
@@ -56,7 +56,29 @@ jobs:
         working-directory: ./frontend
         run: |
           mkdir -p deploy-package
-          cp -r .next out public package.json next.config.js deploy-package/ 2>/dev/null || cp -r .next package.json deploy-package/
+          
+          # 1. Copy Standalone Engine (server.js, node_modules)
+          cp -r .next/standalone/* deploy-package/ || true
+          
+          # 2. THE FIX: Copy .next as a VISIBLE folder
+          # We rename it to '_next_visible' so Azure doesn't filter it out.
+          # The startup.sh script will rename it back to .next.
+          cp -r .next deploy-package/_next_visible
+          
+          # Cleanup cache
+          rm -rf deploy-package/_next_visible/cache
+          
+          # 3. Copy public assets
+          cp -r public deploy-package/public
+
+          # 4. Copy startup script
+          cp startup.sh deploy-package/
+          
+          # 5. Copy web.config
+          cp web.config deploy-package/ 2>/dev/null || true
+          
+          echo "✅ Package Prepared with _next_visible."
+          ls -la deploy-package/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
