@@ -8,9 +8,18 @@ ls -la
 if [ -d "next_build_visible" ]; then
   echo "✅ Found 'next_build_visible' folder."
   
+  # Robust handling for existing .next folder
   if [ -d ".next" ]; then
-    echo "Found existing .next folder. Removing it..."
-    rm -rf .next
+    echo "Found existing .next folder. Moving it aside to avoid file locks..."
+    # Rename to clear the path immediately. failed rm -rf often happens due to locks.
+    mv .next ".next_old_$(date +%s)"
+  fi
+  
+  # Ensure the path is clear before renaming
+  if [ -d ".next" ]; then
+      echo "❌ ERROR: .next folder still exists after move attempt."
+      # Last ditch effort: Try to delete it again
+      rm -rf .next
   fi
   
   echo "Renaming 'next_build_visible' to '.next'..."
