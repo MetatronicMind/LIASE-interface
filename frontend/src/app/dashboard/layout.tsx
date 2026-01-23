@@ -266,7 +266,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </ul>
         </nav>
-  <div className="mt-10 text-center text-xs text-blue-100">© {new Date().getFullYear()} LIASE</div>
+  <div className="mt-10 text-center text-xs text-blue-100">
+    © {new Date().getFullYear()} LIASE
+    {process.env.NEXT_PUBLIC_APP_VERSION && (
+      <div className="mt-1 font-mono opacity-70">
+        {process.env.NEXT_PUBLIC_APP_VERSION}
+      </div>
+    )}
+  </div>
       </aside>
       {/* Overlay for mobile */}
       {sidebarOpen && (
