@@ -41,16 +41,14 @@ jobs:
         with:
           node-version: '20.x'
 
-      - name: Install dependencies
+      - name: Install dependencies (Production)
         working-directory: ./backend
-        run: npm install
+        run: npm ci --omit=dev
 
-      # Just zip the backend folder, excluding node_modules (Azure installs them)
-      # OR if you prefer pre-installing, zip everything.
-      # Standard practice for Linux App Service is to zip everything including node_modules for speed.
+      # Bundle everything including node_modules for robust deployment
       - name: Zip artifact for deployment
         working-directory: ./backend
-        run: zip -r release.zip . -x "node_modules/*" ".git/*" ".env"
+        run: zip -r release.zip . -x ".git/*" ".env"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
