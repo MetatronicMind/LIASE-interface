@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     tags:
       - 'v-dev-*'
       - 'v-client-*'
@@ -23,7 +24,7 @@ jobs:
         id: context
         run: |
           if [[ $GITHUB_REF_NAME == main ]]; then echo "SLOT=production" >> $GITHUB_OUTPUT;
-          elif [[ $GITHUB_REF_NAME == v-dev-* ]]; then echo "SLOT=liase-dev" >> $GITHUB_OUTPUT;
+          elif [[ $GITHUB_REF_NAME == dev || $GITHUB_REF_NAME == v-dev-* ]]; then echo "SLOT=liase-dev" >> $GITHUB_OUTPUT;
           else echo "SLOT=liase-sandbox" >> $GITHUB_OUTPUT; fi
 
       - name: Install dependencies
