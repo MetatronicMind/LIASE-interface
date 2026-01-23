@@ -65,11 +65,11 @@ jobs:
           cp -r .next/standalone/* deploy-package/ || true
           
           # 2. THE FIX: Copy .next as a VISIBLE folder
-          # We rename it to '_next_visible' so Azure doesn't filter it out.
-          cp -r .next deploy-package/_next_visible
+          # We rename it to 'next_build_visible' so Azure doesn't filter it out and avoids potential '_' ignore rules.
+          cp -r .next deploy-package/next_build_visible
           
           # Cleanup cache
-          rm -rf deploy-package/_next_visible/cache
+          rm -rf deploy-package/next_build_visible/cache
           
           # 3. Copy public assets
           cp -r public deploy-package/public
@@ -86,7 +86,7 @@ jobs:
           npm pkg set scripts.start="sh startup.sh"
           cd ..
           
-          echo "✅ Package Prepared with _next_visible and hijacked start script."
+          echo "✅ Package Prepared with next_build_visible and hijacked start script."
           ls -la deploy-package/
 
       - name: Upload Artifact
