@@ -27,7 +27,7 @@ jobs:
           # LOGIC: Frontend App Service = "LIASE"
           if [[ $GITHUB_REF_NAME == main || $GITHUB_REF_NAME == prod ]]; then
             echo "SLOT=production" >> $GITHUB_OUTPUT
-            echo "API_URL=https://liase-backend.azurewebsites.net/api" >> $GITHUB_OUTPUT
+            echo "API_URL=https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF_NAME == dev || $GITHUB_REF_NAME == v-dev-* ]]; then
             # Slot is named "dev"
             echo "SLOT=dev" >> $GITHUB_OUTPUT
