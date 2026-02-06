@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { getApiBaseUrl } from "@/config/api";
 import { PmidLink } from "@/components/PmidLink";
+import TriageStudyDetails from "@/components/TriageStudyDetails";
 import { useDateTime } from "@/hooks/useDateTime";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/redux/store';
@@ -28,7 +29,7 @@ interface Study {
   lockedAt?: string;
 }
 
-export default function NoCaseAllocationPage() {
+export default function AOIAllocationPage() {
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
   const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
   const dispatch = useDispatch();
@@ -52,7 +53,7 @@ export default function NoCaseAllocationPage() {
     setIsAllocating(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE}/studies/allocate-no-case-batch`, {
+      const response = await fetch(`${API_BASE}/studies/allocate-aoi-batch`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -75,11 +76,11 @@ export default function NoCaseAllocationPage() {
         setCurrentIndex(0);
         dispatch(setSidebarLocked(true));
       } else {
-        alert(data.message || "Failed to allocate No Case studies");
+        alert(data.message || "Failed to allocate AOI cases");
       }
     } catch (error) {
-      console.error("Error allocating No Case studies:", error);
-      alert("Error allocating No Case studies. Please try again.");
+      console.error("Error allocating AOI cases:", error);
+      alert("Error allocating AOI cases. Please try again.");
     } finally {
       setIsAllocating(false);
     }
@@ -186,7 +187,7 @@ export default function NoCaseAllocationPage() {
         <div className="text-center p-8 bg-white rounded-lg shadow-md border border-gray-200 max-w-md">
            <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
            <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
-           <p className="text-gray-600">You do not have permission to access No Case Allocation.</p>
+           <p className="text-gray-600">You do not have permission to access AOI Allocation.</p>
         </div>
       </div>
     );
@@ -196,22 +197,22 @@ export default function NoCaseAllocationPage() {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center max-w-md">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">No Case Allocation</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">AOI Allocation</h1>
           <p className="text-gray-600 mb-6">
-            Allocate and classify No Case studies for quality check.
+            Allocate and classify Probable AOI studies for quality check.
             Studies classified as:
           </p>
           <ul className="text-left text-gray-700 mb-6 space-y-2">
-            <li>• <strong>No Case</strong> → Moves to Reports</li>
+            <li>• <strong>AOI</strong> → Moves to Reports</li>
             <li>• <strong>ICSR</strong> → Moves to ICSR Triage</li>
-            <li>• <strong>AOI</strong> → Moves to ICSR Triage</li>
+            <li>• <strong>No Case</strong> → Moves to No Case Assessment</li>
           </ul>
           <button
             onClick={handleStartAllocation}
             disabled={isAllocating || !canWrite}
             className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isAllocating ? "Allocating..." : "Allocate No Case Studies"}
+            {isAllocating ? "Allocating..." : "Allocate AOI Cases"}
           </button>
         </div>
       </div>
@@ -223,7 +224,7 @@ export default function NoCaseAllocationPage() {
       {/* Header */}
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">No Case Allocation</h1>
+          <h1 className="text-2xl font-bold text-gray-900">AOI Allocation</h1>
           <p className="text-sm text-gray-500">
             Case {currentIndex + 1} of {allocatedCases.length}
           </p>
@@ -278,14 +279,14 @@ export default function NoCaseAllocationPage() {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Classify Study</h3>
         <div className="grid grid-cols-3 gap-4 mb-4">
           <button
-            onClick={() => setSelectedClassification('No Case')}
+            onClick={() => setSelectedClassification('AOI')}
             className={`p-4 border-2 rounded-lg transition-colors ${
-              selectedClassification === 'No Case'
-                ? 'border-red-500 bg-red-50'
-                : 'border-gray-300 hover:border-red-300'
+              selectedClassification === 'AOI'
+                ? 'border-green-500 bg-green-50'
+                : 'border-gray-300 hover:border-green-300'
             }`}
           >
-            <div className="font-semibold text-gray-900">No Case</div>
+            <div className="font-semibold text-gray-900">AOI</div>
             <div className="text-xs text-gray-500">→ Reports</div>
           </button>
           <button
@@ -300,15 +301,15 @@ export default function NoCaseAllocationPage() {
             <div className="text-xs text-gray-500">→ ICSR Triage</div>
           </button>
           <button
-            onClick={() => setSelectedClassification('AOI')}
+            onClick={() => setSelectedClassification('No Case')}
             className={`p-4 border-2 rounded-lg transition-colors ${
-              selectedClassification === 'AOI'
-                ? 'border-green-500 bg-green-50'
-                : 'border-gray-300 hover:border-green-300'
+              selectedClassification === 'No Case'
+                ? 'border-red-500 bg-red-50'
+                : 'border-gray-300 hover:border-red-300'
             }`}
           >
-            <div className="font-semibold text-gray-900">AOI</div>
-            <div className="text-xs text-gray-500">→ ICSR Triage</div>
+            <div className="font-semibold text-gray-900">No Case</div>
+            <div className="text-xs text-gray-500">→ No Case Assessment</div>
           </button>
         </div>
         <button
