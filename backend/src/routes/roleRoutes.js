@@ -8,11 +8,13 @@ const { auditLogger, auditAction } = require('../middleware/audit');
 
 const router = express.Router();
 
+const SUPER_ADMIN_ORG_ID = '94b7e106-1e86-4805-9725-5bdec4a4375f';
+
 // Apply audit logging to all routes
 router.use(auditLogger());
 
 // Get permission templates
-router.get('/templates', 
+router.get('/templates',
   authorizePermission('roles', 'read'),
   (req, res) => {
     try {
@@ -26,7 +28,7 @@ router.get('/templates',
 );
 
 // Create custom role from template
-router.post('/custom', 
+router.post('/custom',
   authorizePermission('roles', 'write'),
   [
     body('customName').notEmpty().withMessage('Custom name is required'),
@@ -57,7 +59,20 @@ router.post('/custom',
       }
 
       const { customName, customDisplayName, permissionTemplate, description } = req.body;
-      
+
+      // Restrict creating 'admin' or 'superadmin' roles for non-superadmins
+      if (req.user.role !== 'superadmin') {
+        const restrictedNames = ['admin', 'superadmin', 'administrator', 'super administrator'];
+        const normalizedName = customName.toLowerCase();
+        const normalizedDisplayName = customDisplayName.toLowerCase();
+
+        if (restrictedNames.some(name => normalizedName.includes(name) || normalizedDisplayName.includes(name))) {
+          return res.status(403).json({
+            error: 'You do not have permission to create roles with "admin" or "administrator" in the name.'
+          });
+        }
+      }
+
       console.log('Creating role with:', {
         customName,
         customDisplayName,
@@ -75,10 +90,10 @@ router.post('/custom',
         description,
         req.user.id
       );
-      
+
       // Save the role using roleService (pass req.user as second parameter)
       const savedRole = await roleService.createRole(role, req.user);
-      
+
       res.status(201).json(savedRole.toJSON());
     } catch (error) {
       console.error('Error creating custom role:', error);
@@ -89,7 +104,7 @@ router.post('/custom',
 );
 
 // Get system role templates
-router.get('/system/templates', 
+router.get('/system/templates',
   authorizePermission('roles', 'read'),
   (req, res) => {
     try {
@@ -103,7 +118,7 @@ router.get('/system/templates',
 );
 
 // Create role from system template
-router.post('/system', 
+router.post('/system',
   authorizePermission('roles', 'write'),
   [
     body('roleType').notEmpty().withMessage('Role type is required')
@@ -116,16 +131,16 @@ router.post('/system',
       }
 
       const { roleType } = req.body;
-      
+
       // Use organization ID from authenticated user
       const organizationId = req.user.organizationId;
 
       // Create role from system template
       const role = Role.createFromSystemRole(roleType, organizationId, req.user.id);
-      
+
       // Save the role using roleService (pass req.user as second parameter)
       const savedRole = await roleService.createRole(role, req.user);
-      
+
       res.status(201).json(savedRole.toJSON());
     } catch (error) {
       console.error('Error creating system role:', error);
@@ -135,15 +150,44 @@ router.post('/system',
 );
 
 // Get all roles for the organization
-router.get('/', 
+router.get('/',
   authorizePermission('roles', 'read'),
   async (req, res) => {
     try {
-      const roles = await roleService.getRolesByOrganization(req.user.organizationId);
-      
+      let roles;
+
+      // Check if user is from SuperAdmin Organization
+      if (req.user.organizationId === SUPER_ADMIN_ORG_ID) {
+        // SuperAdmin Org sees ALL roles
+        roles = await roleService.getAllRoles();
+      } else {
+        // Regular tenants ONLY see their own roles
+        roles = await roleService.getRolesByOrganization(req.user.organizationId);
+      }
+
+      // Filter out admin/superadmin system roles for non-SuperAdmin org users
+      // SuperAdmin Org users can see all roles; client admins should NOT see admin roles
+      const isSuperAdminOrg = req.user.organizationId === SUPER_ADMIN_ORG_ID;
+
+      const filteredRoles = roles.filter(role => {
+        // SuperAdmin Org users can see everything
+        if (isSuperAdminOrg) return true;
+
+        // For client orgs: exclude admin-level system roles
+        const normalizedName = role.name.toLowerCase().replace(/[\s_]/g, '');
+        const restrictedRoles = ['admin', 'superadmin', 'administrator'];
+
+        // Hide system roles with admin-level names
+        if (role.isSystemRole && restrictedRoles.includes(normalizedName)) {
+          return false;
+        }
+
+        return true;
+      });
+
       res.json({
-        roles: roles.map(role => role.toJSON()),
-        total: roles.length
+        roles: filteredRoles.map(role => role.toJSON()),
+        total: filteredRoles.length
       });
 
     } catch (error) {
@@ -162,7 +206,7 @@ router.get('/:roleId',
   async (req, res) => {
     try {
       const role = await roleService.getRoleById(req.params.roleId, req.user.organizationId);
-      
+
       if (!role) {
         return res.status(404).json({
           error: 'Role not found'
@@ -225,6 +269,19 @@ router.post('/',
         isSystemRole: false
       };
 
+      // Restrict creating 'admin' or 'superadmin' roles for non-superadmins
+      if (req.user.role !== 'superadmin') {
+        const restrictedNames = ['admin', 'superadmin', 'administrator', 'super administrator'];
+        const normalizedName = roleData.name.toLowerCase();
+        const normalizedDisplayName = roleData.displayName.toLowerCase();
+
+        if (restrictedNames.some(name => normalizedName.includes(name) || normalizedDisplayName.includes(name))) {
+          return res.status(403).json({
+            error: 'You do not have permission to create roles with "admin" or "administrator" in the name.'
+          });
+        }
+      }
+
       const role = await roleService.createRole(roleData, req.user);
 
       // Log the action
@@ -240,7 +297,7 @@ router.post('/',
 
     } catch (error) {
       console.error('Error creating role:', error);
-      
+
       if (error.message.includes('already exists')) {
         return res.status(409).json({
           error: error.message
@@ -298,9 +355,9 @@ router.put('/:roleId',
       });
 
       const role = await roleService.updateRole(
-        req.params.roleId, 
-        req.user.organizationId, 
-        updateData, 
+        req.params.roleId,
+        req.user.organizationId,
+        updateData,
         req.user
       );
 
@@ -318,11 +375,11 @@ router.put('/:roleId',
 
     } catch (error) {
       console.error('Error updating role:', error);
-      
+
       if (error.message === 'Role not found') {
         return res.status(404).json({ error: error.message });
       }
-      
+
       if (error.message.includes('Cannot modify') || error.message.includes('already exists')) {
         return res.status(400).json({ error: error.message });
       }
@@ -354,11 +411,11 @@ router.delete('/:roleId',
 
     } catch (error) {
       console.error('Error deleting role:', error);
-      
+
       if (error.message === 'Role not found') {
         return res.status(404).json({ error: error.message });
       }
-      
+
       if (error.message.includes('Cannot delete') || error.message.includes('user(s) are assigned')) {
         return res.status(400).json({ error: error.message });
       }
@@ -377,7 +434,7 @@ router.get('/:roleId/users',
   async (req, res) => {
     try {
       const users = await roleService.getUsersWithRole(req.params.roleId, req.user.organizationId);
-      
+
       // Remove sensitive information
       const safeUsers = users.map(user => {
         const { password, ...safeUser } = user;
@@ -405,7 +462,7 @@ router.get('/system/permissions',
   async (req, res) => {
     try {
       const permissionStructure = roleService.getPermissionStructure();
-      
+
       res.json({
         permissions: permissionStructure
       });
@@ -426,7 +483,7 @@ router.post('/system/initialize',
   async (req, res) => {
     try {
       const createdRoles = await roleService.initializeSystemRoles(req.user.organizationId, req.user);
-      
+
       // Log the action
       await auditAction(req, 'CREATE', 'system_roles', 'bulk', {
         createdRoles: createdRoles.map(role => role.name)
@@ -453,7 +510,7 @@ router.post('/debug/test-create-role',
   async (req, res) => {
     try {
       console.log('🔥 [TEST DEBUG] Starting test role creation...');
-      
+
       const testRoleData = {
         organizationId: req.user.organizationId,
         name: `test_role_${Date.now()}`,
@@ -511,32 +568,32 @@ router.get('/debug/inspect-database',
   async (req, res) => {
     try {
       console.log('🔍 DEBUG: Inspecting database for organization:', req.user.organizationId);
-      
+
       const cosmosService = require('../services/cosmosService');
-      
+
       // Get ALL items for this organization (not just roles)
       const allItemsQuery = `
         SELECT * FROM c 
         WHERE c.organizationId = @organizationId
       `;
-      
+
       const parameters = [
         { name: '@organizationId', value: req.user.organizationId }
       ];
 
       console.log('🔍 Querying all items for organization...');
       const allItems = await cosmosService.queryItems('users', allItemsQuery, parameters);
-      
+
       // Get ALL roles (including inactive ones)
       const allRolesQuery = `
         SELECT * FROM c 
         WHERE c.type = 'role' 
         AND c.organizationId = @organizationId
       `;
-      
+
       console.log('🔍 Querying all roles for organization...');
       const allRoles = await cosmosService.queryItems('users', allRolesQuery, parameters);
-      
+
       // Categorize items by type
       const itemsByType = {};
       allItems.forEach(item => {
@@ -558,7 +615,7 @@ router.get('/debug/inspect-database',
         'd79d7f95-0441-49bd-831a-1440c2f15cee',
         '030a279a-e6ba-4727-9bd5-57319893b167'
       ];
-      
+
       const conflictResults = {};
       for (const id of conflictingIds) {
         const conflictQuery = `SELECT * FROM c WHERE c.id = @id`;
@@ -610,23 +667,23 @@ router.delete('/debug/force-delete-all',
   async (req, res) => {
     try {
       console.log('🚨 DEBUG: Force deleting all roles for organization:', req.user.organizationId);
-      
+
       // Get all roles for the organization (including system roles and inactive ones)
       const query = `
         SELECT * FROM c 
         WHERE c.type = 'role' 
         AND c.organizationId = @organizationId
       `;
-      
+
       const parameters = [
         { name: '@organizationId', value: req.user.organizationId }
       ];
 
       const cosmosService = require('../services/cosmosService');
       const allRoles = await cosmosService.queryItems('users', query, parameters);
-      
+
       console.log(`Found ${allRoles.length} roles to delete`);
-      
+
       const deletedRoles = [];
       const errors = [];
 

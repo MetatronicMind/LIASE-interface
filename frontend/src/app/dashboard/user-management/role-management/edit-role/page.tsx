@@ -48,7 +48,7 @@ export default function EditRolePage() {
       setLoading(false);
       return;
     }
-    
+
     fetchRoleAndPermissions();
   }, [roleId]);
 
@@ -62,7 +62,7 @@ export default function EditRolePage() {
       const roleData = (roleResponse as any).role || roleResponse;
       setRole(roleData);
       setPermissionStructure(permissionStructureResponse);
-      
+
       // Convert role permissions to form format
       const formPermissions: Record<string, Record<string, boolean>> = {};
       Object.keys(permissionStructureResponse).forEach(resource => {
@@ -77,7 +77,7 @@ export default function EditRolePage() {
         description: roleData.description || '',
         permissions: formPermissions
       });
-      
+
       setError(null);
     } catch (err: any) {
       console.error('Error fetching data:', err);
@@ -102,17 +102,17 @@ export default function EditRolePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!roleId || !role) {
       setError('Role ID is required');
       return;
     }
 
-    // System roles cannot be edited
-    if (role.isSystemRole) {
-      setError('System roles cannot be modified');
-      return;
-    }
+    // System roles cannot be edited -> relaxed to allow permission updates
+    // if (role.isSystemRole) {
+    //   setError('System roles cannot be modified');
+    //   return;
+    // }
 
     setSaving(true);
     setError(null);
@@ -133,7 +133,7 @@ export default function EditRolePage() {
         description: formData.description,
         permissions: permissionsToSave
       });
-      
+
       router.push('/dashboard/user-management/role-management');
     } catch (err: any) {
       setError(err.message || 'Failed to update role');
@@ -195,10 +195,10 @@ export default function EditRolePage() {
 
         {/* Warning for system roles */}
         {role.isSystemRole && (
-          <div className="mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded flex items-center">
+          <div className="mb-6 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded flex items-center">
             <ShieldCheckIcon className="w-5 h-5 mr-2" />
             <span>
-              <strong>System Role:</strong> This is a system-managed role and cannot be modified.
+              <strong>System Role:</strong> This is a system-managed role. You can modify permissions, but the role name cannot be changed.
             </span>
           </div>
         )}
@@ -239,9 +239,8 @@ export default function EditRolePage() {
                 disabled={role.isSystemRole}
                 value={formData.displayName}
                 onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  role.isSystemRole ? 'bg-gray-100 text-gray-600' : ''
-                }`}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${role.isSystemRole ? 'bg-gray-100 text-gray-600' : ''
+                  }`}
                 placeholder="Enter display name"
               />
             </div>
@@ -254,9 +253,8 @@ export default function EditRolePage() {
                 disabled={role.isSystemRole}
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  role.isSystemRole ? 'bg-gray-100 text-gray-600' : ''
-                }`}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${role.isSystemRole ? 'bg-gray-100 text-gray-600' : ''
+                  }`}
                 rows={3}
                 placeholder="Describe what this role is for..."
               />
@@ -274,11 +272,10 @@ export default function EditRolePage() {
                   const hasAnyPermission = Object.keys(config.actions).some(
                     action => formData.permissions[resource]?.[action] === true
                   );
-                  
+
                   return (
-                    <div key={resource} className={`border rounded-lg p-4 transition-all ${
-                      hasAnyPermission ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'
-                    }`}>
+                    <div key={resource} className={`border rounded-lg p-4 transition-all ${hasAnyPermission ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'
+                      }`}>
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <h4 className="font-medium text-gray-900">{config.displayName}</h4>
@@ -288,7 +285,7 @@ export default function EditRolePage() {
                           <label className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-lg border-2 border-gray-300 hover:border-blue-400 transition">
                             <input
                               type="checkbox"
-                              disabled={role.isSystemRole}
+                              // disabled={role.isSystemRole} -> Allow editing permissions
                               checked={hasAnyPermission}
                               onChange={(e) => {
                                 const isChecked = e.target.checked;
@@ -306,7 +303,7 @@ export default function EditRolePage() {
                                     updatedPermissions[action] = false;
                                   }
                                 });
-                                
+
                                 setFormData(prev => ({
                                   ...prev,
                                   permissions: {
@@ -323,7 +320,7 @@ export default function EditRolePage() {
                           </label>
                         </div>
                       </div>
-                      
+
                       {/* Show detailed permissions only if module is enabled */}
                       {hasAnyPermission && (
                         <div className="mt-4 pt-4 border-t border-blue-200">
@@ -333,7 +330,7 @@ export default function EditRolePage() {
                               <label key={action} className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded border border-gray-200 hover:border-blue-300 transition">
                                 <input
                                   type="checkbox"
-                                  disabled={role.isSystemRole}
+                                  // disabled={role.isSystemRole}
                                   checked={formData.permissions[resource]?.[action] || false}
                                   onChange={(e) => handlePermissionChange(resource, action, e.target.checked)}
                                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
@@ -344,7 +341,7 @@ export default function EditRolePage() {
                           </div>
                         </div>
                       )}
-                      
+
                       {!hasAnyPermission && (
                         <div className="mt-3 text-xs text-gray-500 italic">
                           Enable this module to configure detailed permissions
@@ -366,21 +363,20 @@ export default function EditRolePage() {
               >
                 Cancel
               </button>
-              {!role.isSystemRole && (
-                <PermissionGate resource="roles" action="write">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className={`px-6 py-2 rounded-lg text-white transition ${
-                      saving
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700'
+              {/* {!role.isSystemRole && ( */}
+              <PermissionGate resource="roles" action="write">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className={`px-6 py-2 rounded-lg text-white transition ${saving
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'
                     }`}
-                  >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </PermissionGate>
-              )}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </PermissionGate>
+              {/* )} */}
             </div>
           </form>
         </div>

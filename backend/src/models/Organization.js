@@ -6,6 +6,7 @@ class Organization {
     name,
     domain,
     adminEmail,
+    tenantId, // Added tenantId
     plan = 'basic',
     settings = {},
     isActive = true,
@@ -16,6 +17,7 @@ class Organization {
     this.name = name;
     this.domain = domain ? domain.toLowerCase() : null;
     this.adminEmail = adminEmail ? adminEmail.toLowerCase() : '';
+    this.tenantId = tenantId || null; // Store tenantId
     this.plan = plan; // basic, premium, enterprise
     this.settings = {
       maxUsers: plan === 'basic' ? 10 : plan === 'premium' ? 50 : 1000,
@@ -42,6 +44,7 @@ class Organization {
       name: this.name,
       domain: this.domain,
       adminEmail: this.adminEmail,
+      tenantId: this.tenantId,
       plan: this.plan,
       settings: this.settings,
       isActive: this.isActive,
