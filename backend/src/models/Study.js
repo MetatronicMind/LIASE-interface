@@ -90,7 +90,11 @@ class Study {
     fieldComments = [], // Array of field-level comments
     revokedBy = null,
     revokedAt = null,
-    revocationReason = null
+    revocationReason = null,
+    // Tri-Channel Workflow fields
+    workflowTrack = null, // 'ICSR', 'AOI', 'NoCase' - which parallel track this study belongs to
+    subStatus = 'triage', // 'triage', 'allocation', 'assessment' - position within track lifecycle
+    isAutoPassed = false // Whether this case bypassed manual assessment via percentage split
   }) {
     this.id = id;
     this.organizationId = organizationId;
@@ -120,7 +124,7 @@ class Study {
     this.approvedBy = approvedBy;
     this.approvedAt = approvedAt;
     this.type = 'study';
-    
+
     // AI Inference data
     this.aiInferenceData = aiInferenceData; // Store raw AI response
     this.doi = doi;
@@ -153,7 +157,7 @@ class Study {
     this.userTag = userTag; // Manual user classification
     this.priority = priority;
     this.classifiedBy = classifiedBy;
-    
+
     // QC workflow fields
     this.qaApprovalStatus = qaApprovalStatus;
     this.qaApprovedBy = qaApprovedBy;
@@ -161,13 +165,13 @@ class Study {
     this.qaRejectedBy = qaRejectedBy;
     this.qaRejectedAt = qaRejectedAt;
     this.qaComments = qaComments;
-    
+
     // R3 Form data
     this.r3FormData = r3FormData;
     this.r3FormStatus = r3FormStatus;
     this.r3FormCompletedBy = r3FormCompletedBy;
     this.r3FormCompletedAt = r3FormCompletedAt;
-    
+
     // QC R3 XML Review fields
     this.qcR3Status = qcR3Status;
     this.qcR3ApprovedBy = qcR3ApprovedBy;
@@ -175,7 +179,7 @@ class Study {
     this.qcR3RejectedBy = qcR3RejectedBy;
     this.qcR3RejectedAt = qcR3RejectedAt;
     this.qcR3Comments = qcR3Comments;
-    
+
     // AOI Assessment fields
     this.listedness = listedness;
     this.seriousness = seriousness;
@@ -183,7 +187,7 @@ class Study {
     this.fullTextSource = fullTextSource;
     this.aoiAssessedBy = aoiAssessedBy;
     this.aoiAssessedAt = aoiAssessedAt;
-    
+
     // Medical Reviewer fields
     this.medicalReviewStatus = medicalReviewStatus;
     this.medicalReviewedBy = medicalReviewedBy;
@@ -194,6 +198,11 @@ class Study {
     this.revokedBy = revokedBy;
     this.revokedAt = revokedAt;
     this.revocationReason = revocationReason;
+
+    // Tri-Channel Workflow fields
+    this.workflowTrack = workflowTrack;
+    this.subStatus = subStatus;
+    this.isAutoPassed = isAutoPassed;
   }
 
   addComment(comment) {
@@ -213,7 +222,7 @@ class Study {
   updateStatus(newStatus, userId, userName) {
     this.status = newStatus;
     this.updatedAt = new Date().toISOString();
-    
+
     if (newStatus === 'Under Review') {
       this.reviewedBy = userId;
     } else if (newStatus === 'Approved') {
@@ -243,7 +252,7 @@ class Study {
     if (!validTags.includes(tag)) {
       throw new Error(`Invalid tag. Must be one of: ${validTags.join(', ')}`);
     }
-    
+
     const previousTag = this.userTag;
     this.userTag = tag;
     this.classifiedBy = userId;
@@ -255,7 +264,7 @@ class Study {
 
     if (nextStage) {
       this.status = nextStage.id;
-      
+
       // If moving to a QC stage, set approval status to pending
       if (nextStage.id.includes('qc') || nextStage.label.toLowerCase().includes('qc')) {
         this.qaApprovalStatus = 'pending';
@@ -285,7 +294,7 @@ class Study {
         type: 'system'
       });
     }
-    
+
     this.updatedAt = new Date().toISOString();
   }
 
@@ -294,13 +303,13 @@ class Study {
     if (this.qaApprovalStatus === 'approved') {
       throw new Error('Classification is already approved');
     }
-    
+
     this.qaApprovalStatus = 'approved';
     this.qaApprovedBy = userId;
     this.qaApprovedAt = new Date().toISOString();
     this.qaComments = comments;
     this.updatedAt = new Date().toISOString();
-    
+
     // Add approval comment
     this.addComment({
       userId,
@@ -314,14 +323,14 @@ class Study {
     if (!reason) {
       throw new Error('Rejection reason is required');
     }
-    
+
     const previousTag = this.userTag;
     this.qaApprovalStatus = 'rejected';
     this.qaRejectedBy = userId;
     this.qaRejectedAt = new Date().toISOString();
     this.qaComments = reason;
     this.updatedAt = new Date().toISOString();
-    
+
     // Assign back to original user with high priority
     if (this.classifiedBy || this.reviewedBy) {
       this.assignedTo = this.classifiedBy || this.reviewedBy;
@@ -338,10 +347,10 @@ class Study {
       // Default to Pending Review (Triage) if no stage specified
       this.status = 'Pending Review';
     }
-    
+
     // Clear the userTag so the study goes back to Triage for re-classification
     this.userTag = null;
-    
+
     // Add rejection comment
     this.addComment({
       userId,
@@ -356,17 +365,17 @@ class Study {
     if (this.qcR3Status === 'approved') {
       throw new Error('R3 form is already approved by QC');
     }
-    
+
     if (this.r3FormStatus !== 'completed') {
       throw new Error('R3 form must be completed before QC approval');
     }
-    
+
     this.qcR3Status = 'approved';
     this.qcR3ApprovedBy = userId;
     this.qcR3ApprovedAt = new Date().toISOString();
     this.qcR3Comments = comments;
     this.updatedAt = new Date().toISOString();
-    
+
     const medicalReviewEnabled = workflowSettings.medicalReview !== false;
 
     if (medicalReviewEnabled) {
@@ -398,14 +407,14 @@ class Study {
     if (!reason) {
       throw new Error('Rejection reason is required');
     }
-    
+
     this.qcR3Status = 'rejected';
     this.qcR3RejectedBy = userId;
     this.qcR3RejectedAt = new Date().toISOString();
     this.qcR3Comments = reason;
     this.r3FormStatus = 'in_progress'; // Reset to allow data entry to fix
     this.updatedAt = new Date().toISOString();
-    
+
     // Assign back to Data Entry user with high priority
     if (this.r3FormCompletedBy) {
       this.assignedTo = this.r3FormCompletedBy;
@@ -435,10 +444,10 @@ class Study {
       userName,
       createdAt: new Date().toISOString()
     };
-    
+
     this.fieldComments.push(fieldComment);
     this.updatedAt = new Date().toISOString();
-    
+
     // Add general comment about field comment
     this.addComment({
       userId,
@@ -446,34 +455,34 @@ class Study {
       text: `Added comment to field ${fieldKey}: ${comment}`,
       type: 'field_comment'
     });
-    
+
     return fieldComment;
   }
 
   updateFieldValue(fieldKey, newValue, userId, userName) {
     // Check if this is a top-level classification field
     if (['listedness', 'seriousness'].includes(fieldKey)) {
-        const oldValue = this[fieldKey];
-        this[fieldKey] = newValue;
-        this.updatedAt = new Date().toISOString();
+      const oldValue = this[fieldKey];
+      this[fieldKey] = newValue;
+      this.updatedAt = new Date().toISOString();
 
-        this.addComment({
-            userId,
-            userName,
-            text: `Updated ${fieldKey} from "${oldValue || 'empty'}" to "${newValue}"`,
-            type: 'field_edit'
-        });
-        return;
+      this.addComment({
+        userId,
+        userName,
+        text: `Updated ${fieldKey} from "${oldValue || 'empty'}" to "${newValue}"`,
+        type: 'field_edit'
+      });
+      return;
     }
 
     if (!this.r3FormData) {
       this.r3FormData = {};
     }
-    
+
     const oldValue = this.r3FormData[fieldKey];
     this.r3FormData[fieldKey] = newValue;
     this.updatedAt = new Date().toISOString();
-    
+
     // Add comment about field edit
     this.addComment({
       userId,
@@ -487,14 +496,14 @@ class Study {
     if (!reason) {
       throw new Error('Revocation reason is required');
     }
-    
+
     // Reset medical review status so it can be reviewed again after Data Entry fixes
     this.medicalReviewStatus = 'not_started';
     this.revokedBy = userId;
     this.revokedAt = new Date().toISOString();
     this.revocationReason = reason;
     this.priority = 'high'; // Always high priority on revocation
-    
+
     // Update the main status field if a target stage is provided
     if (targetStage) {
       // Normalize 'triage' to 'Pending Review' to ensure it's picked up by allocation logic
@@ -510,7 +519,7 @@ class Study {
       // Assign back to the person who classified it (if available), otherwise the revoker
       this.assignedTo = this.classifiedBy || userId;
       this.lockedAt = new Date().toISOString();
-      
+
       // If revoking to triage, we reset QA approval status completely
       // This removes it from QC queue and allows re-classification in Triage
       this.qaApprovalStatus = null;
@@ -525,7 +534,7 @@ class Study {
       this.r3FormStatus = 'not_started';
     } else {
       // Default behavior (revoke to Data Entry)
-      
+
       // Assign back to classifier if available, otherwise Data Entry user
       if (this.classifiedBy) {
         this.assignedTo = this.classifiedBy;
@@ -539,11 +548,11 @@ class Study {
     }
 
     this.updatedAt = new Date().toISOString();
-    
+
     // Clear previous medical review data since it's being re-worked
     this.medicalReviewedBy = null;
     this.medicalReviewedAt = null;
-    
+
     // Add revocation comment
     this.addComment({
       userId,
@@ -559,17 +568,17 @@ class Study {
     this.medicalReviewedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     this.status = 'reporting';
-    
+
     // Check if this was a resubmission after revocation
     const wasResubmitted = this.revokedBy !== null && this.revokedBy !== undefined;
-    
+
     // Clear revocation tracking since study is now approved
     if (wasResubmitted) {
       this.revokedBy = null;
       this.revokedAt = null;
       this.revocationReason = null;
     }
-    
+
     // Add completion comment
     this.addComment({
       userId,
@@ -586,7 +595,7 @@ class Study {
     };
     this.r3FormStatus = 'in_progress';
     this.updatedAt = new Date().toISOString();
-    
+
     // Add form update comment
     this.addComment({
       userId,
@@ -601,7 +610,7 @@ class Study {
     this.r3FormCompletedBy = userId;
     this.r3FormCompletedAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
-    
+
     const qcEnabled = workflowSettings.qcDataEntry !== false;
     const medicalReviewEnabled = workflowSettings.medicalReview !== false;
 
@@ -612,7 +621,7 @@ class Study {
       // Set QC R3 status to pending - requires QC approval before Medical Reviewer
       this.qcR3Status = 'pending';
       this.status = 'qc_data_entry'; // Move to QC Data Entry stage
-      
+
       // Add comment indicating R3 form completion
       if (wasRevoked) {
         this.addComment({
@@ -652,7 +661,7 @@ class Study {
         this.medicalReviewedBy = 'system';
         this.medicalReviewedAt = new Date().toISOString();
         this.status = 'reporting';
-        
+
         this.addComment({
           userId,
           userName,
@@ -661,12 +670,12 @@ class Study {
         });
       }
     }
-    
+
     // Auto-tag as ICSR if not already tagged
     if (!this.userTag || this.userTag !== 'ICSR') {
       const previousTag = this.userTag;
       this.userTag = 'ICSR';
-      
+
       // Add tag change comment
       this.addComment({
         userId,
@@ -682,7 +691,7 @@ class Study {
     if (this.userTag) {
       return this.userTag;
     }
-    
+
     // Fall back to AI classifications
     if (this.icsrClassification) {
       return 'ICSR';
@@ -690,8 +699,102 @@ class Study {
     if (this.aoiClassification) {
       return 'AOI';
     }
-    
+
     return 'No Case';
+  }
+
+  // Tri-Channel Workflow Methods
+
+  /**
+   * Set the workflow track for this study
+   * @param {string} track - 'ICSR', 'AOI', or 'NoCase'
+   * @param {string} userId - User ID making the change
+   * @param {string} userName - User name making the change
+   */
+  setWorkflowTrack(track, userId, userName) {
+    const validTracks = ['ICSR', 'AOI', 'NoCase'];
+    if (!validTracks.includes(track)) {
+      throw new Error(`Invalid track. Must be one of: ${validTracks.join(', ')}`);
+    }
+
+    const previousTrack = this.workflowTrack;
+    this.workflowTrack = track;
+    this.subStatus = 'triage'; // Reset to triage when track changes
+    this.updatedAt = new Date().toISOString();
+
+    this.addComment({
+      userId,
+      userName,
+      text: `Workflow track set to "${track}" (previous: "${previousTrack || 'None'}")`,
+      type: 'track_change'
+    });
+  }
+
+  /**
+   * Progress the study through the track lifecycle
+   * @param {string} nextStatus - 'triage', 'allocation', or 'assessment'
+   * @param {string} userId - User ID making the change
+   * @param {string} userName - User name making the change
+   */
+  progressSubStatus(nextStatus, userId, userName) {
+    const validStatuses = ['triage', 'allocation', 'assessment'];
+    if (!validStatuses.includes(nextStatus)) {
+      throw new Error(`Invalid sub-status. Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    const previousStatus = this.subStatus;
+    this.subStatus = nextStatus;
+    this.updatedAt = new Date().toISOString();
+
+    this.addComment({
+      userId,
+      userName,
+      text: `Track progression: ${previousStatus} → ${nextStatus}`,
+      type: 'track_progress'
+    });
+  }
+
+  /**
+   * Route study from assessment phase to a destination
+   * @param {string} destination - 'data_entry', 'medical_review', or 'reporting'
+   * @param {string} userId - User ID making the change
+   * @param {string} userName - User name making the change
+   */
+  routeFromAssessment(destination, userId, userName) {
+    const validDestinations = ['data_entry', 'medical_review', 'reporting'];
+    if (!validDestinations.includes(destination)) {
+      throw new Error(`Invalid destination. Must be one of: ${validDestinations.join(', ')}`);
+    }
+
+    if (this.subStatus !== 'assessment') {
+      throw new Error('Study must be in assessment phase to route');
+    }
+
+    const previousStatus = this.status;
+    this.status = destination;
+    this.updatedAt = new Date().toISOString();
+
+    // Clear assignment for next phase
+    this.assignedTo = null;
+    this.lockedAt = null;
+
+    this.addComment({
+      userId,
+      userName,
+      text: `Routed from ${this.workflowTrack} assessment to ${destination}`,
+      type: 'track_route'
+    });
+  }
+
+  /**
+   * Mark study as auto-passed during allocation
+   * @param {string} destination - Target status after auto-pass
+   */
+  markAsAutoPassed(destination) {
+    this.isAutoPassed = true;
+    this.subStatus = 'assessment'; // Mark as completed assessment phase
+    this.status = destination;
+    this.updatedAt = new Date().toISOString();
   }
 
   addAttachment(attachment) {
@@ -732,7 +835,7 @@ class Study {
       approvedBy: this.approvedBy,
       approvedAt: this.approvedAt,
       type: this.type,
-      
+
       // AI Inference data
       aiInferenceData: this.aiInferenceData,
       doi: this.doi,
@@ -765,7 +868,7 @@ class Study {
       userTag: this.userTag,
       effectiveClassification: this.getEffectiveClassification(),
       classifiedBy: this.classifiedBy,
-      
+
       // QC workflow fields
       qaApprovalStatus: this.qaApprovalStatus,
       qaApprovedBy: this.qaApprovedBy,
@@ -773,13 +876,13 @@ class Study {
       qaRejectedBy: this.qaRejectedBy,
       qaRejectedAt: this.qaRejectedAt,
       qaComments: this.qaComments,
-      
+
       // R3 Form data
       r3FormData: this.r3FormData,
       r3FormStatus: this.r3FormStatus,
       r3FormCompletedBy: this.r3FormCompletedBy,
       r3FormCompletedAt: this.r3FormCompletedAt,
-      
+
       // QC R3 XML Review fields
       qcR3Status: this.qcR3Status,
       qcR3ApprovedBy: this.qcR3ApprovedBy,
@@ -787,7 +890,7 @@ class Study {
       qcR3RejectedBy: this.qcR3RejectedBy,
       qcR3RejectedAt: this.qcR3RejectedAt,
       qcR3Comments: this.qcR3Comments,
-      
+
       // AOI Assessment fields
       listedness: this.listedness,
       seriousness: this.seriousness,
@@ -795,7 +898,7 @@ class Study {
       fullTextSource: this.fullTextSource,
       aoiAssessedBy: this.aoiAssessedBy,
       aoiAssessedAt: this.aoiAssessedAt,
-      
+
       // Medical Reviewer fields
       medicalReviewStatus: this.medicalReviewStatus,
       medicalReviewedBy: this.medicalReviewedBy,
@@ -804,10 +907,15 @@ class Study {
       revokedBy: this.revokedBy,
       revokedAt: this.revokedAt,
       revocationReason: this.revocationReason,
-      
+
       // Allocation fields
       assignedTo: this.assignedTo,
-      lockedAt: this.lockedAt
+      lockedAt: this.lockedAt,
+
+      // Tri-Channel Workflow fields
+      workflowTrack: this.workflowTrack,
+      subStatus: this.subStatus,
+      isAutoPassed: this.isAutoPassed
     };
   }
 
@@ -876,7 +984,7 @@ class Study {
   static fromAIInference(aiData, originalDrug, organizationId, createdBy) {
     // Create study from AI inference data ONLY
     const safeAiData = aiData || {};
-    
+
     // Extract authors from Vancouver citation if available
     let authors = [];
     if (safeAiData.Vancouver_citation) {
@@ -891,7 +999,7 @@ class Study {
     if (authors.length === 0 && safeAiData.Lead_author) {
       authors = [safeAiData.Lead_author];
     }
-    
+
     // Extract journal from Vancouver citation
     let journal = '';
     if (safeAiData.Vancouver_citation) {
@@ -900,7 +1008,7 @@ class Study {
         journal = citationParts[citationParts.length - 2].trim(); // Journal is usually second to last
       }
     }
-    
+
     return new Study({
       organizationId,
       createdBy,
@@ -913,7 +1021,7 @@ class Study {
       journal: journal,
       authors: authors,
       sponsor: safeAiData.Client_name || 'Unknown',
-      
+
       // AI Inference specific fields
       aiInferenceData: aiData,
       doi: aiData.DOI,

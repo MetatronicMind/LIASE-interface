@@ -38,16 +38,53 @@ class UserService {
       ];
 
       const users = await cosmosService.queryItems('users', query, parameters);
+      return this._populateRolesForUsers(users, organizationId);
+    } catch (error) {
+      console.error('Error fetching users with roles:', error);
+      throw error;
+    }
+  }
+
+  // Get ALL users (for SuperAdmin context)
+  async getAllUsers() {
+    try {
+      const query = `
+        SELECT * FROM c 
+        WHERE c.type = 'user' 
+        ORDER BY c.createdAt DESC
+      `;
       
-      // Populate role information for each user
+      const users = await cosmosService.queryItems('users', query, []);
+      // Note: populating roles across organizations might be expensive if we do it one by one, 
+      // but for now reusing the logic. We might need to pass orgId per user or fetch all roles.
+      // Ideally, populateRolesForUsers needs to handle different orgIds if needed, 
+      // but currently it takes a single organizationId for looking up roles.
+      
+      // For SuperAdmin view of ALL users, we might just want the raw user data or 
+      // we need to look up roles efficiently.
+      // Let's look at _populateRolesForUsers refactor below first.
+      
+      return users.map(u => new User(u)); 
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      throw error;
+    }
+  }
+
+  // Helper to populate role info
+  async _populateRolesForUsers(users, organizationId) {
       const usersWithRoles = await Promise.all(users.map(async (userData) => {
         const user = new User(userData);
         
         // Store user's custom permissions before loading role
         const userCustomPermissions = user.permissions || {};
         
+        // If we are in a specific org context, use that. 
+        // If we are in global context (organizationId is null), use user.organizationId
+        const targetOrgId = organizationId || user.organizationId;
+
         if (user.roleId) {
-          const role = await roleService.getRoleById(user.roleId, organizationId);
+          const role = await roleService.getRoleById(user.roleId, targetOrgId);
           if (role) {
             user.role = role.name;
             user.roleDisplayName = role.displayName;
@@ -57,10 +94,10 @@ class UserService {
           }
         } else if (user.role) {
           // Handle legacy users with role names instead of roleId
-          let role = await roleService.getRoleByName(user.role, organizationId);
+          let role = await roleService.getRoleByName(user.role, targetOrgId);
           // Try lowercase if not found (handle case sensitivity issues)
           if (!role && user.role !== user.role.toLowerCase()) {
-            role = await roleService.getRoleByName(user.role.toLowerCase(), organizationId);
+            role = await roleService.getRoleByName(user.role.toLowerCase(), targetOrgId);
           }
           
           if (role) {
@@ -74,12 +111,7 @@ class UserService {
         
         return user;
       }));
-
       return usersWithRoles;
-    } catch (error) {
-      console.error('Error fetching users with roles:', error);
-      throw error;
-    }
   }
 
   // Get a specific user by ID with role information
