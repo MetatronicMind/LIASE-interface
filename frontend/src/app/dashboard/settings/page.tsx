@@ -26,8 +26,9 @@ const ArchivalSettingsTab = dynamic(() => import('@/components/settings/Archival
 const WorkflowSettingsTab = dynamic(() => import('@/components/settings/WorkflowSettingsTab'), { ssr: false });
 const DateTimeSettingsTab = dynamic(() => import('@/components/settings/DateTimeSettingsTab'), { ssr: false });
 const TriageConfigTab = dynamic(() => import('@/components/settings/TriageConfigTab'), { ssr: false });
+const AllocationConfigTab = dynamic(() => import('@/components/settings/AllocationConfigTab'), { ssr: false });
 
-type TabName = 'roles' | 'organization' | 'admin-config' | 'study-queue' | 'notifications' | 'email' | 'archival' | 'super-admin' | 'workflow' | 'datetime' | 'triage-config';
+type TabName = 'roles' | 'organization' | 'admin-config' | 'study-queue' | 'notifications' | 'email' | 'archival' | 'super-admin' | 'workflow' | 'datetime' | 'triage-config' | 'allocation-config';
 
 interface Tab {
   id: TabName;
@@ -104,6 +105,12 @@ export default function SettingsPage() {
       requiredPermission: { resource: 'settings', action: 'viewTriageConfig' }
     },
     {
+      id: 'allocation-config',
+      name: 'Allocation Settings',
+      icon: <QueueListIcon className="w-5 h-5" />,
+      requiredPermission: { resource: 'settings', action: 'viewAllocationConfig' }
+    },
+    {
       id: 'super-admin',
       name: 'System Configuration',
       icon: <ServerStackIcon className="w-5 h-5" />,
@@ -140,6 +147,8 @@ export default function SettingsPage() {
       //   return <StudyQueueConfigTab />;
       case 'triage-config':
         return <TriageConfigTab />;
+      case 'allocation-config':
+        return <AllocationConfigTab />;
       case 'notifications':
         return <NotificationsTab />;
       case 'email':
