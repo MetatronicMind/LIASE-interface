@@ -277,6 +277,9 @@ class StudyCreationService {
       studyData.sponsor = aiInferenceData.Sponsor || params.sponsor;
     }
 
+    // Route study based on icsrClassification
+    await this.routeStudyBasedOnClassification(studyData, organizationId);
+
     // Create new study with all data
     const study = new Study(studyData);
 
@@ -284,6 +287,82 @@ class StudyCreationService {
     created.push(study.toJSON());
     
     console.log(`Study created successfully for PMID: ${article.pmid} with ${aiInferenceData ? 'AI inference data' : 'basic data only'}`);
+  }
+
+  /**
+   * Route study based on icsrClassification
+   * - Probable ICSR/AOI, Probable ICSR, Article requires manual review → ICSR Triage
+   * - Probable AOI → Split based on allocation percentage
+   * - No Case → Split based on allocation percentage
+   */
+  async routeStudyBasedOnClassification(studyData, organizationId) {
+    const icsrClassification = (studyData.icsrClassification || '').toLowerCase();
+    
+    // Fetch allocation config
+    let allocationConfig = null;
+    try {
+      const config = await adminConfigService.getConfig(organizationId, 'allocation');
+      allocationConfig = config?.configData || {};
+    } catch (error) {
+      console.warn('Failed to fetch allocation config, using defaults:', error);
+    }
+
+    const aoiAllocationPercentage = allocationConfig?.aoiAllocationPercentage || 10;
+    const noCaseAllocationPercentage = allocationConfig?.noCaseAllocationPercentage || 10;
+
+    // ICSR Triage: Probable ICSR/AOI, Probable ICSR, or Article requires manual review
+    if (
+      icsrClassification.includes('probable icsr/aoi') ||
+      icsrClassification.includes('probable icsr') ||
+      icsrClassification.includes('article requires manual review')
+    ) {
+      // Keep in triage (default status)
+      studyData.routingTarget = 'icsr_triage';
+      console.log(`Study routed to ICSR Triage based on icsrClassification: ${studyData.icsrClassification}`);
+      return;
+    }
+
+    // AOI Allocation/Assessment: Probable AOI
+    if (icsrClassification.includes('probable aoi')) {
+      const random = Math.random() * 100;
+      if (random < aoiAllocationPercentage) {
+        // Route to AOI Allocation
+        studyData.status = 'aoi_allocation';
+        studyData.routingTarget = 'aoi_allocation';
+        console.log(`Study routed to AOI Allocation (${aoiAllocationPercentage}% sampling)`);
+      } else {
+        // Route directly to AOI Assessment
+        studyData.status = 'aoi_assessment';
+        studyData.routingTarget = 'aoi_assessment';
+        studyData.userTag = 'AOI'; // Auto-tag as AOI
+        studyData.qaApprovalStatus = 'not_applicable'; // Bypass QC
+        console.log(`Study automatically routed to AOI Assessment`);
+      }
+      return;
+    }
+
+    // No Case Allocation/Assessment: No Case
+    if (icsrClassification.includes('no case')) {
+      const random = Math.random() * 100;
+      if (random < noCaseAllocationPercentage) {
+        // Route to No Case Allocation
+        studyData.status = 'no_case_allocation';
+        studyData.routingTarget = 'no_case_allocation';
+        console.log(`Study routed to No Case Allocation (${noCaseAllocationPercentage}% sampling)`);
+      } else {
+        // Route directly to No Case Assessment (Reports)
+        studyData.status = 'reporting';
+        studyData.routingTarget = 'reporting';
+        studyData.userTag = 'No Case'; // Auto-tag as No Case
+        studyData.qaApprovalStatus = 'not_applicable'; // Bypass QC
+        console.log(`Study automatically routed to No Case Assessment (Reports)`);
+      }
+      return;
+    }
+
+    // Default: Keep in triage for manual review
+    studyData.routingTarget = 'icsr_triage';
+    console.log(`Study routed to ICSR Triage (default route)`);
   }
 
   /**

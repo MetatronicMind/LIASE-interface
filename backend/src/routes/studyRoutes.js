@@ -2769,6 +2769,9 @@ router.put(
               );
               debugInfo.nextStage = nextStage;
             }
+          } catch (err) {
+            console.warn('Failed to fetch workflow config during classification:', err);
+            debugInfo.error = err.message;
           }
         } catch (err) {
           console.warn(
@@ -2778,7 +2781,8 @@ router.put(
           debugInfo.error = err.message;
         }
 
-        study.updateUserTag(userTag, req.user.id, req.user.name, nextStage);
+          study.updateUserTag(userTag, req.user.id, req.user.name, nextStage);
+        }
       }
 
       const afterValue = {
@@ -3702,6 +3706,7 @@ router.post(
       }
 
       // 2. Find and lock a new case using Priority Queue
+      // Only allocate studies that should be in ICSR Triage based on icsrClassification
       let allocatedCase = null;
       let attempts = 0;
       const MAX_ATTEMPTS = 3;
@@ -3712,12 +3717,19 @@ router.post(
 
         // Step 2x: Prioritize cases previously classified by this user (Rejected/Returned)
         // This ensures users fix their own errors or re-classify their own cases first.
+        // Filter for ICSR Triage cases only
         const myReturnedCasesQuery = `
             SELECT TOP 1 * FROM c 
             WHERE c.organizationId = @orgId 
             AND c.classifiedBy = @userId
             AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
-            AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+            AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
+            AND (
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr/aoi") OR 
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr") OR 
+              CONTAINS(LOWER(c.icsrClassification), "article requires manual review") OR
+              NOT IS_DEFINED(c.icsrClassification)
+            )
         `;
 
         let availableCases = [];
@@ -3751,15 +3763,15 @@ router.post(
                 SELECT TOP 50 * FROM c 
                 WHERE c.organizationId = @orgId 
                 AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
-                AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+                AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
                 AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId)
                 AND (
-                  CONTAINS(LOWER(c.icsrClassification), "probable") OR 
-                  CONTAINS(LOWER(c.aoiClassification), "probable") OR
+                  CONTAINS(LOWER(c.icsrClassification), "probable icsr/aoi") OR 
+                  CONTAINS(LOWER(c.icsrClassification), "probable icsr") OR 
+                  CONTAINS(LOWER(c.icsrClassification), "article requires manual review") OR
                   CONTAINS(LOWER(c.icsrClassification), "potential") OR 
-                  CONTAINS(LOWER(c.aoiClassification), "potential") OR
                   CONTAINS(LOWER(c.userTag), "icsr") OR
-                  CONTAINS(LOWER(c.userTag), "aoi")
+                  NOT IS_DEFINED(c.icsrClassification)
                 )
             `;
 
@@ -3779,6 +3791,7 @@ router.post(
 
         if (!availableCases || availableCases.length === 0) {
           // Step 2b: Fallback to general query if no high priority cases found
+          // Filter for ICSR Triage cases only
           const fetchLimit = 100;
           const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
           availableCases = await cosmosService.queryItems(
@@ -3995,12 +4008,19 @@ router.post(
       const fetchLimit = 1000;
 
       // Step 2a: Prioritize cases classified by this user (Rejected/Returned)
+      // Filter for ICSR Triage cases only
       const myReturnedCasesQuery = `
             SELECT * FROM c 
             WHERE c.organizationId = @orgId 
             AND c.classifiedBy = @userId
             AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
-            AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+            AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
+            AND (
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr/aoi") OR 
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr") OR 
+              CONTAINS(LOWER(c.icsrClassification), "article requires manual review") OR
+              NOT IS_DEFINED(c.icsrClassification)
+            )
       `;
 
       let availableCases = [];
@@ -4031,7 +4051,20 @@ router.post(
       }
 
       // Step 2b: Standard fetch
-      const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
+      // Filter for ICSR Triage cases only
+      const findQuery = `
+        SELECT TOP ${fetchLimit} * FROM c 
+        WHERE c.organizationId = @orgId 
+        AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
+        AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) 
+        AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
+        AND (
+          CONTAINS(LOWER(c.icsrClassification), "probable icsr/aoi") OR 
+          CONTAINS(LOWER(c.icsrClassification), "probable icsr") OR 
+          CONTAINS(LOWER(c.icsrClassification), "article requires manual review") OR
+          NOT IS_DEFINED(c.icsrClassification)
+        )
+      `;
       const findParams = [
         { name: "@orgId", value: organizationId },
         { name: "@userId", value: userId },
@@ -4166,6 +4199,194 @@ router.post(
       res.status(500).json({ success: false, error: error.message });
     }
   },
+);
+
+// =============== AOI ALLOCATION ENDPOINTS ===============
+
+// Allocate AOI cases for quality check
+router.post('/allocate-aoi-batch',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+
+      // Fetch Allocation Configuration
+      const allocationConfig = await adminConfigService.getConfig(organizationId, 'allocation');
+      const batchSize = allocationConfig?.configData?.aoiBatchSize || 10;
+
+      // 1. Check if user already has locked cases
+      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId AND c.status = @status';
+      const parameters = [
+        { name: '@orgId', value: organizationId },
+        { name: '@userId', value: userId },
+        { name: '@status', value: 'aoi_allocation' }
+      ];
+
+      const existingCases = await cosmosService.queryItems('studies', query, parameters);
+      
+      if (existingCases && existingCases.length > 0) {
+        // If user already has cases, return them
+        return res.json({ 
+          success: true, 
+          message: "Resuming AOI allocation session", 
+          cases: existingCases 
+        });
+      }
+
+      // 2. Find available AOI Allocation cases (status = aoi_allocation, not assigned)
+      const findQuery = `
+        SELECT TOP ${batchSize} * FROM c 
+        WHERE c.organizationId = @orgId 
+        AND c.status = @status
+        AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
+      `;
+      const findParams = [
+        { name: '@orgId', value: organizationId },
+        { name: '@status', value: 'aoi_allocation' }
+      ];
+
+      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+
+      if (!availableCases || availableCases.length === 0) {
+        return res.status(404).json({ success: false, message: "No AOI cases available for allocation" });
+      }
+
+      // 3. Try to lock the cases
+      const lockedCases = [];
+      for (const caseToLock of availableCases) {
+        try {
+          const operations = [
+            { op: 'set', path: '/assignedTo', value: userId },
+            { op: 'set', path: '/lockedAt', value: new Date().toISOString() },
+            { op: 'set', path: '/updatedAt', value: new Date().toISOString() }
+          ];
+          
+          const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
+          
+          const allocatedCase = await cosmosService.patchItem(
+            'studies', 
+            caseToLock.id, 
+            organizationId, 
+            operations, 
+            filterPredicate,
+            caseToLock._etag
+          );
+          lockedCases.push(allocatedCase);
+        } catch (err) {
+          if (err.statusCode === 412) {
+            console.log(`Race condition for AOI case ${caseToLock.id}, trying next`);
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (lockedCases.length === 0) {
+        return res.status(409).json({ success: false, message: "System busy. Please try again." });
+      }
+
+      res.json({ success: true, message: "AOI cases allocated successfully", cases: lockedCases });
+
+    } catch (error) {
+      console.error('AOI batch allocation error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// =============== NO CASE ALLOCATION ENDPOINTS ===============
+
+// Allocate No Case studies for quality check
+router.post('/allocate-no-case-batch',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+
+      // Fetch Allocation Configuration
+      const allocationConfig = await adminConfigService.getConfig(organizationId, 'allocation');
+      const batchSize = allocationConfig?.configData?.noCaseBatchSize || 10;
+
+      // 1. Check if user already has locked cases
+      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId AND c.status = @status';
+      const parameters = [
+        { name: '@orgId', value: organizationId },
+        { name: '@userId', value: userId },
+        { name: '@status', value: 'no_case_allocation' }
+      ];
+
+      const existingCases = await cosmosService.queryItems('studies', query, parameters);
+      
+      if (existingCases && existingCases.length > 0) {
+        // If user already has cases, return them
+        return res.json({ 
+          success: true, 
+          message: "Resuming No Case allocation session", 
+          cases: existingCases 
+        });
+      }
+
+      // 2. Find available No Case Allocation studies (status = no_case_allocation, not assigned)
+      const findQuery = `
+        SELECT TOP ${batchSize} * FROM c 
+        WHERE c.organizationId = @orgId 
+        AND c.status = @status
+        AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
+      `;
+      const findParams = [
+        { name: '@orgId', value: organizationId },
+        { name: '@status', value: 'no_case_allocation' }
+      ];
+
+      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+
+      if (!availableCases || availableCases.length === 0) {
+        return res.status(404).json({ success: false, message: "No Case studies are not available for allocation" });
+      }
+
+      // 3. Try to lock the cases
+      const lockedCases = [];
+      for (const caseToLock of availableCases) {
+        try {
+          const operations = [
+            { op: 'set', path: '/assignedTo', value: userId },
+            { op: 'set', path: '/lockedAt', value: new Date().toISOString() },
+            { op: 'set', path: '/updatedAt', value: new Date().toISOString() }
+          ];
+          
+          const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
+          
+          const allocatedCase = await cosmosService.patchItem(
+            'studies', 
+            caseToLock.id, 
+            organizationId, 
+            operations, 
+            filterPredicate,
+            caseToLock._etag
+          );
+          lockedCases.push(allocatedCase);
+        } catch (err) {
+          if (err.statusCode === 412) {
+            console.log(`Race condition for No Case ${caseToLock.id}, trying next`);
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (lockedCases.length === 0) {
+        return res.status(409).json({ success: false, message: "System busy. Please try again." });
+      }
+
+      res.json({ success: true, message: "No Case studies allocated successfully", cases: lockedCases });
+
+    } catch (error) {
+      console.error('No Case batch allocation error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
 );
 
 // Lock a specific case (for legacy view)
