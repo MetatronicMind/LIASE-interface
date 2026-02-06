@@ -2,7 +2,7 @@ const cosmosService = require('./cosmosService');
 const Role = require('../models/Role');
 
 class RoleService {
-  
+
   // Get all roles for an organization
   async getRolesByOrganization(organizationId) {
     try {
@@ -13,28 +13,50 @@ class RoleService {
         AND c.isActive = true
         ORDER BY c.displayName ASC
       `;
-      
+
       const parameters = [
         { name: '@organizationId', value: organizationId }
       ];
 
       const roles = await cosmosService.queryItems('roles', query, parameters);
-      
-      // Sort in JavaScript to avoid composite index requirement in Cosmos DB
-      const sortedRoles = roles.sort((a, b) => {
-        // First sort by isSystemRole (system roles first)
-        if (a.isSystemRole !== b.isSystemRole) {
-          return b.isSystemRole - a.isSystemRole; // true (1) before false (0)
-        }
-        // Then sort by displayName alphabetically
-        return a.displayName.localeCompare(b.displayName);
-      });
-      
-      return sortedRoles.map(role => new Role(role));
+      return this._sortRoles(roles);
     } catch (error) {
       console.error('Error fetching roles:', error);
       throw error;
     }
+  }
+
+  // Get ALL roles (SuperAdmin context)
+  async getAllRoles() {
+    try {
+      const query = `
+        SELECT * FROM c 
+        WHERE c.type = 'role' 
+        AND c.isActive = true
+        ORDER BY c.displayName ASC
+      `;
+
+      const roles = await cosmosService.queryItems('roles', query, []);
+      return this._sortRoles(roles);
+    } catch (error) {
+      console.error('Error fetching all roles:', error);
+      throw error;
+    }
+  }
+
+  // Helper to sort roles
+  _sortRoles(roles) {
+    // Sort in JavaScript to avoid composite index requirement in Cosmos DB
+    const sortedRoles = roles.sort((a, b) => {
+      // First sort by isSystemRole (system roles first)
+      if (a.isSystemRole !== b.isSystemRole) {
+        return b.isSystemRole - a.isSystemRole; // true (1) before false (0)
+      }
+      // Then sort by displayName alphabetically
+      return a.displayName.localeCompare(b.displayName);
+    });
+
+    return sortedRoles.map(role => new Role(role));
   }
 
   // Get a specific role by ID
@@ -59,7 +81,7 @@ class RoleService {
         SELECT c.id FROM c 
         WHERE c.id = @id
       `;
-      
+
       const parameters = [
         { name: '@id', value: id }
       ];
@@ -70,7 +92,7 @@ class RoleService {
       const results = await cosmosService.queryItems('roles', query, parameters);
       console.log(`🔥 [DETAILED DEBUG] Query results:`, JSON.stringify(results, null, 2));
       console.log(`🔥 [DETAILED DEBUG] ID exists: ${results.length > 0}`);
-      
+
       return results.length > 0;
     } catch (error) {
       console.error('🔥 [DETAILED DEBUG] Error checking ID existence:', error);
@@ -102,7 +124,7 @@ class RoleService {
         AND c.name = @roleName 
         AND c.organizationId = @organizationId
       `;
-      
+
       const parameters = [
         { name: '@roleName', value: roleName },
         { name: '@organizationId', value: organizationId }
@@ -111,7 +133,7 @@ class RoleService {
       console.log('Checking for existing role:', { roleName, organizationId });
       const roles = await cosmosService.queryItems('roles', query, parameters);
       console.log(`Found ${roles.length} roles with name '${roleName}'`);
-      
+
       if (roles.length > 0) {
         console.log('Existing role details:', {
           id: roles[0].id,
@@ -120,7 +142,7 @@ class RoleService {
           organizationId: roles[0].organizationId
         });
       }
-      
+
       return roles.length > 0 ? new Role(roles[0]) : null;
     } catch (error) {
       console.error('Error fetching role by name:', error);
@@ -136,6 +158,44 @@ class RoleService {
         organizationId: roleData.organizationId,
         createdById: createdBy.id
       });
+
+      // Import SuperAdmin Org ID constant
+      const { SUPER_ADMIN_ORG_ID } = require('../middleware/authorization');
+      const isSuperAdminOrgUser = createdBy.organizationId === SUPER_ADMIN_ORG_ID;
+
+      // ===== SECURITY GUARD 1: Restrict admin-level role names =====
+      const RESTRICTED_ROLE_NAMES = ['admin', 'superadmin', 'super_admin', 'administrator', 'super administrator'];
+      const normalizedRoleName = roleData.name.toLowerCase().replace(/[\s_]/g, '');
+
+      if (RESTRICTED_ROLE_NAMES.some(r => r.replace(/[\s_]/g, '') === normalizedRoleName)) {
+        if (!isSuperAdminOrgUser) {
+          console.log('🔥 [ROLE CREATE] BLOCKED: Non-SuperAdmin trying to create admin-level role');
+          throw new Error('Only SuperAdmin can create admin-level roles');
+        }
+      }
+
+      // ===== SECURITY GUARD 2: Restrict dangerous permissions =====
+      // These permissions, if granted, would effectively make the role admin-level
+      const ADMIN_ONLY_PERMISSIONS = [
+        { module: 'organizations', actions: ['write', 'delete'] },
+        { module: 'users', actions: ['create', 'delete'] },  // Can manage users
+        { module: 'roles', actions: ['write', 'delete'] },   // Can manage roles
+        { module: 'admin_config', actions: ['write', 'manage_jobs'] }
+      ];
+
+      for (const { module, actions } of ADMIN_ONLY_PERMISSIONS) {
+        const perms = roleData.permissions?.[module];
+        if (perms) {
+          for (const action of actions) {
+            if (perms[action] === true) {
+              if (!isSuperAdminOrgUser) {
+                console.log(`🔥 [ROLE CREATE] BLOCKED: Non-SuperAdmin trying to grant '${module}.${action}' permission`);
+                throw new Error(`Cannot grant '${module}.${action}' permission - reserved for organization admins only`);
+              }
+            }
+          }
+        }
+      }
 
       // Check if role name already exists in organization
       const existingRole = await this.getRoleByName(roleData.name, roleData.organizationId);
@@ -160,12 +220,12 @@ class RoleService {
       // Double-check for any ID conflicts in the users container
       let retryCount = 0;
       const maxRetries = 3;
-      
+
       while (retryCount < maxRetries) {
         try {
           // Check if this specific ID exists anywhere in this organization's partition
           const existingEntity = await cosmosService.getItem('roles', role.id, role.organizationId);
-          
+
           if (existingEntity) {
             console.error(`🔥 [ROLE CREATE] ID CONFLICT (attempt ${retryCount + 1}):`, {
               conflictingId: role.id,
@@ -173,22 +233,22 @@ class RoleService {
               existingEntityType: existingEntity.type,
               existingEntityName: existingEntity.name || existingEntity.email || existingEntity.displayName
             });
-            
+
             // Generate a completely new role
             const newRole = new Role({
               ...roleData,
               createdBy: createdBy.id
             });
-            
+
             console.log(`🔥 [ROLE CREATE] Generated new ID (attempt ${retryCount + 1}):`, newRole.id);
             role.id = newRole.id;
             retryCount++;
             continue; // Try again with new ID
           }
-          
+
           // No conflict found, break out of retry loop
           break;
-          
+
         } catch (getError) {
           // If getItem fails with 404, the ID doesn't exist - this is good
           if (getError.code === 404 || getError.statusCode === 404) {
@@ -201,7 +261,7 @@ class RoleService {
           }
         }
       }
-      
+
       if (retryCount >= maxRetries) {
         throw new Error('Failed to generate unique role ID after multiple attempts');
       }
@@ -213,9 +273,9 @@ class RoleService {
         type: roleJson.type,
         organizationId: roleJson.organizationId
       });
-      
+
       const savedRole = await cosmosService.createItem('roles', roleJson);
-      
+
       console.log('🔥 [ROLE CREATE] ✅ Success:', savedRole.id);
       return new Role(savedRole);
 
@@ -227,28 +287,28 @@ class RoleService {
         roleName: roleData?.name,
         organizationId: roleData?.organizationId
       });
-      
+
       // Enhanced 409 debugging - show what's in the organization
       if (error.code === 409 || error.statusCode === 409) {
         console.log('🔥 [ROLE CREATE] 409 CONFLICT - Analyzing organization contents...');
-        
+
         try {
           const orgQuery = `SELECT c.id, c.type, c.name, c.displayName FROM c WHERE c.organizationId = @orgId`;
           const orgParams = [{ name: '@orgId', value: roleData.organizationId }];
           const entitiesInOrg = await cosmosService.queryItems('roles', orgQuery, orgParams);
-          
+
           console.log('🔥 [ROLE CREATE] Organization contents:', entitiesInOrg.map(e => ({
             id: e.id,
             type: e.type,
             name: e.name || e.email || e.displayName
           })));
-          
+
           // Check specifically for ID pattern conflicts
           const users = entitiesInOrg.filter(e => e.type === 'user');
           const roles = entitiesInOrg.filter(e => e.type === 'role');
           const unprefixedUsers = users.filter(u => !u.id.startsWith('user_'));
           const unprefixedRoles = roles.filter(r => !r.id.startsWith('role_'));
-          
+
           console.log('🔥 [ROLE CREATE] ID Analysis:', {
             totalUsers: users.length,
             totalRoles: roles.length,
@@ -257,12 +317,12 @@ class RoleService {
             unprefixedUserIds: unprefixedUsers.map(u => u.id),
             unprefixedRoleIds: unprefixedRoles.map(r => r.id)
           });
-          
+
         } catch (queryError) {
           console.error('🔥 [ROLE CREATE] Failed to analyze organization:', queryError);
         }
       }
-      
+
       throw error;
     }
   }
@@ -275,12 +335,16 @@ class RoleService {
         throw new Error('Role not found');
       }
 
-      if (existingRole.isSystemRole) {
-        throw new Error('Cannot modify system roles');
-      }
+      // Allow updating system roles, but be careful with name changes
+      // if (existingRole.isSystemRole) {
+      //   throw new Error('Cannot modify system roles');
+      // }
 
-      // If name is being changed, check for duplicates
+      // If name is being changed, check for duplicates and system role restrictions
       if (updateData.name && updateData.name !== existingRole.name) {
+        if (existingRole.isSystemRole) {
+          throw new Error('Cannot change the internal name of a system role');
+        }
         const duplicateRole = await this.getRoleByName(updateData.name, organizationId);
         if (duplicateRole && duplicateRole.id !== roleId) {
           throw new Error(`Role with name '${updateData.name}' already exists in this organization`);
@@ -298,12 +362,12 @@ class RoleService {
       });
 
       await cosmosService.updateItem('roles', roleId, organizationId, updatedRole.toJSON());
-      
+
       // Propagate permission changes to all users with this role
       if (updateData.permissions) {
         console.log(`Propagating permission changes for role ${roleId} to associated users...`);
         const users = await this.getUsersWithRole(roleId, organizationId);
-        
+
         let updateCount = 0;
         for (const user of users) {
           try {
@@ -365,7 +429,7 @@ class RoleService {
         AND c.organizationId = @organizationId 
         AND c.isActive = true
       `;
-      
+
       const parameters = [
         { name: '@roleId', value: roleId },
         { name: '@organizationId', value: organizationId }
@@ -381,7 +445,7 @@ class RoleService {
   // Initialize system roles for an organization
   async initializeSystemRoles(organizationId, createdBy) {
     try {
-      const systemRoleTypes = ['superadmin', 'admin', 'triage', 'QC', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'];
+      const systemRoleTypes = ['admin', 'triage', 'QC', 'pharmacovigilance', 'sponsor_auditor', 'data_entry', 'medical_examiner'];
       const createdRoles = [];
 
       for (const roleType of systemRoleTypes) {

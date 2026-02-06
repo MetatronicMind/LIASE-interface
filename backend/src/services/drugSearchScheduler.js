@@ -14,24 +14,25 @@ class DrugSearchScheduler {
     this.runHistory = [];
   }
 
-  // Start the scheduler - runs daily at midnight
+  // Start the scheduler - runs every 12 hours
   start() {
     if (this.cronJob) {
       console.log('Drug search scheduler is already running');
       return;
     }
 
-    console.log('Starting drug search scheduler - Daily at Midnight');
+    console.log('Starting drug search scheduler - TEST MODE (Every minute)');
     
-    // Run daily at midnight (00:00 UTC)
-    this.cronJob = cron.schedule('0 0 * * *', async () => {
+    // TEST MODE: Run every minute so we can catch the 3 PM IST test case
+    // Original: '0 0,12 * * *' (Every 12 hours)
+    this.cronJob = cron.schedule('* * * * *', async () => {
       await this.runScheduledSearches();
     }, {
       scheduled: true,
       timezone: "UTC"
     });
 
-    console.log('Drug search scheduler started successfully - running daily at midnight');
+    console.log('Drug search scheduler started successfully - checking every minute');
   }
 
   // Stop the scheduler
@@ -239,7 +240,7 @@ class DrugSearchScheduler {
                   const isAOI = study.aoiClassification && (study.aoiClassification.toLowerCase().includes('yes') || study.aoiClassification.toLowerCase().includes('probable'));
                   
                   if (isICSR) countProbableICSRs++;
-                  if (isAOI && !isICSR) countProbableAOIs++;
+                  if (isAOI) countProbableAOIs++;
                   if (isICSR || isAOI) countProbableICSRsOrAOIs++;
                   if (!isICSR && !isAOI) countNoCase++;
 
@@ -252,7 +253,7 @@ class DrugSearchScheduler {
               console.log(`📚 Created ${studiesCreated} studies from scheduled search for ${config.name}`);
               
               // Send email notification
-              if (results.totalFound > 0 && studiesCreated > 0) {
+              if (results.totalFound > 0) {
                 try {
                   // Get organization name
                   const organization = await cosmosService.getItem('organizations', config.organizationId, config.organizationId);

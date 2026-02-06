@@ -68,7 +68,7 @@ class AuditLog {
       action: success ? 'login' : 'login_failed',
       resource: 'auth',
       resourceId: user.id,
-      details: success ? 
+      details: success ?
         `User ${user.username} logged in with role ${user.role}` :
         `Failed login attempt for user ${user.username}`,
       ipAddress,
@@ -142,7 +142,9 @@ class AuditLog {
       'create', 'read', 'update', 'delete',
       'login', 'logout', 'login_failed',
       'approve', 'reject', 'comment',
-      'export', 'import', 'backup'
+      'export', 'import', 'backup',
+      // Tri-Channel Workflow actions
+      'track_assign', 'track_allocate', 'track_assess', 'track_route'
     ];
   }
 

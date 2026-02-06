@@ -26,6 +26,10 @@ interface WorkflowConfig {
   medicalReview?: boolean;
   bypassQcForIcsr?: boolean;
   noCaseQcPercentage?: number;
+  // Tri-Channel Track Allocation Percentages
+  icsrAllocationPercentage?: number;
+  aoiAllocationPercentage?: number;
+  noCaseAllocationPercentage?: number;
   stages: Stage[];
   transitions: Transition[];
 }
@@ -105,7 +109,7 @@ export default function WorkflowSettingsTab() {
     if (!config) return;
     const newTransitions = [...config.transitions];
     const transition = { ...newTransitions[index] };
-    
+
     if (revokeToId === 'no_revoke') {
       transition.canRevoke = false;
       transition.revokeTo = undefined;
@@ -113,7 +117,7 @@ export default function WorkflowSettingsTab() {
       transition.canRevoke = true;
       transition.revokeTo = revokeToId;
     }
-    
+
     newTransitions[index] = transition;
     saveConfig({ ...config, transitions: newTransitions });
   };
@@ -122,7 +126,7 @@ export default function WorkflowSettingsTab() {
     if (!config) return;
     const newTransitions = [...config.transitions];
     const transition = { ...newTransitions[index] };
-    
+
     // Allow empty value to clear it
     if (value === '') {
       transition.qcPercentage = undefined;
@@ -157,6 +161,26 @@ export default function WorkflowSettingsTab() {
     const percentage = parseInt(value);
     if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
       setConfig({ ...config, noCaseQcPercentage: percentage });
+    }
+  };
+
+  const handleTrackAllocationChange = (track: 'icsr' | 'aoi' | 'noCase', value: string) => {
+    if (!config) return;
+
+    const key = `${track}AllocationPercentage` as keyof WorkflowConfig;
+
+    // Allow empty value to clear it
+    if (value === '') {
+      setConfig({ ...config, [key]: undefined });
+      return;
+    }
+
+    // Only allow numbers
+    if (!/^\d*$/.test(value)) return;
+
+    const percentage = parseInt(value);
+    if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
+      setConfig({ ...config, [key]: percentage });
     }
   };
 
@@ -224,7 +248,7 @@ export default function WorkflowSettingsTab() {
               />
             </div>
           </div>
-          
+
           <div className="flex items-center justify-between border-t pt-4">
             <div>
               <h3 className="text-sm font-medium text-gray-900">Medical Review</h3>
@@ -238,6 +262,93 @@ export default function WorkflowSettingsTab() {
                 onChange={(e) => handleToggleStage('medicalReview', e.target.checked)}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Track Allocation Settings Section */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Tri-Channel Track Allocation</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Configure what percentage of studies in each track should be retained for manual assessment during the allocation phase.
+        </p>
+        <div className="bg-white shadow overflow-hidden sm:rounded-md p-6 space-y-6">
+          {/* ICSR Track */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">ICSR Track Allocation</h3>
+              <p className="text-sm text-gray-500">Percentage of ICSR studies retained for manual assessment.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={config.icsrAllocationPercentage?.toString() ?? '10'}
+                onChange={(e) => handleTrackAllocationChange('icsr', e.target.value)}
+                className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
+                placeholder="0-100"
+              />
+              <span className="text-sm text-gray-500">%</span>
+              <button
+                onClick={() => saveConfig(config)}
+                disabled={saving}
+                className="ml-2 bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+              >
+                {saving ? '...' : 'Save'}
+              </button>
+            </div>
+          </div>
+
+          {/* AOI Track */}
+          <div className="flex items-center justify-between border-t pt-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">AOI Track Allocation</h3>
+              <p className="text-sm text-gray-500">Percentage of AOI studies retained for manual assessment.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={config.aoiAllocationPercentage?.toString() ?? '10'}
+                onChange={(e) => handleTrackAllocationChange('aoi', e.target.value)}
+                className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
+                placeholder="0-100"
+              />
+              <span className="text-sm text-gray-500">%</span>
+              <button
+                onClick={() => saveConfig(config)}
+                disabled={saving}
+                className="ml-2 bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+              >
+                {saving ? '...' : 'Save'}
+              </button>
+            </div>
+          </div>
+
+          {/* No Case Track */}
+          <div className="flex items-center justify-between border-t pt-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">No Case Track Allocation</h3>
+              <p className="text-sm text-gray-500">Percentage of No Case studies retained for manual assessment.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={config.noCaseAllocationPercentage?.toString() ?? '10'}
+                onChange={(e) => handleTrackAllocationChange('noCase', e.target.value)}
+                className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
+                placeholder="0-100"
+              />
+              <span className="text-sm text-gray-500">%</span>
+              <button
+                onClick={() => saveConfig(config)}
+                disabled={saving}
+                className="ml-2 bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+              >
+                {saving ? '...' : 'Save'}
+              </button>
             </div>
           </div>
         </div>
@@ -259,7 +370,7 @@ export default function WorkflowSettingsTab() {
                     {config.stages.find(s => s.id === transition.to)?.label || transition.to}
                   </p>
                 </div>
-                
+
                 <div className="flex items-center space-x-4">
                   {transition.from === 'triage' && (
                     <div className="flex items-center gap-2">
@@ -300,18 +411,18 @@ export default function WorkflowSettingsTab() {
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
             {config.transitions.map((transition, index) => {
-               const fromStageLabel = config.stages.find(s => s.id === transition.from)?.label || transition.from;
-               return (
+              const fromStageLabel = config.stages.find(s => s.id === transition.from)?.label || transition.from;
+              return (
                 <li key={`revoke-${index}`} className="px-6 py-4 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-900">Revocation from {fromStageLabel}</p>
                     <p className="text-sm text-gray-500">
-                      {transition.canRevoke && transition.revokeTo ? 
-                        `Revokes to ${config.stages.find(s => s.id === transition.revokeTo)?.label || transition.revokeTo}` 
+                      {transition.canRevoke && transition.revokeTo ?
+                        `Revokes to ${config.stages.find(s => s.id === transition.revokeTo)?.label || transition.revokeTo}`
                         : 'No active revocation'}
                     </p>
                   </div>
-                  
+
                   <div className="flex items-center">
                     <select
                       value={transition.canRevoke && transition.revokeTo ? transition.revokeTo : 'no_revoke'}

@@ -37,13 +37,19 @@ class Role {
   validatePermissions(permissions) {
     const defaultStructure = {
       dashboard: { read: false },
-      users: { read: false, write: false, delete: false },
+      users: {
+        read: false,
+        write: false,
+        create: false,
+        update: false,
+        delete: false
+      },
       roles: { read: false, write: false, delete: false },
       drugs: { read: false, write: false, delete: false },
       studies: { read: false, write: false, delete: false },
       audit: { read: false, write: false, delete: false, export: false },
-      settings: { 
-        read: false, 
+      settings: {
+        read: false,
         write: false,
         viewDateTime: false,
         viewRoleManagement: false,
@@ -59,36 +65,36 @@ class Role {
       organizations: { read: false, write: false, delete: false },
       reports: { read: false, write: false, delete: false, export: false },
       // New workflow-specific permissions
-      triage: { 
-        read: false, 
-        write: false, 
-        classify: false, 
-        manual_drug_test: false 
+      triage: {
+        read: false,
+        write: false,
+        classify: false,
+        manual_drug_test: false
       },
-      QA: { 
-        read: false, 
-        write: false, 
-        approve: false, 
-        reject: false 
+      QA: {
+        read: false,
+        write: false,
+        approve: false,
+        reject: false
       },
-      QC: { 
-        read: false, 
-        write: false, 
-        approve: false, 
-        reject: false 
+      QC: {
+        read: false,
+        write: false,
+        approve: false,
+        reject: false
       },
-      data_entry: { 
-        read: false, 
-        write: false, 
+      data_entry: {
+        read: false,
+        write: false,
         r3_form: false,
         revoke_studies: false
       },
-      medical_examiner: { 
-        read: false, 
-        write: false, 
-        comment_fields: false, 
-        edit_fields: false, 
-        revoke_studies: false 
+      medical_examiner: {
+        read: false,
+        write: false,
+        comment_fields: false,
+        edit_fields: false,
+        revoke_studies: false
       },
       notifications: { read: false, write: false, delete: false },
       email: { read: false, write: false, delete: false },
@@ -101,7 +107,7 @@ class Role {
 
     // Merge provided permissions with default structure
     const validatedPermissions = { ...defaultStructure };
-    
+
     Object.keys(permissions).forEach(resource => {
       if (validatedPermissions[resource]) {
         validatedPermissions[resource] = {
@@ -136,12 +142,12 @@ class Role {
         description: 'Full system access with organization management capabilities',
         permissions: {
           dashboard: { read: true },
-          users: { read: true, write: true, delete: true },
+          users: { read: true, write: true, create: true, update: true, delete: true },
           roles: { read: true, write: true, delete: true },
           drugs: { read: true, write: true, delete: true },
           studies: { read: true, write: true, delete: true },
           audit: { read: true, write: true, delete: false },
-          settings: { read: true, write: true },
+          settings: { read: true, write: true, viewRoleManagement: true },
           organizations: { read: true, write: true, delete: true },
           reports: { read: true, write: true, delete: true },
           triage: { read: true, write: true, classify: true, manual_drug_test: true },
@@ -157,16 +163,16 @@ class Role {
       admin: {
         name: 'admin',
         displayName: 'Administrator',
-        description: 'Organization administrator with user and role management access',
+        description: 'Organization administrator with user and role management access (limited)',
         permissions: {
           dashboard: { read: true },
-          users: { read: true, write: true, delete: true },
-          roles: { read: true, write: true, delete: true },
+          users: { read: true, write: true, create: true, update: true, delete: true },
+          roles: { read: true, write: true, delete: false }, // Cannot delete roles (reduced from superadmin)
           drugs: { read: true, write: true, delete: true },
           studies: { read: true, write: true, delete: true },
           audit: { read: true, write: false, delete: false },
-          settings: { read: true, write: true },
-          organizations: { read: false, write: false, delete: false },
+          settings: { read: true, write: true, viewRoleManagement: true },
+          organizations: { read: false, write: false, delete: false }, // NO org access (CRM-only)
           reports: { read: true, write: true, delete: false },
           triage: { read: true, write: true, classify: true, manual_drug_test: true },
           QC: { read: true, write: true, approve: true, reject: true },
@@ -174,7 +180,7 @@ class Role {
           medical_examiner: { read: true, write: true, comment_fields: true, edit_fields: true, revoke_studies: true },
           notifications: { read: true, write: true, delete: true },
           email: { read: true, write: true, delete: true },
-          admin_config: { read: true, write: true, manage_jobs: true }
+          admin_config: { read: true, write: false, manage_jobs: false } // Reduced: no write access
         },
         isSystemRole: true
       },
@@ -502,7 +508,7 @@ class Role {
   static createCustomRole(customName, customDisplayName, permissionTemplate, organizationId, description = '', createdBy = null) {
     const templates = Role.getPermissionTemplates();
     const template = templates[permissionTemplate];
-    
+
     if (!template) {
       throw new Error(`Permission template '${permissionTemplate}' not found. Available templates: ${Object.keys(templates).join(', ')}`);
     }
@@ -522,7 +528,7 @@ class Role {
   static createFromSystemRole(roleType, organizationId, createdBy = null) {
     const systemRoles = Role.getSystemRoles();
     const systemRole = systemRoles[roleType];
-    
+
     if (!systemRole) {
       throw new Error(`Unknown system role: ${roleType}`);
     }
