@@ -64,6 +64,12 @@ const permissionBasedNavItems = [
     permission: { resource: 'QA', action: 'read' } 
   },
   { 
+    name: "AOI Allocation", 
+    href: "/dashboard/aoi-allocation", 
+    icon: <CheckCircleIcon className="w-5 h-5 mr-2" />, 
+    permission: { resource: 'QA', action: 'read' } 
+  },
+  { 
     name: "QC Triage Page", 
     href: "/dashboard/qc-triage", 
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, 
