@@ -3625,7 +3625,7 @@ router.post('/allocate-no-case-batch',
       const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
 
       if (!availableCases || availableCases.length === 0) {
-        return res.status(404).json({ success: false, message: "No Case studies not available for allocation" });
+        return res.status(404).json({ success: false, message: "No Case studies are not available for allocation" });
       }
 
       // 3. Try to lock the cases

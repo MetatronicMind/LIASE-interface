@@ -127,7 +127,6 @@ export default function AOIAllocationPage() {
   };
 
   const classifyStudy = async (studyId: string, classification: string) => {
-    console.log('classifyStudy called for:', studyId, classification);
     try {
       setClassifying(studyId);
       const token = localStorage.getItem("auth_token");
@@ -136,7 +135,6 @@ export default function AOIAllocationPage() {
         userTag: classification
       };
       
-      console.log('Sending PUT request to:', `${API_BASE}/studies/${studyId}`);
       const response = await fetch(`${API_BASE}/studies/${studyId}`, {
         method: "PUT",
         headers: {
