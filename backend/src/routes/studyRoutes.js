@@ -2195,90 +2195,140 @@ router.put('/:id',
       let debugInfo = {};
 
       if (userTag) {
-        // Fetch workflow config to determine next stage
-        let nextStage = null;
-        try {
-          const workflowConfig = await adminConfigService.getConfig(req.user.organizationId, 'workflow');
+        // Special handling for AOI Allocation and No Case Allocation
+        // These follow different routing rules than the standard workflow
+        const normalizedTag = String(userTag || '').trim().toUpperCase();
+        
+        // AOI Allocation routing
+        if (study.status === 'aoi_allocation') {
+          debugInfo.allocationFlow = 'AOI Allocation';
           
-          debugInfo.hasConfig = !!workflowConfig;
-          debugInfo.orgId = req.user.organizationId;
-
-          if (workflowConfig && workflowConfig.configData && workflowConfig.configData.transitions) {
-            // Determine current status ID
-            let currentStatus = study.status;
+          if (normalizedTag === 'AOI') {
+            // AOI → Reports
+            study.updateUserTag(userTag, req.user.id, req.user.name, { id: 'reporting', label: 'Reporting' });
+            debugInfo.route = 'AOI -> Reports';
+          } else if (normalizedTag === 'ICSR') {
+            // ICSR → ICSR Triage
+            const triageStage = { id: 'triage', label: 'Triage' };
+            study.updateUserTag(userTag, req.user.id, req.user.name, triageStage);
+            debugInfo.route = 'ICSR -> ICSR Triage';
+          } else if (normalizedTag === 'NO CASE') {
+            // No Case → No Case Assessment (Reports)
+            study.updateUserTag(userTag, req.user.id, req.user.name, { id: 'reporting', label: 'Reporting' });
+            debugInfo.route = 'No Case -> Reports';
+          }
+          
+          console.log(`[AOI Allocation] Study ${id} classified as ${userTag}, routed to: ${study.status}`);
+        }
+        // No Case Allocation routing
+        else if (study.status === 'no_case_allocation') {
+          debugInfo.allocationFlow = 'No Case Allocation';
+          
+          if (normalizedTag === 'NO CASE') {
+            // No Case → Reports
+            study.updateUserTag(userTag, req.user.id, req.user.name, { id: 'reporting', label: 'Reporting' });
+            debugInfo.route = 'No Case -> Reports';
+          } else if (normalizedTag === 'ICSR') {
+            // ICSR → ICSR Triage
+            const triageStage = { id: 'triage', label: 'Triage' };
+            study.updateUserTag(userTag, req.user.id, req.user.name, triageStage);
+            debugInfo.route = 'ICSR -> ICSR Triage';
+          } else if (normalizedTag === 'AOI') {
+            // AOI → ICSR Triage (as per requirements)
+            const triageStage = { id: 'triage', label: 'Triage' };
+            study.updateUserTag(userTag, req.user.id, req.user.name, triageStage);
+            debugInfo.route = 'AOI -> ICSR Triage';
+          }
+          
+          console.log(`[No Case Allocation] Study ${id} classified as ${userTag}, routed to: ${study.status}`);
+        }
+        // Standard workflow routing
+        else {
+          // Fetch workflow config to determine next stage
+          let nextStage = null;
+          try {
+            const workflowConfig = await adminConfigService.getConfig(req.user.organizationId, 'workflow');
             
-            // Handle legacy statuses - map them to the initial workflow stage
-            const legacyStatuses = ['Pending Review', 'Pending', 'Under Triage Review'];
-            if (legacyStatuses.includes(currentStatus)) {
-              currentStatus = 'triage'; // Default fallback
-              const initialStage = workflowConfig.configData.stages.find(s => s.type === 'initial');
-              if (initialStage) {
-                currentStatus = initialStage.id;
+            debugInfo.hasConfig = !!workflowConfig;
+            debugInfo.orgId = req.user.organizationId;
+
+            if (workflowConfig && workflowConfig.configData && workflowConfig.configData.transitions) {
+              // Determine current status ID
+              let currentStatus = study.status;
+              
+              // Handle legacy statuses - map them to the initial workflow stage
+              const legacyStatuses = ['Pending Review', 'Pending', 'Under Triage Review'];
+              if (legacyStatuses.includes(currentStatus)) {
+                currentStatus = 'triage'; // Default fallback
+                const initialStage = workflowConfig.configData.stages.find(s => s.type === 'initial');
+                if (initialStage) {
+                  currentStatus = initialStage.id;
+                }
+              }
+              
+              debugInfo.currentStatus = currentStatus;
+              debugInfo.originalStatus = study.status;
+              debugInfo.availableTransitions = workflowConfig.configData.transitions.map(t => `${t.from} -> ${t.to}`);
+              
+              // Find transition from current status
+              // We search in reverse order to prioritize the most recently added transition
+              const transition = [...workflowConfig.configData.transitions].reverse().find(t => t.from === currentStatus);
+              
+              debugInfo.transition = transition;
+
+              // Check for ICSR Bypass - Override transition if enabled and classified as ICSR
+              // ROBUSTNESS IMPROVEMENT: Handle types, casing, and detailed logging
+              const configData = workflowConfig.configData;
+              const bypassKey = configData.bypassQcForIcsr;
+              
+              // Normalize tag: ensure string, trim, uppercase
+              const normalizedTag = String(userTag || '').trim().toUpperCase();
+              
+              // Normalize config: support boolean true, string 'true', or number 1
+              const isBypassEnabled = bypassKey === true || String(bypassKey) === 'true' || bypassKey === 1;
+              
+              console.log(`[Classification DEBUG] ID: ${id}, UserTag: '${userTag}' -> '${normalizedTag}'`);
+              console.log(`[Classification DEBUG] Bypass Config: ${bypassKey} (${typeof bypassKey}) -> Enabled: ${isBypassEnabled}`);
+              
+              if (normalizedTag === 'ICSR' && isBypassEnabled) {
+                 // Look for data_entry stage
+                 // Fallback: search by label if ID is not exactly 'data_entry' in older configs
+                 const dataEntryStage = configData.stages.find(s => s.id === 'data_entry') 
+                                     || configData.stages.find(s => s.label === 'Data Entry');
+                 
+                 if (dataEntryStage) {
+                    nextStage = dataEntryStage;
+                    
+                    // Set flags for debug info
+                    debugInfo.icsrBypassActive = true;
+                    debugInfo.targetStage = dataEntryStage.id;
+                    debugInfo.bypassReason = 'Configuration enabled and tag is ICSR';
+                    
+                    console.log(`>>> [Classification] ICSR Bypass ACTIVATED - Redirecting to ${dataEntryStage.id}`);
+                 } else {
+                    console.error('>>> [Classification] ICSR Bypass FAILED - data_entry stage missing in workflow config');
+                    // console.log('Available stages:', configData.stages.map(s => s.id));
+                    debugInfo.bypassError = 'data_entry stage missing';
+                 }
+              } else {
+                  console.log(`[Classification] ICSR Bypass SKIPPED. Match? ${normalizedTag === 'ICSR'}, Enabled? ${isBypassEnabled}`);
+              }
+
+              // Only use standard transition if nextStage wasn't already set by bypass logic
+              if (!nextStage && transition) {
+                // Standard transition logic - always follow the configured transition
+                // The QC Sampling logic is now handled in the bulk process endpoint
+                nextStage = workflowConfig.configData.stages.find(s => s.id === transition.to);
+                debugInfo.nextStage = nextStage;
               }
             }
-            
-            debugInfo.currentStatus = currentStatus;
-            debugInfo.originalStatus = study.status;
-            debugInfo.availableTransitions = workflowConfig.configData.transitions.map(t => `${t.from} -> ${t.to}`);
-            
-            // Find transition from current status
-            // We search in reverse order to prioritize the most recently added transition
-            const transition = [...workflowConfig.configData.transitions].reverse().find(t => t.from === currentStatus);
-            
-            debugInfo.transition = transition;
-
-            // Check for ICSR Bypass - Override transition if enabled and classified as ICSR
-            // ROBUSTNESS IMPROVEMENT: Handle types, casing, and detailed logging
-            const configData = workflowConfig.configData;
-            const bypassKey = configData.bypassQcForIcsr;
-            
-            // Normalize tag: ensure string, trim, uppercase
-            const normalizedTag = String(userTag || '').trim().toUpperCase();
-            
-            // Normalize config: support boolean true, string 'true', or number 1
-            const isBypassEnabled = bypassKey === true || String(bypassKey) === 'true' || bypassKey === 1;
-            
-            console.log(`[Classification DEBUG] ID: ${id}, UserTag: '${userTag}' -> '${normalizedTag}'`);
-            console.log(`[Classification DEBUG] Bypass Config: ${bypassKey} (${typeof bypassKey}) -> Enabled: ${isBypassEnabled}`);
-            
-            if (normalizedTag === 'ICSR' && isBypassEnabled) {
-               // Look for data_entry stage
-               // Fallback: search by label if ID is not exactly 'data_entry' in older configs
-               const dataEntryStage = configData.stages.find(s => s.id === 'data_entry') 
-                                   || configData.stages.find(s => s.label === 'Data Entry');
-               
-               if (dataEntryStage) {
-                  nextStage = dataEntryStage;
-                  
-                  // Set flags for debug info
-                  debugInfo.icsrBypassActive = true;
-                  debugInfo.targetStage = dataEntryStage.id;
-                  debugInfo.bypassReason = 'Configuration enabled and tag is ICSR';
-                  
-                  console.log(`>>> [Classification] ICSR Bypass ACTIVATED - Redirecting to ${dataEntryStage.id}`);
-               } else {
-                  console.error('>>> [Classification] ICSR Bypass FAILED - data_entry stage missing in workflow config');
-                  // console.log('Available stages:', configData.stages.map(s => s.id));
-                  debugInfo.bypassError = 'data_entry stage missing';
-               }
-            } else {
-                console.log(`[Classification] ICSR Bypass SKIPPED. Match? ${normalizedTag === 'ICSR'}, Enabled? ${isBypassEnabled}`);
-            }
-
-            // Only use standard transition if nextStage wasn't already set by bypass logic
-            if (!nextStage && transition) {
-              // Standard transition logic - always follow the configured transition
-              // The QC Sampling logic is now handled in the bulk process endpoint
-              nextStage = workflowConfig.configData.stages.find(s => s.id === transition.to);
-              debugInfo.nextStage = nextStage;
-            }
+          } catch (err) {
+            console.warn('Failed to fetch workflow config during classification:', err);
+            debugInfo.error = err.message;
           }
-        } catch (err) {
-          console.warn('Failed to fetch workflow config during classification:', err);
-          debugInfo.error = err.message;
-        }
 
-        study.updateUserTag(userTag, req.user.id, req.user.name, nextStage);
+          study.updateUserTag(userTag, req.user.id, req.user.name, nextStage);
+        }
       }
 
       const afterValue = { 
@@ -3017,6 +3067,7 @@ router.post('/allocate-case',
       }
 
       // 2. Find and lock a new case using Priority Queue
+      // Only allocate studies that should be in ICSR Triage based on icsrClassification
       let allocatedCase = null;
       let attempts = 0;
       const MAX_ATTEMPTS = 3;
@@ -3029,12 +3080,19 @@ router.post('/allocate-case',
 
         // Step 2x: Prioritize cases previously classified by this user (Rejected/Returned)
         // This ensures users fix their own errors or re-classify their own cases first.
+        // Filter for ICSR Triage cases only
         const myReturnedCasesQuery = `
             SELECT TOP 1 * FROM c 
             WHERE c.organizationId = @orgId 
             AND c.classifiedBy = @userId
             AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
-            AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+            AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
+            AND (
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr/aoi") OR 
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr") OR 
+              CONTAINS(LOWER(c.icsrClassification), "article requires manual review") OR
+              NOT IS_DEFINED(c.icsrClassification)
+            )
         `;
 
         let availableCases = [];
@@ -3055,19 +3113,20 @@ router.post('/allocate-case',
             // Step 2a: Try to find High Priority cases specifically first (Probable/Potential/Tagged)
             // This ensures we priority allocate them even if they are buried behind 1000+ Manual Review cases
             // We use LOWER() for case-insensitive matching
+            // Filter for ICSR Triage cases only
             const highPriorityQuery = `
                 SELECT TOP 50 * FROM c 
                 WHERE c.organizationId = @orgId 
                 AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
-                AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+                AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
                 AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId)
                 AND (
-                  CONTAINS(LOWER(c.icsrClassification), "probable") OR 
-                  CONTAINS(LOWER(c.aoiClassification), "probable") OR
+                  CONTAINS(LOWER(c.icsrClassification), "probable icsr/aoi") OR 
+                  CONTAINS(LOWER(c.icsrClassification), "probable icsr") OR 
+                  CONTAINS(LOWER(c.icsrClassification), "article requires manual review") OR
                   CONTAINS(LOWER(c.icsrClassification), "potential") OR 
-                  CONTAINS(LOWER(c.aoiClassification), "potential") OR
                   CONTAINS(LOWER(c.userTag), "icsr") OR
-                  CONTAINS(LOWER(c.userTag), "aoi")
+                  NOT IS_DEFINED(c.icsrClassification)
                 )
             `;
 
@@ -3080,8 +3139,21 @@ router.post('/allocate-case',
 
         if (!availableCases || availableCases.length === 0) {
           // Step 2b: Fallback to general query if no high priority cases found
+          // Filter for ICSR Triage cases only
           const fetchLimit = 100;
-          const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
+          const findQuery = `
+            SELECT TOP ${fetchLimit} * FROM c 
+            WHERE c.organizationId = @orgId 
+            AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
+            AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) 
+            AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
+            AND (
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr/aoi") OR 
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr") OR 
+              CONTAINS(LOWER(c.icsrClassification), "article requires manual review") OR
+              NOT IS_DEFINED(c.icsrClassification)
+            )
+          `;
           availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
         }
 
@@ -3253,12 +3325,19 @@ router.post('/allocate-batch',
       const fetchLimit = 1000;
       
       // Step 2a: Prioritize cases classified by this user (Rejected/Returned)
+      // Filter for ICSR Triage cases only
       const myReturnedCasesQuery = `
             SELECT * FROM c 
             WHERE c.organizationId = @orgId 
             AND c.classifiedBy = @userId
             AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
-            AND (c.status = "Pending Review" OR c.status = "Under Triage Review")
+            AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
+            AND (
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr/aoi") OR 
+              CONTAINS(LOWER(c.icsrClassification), "probable icsr") OR 
+              CONTAINS(LOWER(c.icsrClassification), "article requires manual review") OR
+              NOT IS_DEFINED(c.icsrClassification)
+            )
       `;
       
       let availableCases = [];
@@ -3280,7 +3359,20 @@ router.post('/allocate-batch',
       }
 
       // Step 2b: Standard fetch
-      const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
+      // Filter for ICSR Triage cases only
+      const findQuery = `
+        SELECT TOP ${fetchLimit} * FROM c 
+        WHERE c.organizationId = @orgId 
+        AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
+        AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) 
+        AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
+        AND (
+          CONTAINS(LOWER(c.icsrClassification), "probable icsr/aoi") OR 
+          CONTAINS(LOWER(c.icsrClassification), "probable icsr") OR 
+          CONTAINS(LOWER(c.icsrClassification), "article requires manual review") OR
+          NOT IS_DEFINED(c.icsrClassification)
+        )
+      `;
       const findParams = [
         { name: '@orgId', value: organizationId },
         { name: '@userId', value: userId }
@@ -3386,6 +3478,194 @@ router.post('/release-batch',
 
     } catch (error) {
       console.error('Batch release error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// =============== AOI ALLOCATION ENDPOINTS ===============
+
+// Allocate AOI cases for quality check
+router.post('/allocate-aoi-batch',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+
+      // Fetch Allocation Configuration
+      const allocationConfig = await adminConfigService.getConfig(organizationId, 'allocation');
+      const batchSize = allocationConfig?.configData?.aoiBatchSize || 10;
+
+      // 1. Check if user already has locked cases
+      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId AND c.status = @status';
+      const parameters = [
+        { name: '@orgId', value: organizationId },
+        { name: '@userId', value: userId },
+        { name: '@status', value: 'aoi_allocation' }
+      ];
+
+      const existingCases = await cosmosService.queryItems('studies', query, parameters);
+      
+      if (existingCases && existingCases.length > 0) {
+        // If user already has cases, return them
+        return res.json({ 
+          success: true, 
+          message: "Resuming AOI allocation session", 
+          cases: existingCases 
+        });
+      }
+
+      // 2. Find available AOI Allocation cases (status = aoi_allocation, not assigned)
+      const findQuery = `
+        SELECT TOP ${batchSize} * FROM c 
+        WHERE c.organizationId = @orgId 
+        AND c.status = @status
+        AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
+      `;
+      const findParams = [
+        { name: '@orgId', value: organizationId },
+        { name: '@status', value: 'aoi_allocation' }
+      ];
+
+      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+
+      if (!availableCases || availableCases.length === 0) {
+        return res.status(404).json({ success: false, message: "No AOI cases available for allocation" });
+      }
+
+      // 3. Try to lock the cases
+      const lockedCases = [];
+      for (const caseToLock of availableCases) {
+        try {
+          const operations = [
+            { op: 'set', path: '/assignedTo', value: userId },
+            { op: 'set', path: '/lockedAt', value: new Date().toISOString() },
+            { op: 'set', path: '/updatedAt', value: new Date().toISOString() }
+          ];
+          
+          const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
+          
+          const allocatedCase = await cosmosService.patchItem(
+            'studies', 
+            caseToLock.id, 
+            organizationId, 
+            operations, 
+            filterPredicate,
+            caseToLock._etag
+          );
+          lockedCases.push(allocatedCase);
+        } catch (err) {
+          if (err.statusCode === 412) {
+            console.log(`Race condition for AOI case ${caseToLock.id}, trying next`);
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (lockedCases.length === 0) {
+        return res.status(409).json({ success: false, message: "System busy. Please try again." });
+      }
+
+      res.json({ success: true, message: "AOI cases allocated successfully", cases: lockedCases });
+
+    } catch (error) {
+      console.error('AOI batch allocation error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// =============== NO CASE ALLOCATION ENDPOINTS ===============
+
+// Allocate No Case studies for quality check
+router.post('/allocate-no-case-batch',
+  authorizePermission('studies', 'read'),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+
+      // Fetch Allocation Configuration
+      const allocationConfig = await adminConfigService.getConfig(organizationId, 'allocation');
+      const batchSize = allocationConfig?.configData?.noCaseBatchSize || 10;
+
+      // 1. Check if user already has locked cases
+      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId AND c.status = @status';
+      const parameters = [
+        { name: '@orgId', value: organizationId },
+        { name: '@userId', value: userId },
+        { name: '@status', value: 'no_case_allocation' }
+      ];
+
+      const existingCases = await cosmosService.queryItems('studies', query, parameters);
+      
+      if (existingCases && existingCases.length > 0) {
+        // If user already has cases, return them
+        return res.json({ 
+          success: true, 
+          message: "Resuming No Case allocation session", 
+          cases: existingCases 
+        });
+      }
+
+      // 2. Find available No Case Allocation studies (status = no_case_allocation, not assigned)
+      const findQuery = `
+        SELECT TOP ${batchSize} * FROM c 
+        WHERE c.organizationId = @orgId 
+        AND c.status = @status
+        AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
+      `;
+      const findParams = [
+        { name: '@orgId', value: organizationId },
+        { name: '@status', value: 'no_case_allocation' }
+      ];
+
+      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+
+      if (!availableCases || availableCases.length === 0) {
+        return res.status(404).json({ success: false, message: "No Case studies not available for allocation" });
+      }
+
+      // 3. Try to lock the cases
+      const lockedCases = [];
+      for (const caseToLock of availableCases) {
+        try {
+          const operations = [
+            { op: 'set', path: '/assignedTo', value: userId },
+            { op: 'set', path: '/lockedAt', value: new Date().toISOString() },
+            { op: 'set', path: '/updatedAt', value: new Date().toISOString() }
+          ];
+          
+          const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
+          
+          const allocatedCase = await cosmosService.patchItem(
+            'studies', 
+            caseToLock.id, 
+            organizationId, 
+            operations, 
+            filterPredicate,
+            caseToLock._etag
+          );
+          lockedCases.push(allocatedCase);
+        } catch (err) {
+          if (err.statusCode === 412) {
+            console.log(`Race condition for No Case ${caseToLock.id}, trying next`);
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (lockedCases.length === 0) {
+        return res.status(409).json({ success: false, message: "System busy. Please try again." });
+      }
+
+      res.json({ success: true, message: "No Case studies allocated successfully", cases: lockedCases });
+
+    } catch (error) {
+      console.error('No Case batch allocation error:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   }
