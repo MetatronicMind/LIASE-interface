@@ -264,6 +264,43 @@ exports.triggerMaintenance = async (req, res) => {
   }
 };
 
+const environmentsConfig = [
+  {
+    id: "production",
+    name: "LIASE (Main)",
+    url: process.env.PRODUCTION_URL || "https://liase.azurewebsites.net",
+    apiUrl:
+      process.env.PRODUCTION_API_URL ||
+      "https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net",
+    dbName: "liase-database",
+    branch: "main",
+    version: "1.0.0",
+    azureName: "liase",
+  },
+  {
+    id: "development",
+    name: "LIASE Dev (Developer)",
+    url: process.env.DEV_URL || "https://liase-dev.azurewebsites.net",
+    apiUrl: process.env.DEV_API_URL || "https://liase-dev.azurewebsites.net",
+    dbName: "liase-database-dev",
+    branch: "dev",
+    version: "1.1.0-beta",
+    azureName: "liase-dev",
+  },
+  {
+    id: "sandbox",
+    name: "LIASE Sandbox",
+    url: process.env.SANDBOX_URL || "https://liase-sandbox.azurewebsites.net",
+    apiUrl:
+      process.env.SANDBOX_API_URL ||
+      "https://liase-backend-liase-sandbox.azurewebsites.net",
+    dbName: "liase-database-sandbox",
+    branch: "sandbox",
+    version: "0.0.7-sandbox",
+    azureName: "liase-sandbox",
+  },
+];
+
 exports.getEnvironments = async (req, res) => {
   try {
     // Read deployment trigger status
@@ -273,48 +310,15 @@ exports.getEnvironments = async (req, res) => {
       deployTrigger = fs.readFileSync(deployTriggerPath, "utf8").trim();
     }
 
-    // Define environments with their URLs and DBs
-    const environmentsConfig = [
-      {
-        id: "production",
-        name: "LIASE (Main)",
-        url: process.env.PRODUCTION_URL || "https://liase.azurewebsites.net",
-        apiUrl:
-          process.env.PRODUCTION_API_URL ||
-          "https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net",
-        dbName: "liase-database",
-        branch: "main",
-        version: "1.0.0",
-      },
-      {
-        id: "development",
-        name: "LIASE Dev (Developer)",
-        url: process.env.DEV_URL || "https://liase-dev.azurewebsites.net",
-        apiUrl:
-          process.env.DEV_API_URL ||
-          "https://liase-dev.azurewebsites.net",
-        dbName: "liase-database-dev",
-        branch: "dev",
-        version: "1.1.0-beta",
-      },
-      {
-        id: "sandbox",
-        name: "LIASE Sandbox",
-        url:
-          process.env.SANDBOX_URL || "https://liase-sandbox.azurewebsites.net",
-        apiUrl:
-          process.env.SANDBOX_API_URL ||
-          "https://liase-backend-liase-sandbox.azurewebsites.net",
-        dbName: "liase-database-sandbox",
-        branch: "sandbox",
-        version: "0.0.7-sandbox",
-        lastDeploy: deployTrigger,
-      },
-    ];
+    // Add deployment status to config
+    const configWithStatus = environmentsConfig.map((env) => ({
+      ...env,
+      lastDeploy: env.id === "sandbox" ? deployTrigger : "Managed by Pipeline",
+    }));
 
     // Check health of each environment in parallel
     const envsWithStatus = await Promise.all(
-      environmentsConfig.map(async (env) => {
+      configWithStatus.map(async (env) => {
         try {
           // Attempt to fetch health endpoint
           // Use apiUrl for health check, fallback to url if not set
@@ -348,43 +352,80 @@ exports.getEnvironments = async (req, res) => {
 exports.restartEnvironment = async (req, res) => {
   try {
     const { env } = req.body;
-    
-    // Check if we are running in the target environment
-    // For 'development' or 'sandbox', check if the current host matches the target
-    const isLocalRestart = 
-      (env === 'development' && (process.env.WEBSITE_SITE_NAME?.includes('liase-dev') || !process.env.WEBSITE_SITE_NAME)) ||
-      (env === 'sandbox' && process.env.WEBSITE_SITE_NAME?.includes('liase-sandbox')) ||
-      (env === 'production' && process.env.WEBSITE_SITE_NAME?.includes('liase') && !process.env.WEBSITE_SITE_NAME?.includes('-dev'));
+    const targetEnv = environmentsConfig.find((e) => e.id === env);
 
-    if (isLocalRestart) {
-      console.log(`Triggering local process restart for ${env}...`);
+    if (!targetEnv) {
+      return res.status(400).json({ status: "error", message: "Invalid environment ID" });
+    }
+
+    // Determine if we are the target environment
+    // 1. If running in Azure, check WEBSITE_SITE_NAME
+    // 2. If running locally, we are NOT the target (unless target is 'local', which isn't in config)
+    const currentAzureName = process.env.WEBSITE_SITE_NAME;
+    const isTarget = currentAzureName && currentAzureName.includes(targetEnv.azureName);
+
+    if (isTarget) {
+      // We are the target: Self-destruct to trigger restart
+      console.log(`[Restart] Triggering self-restart for ${env}...`);
       
-      // Respond first, then die
       res.json({
         status: "success",
         message: `Restarting ${env} server process immediately.`,
       });
 
-      // Allow response to flush
       setTimeout(() => {
-        process.exit(1); // Force restart by Azure App Service
+        process.exit(1); 
       }, 1000);
       return;
     }
 
-    // Remote restart via file trigger (fallback for cross-env control if pipeline configured)
-    const triggerPath = path.join(
-      __dirname,
-      `../../RESTART_TRIGGER_${env.toUpperCase()}.txt`,
-    );
-    const content = `Restart Triggered for ${env}\nBy: ${req.user ? req.user.email : "Unknown"}\nDate: ${new Date().toISOString()}`;
+    // We are NOT the target: Proxy request to target environment
+    console.log(`[Restart] Proxying restart request to ${targetEnv.id} (${targetEnv.apiUrl})...`);
+    
+    try {
+      const targetUrl = targetEnv.apiUrl || targetEnv.url;
+      // We need to pass the current user's token to authenticate with the remote
+      const token = req.headers.authorization; 
+      
+      if (!token) {
+        throw new Error("No authorization token found to authorize remote restart.");
+      }
 
-    fs.writeFileSync(triggerPath, content);
+      // To avoid infinite recursion if logic is wrong, add a flag header? 
+      // Or simply trust the isTarget check based on env vars.
+      
+      // Call the EXACT SAME endpoint on the remote server
+      const response = await axios.post(
+        `${targetUrl}/api/developer/environments/restart`,
+        { env }, 
+        { 
+          headers: { 
+            'Authorization': token,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000
+        }
+      );
 
-    res.json({
-      status: "success",
-      message: `Restart signal recorded for ${env}. Note: This only restarts the server if a file-watcher pipeline is active.`,
-    });
+      return res.json(response.data);
+
+    } catch (proxyError) {
+      console.error(`[Restart] Proxy failed: ${proxyError.message}`);
+      
+      // Fallback: File Trigger (only works if sharing FS or pipeline watching repo)
+      const triggerPath = path.join(
+        __dirname,
+        `../../RESTART_TRIGGER_${env.toUpperCase()}.txt`,
+      );
+      const content = `Restart Triggered for ${env}\nBy: ${req.user ? req.user.email : "Unknown"}\nDate: ${new Date().toISOString()}`;
+      fs.writeFileSync(triggerPath, content);
+
+      return res.json({
+        status: "success",
+        message: `Direct restart failed (${proxyError.response?.status || proxyError.message}). Fallback signal recorded.`,
+      });
+    }
+
   } catch (error) {
     console.error("Error restarting environment:", error);
     res.status(500).json({ status: "error", message: error.message });
