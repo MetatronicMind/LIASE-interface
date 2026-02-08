@@ -650,19 +650,17 @@ export default function DeveloperDashboard() {
                       "Trigger Deployment"
                     )}
                   </button>
-                  {env.id !== "sandbox" && (
-                    <div className="mt-2">
-                      <button
-                        onClick={() => handleRestart(env.id)}
-                        disabled={restarting === env.id}
-                        className="w-full py-2 px-4 rounded-md font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-all text-sm"
-                      >
-                        {restarting === env.id
-                          ? "Restarting..."
-                          : "Restart Server"}
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-2">
+                    <button
+                      onClick={() => handleRestart(env.id)}
+                      disabled={restarting === env.id}
+                      className="w-full py-2 px-4 rounded-md font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-all text-sm"
+                    >
+                      {restarting === env.id
+                        ? "Restarting..."
+                        : "Restart Server"}
+                    </button>
+                  </div>
                   {env.id !== "sandbox" && (
                     <p className="text-xs text-gray-400 mt-2 text-center">
                       Deployment managed by CI/CD Pipeline
