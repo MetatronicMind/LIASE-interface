@@ -476,9 +476,9 @@ app.get("/api/health", (req, res) => {
       errorRate:
         healthMetrics.requestCount > 0
           ? (
-            (healthMetrics.errorCount / healthMetrics.requestCount) *
-            100
-          ).toFixed(2) + "%"
+              (healthMetrics.errorCount / healthMetrics.requestCount) *
+              100
+            ).toFixed(2) + "%"
           : "0%",
       lastError: healthMetrics.lastError,
       memory: {

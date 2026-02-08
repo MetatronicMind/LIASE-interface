@@ -361,13 +361,14 @@ exports.restartEnvironment = async (req, res) => {
     } else {
       // Perform standard auth check manually since we bypassed global middleware
       const authenticateToken = require("../middleware/auth");
-      
+
       // Wrap middleware in promise to await it
-      const runAuth = () => new Promise((resolve) => {
-        authenticateToken(req, res, () => {
-          resolve("next");
+      const runAuth = () =>
+        new Promise((resolve) => {
+          authenticateToken(req, res, () => {
+            resolve("next");
+          });
         });
-      });
 
       // If auth fails, it sends response. We check headersSent after.
       await runAuth();
@@ -378,55 +379,59 @@ exports.restartEnvironment = async (req, res) => {
     const targetEnv = environmentsConfig.find((e) => e.id === env);
 
     if (!targetEnv) {
-      return res.status(400).json({ status: "error", message: "Invalid environment ID" });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Invalid environment ID" });
     }
 
     // Determine if we are the target environment
     // 1. If running in Azure, check WEBSITE_SITE_NAME
     // 2. If running locally, we are NOT the target (unless target is 'local', which isn't in config)
     const currentAzureName = process.env.WEBSITE_SITE_NAME;
-    const isTarget = currentAzureName && currentAzureName.includes(targetEnv.azureName);
+    const isTarget =
+      currentAzureName && currentAzureName.includes(targetEnv.azureName);
 
     if (isTarget) {
       // We are the target: Self-destruct to trigger restart
       console.log(`[Restart] Triggering self-restart for ${env}...`);
-      
+
       res.json({
         status: "success",
         message: `Restarting ${env} server process immediately.`,
       });
 
       setTimeout(() => {
-        process.exit(1); 
+        process.exit(1);
       }, 1000);
       return;
     }
 
     // We are NOT the target: Proxy request to target environment
-    console.log(`[Restart] Proxying restart request to ${targetEnv.id} (${targetEnv.apiUrl})...`);
-    
+    console.log(
+      `[Restart] Proxying restart request to ${targetEnv.id} (${targetEnv.apiUrl})...`,
+    );
+
     try {
       const targetUrl = targetEnv.apiUrl || targetEnv.url;
-      
+
       // Call the EXACT SAME endpoint on the remote server with the System Key
       const response = await axios.post(
         `${targetUrl}/api/developer/environments/restart`,
-        { env }, 
-        { 
-          headers: { 
-            'Authorization': req.headers.authorization || '', // Pass user token just in case
-            'x-liase-restart-key': INTERNAL_RESTART_KEY,      // Pass system key for bypass
-            'Content-Type': 'application/json'
+        { env },
+        {
+          headers: {
+            Authorization: req.headers.authorization || "", // Pass user token just in case
+            "x-liase-restart-key": INTERNAL_RESTART_KEY, // Pass system key for bypass
+            "Content-Type": "application/json",
           },
-          timeout: 5000
-        }
+          timeout: 5000,
+        },
       );
 
       return res.json(response.data);
-
     } catch (proxyError) {
       console.error(`[Restart] Proxy failed: ${proxyError.message}`);
-      
+
       // Fallback: File Trigger (only works if sharing FS or pipeline watching repo)
       const triggerPath = path.join(
         __dirname,
@@ -440,7 +445,6 @@ exports.restartEnvironment = async (req, res) => {
         message: `Direct restart failed (${proxyError.response?.status || proxyError.message}). Fallback signal recorded.`,
       });
     }
-
   } catch (error) {
     console.error("Error restarting environment:", error);
     res.status(500).json({ status: "error", message: error.message });
