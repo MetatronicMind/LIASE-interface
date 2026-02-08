@@ -44,10 +44,10 @@ router.post(
       fileReceived: !!req.file,
       fileDetails: req.file
         ? {
-          originalname: req.file.originalname,
-          size: req.file.size,
-          mimetype: req.file.mimetype,
-        }
+            originalname: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+          }
         : null,
     });
   },
@@ -900,14 +900,14 @@ router.get(
           testQuery:
             testResult.length > 0
               ? {
-                found: true,
-                studyOrgId: testResult[0].organizationId,
-                studyUserTag: testResult[0].userTag,
-                studyEffectiveClassification:
-                  testResult[0].effectiveClassification,
-                orgIdMatch:
-                  testResult[0].organizationId === req.user.organizationId,
-              }
+                  found: true,
+                  studyOrgId: testResult[0].organizationId,
+                  studyUserTag: testResult[0].userTag,
+                  studyEffectiveClassification:
+                    testResult[0].effectiveClassification,
+                  orgIdMatch:
+                    testResult[0].organizationId === req.user.organizationId,
+                }
               : { found: false },
         },
       });
@@ -2769,9 +2769,6 @@ router.put(
               );
               debugInfo.nextStage = nextStage;
             }
-          } catch (err) {
-            console.warn('Failed to fetch workflow config during classification:', err);
-            debugInfo.error = err.message;
           }
         } catch (err) {
           console.warn(
@@ -2781,8 +2778,7 @@ router.put(
           debugInfo.error = err.message;
         }
 
-          study.updateUserTag(userTag, req.user.id, req.user.name, nextStage);
-        }
+        study.updateUserTag(userTag, req.user.id, req.user.name, nextStage);
       }
 
       const afterValue = {
@@ -4204,33 +4200,42 @@ router.post(
 // =============== AOI ALLOCATION ENDPOINTS ===============
 
 // Allocate AOI cases for quality check
-router.post('/allocate-aoi-batch',
-  authorizePermission('studies', 'read'),
+router.post(
+  "/allocate-aoi-batch",
+  authorizePermission("studies", "read"),
   async (req, res) => {
     try {
       const userId = req.user.id;
       const organizationId = req.user.organizationId;
 
       // Fetch Allocation Configuration
-      const allocationConfig = await adminConfigService.getConfig(organizationId, 'allocation');
+      const allocationConfig = await adminConfigService.getConfig(
+        organizationId,
+        "allocation",
+      );
       const batchSize = allocationConfig?.configData?.aoiBatchSize || 10;
 
       // 1. Check if user already has locked cases
-      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId AND c.status = @status';
+      const query =
+        "SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId AND c.status = @status";
       const parameters = [
-        { name: '@orgId', value: organizationId },
-        { name: '@userId', value: userId },
-        { name: '@status', value: 'aoi_allocation' }
+        { name: "@orgId", value: organizationId },
+        { name: "@userId", value: userId },
+        { name: "@status", value: "aoi_allocation" },
       ];
 
-      const existingCases = await cosmosService.queryItems('studies', query, parameters);
-      
+      const existingCases = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+
       if (existingCases && existingCases.length > 0) {
         // If user already has cases, return them
-        return res.json({ 
-          success: true, 
-          message: "Resuming AOI allocation session", 
-          cases: existingCases 
+        return res.json({
+          success: true,
+          message: "Resuming AOI allocation session",
+          cases: existingCases,
         });
       }
 
@@ -4242,14 +4247,23 @@ router.post('/allocate-aoi-batch',
         AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
       `;
       const findParams = [
-        { name: '@orgId', value: organizationId },
-        { name: '@status', value: 'aoi_allocation' }
+        { name: "@orgId", value: organizationId },
+        { name: "@status", value: "aoi_allocation" },
       ];
 
-      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+      const availableCases = await cosmosService.queryItems(
+        "studies",
+        findQuery,
+        findParams,
+      );
 
       if (!availableCases || availableCases.length === 0) {
-        return res.status(404).json({ success: false, message: "No AOI cases available for allocation" });
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message: "No AOI cases available for allocation",
+          });
       }
 
       // 3. Try to lock the cases
@@ -4257,25 +4271,28 @@ router.post('/allocate-aoi-batch',
       for (const caseToLock of availableCases) {
         try {
           const operations = [
-            { op: 'set', path: '/assignedTo', value: userId },
-            { op: 'set', path: '/lockedAt', value: new Date().toISOString() },
-            { op: 'set', path: '/updatedAt', value: new Date().toISOString() }
+            { op: "set", path: "/assignedTo", value: userId },
+            { op: "set", path: "/lockedAt", value: new Date().toISOString() },
+            { op: "set", path: "/updatedAt", value: new Date().toISOString() },
           ];
-          
-          const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
-          
+
+          const filterPredicate =
+            "NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null";
+
           const allocatedCase = await cosmosService.patchItem(
-            'studies', 
-            caseToLock.id, 
-            organizationId, 
-            operations, 
+            "studies",
+            caseToLock.id,
+            organizationId,
+            operations,
             filterPredicate,
-            caseToLock._etag
+            caseToLock._etag,
           );
           lockedCases.push(allocatedCase);
         } catch (err) {
           if (err.statusCode === 412) {
-            console.log(`Race condition for AOI case ${caseToLock.id}, trying next`);
+            console.log(
+              `Race condition for AOI case ${caseToLock.id}, trying next`,
+            );
             continue;
           }
           throw err;
@@ -4283,48 +4300,62 @@ router.post('/allocate-aoi-batch',
       }
 
       if (lockedCases.length === 0) {
-        return res.status(409).json({ success: false, message: "System busy. Please try again." });
+        return res
+          .status(409)
+          .json({ success: false, message: "System busy. Please try again." });
       }
 
-      res.json({ success: true, message: "AOI cases allocated successfully", cases: lockedCases });
-
+      res.json({
+        success: true,
+        message: "AOI cases allocated successfully",
+        cases: lockedCases,
+      });
     } catch (error) {
-      console.error('AOI batch allocation error:', error);
+      console.error("AOI batch allocation error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
-  }
+  },
 );
 
 // =============== NO CASE ALLOCATION ENDPOINTS ===============
 
 // Allocate No Case studies for quality check
-router.post('/allocate-no-case-batch',
-  authorizePermission('studies', 'read'),
+router.post(
+  "/allocate-no-case-batch",
+  authorizePermission("studies", "read"),
   async (req, res) => {
     try {
       const userId = req.user.id;
       const organizationId = req.user.organizationId;
 
       // Fetch Allocation Configuration
-      const allocationConfig = await adminConfigService.getConfig(organizationId, 'allocation');
+      const allocationConfig = await adminConfigService.getConfig(
+        organizationId,
+        "allocation",
+      );
       const batchSize = allocationConfig?.configData?.noCaseBatchSize || 10;
 
       // 1. Check if user already has locked cases
-      const query = 'SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId AND c.status = @status';
+      const query =
+        "SELECT * FROM c WHERE c.organizationId = @orgId AND c.assignedTo = @userId AND c.status = @status";
       const parameters = [
-        { name: '@orgId', value: organizationId },
-        { name: '@userId', value: userId },
-        { name: '@status', value: 'no_case_allocation' }
+        { name: "@orgId", value: organizationId },
+        { name: "@userId", value: userId },
+        { name: "@status", value: "no_case_allocation" },
       ];
 
-      const existingCases = await cosmosService.queryItems('studies', query, parameters);
-      
+      const existingCases = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+
       if (existingCases && existingCases.length > 0) {
         // If user already has cases, return them
-        return res.json({ 
-          success: true, 
-          message: "Resuming No Case allocation session", 
-          cases: existingCases 
+        return res.json({
+          success: true,
+          message: "Resuming No Case allocation session",
+          cases: existingCases,
         });
       }
 
@@ -4336,14 +4367,23 @@ router.post('/allocate-no-case-batch',
         AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
       `;
       const findParams = [
-        { name: '@orgId', value: organizationId },
-        { name: '@status', value: 'no_case_allocation' }
+        { name: "@orgId", value: organizationId },
+        { name: "@status", value: "no_case_allocation" },
       ];
 
-      const availableCases = await cosmosService.queryItems('studies', findQuery, findParams);
+      const availableCases = await cosmosService.queryItems(
+        "studies",
+        findQuery,
+        findParams,
+      );
 
       if (!availableCases || availableCases.length === 0) {
-        return res.status(404).json({ success: false, message: "No Case studies are not available for allocation" });
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message: "No Case studies are not available for allocation",
+          });
       }
 
       // 3. Try to lock the cases
@@ -4351,25 +4391,28 @@ router.post('/allocate-no-case-batch',
       for (const caseToLock of availableCases) {
         try {
           const operations = [
-            { op: 'set', path: '/assignedTo', value: userId },
-            { op: 'set', path: '/lockedAt', value: new Date().toISOString() },
-            { op: 'set', path: '/updatedAt', value: new Date().toISOString() }
+            { op: "set", path: "/assignedTo", value: userId },
+            { op: "set", path: "/lockedAt", value: new Date().toISOString() },
+            { op: "set", path: "/updatedAt", value: new Date().toISOString() },
           ];
-          
-          const filterPredicate = 'NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null';
-          
+
+          const filterPredicate =
+            "NOT IS_DEFINED(from.assignedTo) OR from.assignedTo = null";
+
           const allocatedCase = await cosmosService.patchItem(
-            'studies', 
-            caseToLock.id, 
-            organizationId, 
-            operations, 
+            "studies",
+            caseToLock.id,
+            organizationId,
+            operations,
             filterPredicate,
-            caseToLock._etag
+            caseToLock._etag,
           );
           lockedCases.push(allocatedCase);
         } catch (err) {
           if (err.statusCode === 412) {
-            console.log(`Race condition for No Case ${caseToLock.id}, trying next`);
+            console.log(
+              `Race condition for No Case ${caseToLock.id}, trying next`,
+            );
             continue;
           }
           throw err;
@@ -4377,16 +4420,21 @@ router.post('/allocate-no-case-batch',
       }
 
       if (lockedCases.length === 0) {
-        return res.status(409).json({ success: false, message: "System busy. Please try again." });
+        return res
+          .status(409)
+          .json({ success: false, message: "System busy. Please try again." });
       }
 
-      res.json({ success: true, message: "No Case studies allocated successfully", cases: lockedCases });
-
+      res.json({
+        success: true,
+        message: "No Case studies allocated successfully",
+        cases: lockedCases,
+      });
     } catch (error) {
-      console.error('No Case batch allocation error:', error);
+      console.error("No Case batch allocation error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
-  }
+  },
 );
 
 // Lock a specific case (for legacy view)
