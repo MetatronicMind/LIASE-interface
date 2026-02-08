@@ -292,7 +292,7 @@ exports.getEnvironments = async (req, res) => {
         url: process.env.DEV_URL || "https://liase-dev.azurewebsites.net",
         apiUrl:
           process.env.DEV_API_URL ||
-          "https://liase-backend-liase-dev.azurewebsites.net",
+          "https://liase-dev.azurewebsites.net",
         dbName: "liase-database-dev",
         branch: "dev",
         version: "1.1.0-beta",
@@ -348,9 +348,31 @@ exports.getEnvironments = async (req, res) => {
 exports.restartEnvironment = async (req, res) => {
   try {
     const { env } = req.body;
-    // In a real Azure environment, this would call Azure Management API
-    // For now, we simulate a restart trigger file that a DevOps pipeline could watch
+    
+    // Check if we are running in the target environment
+    // For 'development' or 'sandbox', check if the current host matches the target
+    const isLocalRestart = 
+      (env === 'development' && (process.env.WEBSITE_SITE_NAME?.includes('liase-dev') || !process.env.WEBSITE_SITE_NAME)) ||
+      (env === 'sandbox' && process.env.WEBSITE_SITE_NAME?.includes('liase-sandbox')) ||
+      (env === 'production' && process.env.WEBSITE_SITE_NAME?.includes('liase') && !process.env.WEBSITE_SITE_NAME?.includes('-dev'));
 
+    if (isLocalRestart) {
+      console.log(`Triggering local process restart for ${env}...`);
+      
+      // Respond first, then die
+      res.json({
+        status: "success",
+        message: `Restarting ${env} server process immediately.`,
+      });
+
+      // Allow response to flush
+      setTimeout(() => {
+        process.exit(1); // Force restart by Azure App Service
+      }, 1000);
+      return;
+    }
+
+    // Remote restart via file trigger (fallback for cross-env control if pipeline configured)
     const triggerPath = path.join(
       __dirname,
       `../../RESTART_TRIGGER_${env.toUpperCase()}.txt`,
@@ -361,7 +383,7 @@ exports.restartEnvironment = async (req, res) => {
 
     res.json({
       status: "success",
-      message: `Restart signal sent for ${env} environment.`,
+      message: `Restart signal recorded for ${env}. Note: This only restarts the server if a file-watcher pipeline is active.`,
     });
   } catch (error) {
     console.error("Error restarting environment:", error);
