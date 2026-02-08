@@ -298,6 +298,12 @@ app.use("/api/drugs/search-configs/run", writeLimiter); // Rate limit intensive 
 app.use("/api/drugs/discover", writeLimiter); // Rate limit drug discovery
 app.use("/api/drugs", authenticateToken, drugRoutes);
 
+// Special unauthenticated route for environment restart (handled internally with custom auth)
+app.post(
+  "/api/developer/environments/restart",
+  developerController.restartEnvironment,
+);
+
 app.use("/api/studies", authenticateToken, studyRoutes);
 app.use("/api/audit", authenticateToken, auditRoutes);
 app.use("/api/organizations", authenticateToken, organizationRoutes);
@@ -310,12 +316,6 @@ app.use("/api/legacy-data", legacyDataRoutes);
 app.use("/api/r3", authenticateToken, r3Routes);
 app.use("/api/developer", authenticateToken, developerRoutes);
 app.use("/api/track", authenticateToken, trackRoutes);
-
-// Special unauthenticated route for environment restart (handled internally with custom auth)
-app.post(
-  "/api/developer/environments/restart",
-  developerController.restartEnvironment,
-);
 
 // Root endpoint
 app.get("/", (req, res) => {
