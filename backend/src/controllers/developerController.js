@@ -421,11 +421,11 @@ exports.restartEnvironment = async (req, res) => {
         {
           headers: {
             Authorization: req.headers.authorization || "", // Pass user token just in case
-            "x-liase-restart-key": INTERNAL_RESTART_KEY, // Pass system key for bypass
-            "Content-Type": "application/json",
+            'x-liase-restart-key': INTERNAL_RESTART_KEY,      // Pass system key for bypass
+            'Content-Type': 'application/json'
           },
-          timeout: 5000,
-        },
+          timeout: 10000 // Increased timeout to 10s
+        }
       );
 
       return res.json(response.data);
