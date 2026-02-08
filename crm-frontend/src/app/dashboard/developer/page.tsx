@@ -6,6 +6,7 @@ import {
   SystemHealth,
   AnalyticsData,
   MaintenanceAction,
+  Environment,
 } from "@/services/developerService"; // Adjust import path if needed, but @/services works
 import {
   BarChart,
@@ -27,7 +28,7 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
 export default function DeveloperDashboard() {
   const [activeTab, setActiveTab] = useState<
-    "overview" | "analytics" | "logs" | "maintenance"
+    "overview" | "analytics" | "logs" | "maintenance" | "environments"
   >("overview");
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
@@ -35,6 +36,9 @@ export default function DeveloperDashboard() {
   const [maintenanceOptions, setMaintenanceOptions] = useState<
     MaintenanceAction[]
   >([]);
+  const [environments, setEnvironments] = useState<Environment[]>([]);
+  const [deploying, setDeploying] = useState<string | null>(null);
+  const [restarting, setRestarting] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -78,10 +82,55 @@ export default function DeveloperDashboard() {
     }
   };
 
+  const loadEnvironments = async () => {
+    try {
+      const envs = await developerService.getEnvironments();
+      setEnvironments(envs);
+    } catch (error) {
+      toast.error("Failed to load environments");
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "logs") loadLogs();
     if (activeTab === "maintenance") loadMaintenance();
+    if (activeTab === "environments") loadEnvironments();
   }, [activeTab]);
+
+  const handleDeploy = async (envId: string) => {
+    if (!confirm(`Are you sure you want to trigger a deployment for ${envId}?`))
+      return;
+    setDeploying(envId);
+    try {
+      const result = await developerService.deployEnvironment(envId);
+      toast.success(result.message);
+      loadEnvironments(); // Refresh status
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setDeploying(null);
+    }
+  };
+
+  const handleRestart = async (envId: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to RESTART the ${envId} environment? This will cause brief downtime.`,
+      )
+    )
+      return;
+    setRestarting(envId);
+    try {
+      const result = await developerService.restartEnvironment(envId);
+      toast.success(result.message);
+      // Wait a bit then refresh to see if status changes (might go down then up)
+      setTimeout(loadEnvironments, 5000);
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setRestarting(null);
+    }
+  };
 
   const handleMaintenanceAction = async (actionId: string) => {
     if (!confirm("Are you sure you want to execute this action?")) return;
@@ -106,16 +155,18 @@ export default function DeveloperDashboard() {
 
       <div className="flex justify-between items-center mb-6">
         <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
-          {["overview", "analytics", "logs", "maintenance"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors
+          {["overview", "analytics", "logs", "maintenance", "environments"].map(
+            (tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={`px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors
                     ${activeTab === tab ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
-            >
-              {tab}
-            </button>
-          ))}
+              >
+                {tab}
+              </button>
+            ),
+          )}
         </div>
         <button
           onClick={fetchData}
@@ -423,6 +474,201 @@ export default function DeveloperDashboard() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === "environments" && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">Environment Management</h2>
+            <button
+              onClick={loadEnvironments}
+              className="p-2 text-gray-500 hover:text-indigo-600 transition-colors"
+              title="Refresh"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-5 h-5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {environments.map((env) => (
+              <div
+                key={env.id}
+                className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-bold text-lg text-gray-800">
+                      {env.name}
+                    </h3>
+                    <p
+                      className="text-xs text-gray-400 mt-1 truncate max-w-[200px]"
+                      title={env.dbName}
+                    >
+                      DB: {env.dbName || "Unknown"}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
+                        env.status === "healthy"
+                          ? "bg-green-100 text-green-800"
+                          : env.status === "deploying"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          env.status === "healthy"
+                            ? "bg-green-500"
+                            : env.status === "deploying"
+                              ? "bg-blue-500"
+                              : "bg-red-500"
+                        }`}
+                      ></span>
+                      {env.status.toUpperCase()}
+                    </span>
+                    {env.error && (
+                      <span
+                        className="text-[10px] text-red-500 mt-1 max-w-[100px] truncate"
+                        title={env.error}
+                      >
+                        Check failed
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  <div className="flex justify-between border-b pb-2 border-gray-100">
+                    <span className="text-gray-500 text-sm">Branch</span>
+                    <span className="font-mono text-sm bg-gray-100 px-2 py-0.5 rounded">
+                      {env.branch}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-b pb-2 border-gray-100">
+                    <span className="text-gray-500 text-sm">Version</span>
+                    <span className="font-medium text-sm">{env.version}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-2 border-gray-100">
+                    <span className="text-gray-500 text-sm">Last Deploy</span>
+                    <span className="text-xs text-right max-w-[60%]">
+                      {env.lastDeploy}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="text-gray-500 text-sm">URL</span>
+                    <a
+                      href={env.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1"
+                    >
+                      Visit <span aria-hidden="true">&rarr;</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <button
+                    onClick={() => handleDeploy(env.id)}
+                    disabled={deploying === env.id || env.id !== "sandbox"}
+                    className={`w-full py-2 px-4 rounded-md font-medium text-white transition-all duration-200 ${
+                      env.id === "sandbox"
+                        ? "bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow active:scale-95"
+                        : "bg-gray-300 cursor-not-allowed text-gray-500"
+                    }`}
+                  >
+                    {deploying === env.id ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg
+                          className="animate-spin h-4 w-4 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Deploying...
+                      </span>
+                    ) : (
+                      "Trigger Deployment"
+                    )}
+                  </button>
+                  {env.id !== "sandbox" && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => handleRestart(env.id)}
+                        disabled={restarting === env.id}
+                        className="w-full py-2 px-4 rounded-md font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-all text-sm"
+                      >
+                        {restarting === env.id
+                          ? "Restarting..."
+                          : "Restart Server"}
+                      </button>
+                    </div>
+                  )}
+                  {env.id !== "sandbox" && (
+                    <p className="text-xs text-gray-400 mt-2 text-center">
+                      Deployment managed by CI/CD Pipeline
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-8">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-blue-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-700">
+                  <span className="font-bold">Note:</span> Triggering a
+                  deployment for Sandbox will update the version to the latest
+                  commit on the <code>dev</code> branch. This process typically
+                  takes 2-5 minutes.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

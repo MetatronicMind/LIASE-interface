@@ -16,4 +16,9 @@ router.get("/logs", developerController.getRecentLogs);
 router.get("/maintenance", developerController.getMaintenanceOptions);
 router.post("/maintenance", developerController.triggerMaintenance);
 
+// Environment Management
+router.get("/environments", developerController.getEnvironments);
+router.post("/environments/deploy", developerController.deployEnvironment);
+router.post("/environments/restart", developerController.restartEnvironment);
+
 module.exports = router;

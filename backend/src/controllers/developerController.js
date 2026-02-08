@@ -2,6 +2,9 @@ const os = require("os");
 const cosmosService = require("../services/cosmosService");
 const emailSenderService = require("../services/emailSenderService");
 const cacheService = require("../services/cacheService");
+const fs = require("fs");
+const path = require("path");
+const axios = require("axios"); // Add axios for health checks
 
 // Helper to get formatted duration
 const getUptime = () => {
@@ -257,6 +260,156 @@ exports.triggerMaintenance = async (req, res) => {
     });
   } catch (error) {
     console.error(`Error performing maintenance action ${action}:`, error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.getEnvironments = async (req, res) => {
+  try {
+    // Read deployment trigger status
+    const deployTriggerPath = path.join(__dirname, "../../DEPLOY_TRIGGER.txt");
+    let deployTrigger = "None";
+    if (fs.existsSync(deployTriggerPath)) {
+      deployTrigger = fs.readFileSync(deployTriggerPath, "utf8").trim();
+    }
+
+    // Define environments with their URLs and DBs
+    const environmentsConfig = [
+      {
+        id: "production",
+        name: "LIASE (Main)",
+        url: process.env.PRODUCTION_URL || "https://liase.azurewebsites.net",
+        apiUrl:
+          process.env.PRODUCTION_API_URL ||
+          "https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net",
+        dbName: "liase-database",
+        branch: "main",
+        version: "1.0.0",
+      },
+      {
+        id: "development",
+        name: "LIASE Dev (Developer)",
+        url: process.env.DEV_URL || "https://liase-dev.azurewebsites.net",
+        apiUrl:
+          process.env.DEV_API_URL ||
+          "https://liase-backend-liase-dev.azurewebsites.net",
+        dbName: "liase-database-dev",
+        branch: "dev",
+        version: "1.1.0-beta",
+      },
+      {
+        id: "sandbox",
+        name: "LIASE Sandbox",
+        url:
+          process.env.SANDBOX_URL || "https://liase-sandbox.azurewebsites.net",
+        apiUrl:
+          process.env.SANDBOX_API_URL ||
+          "https://liase-backend-liase-sandbox.azurewebsites.net",
+        dbName: "liase-database-sandbox",
+        branch: "sandbox",
+        version: "0.0.7-sandbox",
+        lastDeploy: deployTrigger,
+      },
+    ];
+
+    // Check health of each environment in parallel
+    const envsWithStatus = await Promise.all(
+      environmentsConfig.map(async (env) => {
+        try {
+          // Attempt to fetch health endpoint
+          // Use apiUrl for health check, fallback to url if not set
+          const targetUrl = env.apiUrl || env.url;
+          const healthUrl = `${targetUrl}/api/health`;
+
+          await axios.get(healthUrl, { timeout: 5000 });
+          return { ...env, status: "healthy" };
+        } catch (error) {
+          // If connection fails, mark as unhealthy/down
+          // Log the url we tried to help debugging
+          const targetUrl = env.apiUrl || env.url;
+          console.error(
+            `Health check failed for ${env.id} at ${targetUrl}: ${error.message}`,
+          );
+          return { ...env, status: "unhealthy", error: error.message };
+        }
+      }),
+    );
+
+    res.json({
+      status: "success",
+      data: envsWithStatus,
+    });
+  } catch (error) {
+    console.error("Error fetching environments:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.restartEnvironment = async (req, res) => {
+  try {
+    const { env } = req.body;
+    // In a real Azure environment, this would call Azure Management API
+    // For now, we simulate a restart trigger file that a DevOps pipeline could watch
+
+    const triggerPath = path.join(
+      __dirname,
+      `../../RESTART_TRIGGER_${env.toUpperCase()}.txt`,
+    );
+    const content = `Restart Triggered for ${env}\nBy: ${req.user ? req.user.email : "Unknown"}\nDate: ${new Date().toISOString()}`;
+
+    fs.writeFileSync(triggerPath, content);
+
+    res.json({
+      status: "success",
+      message: `Restart signal sent for ${env} environment.`,
+    });
+  } catch (error) {
+    console.error("Error restarting environment:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.deployEnvironment = async (req, res) => {
+  try {
+    const { env, version } = req.body;
+
+    if (env === "sandbox") {
+      const deployTriggerPath = path.join(
+        __dirname,
+        "../../DEPLOY_TRIGGER.txt",
+      );
+      const triggerContent = `Trigger Sandbox Deploy ${version || "latest"}\nBy: ${req.user ? req.user.email : "Unknown"}\nDate: ${new Date().toISOString()}`;
+
+      // Update backend trigger
+      fs.writeFileSync(deployTriggerPath, triggerContent);
+
+      // Try to update frontend trigger if it exists (for local development/monorepo)
+      const frontendTriggerPath = path.join(
+        __dirname,
+        "../../../crm-frontend/DEPLOY_TRIGGER.txt",
+      );
+      if (fs.existsSync(frontendTriggerPath)) {
+        try {
+          fs.writeFileSync(frontendTriggerPath, triggerContent);
+        } catch (err) {
+          console.warn("Could not update frontend trigger file:", err.message);
+        }
+      }
+
+      res.json({
+        status: "success",
+        message: `Deployment triggered for ${env} version ${version || "latest"}`,
+      });
+    } else {
+      // For now, only sandbox is automated
+      res.status(400).json({
+        status: "error",
+        message:
+          "Only sandbox deployment is supported via this interface currently. Contact DevOps for Staging/Prod.",
+      });
+    }
+  } catch (error) {
+    console.error("Error triggering deployment:", error);
     res.status(500).json({ status: "error", message: error.message });
   }
 };

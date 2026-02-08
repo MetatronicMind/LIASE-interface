@@ -2,5 +2,11 @@
 import TrackTriagePage from "@/components/track/TrackTriagePage";
 
 export default function NoCaseTriagePage() {
-    return <TrackTriagePage trackType="NoCase" trackDisplayName="No Case" />;
+  return (
+    <TrackTriagePage
+      trackType="NoCase"
+      trackDisplayName="No Case"
+      pageTitle="No Case Allocation"
+    />
+  );
 }

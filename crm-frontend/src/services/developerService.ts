@@ -49,6 +49,18 @@ export interface MaintenanceAction {
     danger: boolean;
 }
 
+export interface Environment {
+    id: string;
+    name: string;
+    url: string;
+    branch: string;
+    status: 'healthy' | 'unhealthy' | 'deploying';
+    lastDeploy: string;
+    version: string;
+    dbName?: string;
+    error?: string;
+}
+
 class DeveloperService {
     private getHeaders() {
         const token = authService.getToken();
@@ -123,6 +135,47 @@ class DeveloperService {
         }
         const result = await response.json();
         return result.data;
+    }
+
+    async getEnvironments(): Promise<Environment[]> {
+        const response = await fetch(`${API_BASE_URL}/developer/environments`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch environments');
+        }
+        const result = await response.json();
+        return result.data;
+    }
+
+    async deployEnvironment(env: string, version?: string): Promise<{ message: string }> {
+        const response = await fetch(`${API_BASE_URL}/developer/environments/deploy`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ env, version }),
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.message || 'Failed to trigger deployment');
+        }
+        return await response.json();
+    }
+
+    async restartEnvironment(env: string): Promise<{ message: string }> {
+        const response = await fetch(`${API_BASE_URL}/developer/environments/restart`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ env }),
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.message || 'Failed to trigger restart');
+        }
+        return await response.json();
     }
 }
 
