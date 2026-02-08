@@ -385,11 +385,17 @@ exports.restartEnvironment = async (req, res) => {
     }
 
     // Determine if we are the target environment
-    // 1. If running in Azure, check WEBSITE_SITE_NAME
-    // 2. If running locally, we are NOT the target (unless target is 'local', which isn't in config)
+    // Robust check: Azure Site Name OR Database Name match
     const currentAzureName = process.env.WEBSITE_SITE_NAME;
-    const isTarget =
-      currentAzureName && currentAzureName.includes(targetEnv.azureName);
+    const currentDbName = process.env.COSMOS_DB_DATABASE_ID;
+    
+    console.log(`[Restart Debug] Request for: ${env}`);
+    console.log(`[Restart Debug] Current Site: ${currentAzureName}, Current DB: ${currentDbName}`);
+    console.log(`[Restart Debug] Target Site: ${targetEnv.azureName}, Target DB: ${targetEnv.dbName}`);
+
+    const isTarget = 
+      (currentAzureName && currentAzureName.includes(targetEnv.azureName)) ||
+      (currentDbName && currentDbName === targetEnv.dbName);
 
     if (isTarget) {
       // We are the target: Self-destruct to trigger restart
@@ -421,11 +427,11 @@ exports.restartEnvironment = async (req, res) => {
         {
           headers: {
             Authorization: req.headers.authorization || "", // Pass user token just in case
-            'x-liase-restart-key': INTERNAL_RESTART_KEY,      // Pass system key for bypass
-            'Content-Type': 'application/json'
+            "x-liase-restart-key": INTERNAL_RESTART_KEY, // Pass system key for bypass
+            "Content-Type": "application/json",
           },
-          timeout: 10000 // Increased timeout to 10s
-        }
+          timeout: 10000, // Increased timeout to 10s
+        },
       );
 
       return res.json(response.data);
