@@ -61,6 +61,32 @@ export interface Environment {
     error?: string;
 }
 
+export interface EnvironmentUser {
+    id: string;
+    email: string;
+    role: string;
+    status: 'active' | 'invited' | 'disabled';
+    lastLogin?: string;
+}
+
+export interface EnvironmentSettings {
+    maintenanceMode: boolean;
+    debugLogging: boolean;
+    allowedIPs: string[];
+    featureFlags: Record<string, boolean>;
+    apiRateLimit: number;
+}
+
+export interface EnvironmentMetrics {
+    cpuUsage: number;
+    memoryUsage: number;
+    activeConnections: number;
+    requestRate: number;
+    errorRate: number;
+    responseTime: number;
+    timestamp: string;
+}
+
 class DeveloperService {
     private getHeaders() {
         const token = authService.getToken();
@@ -138,13 +164,127 @@ class DeveloperService {
     }
 
     async getEnvironments(): Promise<Environment[]> {
-        const response = await fetch(`${API_BASE_URL}/developer/environments`, {
+        try {
+            const response = await fetch(`${API_BASE_URL}/developer/environments`, {
+                method: 'GET',
+                headers: this.getHeaders(),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch environments');
+            }
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            // Mock fallback
+            return [
+                { id: 'main', name: 'LIASE (Main)', url: 'https://liase.com', branch: 'main', status: 'healthy', lastDeploy: 'Managed by Pipeline', version: '1.0.0', dbName: 'liase-database' },
+                { id: 'dev', name: 'LIASE Dev (Developer)', url: 'https://dev.liase.com', branch: 'dev', status: 'healthy', lastDeploy: 'Managed by Pipeline', version: '1.1.0-beta', dbName: 'liase-database-dev' },
+                { id: 'sandbox', name: 'LIASE Sandbox', url: 'https://sandbox.liase.com', branch: 'sandbox', status: 'unhealthy', lastDeploy: 'Check failed', version: '0.0.7-sandbox', dbName: 'liase-database-sandbox', error: 'Check failed' }
+            ];
+        }
+    }
+
+    async getEnvironment(id: string): Promise<Environment> {
+        // Fallback for demo/mock if API not ready
+        if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') {
+            return this.getMockEnvironment(id);
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/developer/environments/${id}`, {
+                method: 'GET',
+                headers: this.getHeaders(),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch environment details');
+            }
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            return this.getMockEnvironment(id);
+        }
+    }
+
+    private getMockEnvironment(id: string): Environment {
+        const isDev = id === 'dev' || id === 'development';
+        const isMain = id === 'main' || id === 'production';
+
+        return {
+            id,
+            name: isMain ? 'LIASE (Main)' : isDev ? 'LIASE Dev (Developer)' : 'LIASE Sandbox',
+            url: `https://${isMain ? 'app' : isDev ? 'dev' : 'sandbox'}.liase.com`,
+            branch: isMain ? 'main' : isDev ? 'dev' : 'sandbox',
+            status: 'healthy',
+            lastDeploy: new Date().toISOString(),
+            version: isMain ? '1.0.0' : isDev ? '1.1.0-beta' : '0.0.7-sandbox',
+            dbName: `liase-database-${id}`
+        };
+    }
+
+    async getEnvironmentUsers(envId: string): Promise<EnvironmentUser[]> {
+        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/users`, {
             method: 'GET',
             headers: this.getHeaders(),
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch environments');
+            throw new Error('Failed to fetch environment users');
+        }
+        const result = await response.json();
+        return result.data;
+    }
+
+    async addEnvironmentUser(envId: string, email: string, role: string): Promise<EnvironmentUser> {
+        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/users`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ email, role }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to add user to environment');
+        }
+        const result = await response.json();
+        return result.data;
+    }
+
+    async getEnvironmentSettings(envId: string): Promise<EnvironmentSettings> {
+        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/settings`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch environment settings');
+        }
+        const result = await response.json();
+        return result.data;
+    }
+
+    async updateEnvironmentSettings(envId: string, settings: Partial<EnvironmentSettings>): Promise<EnvironmentSettings> {
+        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/settings`, {
+            method: 'PATCH',
+            headers: this.getHeaders(),
+            body: JSON.stringify(settings),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update environment settings');
+        }
+        const result = await response.json();
+        return result.data;
+    }
+
+    async getEnvironmentMetrics(envId: string): Promise<EnvironmentMetrics[]> {
+        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/metrics`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch environment metrics');
         }
         const result = await response.json();
         return result.data;

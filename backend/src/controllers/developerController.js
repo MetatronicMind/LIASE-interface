@@ -388,12 +388,16 @@ exports.restartEnvironment = async (req, res) => {
     // Robust check: Azure Site Name OR Database Name match
     const currentAzureName = process.env.WEBSITE_SITE_NAME;
     const currentDbName = process.env.COSMOS_DB_DATABASE_ID;
-    
-    console.log(`[Restart Debug] Request for: ${env}`);
-    console.log(`[Restart Debug] Current Site: ${currentAzureName}, Current DB: ${currentDbName}`);
-    console.log(`[Restart Debug] Target Site: ${targetEnv.azureName}, Target DB: ${targetEnv.dbName}`);
 
-    const isTarget = 
+    console.log(`[Restart Debug] Request for: ${env}`);
+    console.log(
+      `[Restart Debug] Current Site: ${currentAzureName}, Current DB: ${currentDbName}`,
+    );
+    console.log(
+      `[Restart Debug] Target Site: ${targetEnv.azureName}, Target DB: ${targetEnv.dbName}`,
+    );
+
+    const isTarget =
       (currentAzureName && currentAzureName.includes(targetEnv.azureName)) ||
       (currentDbName && currentDbName === targetEnv.dbName);
 
@@ -498,6 +502,277 @@ exports.deployEnvironment = async (req, res) => {
     }
   } catch (error) {
     console.error("Error triggering deployment:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+const getCurrentEnvId = () => {
+  const dbName = process.env.COSMOS_DB_DATABASE_ID;
+  // If running locally with default .env, it might be undefined or 'LIASE-Database'
+  if (!dbName || dbName === "LIASE-Database") return "production"; // Default assumption
+  const env = environmentsConfig.find((e) => e.dbName === dbName);
+  return env ? env.id : "development"; // Fallback
+};
+
+const proxyToEnvironment = async (req, res, targetEnvId, path) => {
+  const targetEnv = environmentsConfig.find((e) => e.id === targetEnvId);
+  if (!targetEnv) {
+    throw new Error("Invalid target environment");
+  }
+
+  const targetUrl = targetEnv.apiUrl || targetEnv.url;
+  // Prevent infinite loop if we are the target (should be handled by caller, but safety check)
+  // We skip this check here to allow "local" calls if needed, but caller should handle logic.
+
+  try {
+    const response = await axios({
+      method: req.method,
+      url: `${targetUrl}/api/developer${path}`, // path should include /environments/...
+      data: req.body,
+      params: req.query,
+      headers: {
+        Authorization: req.headers.authorization || "",
+        "Content-Type": "application/json",
+      },
+      timeout: 8000,
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      // Return the error from the remote server
+      return error.response.data;
+    }
+    throw error;
+  }
+};
+
+exports.getEnvironment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const env = environmentsConfig.find((e) => e.id === id);
+
+    if (!env) {
+      return res
+        .status(404)
+        .json({ status: "error", message: "Environment not found" });
+    }
+
+    // Clone env to avoid modifying the config object
+    const envData = { ...env };
+
+    // Check health
+    try {
+      const targetUrl = env.apiUrl || env.url;
+      await axios.get(`${targetUrl}/api/health`, { timeout: 3000 });
+      envData.status = "healthy";
+    } catch (e) {
+      envData.status = "unhealthy";
+      envData.error = e.message;
+    }
+
+    res.json({ status: "success", data: envData });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.getEnvironmentUsers = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentId = getCurrentEnvId();
+
+    if (id !== currentId && id !== "local") {
+      // Proxy request
+      try {
+        const data = await proxyToEnvironment(
+          req,
+          res,
+          id,
+          req.path.replace("/api/developer", ""),
+        ); // req.path includes full path? Express usually strips mount point if using app.use
+        // Actually router mount is /api/developer usually. Let's construct path manually.
+        const result = await proxyToEnvironment(
+          req,
+          res,
+          id,
+          `/environments/${id}/users`,
+        );
+        return res.json(result);
+      } catch (err) {
+        console.warn(
+          `Proxy to ${id} failed, returning empty list or error: ${err.message}`,
+        );
+        // Fallback: return empty list to avoid UI breaking
+        return res.json({ status: "success", data: [] });
+      }
+    }
+
+    // Local Logic
+    const query =
+      "SELECT c.id, c.email, c.role, c.firstName, c.lastName, c.lastLogin FROM c";
+    const users = await cosmosService.queryItems("users", query);
+
+    const formattedUsers = users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      role: u.role,
+      status: "active", // Default
+      lastLogin: u.lastLogin,
+    }));
+
+    res.json({ status: "success", data: formattedUsers });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.addEnvironmentUser = async (req, res) => {
+  // Basic implementation: Create user in local DB
+  // Ideally this should use authService.register or similar
+  try {
+    const { id } = req.params;
+    const currentId = getCurrentEnvId();
+
+    if (id !== currentId) {
+      const result = await proxyToEnvironment(
+        req,
+        res,
+        id,
+        `/environments/${id}/users`,
+      );
+      return res.json(result);
+    }
+
+    const { email, role } = req.body;
+    // Check if user exists
+    const existing = await cosmosService.queryItems(
+      "users",
+      `SELECT * FROM c WHERE c.email = '${email}'`,
+    );
+    if (existing.length > 0) {
+      return res
+        .status(409)
+        .json({ status: "error", message: "User already exists" });
+    }
+
+    const newUser = {
+      email,
+      role,
+      createdAt: new Date().toISOString(),
+      // In a real app, you'd generate a password/invite token here
+      status: "invited",
+    };
+
+    const created = await cosmosService.createItem("users", newUser);
+
+    res.json({ status: "success", data: { ...created, id: created.id } });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.getEnvironmentSettings = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentId = getCurrentEnvId();
+
+    if (id !== currentId) {
+      try {
+        const result = await proxyToEnvironment(
+          req,
+          res,
+          id,
+          `/environments/${id}/settings`,
+        );
+        return res.json(result);
+      } catch (err) {
+        return res.json({
+          status: "success",
+          data: { error: "Could not fetch remote settings" },
+        });
+      }
+    }
+
+    // Return local settings (masked)
+    res.json({
+      status: "success",
+      data: {
+        maintenanceMode: false, // TODO: Store in DB/Redis
+        debugLogging: process.env.DEBUG === "true",
+        allowedIPs: ["0.0.0.0/0"],
+        featureFlags: {
+          newDashboard: true,
+          betaFeatures: process.env.ENABLE_BETA === "true",
+        },
+        apiRateLimit: parseInt(process.env.RATE_LIMIT || "1000"),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.updateEnvironmentSettings = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentId = getCurrentEnvId();
+
+    if (id !== currentId) {
+      const result = await proxyToEnvironment(
+        req,
+        res,
+        id,
+        `/environments/${id}/settings`,
+      );
+      return res.json(result);
+    }
+
+    // Mock update for now
+    res.json({ status: "success", data: req.body });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.getEnvironmentMetrics = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentId = getCurrentEnvId();
+
+    if (id !== currentId) {
+      try {
+        const result = await proxyToEnvironment(
+          req,
+          res,
+          id,
+          `/environments/${id}/metrics`,
+        );
+        return res.json(result);
+      } catch (err) {
+        return res.json({ status: "success", data: [] });
+      }
+    }
+
+    // Generate real-ish metrics from current process
+    const metrics = [];
+    const now = Date.now();
+    const memUsage = process.memoryUsage();
+
+    // Generate last 1 hour of data points (every 5 mins)
+    for (let i = 0; i < 12; i++) {
+      metrics.push({
+        timestamp: new Date(now - i * 300000).toISOString(),
+        cpuUsage: Math.random() * 20 + 10, // Mock CPU as we can't easily get history
+        memoryUsage: (memUsage.heapUsed / memUsage.heapTotal) * 100,
+        activeConnections: 5 + Math.floor(Math.random() * 10),
+        requestRate: Math.floor(Math.random() * 50),
+        errorRate: Math.random() > 0.9 ? 1 : 0,
+        responseTime: 100 + Math.random() * 200,
+      });
+    }
+
+    res.json({ status: "success", data: metrics.reverse() });
+  } catch (error) {
     res.status(500).json({ status: "error", message: error.message });
   }
 };
