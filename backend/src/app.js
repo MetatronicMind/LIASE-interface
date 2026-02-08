@@ -48,6 +48,7 @@ const legacyDataRoutes = require("./routes/legacyDataRoutes");
 const r3Routes = require("./routes/r3Routes");
 const developerRoutes = require("./routes/developerRoutes");
 const trackRoutes = require("./routes/trackRoutes");
+const developerController = require("./controllers/developerController");
 
 console.log("drugRoutes loaded:", typeof drugRoutes);
 console.log(
@@ -309,6 +310,12 @@ app.use("/api/legacy-data", legacyDataRoutes);
 app.use("/api/r3", authenticateToken, r3Routes);
 app.use("/api/developer", authenticateToken, developerRoutes);
 app.use("/api/track", authenticateToken, trackRoutes);
+
+// Special unauthenticated route for environment restart (handled internally with custom auth)
+app.post(
+  "/api/developer/environments/restart",
+  developerController.restartEnvironment,
+);
 
 // Root endpoint
 app.get("/", (req, res) => {
