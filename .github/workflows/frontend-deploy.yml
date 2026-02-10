@@ -7,11 +7,11 @@ on:
       - prod
       - dev
     tags:
-      - 'v-dev-*'
-      - 'v-client-*'
+      - "v-dev-*"
+      - "v-client-*"
     paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend-deploy.yml'
+      - "frontend/**"
+      - ".github/workflows/frontend-deploy.yml"
 
 jobs:
   build:
@@ -45,7 +45,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: "20.x"
 
       - name: Install dependencies
         working-directory: ./frontend
@@ -58,38 +58,38 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ steps.context.outputs.API_URL }}
           NEXT_PUBLIC_APP_VERSION: ${{ github.ref_name }}
           NODE_ENV: production
-          
+
       # STANDALONE PACKAGE PREPARATION (Trojan Horse Method)
       - name: Prepare Deployment Package
         working-directory: ./frontend
         run: |
           mkdir -p deploy-package
-          
+
           # 1. Copy Standalone Engine (server.js, node_modules)
           cp -r .next/standalone/* deploy-package/ || true
-          
+
           # 2. THE FIX: Copy .next as a VISIBLE folder
           # We rename it to 'next_build_visible' so Azure doesn't filter it out and avoids potential '_' ignore rules.
           cp -r .next deploy-package/next_build_visible
-          
+
           # Cleanup cache
           rm -rf deploy-package/next_build_visible/cache
-          
+
           # 3. Copy public assets
           cp -r public deploy-package/public
 
           # 4. Copy startup script (CRITICAL)
           cp startup.sh deploy-package/
-          
+
           # 5. Copy web.config
           cp web.config deploy-package/ 2>/dev/null || true
-          
+
           # 6. FORCE START SCRIPT
           # Azure often defaults to 'npm start'. We hijack this to run our startup script.
           cd deploy-package
           npm pkg set scripts.start="sh startup.sh"
           cd ..
-          
+
           echo "✅ Package Prepared with next_build_visible and hijacked start script."
           ls -la deploy-package/
 
@@ -114,10 +114,10 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 'Deploy to Frontend Slot'
+      - name: "Deploy to Frontend Slot"
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'LIASE'
+          app-name: "LIASE"
           slot-name: ${{ needs.build.outputs.slot }}
           package: deployment-payload
-          startup-command: 'sh startup.sh'
+          startup-command: "sh startup.sh"
