@@ -29,6 +29,7 @@ import ClientSelector from "@/components/ClientSelector";
 import { auditService } from "@/services/auditService";
 import { useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
+import EnvironmentSelector from "@/components/EnvironmentSelector";
 
 // Base navigation items - always visible
 const baseNavItems: any[] = [];
@@ -279,6 +280,9 @@ export default function DashboardLayout({
                 </svg>
               </button>
               <ClientSelector />
+              <div className="hidden md:ml-4 md:flex md:items-center md:border-l md:border-blue-400 md:pl-4">
+                <EnvironmentSelector />
+              </div>
             </div>
             <div className="flex items-center gap-4">
               {/* <button className="bg-blue-700/40 rounded-full p-2 text-white hover:bg-blue-800/60 transition">
