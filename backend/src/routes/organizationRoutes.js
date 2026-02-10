@@ -37,7 +37,20 @@ router.post(
         });
       }
 
-      const { name, adminEmail, databaseId, adminPassword } = req.body;
+      // Extract all fields from the request, including those from OnboardingWizard
+      const { 
+        name, 
+        adminEmail, 
+        databaseId, 
+        adminPassword,
+        industry,
+        primaryContactName,
+        primaryContactEmail,
+        primaryContactPhone,
+        workflowSettings,
+        triageSettings,
+        daysAvailable
+      } = req.body;
 
       // Check if tenant ID (databaseId) already exists
       const existingOrgs = await cosmosService.queryItems(
@@ -67,12 +80,29 @@ router.post(
       const newOrg = new Organization({
         id: organizationId,
         name,
-        contactEmail: adminEmail,
+        contactEmail: primaryContactEmail || adminEmail, // Prefer primary contact
         tenantId: databaseId, // Store databaseId as tenantId
+        industry,
+        primaryContact: {
+            name: primaryContactName,
+            email: primaryContactEmail,
+            phone: primaryContactPhone
+        },
         settings: {
           maxUsers: 5,
           maxDrugs: 10,
           maxStudies: 100,
+          workflow: workflowSettings || {
+            qcDataEntry: true,
+            medicalReview: true,
+            icsrBypassQc: false,
+            noCaseQcAllocation: 20
+          },
+          triage: triageSettings || {
+            batchAllocationSize: 100,
+            priorityQueue: ["Probable ICSR/AOI", "Manual Review", "Probable ICSR"]
+          },
+          daysAvailable: daysAvailable || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         },
         plan: "Standard",
       });

@@ -189,6 +189,13 @@ export default function OnboardingWizard({
                 databaseId: formData.databaseId,
                 adminEmail: formData.adminEmail,
                 adminPassword: formData.adminPassword || undefined,
+                industry: formData.industry,
+                primaryContactName: formData.primaryContactName,
+                primaryContactEmail: formData.primaryContactEmail,
+                primaryContactPhone: formData.primaryContactPhone,
+                workflowSettings: formData.workflowSettings,
+                triageSettings: formData.triageSettings,
+                daysAvailable: formData.daysAvailable
             };
 
             const response = await fetch(`${getApiBaseUrl()}/organizations`, {
