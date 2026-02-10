@@ -18,15 +18,15 @@ import {
   ChartBarIcon,
   BeakerIcon,
   ArchiveBoxIcon,
-  XCircleIcon
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/components/PermissionProvider";
 import ClientSelector from "@/components/ClientSelector";
 import { auditService } from "@/services/auditService";
-import { useSelector } from 'react-redux';
-import { RootState } from '@/redux/store';
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
 import TriChannelSidebar from "@/components/TriChannelSidebar";
 
 // Base navigation items - always visible
@@ -38,112 +38,121 @@ const permissionBasedNavItems = [
     name: "Dashboard",
     href: "/dashboard",
     icon: <HomeIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'dashboard', action: 'read' }
+    permission: { resource: "dashboard", action: "read" },
   },
   {
     name: "Literature Search Configuration",
     href: "/dashboard/drug-management",
     icon: <BeakerIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'drugs', action: 'read' }
+    permission: { resource: "drugs", action: "read" },
   },
   {
     name: "Literature Triage",
     href: "/dashboard/triage",
     icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'triage', action: 'read' }
+    permission: { resource: "triage", action: "read" },
   },
   {
     name: "QC Allocation",
     href: "/dashboard/qa",
     icon: <CheckCircleIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'QA', action: 'read' }
+    permission: { resource: "QA", action: "read" },
   },
   {
     name: "No Case Allocation",
     href: "/dashboard/no-case-allocation",
     icon: <XCircleIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'QA', action: 'read' }
+    permission: { resource: "QA", action: "read" },
   },
   {
     name: "QC Triage Page",
     href: "/dashboard/qc-triage",
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'QC', action: 'read' }
+    permission: { resource: "QC", action: "read" },
   },
   {
     name: "Data Entry",
     href: "/dashboard/data-entry",
     icon: <PencilSquareIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'data_entry', action: 'read' }
+    permission: { resource: "data_entry", action: "read" },
   },
   {
     name: "QC Data Entry",
     href: "/dashboard/qc",
     icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'QC', action: 'read' }
+    permission: { resource: "QC", action: "read" },
   },
   {
     name: "Medical Review",
     href: "/dashboard/medical-examiner",
     icon: <UserIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'medical_examiner', action: 'read' }
+    permission: { resource: "medical_examiner", action: "read" },
   },
   {
     name: "ICSR Reports",
     href: "/dashboard/full-report",
     icon: <DocumentCheckIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'reports', action: 'read' }
+    permission: { resource: "reports", action: "read" },
   },
   {
     name: "AOI Allocation",
     href: "/dashboard/aoi-allocation",
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'aoiAssessment', action: 'read' }
+    permission: { resource: "aoiAssessment", action: "read" },
   },
   {
     name: "Reports",
     href: "/dashboard/reports",
     icon: <ChartBarIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'reports', action: 'read' }
+    permission: { resource: "reports", action: "read" },
   },
   {
     name: "Audit Trail",
     href: "/dashboard/audit-trail",
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'audit', action: 'read' }
+    permission: { resource: "audit", action: "read" },
   },
   {
     name: "User Management",
     href: "/dashboard/user-management",
     icon: <UsersIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'users', action: 'read' }
+    permission: { resource: "users", action: "read" },
   },
   {
     name: "Legacy Data",
     href: "/dashboard/legacy-data",
     icon: <TableCellsIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'legacyData', action: 'read' }
+    permission: { resource: "legacyData", action: "read" },
   },
   {
     name: "Archive",
     href: "/dashboard/archive",
     icon: <ArchiveBoxIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'archive', action: 'read' }
+    permission: { resource: "archive", action: "read" },
   },
   {
     name: "Settings",
     href: "/dashboard/settings",
     icon: <Cog6ToothIcon className="w-5 h-5 mr-2" />,
-    permission: { resource: 'settings', action: 'read' }
+    permission: { resource: "settings", action: "read" },
   },
 ];
 
 // Function to get nav items based on user permissions
-const getNavItemsForUser = (hasPermission: (resource: string, action: string) => boolean, isAdmin: () => boolean, isSuperAdmin: () => boolean) => {
-  const filteredItems = permissionBasedNavItems.filter(item => {
+const getNavItemsForUser = (
+  hasPermission: (resource: string, action: string) => boolean,
+  isAdmin: () => boolean,
+  isSuperAdmin: () => boolean,
+) => {
+  const filteredItems = permissionBasedNavItems.filter((item) => {
     // Check special admin requirements
-    if ('requireSuperAdmin' in item && item.requireSuperAdmin && !isSuperAdmin()) return false;
-    if ('requireAdmin' in item && item.requireAdmin && !isAdmin()) return false;
+    if (
+      "requireSuperAdmin" in item &&
+      item.requireSuperAdmin &&
+      !isSuperAdmin()
+    )
+      return false;
+    if ("requireAdmin" in item && item.requireAdmin && !isAdmin()) return false;
 
     // Check permission requirement
     if (item.permission) {
@@ -156,7 +165,11 @@ const getNavItemsForUser = (hasPermission: (resource: string, action: string) =>
   return [...baseNavItems, ...filteredItems];
 };
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   // Sidebar open by default on desktop, closed on mobile
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -165,7 +178,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { user, logout } = useAuth();
   const { hasPermission, isAdmin, isSuperAdmin } = usePermissions();
-  const isSidebarLocked = useSelector((state: RootState) => state.ui.isSidebarLocked);
+  const isSidebarLocked = useSelector(
+    (state: RootState) => state.ui.isSidebarLocked,
+  );
 
   // Get navigation items based on user permissions
   const navItems = getNavItemsForUser(hasPermission, isAdmin, isSuperAdmin);
@@ -178,15 +193,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
     };
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Close dropdown on outside click or ESC
   useEffect(() => {
     if (!userMenuOpen) return;
     function handleClick(e: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(e.target as Node)
+      ) {
         setUserMenuOpen(false);
       }
     }
@@ -204,22 +222,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <ProtectedRoute>
       <div className="min-h-screen flex bg-[#f5f8fb]">
         {/* Tri-Channel Sidebar */}
-        <TriChannelSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        <TriChannelSidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+        />
         {/* Overlay for mobile */}
         {sidebarOpen && (
-          <div className="fixed inset-0 z-20 bg-black bg-opacity-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+          <div
+            className="fixed inset-0 z-20 bg-black bg-opacity-30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
         )}
         {/* Main Content */}
-        <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-64' : ''} w-full max-w-full`}>
-          <header className="bg-[#2563eb] shadow-xl px-6 py-4 flex items-center justify-between sticky top-0 z-30" style={{ boxShadow: '0 4px 24px 0 rgba(37,99,235,0.10), 0 1.5px 8px 0 rgba(0,0,0,0.08)' }}>
+        <main
+          className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? "ml-64" : ""} w-full max-w-full`}
+        >
+          <header
+            className="bg-[#2563eb] shadow-xl px-6 py-4 flex items-center justify-between sticky top-0 z-30"
+            style={{
+              boxShadow:
+                "0 4px 24px 0 rgba(37,99,235,0.10), 0 1.5px 8px 0 rgba(0,0,0,0.08)",
+            }}
+          >
             <div className="flex items-center gap-4">
               <button
                 className="text-white focus:outline-none"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 aria-label="Toggle sidebar"
               >
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                <svg
+                  className="w-7 h-7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               </button>
               <ClientSelector />
@@ -238,7 +280,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   onClick={() => setUserMenuOpen((v) => !v)}
                 >
                   <UserCircleIcon className="w-6 h-6" />
-                  <span>{user?.firstName || 'User'}</span>
+                  <span>{user?.firstName || "User"}</span>
                 </button>
                 {userMenuOpen && (
                   <div className="absolute right-0 mt-2 w-40 bg-white border border-blue-100 shadow-lg rounded py-2 z-50 animate-fade-in">
@@ -256,7 +298,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       onClick={async () => {
                         setUserMenuOpen(false);
                         await logout();
-                        router.push('/login');
+                        router.push("/login");
                       }}
                     >
                       Logout

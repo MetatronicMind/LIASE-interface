@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import { getApiBaseUrl } from "@/config/api";
 import { PmidLink } from "@/components/PmidLink";
 import { useDateTime } from "@/hooks/useDateTime";
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '@/redux/store';
-import { setSidebarLocked } from '@/redux/slices/uiSlice';
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "@/redux/store";
+import { setSidebarLocked } from "@/redux/slices/uiSlice";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 
 interface Study {
@@ -21,7 +21,7 @@ interface Study {
   status: string;
   createdAt: string;
   updatedAt: string;
-  userTag?: 'ICSR' | 'AOI' | 'No Case' | null;
+  userTag?: "ICSR" | "AOI" | "No Case" | null;
   icsrClassification?: string;
   aoiClassification?: string;
   assignedTo?: string;
@@ -30,46 +30,50 @@ interface Study {
 
 export default function NoCaseAllocationPage() {
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
-  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
+  const selectedOrganizationId = useSelector(
+    (state: RootState) => state.filter.selectedOrganizationId,
+  );
   const dispatch = useDispatch();
   const { formatDate } = useDateTime();
   const API_BASE = getApiBaseUrl();
-  
+
   // Use QA/QC permissions
   const permissions = user?.permissions?.QA || user?.permissions?.QC;
   const canView = permissions?.read;
   const canWrite = permissions?.write;
-  
+
   const [allocatedCases, setAllocatedCases] = useState<Study[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAllocating, setIsAllocating] = useState(false);
   const [classifying, setClassifying] = useState<string | null>(null);
-  const [selectedClassification, setSelectedClassification] = useState<string | null>(null);
+  const [selectedClassification, setSelectedClassification] = useState<
+    string | null
+  >(null);
 
   const currentStudy = allocatedCases[currentIndex];
 
   const handleStartAllocation = async () => {
     setIsAllocating(true);
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem("auth_token");
       const response = await fetch(`${API_BASE}/track/NoCase/allocate-batch`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         const normalizedCases = (data.cases || []).map((study: any) => ({
           ...study,
-          authors: Array.isArray(study.authors) 
-            ? study.authors 
-            : typeof study.authors === 'string' && study.authors.trim() !== ''
-              ? [study.authors] 
-              : []
+          authors: Array.isArray(study.authors)
+            ? study.authors
+            : typeof study.authors === "string" && study.authors.trim() !== ""
+              ? [study.authors]
+              : [],
         }));
         setAllocatedCases(normalizedCases);
         setCurrentIndex(0);
@@ -87,21 +91,25 @@ export default function NoCaseAllocationPage() {
 
   const handleExitAllocation = async () => {
     if (allocatedCases.length === 0) return;
-    
-    if (!confirm("Are you sure you want to exit? All allocated cases will be released.")) {
+
+    if (
+      !confirm(
+        "Are you sure you want to exit? All allocated cases will be released.",
+      )
+    ) {
       return;
     }
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem("auth_token");
       await fetch(`${API_BASE}/studies/release-batch`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
-      
+
       setAllocatedCases([]);
       setCurrentIndex(0);
       dispatch(setSidebarLocked(false));
@@ -113,14 +121,14 @@ export default function NoCaseAllocationPage() {
 
   const handleNextCase = () => {
     if (currentIndex < allocatedCases.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+      setCurrentIndex((prev) => prev + 1);
       setSelectedClassification(null);
     }
   };
 
   const handlePrevCase = () => {
     if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
+      setCurrentIndex((prev) => prev - 1);
       setSelectedClassification(null);
     }
   };
@@ -129,11 +137,11 @@ export default function NoCaseAllocationPage() {
     try {
       setClassifying(studyId);
       const token = localStorage.getItem("auth_token");
-      
+
       const body = {
-        userTag: classification
+        userTag: classification,
       };
-      
+
       const response = await fetch(`${API_BASE}/studies/${studyId}`, {
         method: "PUT",
         headers: {
@@ -142,12 +150,14 @@ export default function NoCaseAllocationPage() {
         },
         body: JSON.stringify(body),
       });
-      
+
       if (response.ok) {
         // Remove the classified study from the list
-        setAllocatedCases(prev => prev.filter(study => study.id !== studyId));
+        setAllocatedCases((prev) =>
+          prev.filter((study) => study.id !== studyId),
+        );
         setSelectedClassification(null);
-        
+
         // If no more cases, exit allocation
         if (allocatedCases.length <= 1) {
           dispatch(setSidebarLocked(false));
@@ -182,9 +192,13 @@ export default function NoCaseAllocationPage() {
     return (
       <div className="flex h-full items-center justify-center bg-gray-50 min-h-screen">
         <div className="text-center p-8 bg-white rounded-lg shadow-md border border-gray-200 max-w-md">
-           <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
-           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
-           <p className="text-gray-600">You do not have permission to access No Case Allocation.</p>
+          <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Access Restricted
+          </h2>
+          <p className="text-gray-600">
+            You do not have permission to access No Case Allocation.
+          </p>
         </div>
       </div>
     );
@@ -194,15 +208,23 @@ export default function NoCaseAllocationPage() {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center max-w-md">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">No Case Allocation</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            No Case Allocation
+          </h1>
           <p className="text-gray-600 mb-6">
-            Allocate and classify No Case studies for quality check.
-            Studies classified as:
+            Allocate and classify No Case studies for quality check. Studies
+            classified as:
           </p>
           <ul className="text-left text-gray-700 mb-6 space-y-2">
-            <li>• <strong>No Case</strong> → Moves to Reports</li>
-            <li>• <strong>ICSR</strong> → Moves to ICSR Triage</li>
-            <li>• <strong>AOI</strong> → Moves to ICSR Triage</li>
+            <li>
+              • <strong>No Case</strong> → Moves to Reports
+            </li>
+            <li>
+              • <strong>ICSR</strong> → Moves to ICSR Triage
+            </li>
+            <li>
+              • <strong>AOI</strong> → Moves to ICSR Triage
+            </li>
           </ul>
           <button
             onClick={handleStartAllocation}
@@ -221,7 +243,9 @@ export default function NoCaseAllocationPage() {
       {/* Header */}
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">No Case Allocation</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            No Case Allocation
+          </h1>
           <p className="text-sm text-gray-500">
             Case {currentIndex + 1} of {allocatedCases.length}
           </p>
@@ -238,7 +262,9 @@ export default function NoCaseAllocationPage() {
       <div className="bg-white rounded-lg shadow mb-6 p-6">
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-semibold text-gray-900">Study Details</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Study Details
+            </h2>
             <span className="text-sm text-gray-500">
               PMID: <PmidLink pmid={currentStudy.pmid} />
             </span>
@@ -250,16 +276,26 @@ export default function NoCaseAllocationPage() {
               <span className="ml-2 text-gray-900">{currentStudy.journal}</span>
             </div>
             <div>
-              <span className="font-medium text-gray-600">Publication Date:</span>
-              <span className="ml-2 text-gray-900">{formatDate(currentStudy.publicationDate)}</span>
+              <span className="font-medium text-gray-600">
+                Publication Date:
+              </span>
+              <span className="ml-2 text-gray-900">
+                {formatDate(currentStudy.publicationDate)}
+              </span>
             </div>
             <div>
               <span className="font-medium text-gray-600">Drug:</span>
-              <span className="ml-2 text-gray-900">{currentStudy.drugName}</span>
+              <span className="ml-2 text-gray-900">
+                {currentStudy.drugName}
+              </span>
             </div>
             <div>
-              <span className="font-medium text-gray-600">ICSR Classification:</span>
-              <span className="ml-2 text-gray-900">{currentStudy.icsrClassification || 'N/A'}</span>
+              <span className="font-medium text-gray-600">
+                ICSR Classification:
+              </span>
+              <span className="ml-2 text-gray-900">
+                {currentStudy.icsrClassification || "N/A"}
+              </span>
             </div>
           </div>
         </div>
@@ -267,42 +303,46 @@ export default function NoCaseAllocationPage() {
         {/* Abstract */}
         <div className="mt-4">
           <h4 className="font-medium text-gray-700 mb-2">Abstract</h4>
-          <p className="text-gray-600 text-sm leading-relaxed">{currentStudy.abstract}</p>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            {currentStudy.abstract}
+          </p>
         </div>
       </div>
 
       {/* Classification Section */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Classify Study</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Classify Study
+        </h3>
         <div className="grid grid-cols-3 gap-4 mb-4">
           <button
-            onClick={() => setSelectedClassification('No Case')}
+            onClick={() => setSelectedClassification("No Case")}
             className={`p-4 border-2 rounded-lg transition-colors ${
-              selectedClassification === 'No Case'
-                ? 'border-red-500 bg-red-50'
-                : 'border-gray-300 hover:border-red-300'
+              selectedClassification === "No Case"
+                ? "border-red-500 bg-red-50"
+                : "border-gray-300 hover:border-red-300"
             }`}
           >
             <div className="font-semibold text-gray-900">No Case</div>
             <div className="text-xs text-gray-500">→ Reports</div>
           </button>
           <button
-            onClick={() => setSelectedClassification('ICSR')}
+            onClick={() => setSelectedClassification("ICSR")}
             className={`p-4 border-2 rounded-lg transition-colors ${
-              selectedClassification === 'ICSR'
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-300 hover:border-blue-300'
+              selectedClassification === "ICSR"
+                ? "border-blue-500 bg-blue-50"
+                : "border-gray-300 hover:border-blue-300"
             }`}
           >
             <div className="font-semibold text-gray-900">ICSR</div>
             <div className="text-xs text-gray-500">→ ICSR Triage</div>
           </button>
           <button
-            onClick={() => setSelectedClassification('AOI')}
+            onClick={() => setSelectedClassification("AOI")}
             className={`p-4 border-2 rounded-lg transition-colors ${
-              selectedClassification === 'AOI'
-                ? 'border-green-500 bg-green-50'
-                : 'border-gray-300 hover:border-green-300'
+              selectedClassification === "AOI"
+                ? "border-green-500 bg-green-50"
+                : "border-gray-300 hover:border-green-300"
             }`}
           >
             <div className="font-semibold text-gray-900">AOI</div>
@@ -314,7 +354,7 @@ export default function NoCaseAllocationPage() {
           disabled={!selectedClassification || classifying !== null}
           className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {classifying ? 'Classifying...' : 'Submit Classification'}
+          {classifying ? "Classifying..." : "Submit Classification"}
         </button>
       </div>
 
