@@ -24,7 +24,6 @@ interface Transition {
 interface WorkflowConfig {
   qcDataEntry?: boolean;
   medicalReview?: boolean;
-  bypassQcForIcsr?: boolean;
   noCaseQcPercentage?: number;
   // Tri-Channel Track Allocation Percentages
   icsrAllocationPercentage?: number;
@@ -101,7 +100,7 @@ export default function WorkflowSettingsTab() {
   };
 
   const handleToggleStage = (
-    key: "qcDataEntry" | "medicalReview" | "bypassQcForIcsr",
+    key: "qcDataEntry" | "medicalReview",
     checked: boolean,
   ) => {
     if (!config) return;
@@ -225,29 +224,6 @@ export default function WorkflowSettingsTab() {
               >
                 {saving ? "..." : "Save"}
               </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between border-t pt-4">
-            <div>
-              <h3 className="text-sm font-medium text-gray-900">
-                ICSRs Bypass QC Allocation
-              </h3>
-              <p className="text-sm text-gray-500">
-                If enabled, ICSR cases go directly to Data Entry. Only AOI/No
-                Case go to QC Allocation.
-              </p>
-            </div>
-            <div className="flex items-center">
-              <input
-                id="toggle-icsr-bypass"
-                type="checkbox"
-                checked={config.bypassQcForIcsr || false} // Default to false
-                onChange={(e) =>
-                  handleToggleStage("bypassQcForIcsr", e.target.checked)
-                }
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
             </div>
           </div>
 

@@ -580,12 +580,14 @@ router.post(
       ];
 
       // SIMPLIFIED LOGIC: Use ONLY icsrClassification as the source of truth
+      // BUT exclude items that have already been manually classified (userTag is set)
       if (trackType === "ICSR") {
         query = `
                     SELECT * FROM c 
                     WHERE c.organizationId = @orgId 
                     AND STARTSWITH(c.createdAt, @today)
                     AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = @userId)
+                    AND (NOT IS_DEFINED(c.userTag) OR c.userTag = null)
                     AND (
                         c.icsrClassification = 'Probable ICSR' 
                         OR c.icsrClassification = 'Probable ICSR/AOI'
@@ -599,6 +601,7 @@ router.post(
                     WHERE c.organizationId = @orgId 
                     AND STARTSWITH(c.createdAt, @today)
                     AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = @userId)
+                    AND (NOT IS_DEFINED(c.userTag) OR c.userTag = null)
                     AND (
                         c.icsrClassification = 'Probable AOI'
                         OR c.aoiClassification = 'Probable AOI'
@@ -615,6 +618,7 @@ router.post(
                     WHERE c.organizationId = @orgId 
                     AND STARTSWITH(c.createdAt, @today)
                     AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = @userId)
+                    AND (NOT IS_DEFINED(c.userTag) OR c.userTag = null)
                     AND c.icsrClassification = 'No Case'
                     AND (NOT IS_DEFINED(c.aoiClassification) OR (
                         c.aoiClassification != 'Yes' 
@@ -636,6 +640,9 @@ router.post(
       // Perform strict filtering in JavaScript to handle case sensitivity
       // STRICTLY use ONLY icsrClassification as the source of truth
       const filteredStudies = allStudies.filter((study) => {
+        // Double-check: Skip already classified studies
+        if (study.userTag) return false;
+
         const icsrClass = (study.icsrClassification || "").trim();
         const lowerClass = icsrClass.toLowerCase();
 

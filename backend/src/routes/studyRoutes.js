@@ -1232,58 +1232,8 @@ router.put(
 
             debugInfo.transition = transition;
 
-            // Check for ICSR Bypass - Override transition if enabled and classified as ICSR
-            // ROBUSTNESS IMPROVEMENT: Handle types, casing, and detailed logging
-            const configData = workflowConfig.configData;
-            const bypassKey = configData.bypassQcForIcsr;
-
-            // Normalize tag: ensure string, trim, uppercase
-            const normalizedTag = String(updates.userTag || "")
-              .trim()
-              .toUpperCase();
-
-            // Normalize config: support boolean true, string 'true', or number 1
-            const isBypassEnabled =
-              bypassKey === true ||
-              String(bypassKey) === "true" ||
-              bypassKey === 1;
-
-            console.log(
-              `[Classification DEBUG Route-2] ID: ${studyId}, UserTag: '${updates.userTag}' -> '${normalizedTag}'`,
-            );
-            console.log(
-              `[Classification DEBUG Route-2] Bypass Config: ${bypassKey} (${typeof bypassKey}) -> Enabled: ${isBypassEnabled}`,
-            );
-
-            if (normalizedTag === "ICSR" && isBypassEnabled) {
-              // Look for data_entry stage
-              const dataEntryStage =
-                configData.stages.find((s) => s.id === "data_entry") ||
-                configData.stages.find((s) => s.label === "Data Entry");
-
-              if (dataEntryStage) {
-                nextStage = dataEntryStage;
-
-                // Set flags for debug info
-                debugInfo.icsrBypassActive = true;
-                debugInfo.targetStage = dataEntryStage.id;
-                debugInfo.bypassReason =
-                  "Configuration enabled and tag is ICSR";
-
-                console.log(
-                  `>>> [Classification Route-2] ICSR Bypass ACTIVATED - Redirecting to ${dataEntryStage.id}`,
-                );
-              } else {
-                console.error(
-                  ">>> [Classification Route-2] ICSR Bypass FAILED - data_entry stage missing in workflow config",
-                );
-                debugInfo.bypassError = "data_entry stage missing";
-              }
-            } else {
-              console.log(
-                `[Classification Route-2] ICSR Bypass SKIPPED. Match? ${normalizedTag === "ICSR"}, Enabled? ${isBypassEnabled}`,
-              );
-            }
+            // Check for ICSR Bypass - REMOVED per requirements (ICSRs don't bypass)
+            // Original logic for checking bypassQcForIcsr has been removed.
 
             if (!nextStage && transition) {
               // Standard transition logic - always follow the configured transition
@@ -2705,60 +2655,8 @@ router.put(
 
             debugInfo.transition = transition;
 
-            // Check for ICSR Bypass - Override transition if enabled and classified as ICSR
-            // ROBUSTNESS IMPROVEMENT: Handle types, casing, and detailed logging
-            const configData = workflowConfig.configData;
-            const bypassKey = configData.bypassQcForIcsr;
-
-            // Normalize tag: ensure string, trim, uppercase
-            const normalizedTag = String(userTag || "")
-              .trim()
-              .toUpperCase();
-
-            // Normalize config: support boolean true, string 'true', or number 1
-            const isBypassEnabled =
-              bypassKey === true ||
-              String(bypassKey) === "true" ||
-              bypassKey === 1;
-
-            console.log(
-              `[Classification DEBUG] ID: ${id}, UserTag: '${userTag}' -> '${normalizedTag}'`,
-            );
-            console.log(
-              `[Classification DEBUG] Bypass Config: ${bypassKey} (${typeof bypassKey}) -> Enabled: ${isBypassEnabled}`,
-            );
-
-            if (normalizedTag === "ICSR" && isBypassEnabled) {
-              // Look for data_entry stage
-              // Fallback: search by label if ID is not exactly 'data_entry' in older configs
-              const dataEntryStage =
-                configData.stages.find((s) => s.id === "data_entry") ||
-                configData.stages.find((s) => s.label === "Data Entry");
-
-              if (dataEntryStage) {
-                nextStage = dataEntryStage;
-
-                // Set flags for debug info
-                debugInfo.icsrBypassActive = true;
-                debugInfo.targetStage = dataEntryStage.id;
-                debugInfo.bypassReason =
-                  "Configuration enabled and tag is ICSR";
-
-                console.log(
-                  `>>> [Classification] ICSR Bypass ACTIVATED - Redirecting to ${dataEntryStage.id}`,
-                );
-              } else {
-                console.error(
-                  ">>> [Classification] ICSR Bypass FAILED - data_entry stage missing in workflow config",
-                );
-                // console.log('Available stages:', configData.stages.map(s => s.id));
-                debugInfo.bypassError = "data_entry stage missing";
-              }
-            } else {
-              console.log(
-                `[Classification] ICSR Bypass SKIPPED. Match? ${normalizedTag === "ICSR"}, Enabled? ${isBypassEnabled}`,
-              );
-            }
+            // Check for ICSR Bypass - REMOVED per requirements (ICSRs don't bypass)
+            // Original logic for checking bypassQcForIcsr has been removed.
 
             // Only use standard transition if nextStage wasn't already set by bypass logic
             if (!nextStage && transition) {
