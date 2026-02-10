@@ -1,8 +1,6 @@
 import { getApiBaseUrl } from '../config/api';
 import { authService } from './authService';
 
-const API_BASE_URL = getApiBaseUrl();
-
 export interface SystemHealth {
     server: {
         uptime: string;
@@ -97,59 +95,72 @@ class DeveloperService {
     }
 
     async getSystemHealth(): Promise<SystemHealth> {
-        const response = await fetch(`${API_BASE_URL}/developer/health`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/health`, {
             method: 'GET',
             headers: this.getHeaders(),
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch system health');
+            const errorText = await response.text();
+            console.error('System health fetch failed:', response.status, errorText);
+            throw new Error(`Failed to fetch system health: ${response.status}`);
         }
         const result = await response.json();
         return result.data;
     }
 
     async getAnalytics(): Promise<AnalyticsData> {
-        const response = await fetch(`${API_BASE_URL}/developer/analytics`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/analytics`, {
             method: 'GET',
             headers: this.getHeaders(),
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch analytics');
+            const errorText = await response.text();
+            console.error('Analytics fetch failed:', response.status, errorText);
+            try {
+                const errorJson = JSON.parse(errorText);
+                throw new Error(errorJson.message || `Failed to fetch analytics: ${response.status}`);
+            } catch (e) {
+                throw new Error(`Failed to fetch analytics: ${response.status} - ${errorText}`);
+            }
         }
         const result = await response.json();
         return result.data;
     }
 
     async getLogs(limit: number = 50): Promise<any[]> {
-        const response = await fetch(`${API_BASE_URL}/developer/logs?limit=${limit}`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/logs?limit=${limit}`, {
             method: 'GET',
             headers: this.getHeaders(),
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch logs');
+            const errorText = await response.text();
+            console.error('Logs fetch failed:', response.status, errorText);
+            throw new Error(`Failed to fetch logs: ${response.status}`);
         }
         const result = await response.json();
         return result.data;
     }
 
     async getMaintenanceOptions(): Promise<MaintenanceAction[]> {
-        const response = await fetch(`${API_BASE_URL}/developer/maintenance`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/maintenance`, {
             method: 'GET',
             headers: this.getHeaders(),
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch maintenance options');
+            const errorText = await response.text();
+            console.error('Maintenance options fetch failed:', response.status, errorText);
+            throw new Error(`Failed to fetch maintenance options: ${response.status}`);
         }
         const result = await response.json();
         return result.data;
     }
 
     async triggerMaintenance(action: string): Promise<{ message: string }> {
-        const response = await fetch(`${API_BASE_URL}/developer/maintenance`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/maintenance`, {
             method: 'POST',
             headers: this.getHeaders(),
             body: JSON.stringify({ action }),
@@ -165,13 +176,15 @@ class DeveloperService {
 
     async getEnvironments(): Promise<Environment[]> {
         try {
-            const response = await fetch(`${API_BASE_URL}/developer/environments`, {
+            const response = await fetch(`${getApiBaseUrl()}/developer/environments`, {
                 method: 'GET',
                 headers: this.getHeaders(),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch environments');
+                const errorText = await response.text();
+                console.error('Environments fetch failed:', response.status, errorText);
+                throw new Error(`Failed to fetch environments: ${response.status}`);
             }
             const result = await response.json();
             return result.data;
@@ -192,7 +205,7 @@ class DeveloperService {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/developer/environments/${id}`, {
+            const response = await fetch(`${getApiBaseUrl()}/developer/environments/${id}`, {
                 method: 'GET',
                 headers: this.getHeaders(),
             });
@@ -224,7 +237,7 @@ class DeveloperService {
     }
 
     async getEnvironmentUsers(envId: string): Promise<EnvironmentUser[]> {
-        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/users`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/environments/${envId}/users`, {
             method: 'GET',
             headers: this.getHeaders(),
         });
@@ -237,7 +250,7 @@ class DeveloperService {
     }
 
     async addEnvironmentUser(envId: string, email: string, role: string): Promise<EnvironmentUser> {
-        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/users`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/environments/${envId}/users`, {
             method: 'POST',
             headers: this.getHeaders(),
             body: JSON.stringify({ email, role }),
@@ -251,7 +264,7 @@ class DeveloperService {
     }
 
     async getEnvironmentSettings(envId: string): Promise<EnvironmentSettings> {
-        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/settings`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/environments/${envId}/settings`, {
             method: 'GET',
             headers: this.getHeaders(),
         });
@@ -264,7 +277,7 @@ class DeveloperService {
     }
 
     async updateEnvironmentSettings(envId: string, settings: Partial<EnvironmentSettings>): Promise<EnvironmentSettings> {
-        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/settings`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/environments/${envId}/settings`, {
             method: 'PATCH',
             headers: this.getHeaders(),
             body: JSON.stringify(settings),
@@ -278,7 +291,7 @@ class DeveloperService {
     }
 
     async getEnvironmentMetrics(envId: string): Promise<EnvironmentMetrics[]> {
-        const response = await fetch(`${API_BASE_URL}/developer/environments/${envId}/metrics`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/environments/${envId}/metrics`, {
             method: 'GET',
             headers: this.getHeaders(),
         });
@@ -291,7 +304,7 @@ class DeveloperService {
     }
 
     async deployEnvironment(env: string, version?: string): Promise<{ message: string }> {
-        const response = await fetch(`${API_BASE_URL}/developer/environments/deploy`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/environments/deploy`, {
             method: 'POST',
             headers: this.getHeaders(),
             body: JSON.stringify({ env, version }),
@@ -305,7 +318,7 @@ class DeveloperService {
     }
 
     async restartEnvironment(env: string): Promise<{ message: string }> {
-        const response = await fetch(`${API_BASE_URL}/developer/environments/restart`, {
+        const response = await fetch(`${getApiBaseUrl()}/developer/environments/restart`, {
             method: 'POST',
             headers: this.getHeaders(),
             body: JSON.stringify({ env }),

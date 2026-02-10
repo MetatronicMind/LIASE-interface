@@ -24,6 +24,7 @@ interface Organization {
 export default function OrganizationsPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [createdCreds, setCreatedCreds] = useState<any>(null);
 
@@ -32,6 +33,7 @@ export default function OrganizationsPage() {
   }, []);
 
   const fetchOrganizations = async () => {
+    setError(null);
     try {
       const token = localStorage.getItem("auth_token");
       const response = await fetch(`${getApiBaseUrl()}/organizations`, {
@@ -40,9 +42,18 @@ export default function OrganizationsPage() {
       if (response.ok) {
         const data = await response.json();
         setOrganizations(data);
+      } else {
+        if (response.status === 403) {
+          setError(
+            "You do not have permission to view organizations. Super Admin role required.",
+          );
+        } else {
+          setError(`Failed to load organizations (${response.status})`);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch organizations", error);
+      setError("Network error. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -79,10 +90,38 @@ export default function OrganizationsPage() {
           </button>
         </div>
 
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+            <XCircleIcon className="w-5 h-5" />
+            {error}
+          </div>
+        )}
+
         {/* List */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-gray-500">Loading...</div>
+          ) : error ? (
+            <div className="p-12 text-center text-gray-500">
+              Please resolve the error above to view organizations.
+            </div>
+          ) : organizations.length === 0 ? (
+            <div className="p-12 text-center">
+              <BuildingOfficeIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-gray-900">
+                No organizations found
+              </h3>
+              <p className="text-gray-500 max-w-sm mx-auto mt-1 mb-6">
+                Get started by onboarding your first client organization.
+              </p>
+              <button
+                onClick={() => setShowWizard(true)}
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                <PlusIcon className="w-5 h-5" />
+                Onboard Client
+              </button>
+            </div>
           ) : (
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -146,9 +185,7 @@ export default function OrganizationsPage() {
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <div className="text-center">
               <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-xl font-bold mb-2">
-                Organization Created!
-              </h2>
+              <h2 className="text-xl font-bold mb-2">Organization Created!</h2>
               <p className="text-gray-600 mb-4">
                 Please save these credentials securely.
               </p>
@@ -195,4 +232,3 @@ export default function OrganizationsPage() {
     </div>
   );
 }
-

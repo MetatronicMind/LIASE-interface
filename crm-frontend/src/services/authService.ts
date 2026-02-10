@@ -1,7 +1,5 @@
 import { getApiBaseUrl } from '../config/api';
 
-const API_BASE_URL = getApiBaseUrl();
-
 export interface LoginRequest {
   email?: string;
   username?: string;
@@ -54,7 +52,7 @@ class AuthService {
   }
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -79,7 +77,7 @@ class AuthService {
   }
 
   async register(data: RegisterRequest): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetch(`${getApiBaseUrl()}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -97,7 +95,7 @@ class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    const response = await fetch(`${getApiBaseUrl()}/auth/forgot-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,7 +111,7 @@ class AuthService {
   }
 
   async resetPassword(token: string, password: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/auth/reset-password/${token}`, {
+    const response = await fetch(`${getApiBaseUrl()}/auth/reset-password/${token}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -134,7 +132,7 @@ class AuthService {
       throw new Error('No token available for refresh');
     }
 
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -157,7 +155,7 @@ class AuthService {
       // Call backend logout endpoint to create audit log
       const token = this.getToken();
       if (token) {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
+        await fetch(`${getApiBaseUrl()}/auth/logout`, {
           method: 'POST',
           headers: this.getAuthHeaders(),
         });

@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from 'react';
-import { useDateTime } from '@/hooks/useDateTime';
+import { useState, useEffect } from "react";
+import { useDateTime } from "@/hooks/useDateTime";
 import {
   ArchiveBoxIcon,
   CloudIcon,
@@ -11,17 +11,17 @@ import {
   XCircleIcon,
   ArrowPathIcon,
   Cog6ToothIcon,
-  PlayIcon
-} from '@heroicons/react/24/outline';
-import axios from 'axios';
-import { API_CONFIG } from '@/config/api';
+  PlayIcon,
+} from "@heroicons/react/24/outline";
+import axios from "axios";
+import { getApiBaseUrl } from "@/config/api";
 
 interface ArchivalConfig {
   isEnabled: boolean;
   autoArchiveEnabled: boolean;
   archiveAfterDays: number;
   manualArchiveOnly: boolean;
-  
+
   googleDrive: {
     enabled: boolean;
     serviceAccountEmail: string | null;
@@ -31,7 +31,7 @@ interface ArchivalConfig {
     createSubfolders: boolean;
     subfolderPattern: string;
   };
-  
+
   emailNotification: {
     enabled: boolean;
     notifyOnArchival: boolean;
@@ -40,7 +40,7 @@ interface ArchivalConfig {
     includeAttachments: boolean;
     smtpConfigId: string | null;
   };
-  
+
   fileGeneration: {
     generatePDF: boolean;
     generateCSV: boolean;
@@ -61,14 +61,14 @@ interface ArchivalConfig {
       includeMetadata: boolean;
     };
   };
-  
+
   dataRetention: {
     deleteFromCosmosDB: boolean;
     createBackupBeforeDelete: boolean;
     retainAuditLogs: boolean;
     retainUserReferences: boolean;
   };
-  
+
   archiveScope: {
     includeStudies: boolean;
     includeReports: boolean;
@@ -77,7 +77,7 @@ interface ArchivalConfig {
     includeAttachments: boolean;
     studyStatuses: string[];
   };
-  
+
   performance: {
     batchSize: number;
     maxConcurrent: number;
@@ -85,7 +85,7 @@ interface ArchivalConfig {
     retryDelayMs: number;
     timeoutMs: number;
   };
-  
+
   totalArchived?: number;
   totalFailed?: number;
   lastArchivedAt?: string | null;
@@ -98,10 +98,17 @@ export default function ArchivalSettingsTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message?: string; folderName?: string } | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [newEmail, setNewEmail] = useState('');
-  const [manualStudyId, setManualStudyId] = useState('');
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message?: string;
+    folderName?: string;
+  } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [newEmail, setNewEmail] = useState("");
+  const [manualStudyId, setManualStudyId] = useState("");
   const [archiving, setArchiving] = useState(false);
   const [runningAutoArchive, setRunningAutoArchive] = useState(false);
 
@@ -111,11 +118,11 @@ export default function ArchivalSettingsTab() {
 
   const fetchConfig = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await axios.get(`${API_CONFIG.BASE_URL}/archival/config`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const token = localStorage.getItem("auth_token");
+      const response = await axios.get(`${getApiBaseUrl()}/archival/config`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       // Merge with defaults to ensure all properties exist
       const defaultConfig = {
         isEnabled: false,
@@ -129,7 +136,7 @@ export default function ArchivalSettingsTab() {
           folderId: null,
           folderPath: null,
           createSubfolders: true,
-          subfolderPattern: 'YYYY/MM/DD'
+          subfolderPattern: "YYYY/MM/DD",
         },
         emailNotification: {
           enabled: true,
@@ -137,7 +144,7 @@ export default function ArchivalSettingsTab() {
           notifyOnFailure: true,
           adminEmails: [],
           includeAttachments: true,
-          smtpConfigId: null
+          smtpConfigId: null,
         },
         fileGeneration: {
           generatePDF: true,
@@ -147,23 +154,23 @@ export default function ArchivalSettingsTab() {
           pdfSettings: {
             includeCharts: true,
             includeImages: true,
-            pageSize: 'A4',
-            orientation: 'portrait',
+            pageSize: "A4",
+            orientation: "portrait",
             includeWatermark: false,
-            watermarkText: 'ARCHIVED'
+            watermarkText: "ARCHIVED",
           },
           csvSettings: {
             includeHeaders: true,
-            delimiter: ',',
-            encoding: 'utf-8',
-            includeMetadata: true
-          }
+            delimiter: ",",
+            encoding: "utf-8",
+            includeMetadata: true,
+          },
         },
         dataRetention: {
           deleteFromCosmosDB: false,
           createBackupBeforeDelete: true,
           retainAuditLogs: true,
-          retainUserReferences: true
+          retainUserReferences: true,
         },
         archiveScope: {
           includeStudies: true,
@@ -171,39 +178,63 @@ export default function ArchivalSettingsTab() {
           includeComments: true,
           includeHistory: true,
           includeAttachments: true,
-          studyStatuses: ['Completed', 'Final Report Completed']
+          studyStatuses: ["Completed", "Final Report Completed"],
         },
         performance: {
           batchSize: 10,
           maxConcurrent: 3,
           retryAttempts: 3,
           retryDelayMs: 5000,
-          timeoutMs: 300000
-        }
+          timeoutMs: 300000,
+        },
       };
-      
+
       // Deep merge response with defaults
       const mergedConfig = {
         ...defaultConfig,
         ...response.data,
-        googleDrive: { ...defaultConfig.googleDrive, ...response.data.googleDrive },
-        emailNotification: { ...defaultConfig.emailNotification, ...response.data.emailNotification },
+        googleDrive: {
+          ...defaultConfig.googleDrive,
+          ...response.data.googleDrive,
+        },
+        emailNotification: {
+          ...defaultConfig.emailNotification,
+          ...response.data.emailNotification,
+        },
         fileGeneration: {
           ...defaultConfig.fileGeneration,
           ...response.data.fileGeneration,
-          pdfSettings: { ...defaultConfig.fileGeneration.pdfSettings, ...response.data.fileGeneration?.pdfSettings },
-          csvSettings: { ...defaultConfig.fileGeneration.csvSettings, ...response.data.fileGeneration?.csvSettings }
+          pdfSettings: {
+            ...defaultConfig.fileGeneration.pdfSettings,
+            ...response.data.fileGeneration?.pdfSettings,
+          },
+          csvSettings: {
+            ...defaultConfig.fileGeneration.csvSettings,
+            ...response.data.fileGeneration?.csvSettings,
+          },
         },
-        dataRetention: { ...defaultConfig.dataRetention, ...response.data.dataRetention },
-        archiveScope: { ...defaultConfig.archiveScope, ...response.data.archiveScope },
-        performance: { ...defaultConfig.performance, ...response.data.performance }
+        dataRetention: {
+          ...defaultConfig.dataRetention,
+          ...response.data.dataRetention,
+        },
+        archiveScope: {
+          ...defaultConfig.archiveScope,
+          ...response.data.archiveScope,
+        },
+        performance: {
+          ...defaultConfig.performance,
+          ...response.data.performance,
+        },
       };
-      
+
       setConfig(mergedConfig);
     } catch (error: any) {
-      console.error('Error fetching archival config:', error);
-      setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to load configuration' });
-      
+      console.error("Error fetching archival config:", error);
+      setMessage({
+        type: "error",
+        text: error.response?.data?.error || "Failed to load configuration",
+      });
+
       // Set default config
       setConfig({
         isEnabled: false,
@@ -217,7 +248,7 @@ export default function ArchivalSettingsTab() {
           folderId: null,
           folderPath: null,
           createSubfolders: true,
-          subfolderPattern: 'YYYY/MM/DD'
+          subfolderPattern: "YYYY/MM/DD",
         },
         emailNotification: {
           enabled: true,
@@ -225,7 +256,7 @@ export default function ArchivalSettingsTab() {
           notifyOnFailure: true,
           adminEmails: [],
           includeAttachments: true,
-          smtpConfigId: null
+          smtpConfigId: null,
         },
         fileGeneration: {
           generatePDF: true,
@@ -235,23 +266,23 @@ export default function ArchivalSettingsTab() {
           pdfSettings: {
             includeCharts: true,
             includeImages: true,
-            pageSize: 'A4',
-            orientation: 'portrait',
+            pageSize: "A4",
+            orientation: "portrait",
             includeWatermark: false,
-            watermarkText: 'ARCHIVED'
+            watermarkText: "ARCHIVED",
           },
           csvSettings: {
             includeHeaders: true,
-            delimiter: ',',
-            encoding: 'utf-8',
-            includeMetadata: true
-          }
+            delimiter: ",",
+            encoding: "utf-8",
+            includeMetadata: true,
+          },
         },
         dataRetention: {
           deleteFromCosmosDB: false,
           createBackupBeforeDelete: true,
           retainAuditLogs: true,
-          retainUserReferences: true
+          retainUserReferences: true,
         },
         archiveScope: {
           includeStudies: true,
@@ -259,15 +290,15 @@ export default function ArchivalSettingsTab() {
           includeComments: true,
           includeHistory: true,
           includeAttachments: true,
-          studyStatuses: ['Completed', 'Final Report Completed']
+          studyStatuses: ["Completed", "Final Report Completed"],
         },
         performance: {
           batchSize: 10,
           maxConcurrent: 3,
           retryAttempts: 3,
           retryDelayMs: 5000,
-          timeoutMs: 300000
-        }
+          timeoutMs: 300000,
+        },
       });
     } finally {
       setLoading(false);
@@ -281,16 +312,22 @@ export default function ArchivalSettingsTab() {
     setMessage(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
-      await axios.post(`${API_CONFIG.BASE_URL}/archival/config`, config, {
-        headers: { Authorization: `Bearer ${token}` }
+      const token = localStorage.getItem("auth_token");
+      await axios.post(`${getApiBaseUrl()}/archival/config`, config, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
-      setMessage({ type: 'success', text: 'Archival configuration saved successfully' });
+
+      setMessage({
+        type: "success",
+        text: "Archival configuration saved successfully",
+      });
       await fetchConfig();
     } catch (error: any) {
-      console.error('Error saving config:', error);
-      setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to save configuration' });
+      console.error("Error saving config:", error);
+      setMessage({
+        type: "error",
+        text: error.response?.data?.error || "Failed to save configuration",
+      });
     } finally {
       setSaving(false);
     }
@@ -303,19 +340,23 @@ export default function ArchivalSettingsTab() {
     setTestResult(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await axios.post(`${API_CONFIG.BASE_URL}/archival/test-google-drive`, {
-        googleDrive: config.googleDrive
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const token = localStorage.getItem("auth_token");
+      const response = await axios.post(
+        `${getApiBaseUrl()}/archival/test-google-drive`,
+        {
+          googleDrive: config.googleDrive,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
 
       setTestResult(response.data);
     } catch (error: any) {
-      console.error('Error testing Google Drive:', error);
+      console.error("Error testing Google Drive:", error);
       setTestResult({
         success: false,
-        message: error.response?.data?.error || 'Connection test failed'
+        message: error.response?.data?.error || "Connection test failed",
       });
     } finally {
       setTesting(false);
@@ -324,15 +365,15 @@ export default function ArchivalSettingsTab() {
 
   const addEmail = () => {
     if (!config || !newEmail.trim()) return;
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newEmail)) {
-      setMessage({ type: 'error', text: 'Invalid email format' });
+      setMessage({ type: "error", text: "Invalid email format" });
       return;
     }
 
     if (config.emailNotification.adminEmails.includes(newEmail)) {
-      setMessage({ type: 'error', text: 'Email already added' });
+      setMessage({ type: "error", text: "Email already added" });
       return;
     }
 
@@ -340,27 +381,29 @@ export default function ArchivalSettingsTab() {
       ...config,
       emailNotification: {
         ...config.emailNotification,
-        adminEmails: [...config.emailNotification.adminEmails, newEmail]
-      }
+        adminEmails: [...config.emailNotification.adminEmails, newEmail],
+      },
     });
-    setNewEmail('');
+    setNewEmail("");
   };
 
   const removeEmail = (email: string) => {
     if (!config) return;
-    
+
     setConfig({
       ...config,
       emailNotification: {
         ...config.emailNotification,
-        adminEmails: config.emailNotification.adminEmails.filter(e => e !== email)
-      }
+        adminEmails: config.emailNotification.adminEmails.filter(
+          (e) => e !== email,
+        ),
+      },
     });
   };
 
   const archiveStudyManually = async () => {
     if (!manualStudyId.trim()) {
-      setMessage({ type: 'error', text: 'Please enter a Study ID' });
+      setMessage({ type: "error", text: "Please enter a Study ID" });
       return;
     }
 
@@ -368,19 +411,25 @@ export default function ArchivalSettingsTab() {
     setMessage(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem("auth_token");
       const response = await axios.post(
-        `${API_CONFIG.BASE_URL}/archival/archive-study/${manualStudyId}`,
+        `${getApiBaseUrl()}/archival/archive-study/${manualStudyId}`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      
-      setMessage({ type: 'success', text: `Study archived successfully! Files saved to Google Drive.` });
-      setManualStudyId('');
+
+      setMessage({
+        type: "success",
+        text: `Study archived successfully! Files saved to Google Drive.`,
+      });
+      setManualStudyId("");
       await fetchConfig(); // Refresh stats
     } catch (error: any) {
-      console.error('Error archiving study:', error);
-      setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to archive study' });
+      console.error("Error archiving study:", error);
+      setMessage({
+        type: "error",
+        text: error.response?.data?.error || "Failed to archive study",
+      });
     } finally {
       setArchiving(false);
     }
@@ -391,22 +440,25 @@ export default function ArchivalSettingsTab() {
     setMessage(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem("auth_token");
       const response = await axios.post(
-        `${API_CONFIG.BASE_URL}/archival/auto-archive`,
+        `${getApiBaseUrl()}/archival/auto-archive`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      
+
       const data = response.data;
-      setMessage({ 
-        type: 'success', 
-        text: `Auto-archive completed! Archived: ${data.successful}, Failed: ${data.failed}` 
+      setMessage({
+        type: "success",
+        text: `Auto-archive completed! Archived: ${data.successful}, Failed: ${data.failed}`,
       });
       await fetchConfig(); // Refresh stats
     } catch (error: any) {
-      console.error('Error running auto-archive:', error);
-      setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to run auto-archive' });
+      console.error("Error running auto-archive:", error);
+      setMessage({
+        type: "error",
+        text: error.response?.data?.error || "Failed to run auto-archive",
+      });
     } finally {
       setRunningAutoArchive(false);
     }
@@ -436,8 +488,12 @@ export default function ArchivalSettingsTab() {
           <div className="flex items-center gap-3">
             <ArchiveBoxIcon className="w-8 h-8 text-blue-600" />
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Archival Settings</h2>
-              <p className="text-gray-600 text-sm">Configure automatic study archival and storage</p>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Archival Settings
+              </h2>
+              <p className="text-gray-600 text-sm">
+                Configure automatic study archival and storage
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -445,10 +501,14 @@ export default function ArchivalSettingsTab() {
               <input
                 type="checkbox"
                 checked={config.isEnabled}
-                onChange={(e) => setConfig({ ...config, isEnabled: e.target.checked })}
+                onChange={(e) =>
+                  setConfig({ ...config, isEnabled: e.target.checked })
+                }
                 className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
               />
-              <span className="font-semibold text-gray-700">Enable Archival</span>
+              <span className="font-semibold text-gray-700">
+                Enable Archival
+              </span>
             </label>
           </div>
         </div>
@@ -458,20 +518,28 @@ export default function ArchivalSettingsTab() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
             <div className="bg-white rounded-lg p-4 shadow-sm">
               <div className="text-sm text-gray-600">Total Archived</div>
-              <div className="text-2xl font-bold text-green-600">{config.totalArchived}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {config.totalArchived}
+              </div>
             </div>
             <div className="bg-white rounded-lg p-4 shadow-sm">
               <div className="text-sm text-gray-600">Failed</div>
-              <div className="text-2xl font-bold text-red-600">{config.totalFailed || 0}</div>
+              <div className="text-2xl font-bold text-red-600">
+                {config.totalFailed || 0}
+              </div>
             </div>
             <div className="bg-white rounded-lg p-4 shadow-sm">
               <div className="text-sm text-gray-600">Last Status</div>
-              <div className="text-lg font-semibold text-gray-900 capitalize">{config.lastStatus || 'N/A'}</div>
+              <div className="text-lg font-semibold text-gray-900 capitalize">
+                {config.lastStatus || "N/A"}
+              </div>
             </div>
             <div className="bg-white rounded-lg p-4 shadow-sm">
               <div className="text-sm text-gray-600">Last Archived</div>
               <div className="text-sm font-medium text-gray-900">
-                {config.lastArchivedAt ? formatDateTime(config.lastArchivedAt) : 'Never'}
+                {config.lastArchivedAt
+                  ? formatDateTime(config.lastArchivedAt)
+                  : "Never"}
               </div>
             </div>
           </div>
@@ -480,14 +548,22 @@ export default function ArchivalSettingsTab() {
 
       {/* Message Banner */}
       {message && (
-        <div className={`rounded-lg p-4 ${message.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+        <div
+          className={`rounded-lg p-4 ${message.type === "success" ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}
+        >
           <div className="flex items-center gap-2">
-            {message.type === 'success' ? (
+            {message.type === "success" ? (
               <CheckCircleIcon className="w-5 h-5 text-green-600" />
             ) : (
               <XCircleIcon className="w-5 h-5 text-red-600" />
             )}
-            <span className={message.type === 'success' ? 'text-green-800' : 'text-red-800'}>{message.text}</span>
+            <span
+              className={
+                message.type === "success" ? "text-green-800" : "text-red-800"
+              }
+            >
+              {message.text}
+            </span>
           </div>
         </div>
       )}
@@ -496,7 +572,9 @@ export default function ArchivalSettingsTab() {
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
         <div className="flex items-center gap-2 mb-4">
           <Cog6ToothIcon className="w-6 h-6 text-blue-600" />
-          <h3 className="text-xl font-bold text-gray-900">Auto-Archive Settings</h3>
+          <h3 className="text-xl font-bold text-gray-900">
+            Auto-Archive Settings
+          </h3>
         </div>
 
         <div className="space-y-4">
@@ -504,7 +582,9 @@ export default function ArchivalSettingsTab() {
             <input
               type="checkbox"
               checked={config.autoArchiveEnabled}
-              onChange={(e) => setConfig({ ...config, autoArchiveEnabled: e.target.checked })}
+              onChange={(e) =>
+                setConfig({ ...config, autoArchiveEnabled: e.target.checked })
+              }
               className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
             />
             <span className="text-gray-700">Enable automatic archival</span>
@@ -517,11 +597,18 @@ export default function ArchivalSettingsTab() {
             <input
               type="number"
               value={config.archiveAfterDays}
-              onChange={(e) => setConfig({ ...config, archiveAfterDays: parseInt(e.target.value) || 0 })}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  archiveAfterDays: parseInt(e.target.value) || 0,
+                })
+              }
               min="1"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
-            <p className="text-sm text-gray-500 mt-1">Number of days after study completion before auto-archival</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Number of days after study completion before auto-archival
+            </p>
           </div>
 
           <div>
@@ -529,25 +616,37 @@ export default function ArchivalSettingsTab() {
               Study statuses eligible for archival
             </label>
             <div className="flex flex-wrap gap-2">
-              {['Completed', 'Final Report Completed', 'Archived'].map(status => (
-                <label key={status} className="flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-                  <input
-                    type="checkbox"
-                    checked={config.archiveScope.studyStatuses.includes(status)}
-                    onChange={(e) => {
-                      const statuses = e.target.checked
-                        ? [...config.archiveScope.studyStatuses, status]
-                        : config.archiveScope.studyStatuses.filter(s => s !== status);
-                      setConfig({
-                        ...config,
-                        archiveScope: { ...config.archiveScope, studyStatuses: statuses }
-                      });
-                    }}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">{status}</span>
-                </label>
-              ))}
+              {["Completed", "Final Report Completed", "Archived"].map(
+                (status) => (
+                  <label
+                    key={status}
+                    className="flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-2 rounded-lg border border-gray-200"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={config.archiveScope.studyStatuses.includes(
+                        status,
+                      )}
+                      onChange={(e) => {
+                        const statuses = e.target.checked
+                          ? [...config.archiveScope.studyStatuses, status]
+                          : config.archiveScope.studyStatuses.filter(
+                              (s) => s !== status,
+                            );
+                        setConfig({
+                          ...config,
+                          archiveScope: {
+                            ...config.archiveScope,
+                            studyStatuses: statuses,
+                          },
+                        });
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{status}</span>
+                  </label>
+                ),
+              )}
             </div>
           </div>
         </div>
@@ -558,16 +657,23 @@ export default function ArchivalSettingsTab() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <CloudIcon className="w-6 h-6 text-blue-600" />
-            <h3 className="text-xl font-bold text-gray-900">Google Drive Storage</h3>
+            <h3 className="text-xl font-bold text-gray-900">
+              Google Drive Storage
+            </h3>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={config.googleDrive.enabled}
-              onChange={(e) => setConfig({
-                ...config,
-                googleDrive: { ...config.googleDrive, enabled: e.target.checked }
-              })}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  googleDrive: {
+                    ...config.googleDrive,
+                    enabled: e.target.checked,
+                  },
+                })
+              }
               className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
             />
             <span className="text-sm text-gray-700">Enable</span>
@@ -582,11 +688,16 @@ export default function ArchivalSettingsTab() {
               </label>
               <input
                 type="email"
-                value={config.googleDrive.serviceAccountEmail || ''}
-                onChange={(e) => setConfig({
-                  ...config,
-                  googleDrive: { ...config.googleDrive, serviceAccountEmail: e.target.value }
-                })}
+                value={config.googleDrive.serviceAccountEmail || ""}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    googleDrive: {
+                      ...config.googleDrive,
+                      serviceAccountEmail: e.target.value,
+                    },
+                  })
+                }
                 placeholder="your-service-account@project.iam.gserviceaccount.com"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
@@ -597,11 +708,16 @@ export default function ArchivalSettingsTab() {
                 Service Account Key (Base64 JSON)
               </label>
               <textarea
-                value={config.googleDrive.serviceAccountKey || ''}
-                onChange={(e) => setConfig({
-                  ...config,
-                  googleDrive: { ...config.googleDrive, serviceAccountKey: e.target.value }
-                })}
+                value={config.googleDrive.serviceAccountKey || ""}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    googleDrive: {
+                      ...config.googleDrive,
+                      serviceAccountKey: e.target.value,
+                    },
+                  })
+                }
                 placeholder="Paste your base64-encoded service account JSON key here"
                 rows={4}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
@@ -614,15 +730,22 @@ export default function ArchivalSettingsTab() {
               </label>
               <input
                 type="text"
-                value={config.googleDrive.folderId || ''}
-                onChange={(e) => setConfig({
-                  ...config,
-                  googleDrive: { ...config.googleDrive, folderId: e.target.value }
-                })}
+                value={config.googleDrive.folderId || ""}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    googleDrive: {
+                      ...config.googleDrive,
+                      folderId: e.target.value,
+                    },
+                  })
+                }
                 placeholder="1a2b3c4d5e6f7g8h9i0j"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
-              <p className="text-sm text-gray-500 mt-1">Find this in your Google Drive folder URL</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Find this in your Google Drive folder URL
+              </p>
             </div>
 
             <div className="flex items-center gap-4">
@@ -630,23 +753,35 @@ export default function ArchivalSettingsTab() {
                 <input
                   type="checkbox"
                   checked={config.googleDrive.createSubfolders}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    googleDrive: { ...config.googleDrive, createSubfolders: e.target.checked }
-                  })}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      googleDrive: {
+                        ...config.googleDrive,
+                        createSubfolders: e.target.checked,
+                      },
+                    })
+                  }
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Create date-based subfolders</span>
+                <span className="text-sm text-gray-700">
+                  Create date-based subfolders
+                </span>
               </label>
 
               {config.googleDrive.createSubfolders && (
                 <input
                   type="text"
                   value={config.googleDrive.subfolderPattern}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    googleDrive: { ...config.googleDrive, subfolderPattern: e.target.value }
-                  })}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      googleDrive: {
+                        ...config.googleDrive,
+                        subfolderPattern: e.target.value,
+                      },
+                    })
+                  }
                   placeholder="YYYY/MM/DD"
                   className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                 />
@@ -667,22 +802,30 @@ export default function ArchivalSettingsTab() {
             </button>
 
             {testResult && (
-              <div className={`rounded-lg p-4 ${testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+              <div
+                className={`rounded-lg p-4 ${testResult.success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}
+              >
                 <div className="flex items-center gap-2">
                   {testResult.success ? (
                     <>
                       <CheckCircleIcon className="w-5 h-5 text-green-600" />
                       <div>
-                        <span className="text-green-800 font-semibold">Connection successful!</span>
+                        <span className="text-green-800 font-semibold">
+                          Connection successful!
+                        </span>
                         {testResult.folderName && (
-                          <p className="text-green-700 text-sm">Folder: {testResult.folderName}</p>
+                          <p className="text-green-700 text-sm">
+                            Folder: {testResult.folderName}
+                          </p>
                         )}
                       </div>
                     </>
                   ) : (
                     <>
                       <XCircleIcon className="w-5 h-5 text-red-600" />
-                      <span className="text-red-800">{testResult.message || 'Connection failed'}</span>
+                      <span className="text-red-800">
+                        {testResult.message || "Connection failed"}
+                      </span>
                     </>
                   )}
                 </div>
@@ -697,16 +840,23 @@ export default function ArchivalSettingsTab() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <EnvelopeIcon className="w-6 h-6 text-blue-600" />
-            <h3 className="text-xl font-bold text-gray-900">Email Notifications</h3>
+            <h3 className="text-xl font-bold text-gray-900">
+              Email Notifications
+            </h3>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={config.emailNotification.enabled}
-              onChange={(e) => setConfig({
-                ...config,
-                emailNotification: { ...config.emailNotification, enabled: e.target.checked }
-              })}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  emailNotification: {
+                    ...config.emailNotification,
+                    enabled: e.target.checked,
+                  },
+                })
+              }
               className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
             />
             <span className="text-sm text-gray-700">Enable</span>
@@ -720,23 +870,35 @@ export default function ArchivalSettingsTab() {
                 <input
                   type="checkbox"
                   checked={config.emailNotification.notifyOnArchival}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    emailNotification: { ...config.emailNotification, notifyOnArchival: e.target.checked }
-                  })}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      emailNotification: {
+                        ...config.emailNotification,
+                        notifyOnArchival: e.target.checked,
+                      },
+                    })
+                  }
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Notify on successful archival</span>
+                <span className="text-sm text-gray-700">
+                  Notify on successful archival
+                </span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={config.emailNotification.notifyOnFailure}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    emailNotification: { ...config.emailNotification, notifyOnFailure: e.target.checked }
-                  })}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      emailNotification: {
+                        ...config.emailNotification,
+                        notifyOnFailure: e.target.checked,
+                      },
+                    })
+                  }
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-700">Notify on failure</span>
@@ -746,13 +908,20 @@ export default function ArchivalSettingsTab() {
                 <input
                   type="checkbox"
                   checked={config.emailNotification.includeAttachments}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    emailNotification: { ...config.emailNotification, includeAttachments: e.target.checked }
-                  })}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      emailNotification: {
+                        ...config.emailNotification,
+                        includeAttachments: e.target.checked,
+                      },
+                    })
+                  }
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Include PDF/CSV as email attachments</span>
+                <span className="text-sm text-gray-700">
+                  Include PDF/CSV as email attachments
+                </span>
               </label>
             </div>
 
@@ -765,7 +934,7 @@ export default function ArchivalSettingsTab() {
                   type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addEmail()}
+                  onKeyPress={(e) => e.key === "Enter" && addEmail()}
                   placeholder="admin@example.com"
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
@@ -777,8 +946,11 @@ export default function ArchivalSettingsTab() {
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {config.emailNotification.adminEmails.map(email => (
-                  <div key={email} className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                {config.emailNotification.adminEmails.map((email) => (
+                  <div
+                    key={email}
+                    className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200"
+                  >
                     <span className="text-sm text-blue-900">{email}</span>
                     <button
                       onClick={() => removeEmail(email)}
@@ -807,10 +979,15 @@ export default function ArchivalSettingsTab() {
               <input
                 type="checkbox"
                 checked={config.fileGeneration.generatePDF}
-                onChange={(e) => setConfig({
-                  ...config,
-                  fileGeneration: { ...config.fileGeneration, generatePDF: e.target.checked }
-                })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    fileGeneration: {
+                      ...config.fileGeneration,
+                      generatePDF: e.target.checked,
+                    },
+                  })
+                }
                 className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">Generate PDF report</span>
@@ -820,10 +997,15 @@ export default function ArchivalSettingsTab() {
               <input
                 type="checkbox"
                 checked={config.fileGeneration.generateCSV}
-                onChange={(e) => setConfig({
-                  ...config,
-                  fileGeneration: { ...config.fileGeneration, generateCSV: e.target.checked }
-                })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    fileGeneration: {
+                      ...config.fileGeneration,
+                      generateCSV: e.target.checked,
+                    },
+                  })
+                }
                 className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">Generate CSV data</span>
@@ -833,10 +1015,15 @@ export default function ArchivalSettingsTab() {
               <input
                 type="checkbox"
                 checked={config.fileGeneration.includeAuditTrail}
-                onChange={(e) => setConfig({
-                  ...config,
-                  fileGeneration: { ...config.fileGeneration, includeAuditTrail: e.target.checked }
-                })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    fileGeneration: {
+                      ...config.fileGeneration,
+                      includeAuditTrail: e.target.checked,
+                    },
+                  })
+                }
                 className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">Include audit trail</span>
@@ -846,16 +1033,23 @@ export default function ArchivalSettingsTab() {
               <input
                 type="checkbox"
                 checked={config.fileGeneration.pdfSettings.includeWatermark}
-                onChange={(e) => setConfig({
-                  ...config,
-                  fileGeneration: {
-                    ...config.fileGeneration,
-                    pdfSettings: { ...config.fileGeneration.pdfSettings, includeWatermark: e.target.checked }
-                  }
-                })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    fileGeneration: {
+                      ...config.fileGeneration,
+                      pdfSettings: {
+                        ...config.fileGeneration.pdfSettings,
+                        includeWatermark: e.target.checked,
+                      },
+                    },
+                  })
+                }
                 className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
               />
-              <span className="text-sm text-gray-700">Add watermark to PDF</span>
+              <span className="text-sm text-gray-700">
+                Add watermark to PDF
+              </span>
             </label>
           </div>
         </div>
@@ -865,13 +1059,16 @@ export default function ArchivalSettingsTab() {
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
         <div className="flex items-center gap-2 mb-4">
           <TrashIcon className="w-6 h-6 text-red-600" />
-          <h3 className="text-xl font-bold text-gray-900">Data Retention & Cleanup</h3>
+          <h3 className="text-xl font-bold text-gray-900">
+            Data Retention & Cleanup
+          </h3>
         </div>
 
         <div className="space-y-4">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
-              <strong>Warning:</strong> Enabling database cleanup will permanently delete studies from CosmosDB after archival.
+              <strong>Warning:</strong> Enabling database cleanup will
+              permanently delete studies from CosmosDB after archival.
             </p>
           </div>
 
@@ -879,13 +1076,20 @@ export default function ArchivalSettingsTab() {
             <input
               type="checkbox"
               checked={config.dataRetention.deleteFromCosmosDB}
-              onChange={(e) => setConfig({
-                ...config,
-                dataRetention: { ...config.dataRetention, deleteFromCosmosDB: e.target.checked }
-              })}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  dataRetention: {
+                    ...config.dataRetention,
+                    deleteFromCosmosDB: e.target.checked,
+                  },
+                })
+              }
               className="w-4 h-4 text-red-600 rounded focus:ring-red-500"
             />
-            <span className="text-sm text-gray-700 font-semibold">Delete studies from database after archival</span>
+            <span className="text-sm text-gray-700 font-semibold">
+              Delete studies from database after archival
+            </span>
           </label>
 
           {config.dataRetention.deleteFromCosmosDB && (
@@ -894,23 +1098,35 @@ export default function ArchivalSettingsTab() {
                 <input
                   type="checkbox"
                   checked={config.dataRetention.createBackupBeforeDelete}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    dataRetention: { ...config.dataRetention, createBackupBeforeDelete: e.target.checked }
-                  })}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      dataRetention: {
+                        ...config.dataRetention,
+                        createBackupBeforeDelete: e.target.checked,
+                      },
+                    })
+                  }
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Create backup before deletion</span>
+                <span className="text-sm text-gray-700">
+                  Create backup before deletion
+                </span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={config.dataRetention.retainAuditLogs}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    dataRetention: { ...config.dataRetention, retainAuditLogs: e.target.checked }
-                  })}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      dataRetention: {
+                        ...config.dataRetention,
+                        retainAuditLogs: e.target.checked,
+                      },
+                    })
+                  }
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-700">Retain audit logs</span>
@@ -924,14 +1140,20 @@ export default function ArchivalSettingsTab() {
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
         <div className="flex items-center gap-2 mb-4">
           <PlayIcon className="w-6 h-6 text-purple-600" />
-          <h3 className="text-xl font-bold text-gray-900">Manual Archival Operations</h3>
+          <h3 className="text-xl font-bold text-gray-900">
+            Manual Archival Operations
+          </h3>
         </div>
 
         <div className="space-y-4">
           {/* Archive Single Study */}
           <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-            <h4 className="font-semibold text-purple-900 mb-2">Archive Single Study</h4>
-            <p className="text-sm text-gray-600 mb-3">Archive a specific study by its ID</p>
+            <h4 className="font-semibold text-purple-900 mb-2">
+              Archive Single Study
+            </h4>
+            <p className="text-sm text-gray-600 mb-3">
+              Archive a specific study by its ID
+            </p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -962,7 +1184,9 @@ export default function ArchivalSettingsTab() {
 
           {/* Run Auto-Archive Now */}
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2">Run Auto-Archive Now</h4>
+            <h4 className="font-semibold text-blue-900 mb-2">
+              Run Auto-Archive Now
+            </h4>
             <p className="text-sm text-gray-600 mb-3">
               Archive all eligible studies based on current configuration
             </p>

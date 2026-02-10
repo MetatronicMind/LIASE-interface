@@ -22,8 +22,6 @@ export interface PermissionStructure {
 }
 
 class RoleService {
-  private API_BASE_URL = getApiBaseUrl();
-
   private getAuthHeaders() {
     const token = localStorage.getItem('auth_token'); // Fixed token key
     return {
@@ -45,7 +43,7 @@ class RoleService {
   }
 
   async getRoles(): Promise<Role[]> {
-    const response = await fetch(`${this.API_BASE_URL}/roles`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles`, {
       headers: this.getAuthHeaders()
     });
 
@@ -60,7 +58,7 @@ class RoleService {
   }
 
   async getRole(roleId: string): Promise<Role> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/${roleId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/${roleId}`, {
       headers: this.getAuthHeaders()
     });
 
@@ -75,7 +73,7 @@ class RoleService {
   }
 
   async createRole(roleData: Partial<Role>): Promise<Role> {
-    const response = await fetch(`${this.API_BASE_URL}/roles`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(roleData)
@@ -92,7 +90,7 @@ class RoleService {
   }
 
   async updateRole(roleId: string, roleData: Partial<Role>): Promise<Role> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/${roleId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/${roleId}`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(roleData)
@@ -109,7 +107,7 @@ class RoleService {
   }
 
   async deleteRole(roleId: string): Promise<void> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/${roleId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/${roleId}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders()
     });
@@ -122,7 +120,7 @@ class RoleService {
   }
 
   async getPermissionStructure(): Promise<PermissionStructure> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/system/permissions`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/system/permissions`, {
       headers: this.getAuthHeaders()
     });
 
@@ -138,7 +136,7 @@ class RoleService {
 
   // Get permission templates for role creation
   async getPermissionTemplates(): Promise<Record<string, any>> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/templates`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/templates`, {
       headers: this.getAuthHeaders()
     });
 
@@ -159,7 +157,7 @@ class RoleService {
     permissionTemplate: string;
     description?: string;
   }): Promise<Role> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/custom`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/custom`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(params)
@@ -177,7 +175,7 @@ class RoleService {
 
   // Get system role templates
   async getSystemRoleTemplates(): Promise<any[]> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/system/templates`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/system/templates`, {
       headers: this.getAuthHeaders()
     });
 
@@ -192,7 +190,7 @@ class RoleService {
   }
 
   async getAvailableRoles(): Promise<Role[]> {
-    const response = await fetch(`${this.API_BASE_URL}/users/roles/available`, {
+    const response = await fetch(`${getApiBaseUrl()}/users/roles/available`, {
       headers: this.getAuthHeaders()
     });
 
@@ -216,7 +214,7 @@ class RoleService {
       failed: number;
     };
   }> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/debug/force-delete-all`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/debug/force-delete-all`, {
       method: 'DELETE',
       headers: this.getAuthHeaders()
     });
@@ -233,7 +231,7 @@ class RoleService {
 
   // Debug function to inspect database
   async inspectDatabase(): Promise<any> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/debug/inspect-database`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/debug/inspect-database`, {
       headers: this.getAuthHeaders()
     });
 
@@ -249,7 +247,7 @@ class RoleService {
 
   // Debug function to test role creation
   async testCreateRole(): Promise<any> {
-    const response = await fetch(`${this.API_BASE_URL}/roles/debug/test-create-role`, {
+    const response = await fetch(`${getApiBaseUrl()}/roles/debug/test-create-role`, {
       method: 'POST',
       headers: this.getAuthHeaders()
     });
@@ -269,7 +267,7 @@ class RoleService {
   // =================================================================
 
   async getRolesByOrganization(orgId: string): Promise<Role[]> {
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${orgId}/roles`, {
+    const response = await fetch(`${getApiBaseUrl()}/organizations/${orgId}/roles`, {
       headers: this.getAuthHeaders()
     });
 
@@ -284,7 +282,7 @@ class RoleService {
   }
 
   async getRoleForOrganization(orgId: string, roleId: string): Promise<Role> {
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${orgId}/roles/${roleId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/organizations/${orgId}/roles/${roleId}`, {
       headers: this.getAuthHeaders()
     });
 
@@ -299,7 +297,7 @@ class RoleService {
   }
 
   async createRoleForOrganization(orgId: string, roleData: Partial<Role>): Promise<Role> {
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${orgId}/roles`, {
+    const response = await fetch(`${getApiBaseUrl()}/organizations/${orgId}/roles`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(roleData)
@@ -316,7 +314,7 @@ class RoleService {
   }
 
   async updateRoleForOrganization(orgId: string, roleId: string, roleData: Partial<Role>): Promise<Role> {
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${orgId}/roles/${roleId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/organizations/${orgId}/roles/${roleId}`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(roleData)
@@ -333,7 +331,7 @@ class RoleService {
   }
 
   async deleteRoleForOrganization(orgId: string, roleId: string): Promise<void> {
-    const response = await fetch(`${this.API_BASE_URL}/organizations/${orgId}/roles/${roleId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/organizations/${orgId}/roles/${roleId}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders()
     });

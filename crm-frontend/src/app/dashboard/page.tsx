@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { API_CONFIG } from "@/config/api";
+import { getApiBaseUrl } from "@/config/api";
 import { useAuth } from "@/hooks/useAuth";
 import { PermissionGate } from "@/components/PermissionProvider";
 import CRMDashboardStats from "@/components/dashboard/CRMDashboardStats";
@@ -70,7 +70,8 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("auth_token") || localStorage.getItem("token");
+      const token =
+        localStorage.getItem("auth_token") || localStorage.getItem("token");
 
       if (!token) {
         console.error("No token found");
@@ -83,7 +84,10 @@ export default function DashboardPage() {
         "Content-Type": "application/json",
       };
 
-      const response = await fetch(`${API_CONFIG.BASE_URL}/organizations/summary`, {
+      const apiUrl = getApiBaseUrl();
+      console.log(`[Dashboard] Fetching summary from: ${apiUrl}`);
+
+      const response = await fetch(`${apiUrl}/organizations/summary`, {
         headers,
       });
 
@@ -130,7 +134,8 @@ export default function DashboardPage() {
                   CRM Dashboard
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Welcome back, {user?.firstName || "Admin"}. Here's an overview of your ecosystem.
+                  Welcome back, {user?.firstName || "Admin"}. Here's an overview
+                  of your ecosystem.
                 </p>
               </div>
               <button

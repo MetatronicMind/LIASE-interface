@@ -1,8 +1,6 @@
 import { getApiBaseUrl } from '../config/api';
 import { formatDateTime } from '../utils/dateTimeFormatter';
 
-const API_BASE_URL = getApiBaseUrl();
-
 export interface AuditLog {
   id: string;
   organizationId: string;
@@ -83,7 +81,7 @@ class AuditService {
 
   async getAuditLogs(filters: AuditFilters = {}): Promise<AuditLogsResponse> {
     const queryParams = new URLSearchParams();
-    
+
     // Add filters to query params
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
@@ -92,14 +90,14 @@ class AuditService {
     });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/audit?${queryParams.toString()}`, {
+      const response = await fetch(`${getApiBaseUrl()}/audit?${queryParams.toString()}`, {
         method: 'GET',
         headers: this.getAuthHeaders(),
       });
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({ error: 'Unknown error' }));
-        
+
         if (response.status === 403) {
           throw new Error('You do not have permission to view audit logs');
         }
@@ -120,7 +118,7 @@ class AuditService {
   }
 
   async getAuditStats(days: number = 30): Promise<AuditStats> {
-    const response = await fetch(`${API_BASE_URL}/audit/stats?days=${days}`, {
+    const response = await fetch(`${getApiBaseUrl()}/audit/stats?days=${days}`, {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -135,7 +133,7 @@ class AuditService {
   }
 
   async getAuditLog(auditId: string): Promise<AuditLog> {
-    const response = await fetch(`${API_BASE_URL}/audit/${auditId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/audit/${auditId}`, {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -151,7 +149,7 @@ class AuditService {
 
   async createLog(data: { action: string; resource: string; details: string; metadata?: any }): Promise<void> {
     try {
-      await fetch(`${API_BASE_URL}/audit`, {
+      await fetch(`${getApiBaseUrl()}/audit`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify(data)
@@ -166,13 +164,13 @@ class AuditService {
     try {
       const response = await this.getAuditLogs({ limit: 1000 });
       const uniqueUsers = new Map<string, string>();
-      
+
       response.auditLogs.forEach(log => {
         if (!uniqueUsers.has(log.userId)) {
           uniqueUsers.set(log.userId, log.userName);
         }
       });
-      
+
       return Array.from(uniqueUsers.entries()).map(([id, name]) => ({ id, name }));
     } catch (error) {
       // If we can't fetch audit logs (permission issues), return empty array
@@ -201,7 +199,7 @@ class AuditService {
     try {
       // Get all logs with the filters (increase limit for export)
       const response = await this.getAuditLogs({ ...filters, limit: 10000 });
-      
+
       const header = ['Timestamp', 'User', 'Action', 'Resource', 'Country', 'City', 'IP Address', 'Details', 'Changes'];
       const rows = response.auditLogs.map(log => {
         const formatFieldLabel = (fieldName: string) =>
@@ -243,7 +241,7 @@ class AuditService {
             return `${label}: ${after}`;
           }).join('; ');
         }
-        
+
         return [
           formatDateTime(log.timestamp),
           log.userName,
@@ -256,11 +254,11 @@ class AuditService {
           changesText
         ];
       });
-      
+
       const csv = [header, ...rows]
         .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
         .join('\n');
-      
+
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');

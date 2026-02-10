@@ -2,8 +2,6 @@ import { authService } from './authService';
 
 import { getApiBaseUrl } from '../config/api';
 
-const API_BASE_URL = getApiBaseUrl();
-
 export interface User {
   id: string;
   username: string;
@@ -57,10 +55,11 @@ class UserService {
   }
 
   async getUsers(): Promise<{ users: User[] }> {
-    console.log('Fetching users from:', `${API_BASE_URL}/users`);
+    const apiUrl = getApiBaseUrl();
+    console.log('Fetching users from:', `${apiUrl}/users`);
     console.log('Auth token:', localStorage.getItem('auth_token') ? 'Present' : 'Missing');
-    
-    const response = await fetch(`${API_BASE_URL}/users`, {
+
+    const response = await fetch(`${apiUrl}/users`, {
       headers: this.getAuthHeaders()
     });
 
@@ -77,7 +76,7 @@ class UserService {
   }
 
   async getUserById(userId: string): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/users/${userId}`, {
       headers: this.getAuthHeaders()
     });
 
@@ -90,7 +89,7 @@ class UserService {
   }
 
   async createUser(userData: CreateUserRequest): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/users`, {
+    const response = await fetch(`${getApiBaseUrl()}/users`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(userData)
@@ -105,7 +104,7 @@ class UserService {
   }
 
   async updateUser(userId: string, userData: UpdateUserRequest): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/users/${userId}`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(userData)
@@ -120,10 +119,10 @@ class UserService {
   }
 
   async deleteUser(userId: string, hardDelete: boolean = false): Promise<void> {
-    const url = hardDelete 
-      ? `${API_BASE_URL}/users/${userId}?hardDelete=true`
-      : `${API_BASE_URL}/users/${userId}`;
-      
+    const url = hardDelete
+      ? `${getApiBaseUrl()}/users/${userId}?hardDelete=true`
+      : `${getApiBaseUrl()}/users/${userId}`;
+
     const response = await fetch(url, {
       method: 'DELETE',
       headers: this.getAuthHeaders()

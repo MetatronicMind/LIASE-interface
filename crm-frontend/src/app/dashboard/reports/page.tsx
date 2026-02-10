@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
-import { exportToPDF } from '@/utils/exportUtils';
-import { useAuth } from '../../../hooks/useAuth';
-import { useDateTime } from '../../../hooks/useDateTime';
-import { API_CONFIG } from '../../../config/api';
-import { PmidLink } from '../../../components/PmidLink';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/redux/store';
+import { exportToPDF } from "@/utils/exportUtils";
+import { useAuth } from "../../../hooks/useAuth";
+import { useDateTime } from "../../../hooks/useDateTime";
+import { getApiBaseUrl } from "../../../config/api";
+import { PmidLink } from "../../../components/PmidLink";
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
 
 interface Study {
   id: string;
@@ -22,7 +22,7 @@ interface Study {
   drugName: string;
   adverseEvent: string;
   status: string;
-  userTag?: 'ICSR' | 'AOI' | 'No Case' | null;
+  userTag?: "ICSR" | "AOI" | "No Case" | null;
   effectiveClassification?: string;
   icsrClassification?: string;
   aoiClassification?: string;
@@ -44,68 +44,84 @@ interface Study {
   leadAuthor?: string;
 }
 
-type StudyType = 'all' | 'ICSR' | 'AOI' | 'No Case';
-type SortField = 'createdAt' | 'updatedAt' | 'title' | 'pmid' | 'drugName' | 'publicationDate';
-type SortOrder = 'asc' | 'desc';
+type StudyType = "all" | "ICSR" | "AOI" | "No Case";
+type SortField =
+  | "createdAt"
+  | "updatedAt"
+  | "title"
+  | "pmid"
+  | "drugName"
+  | "publicationDate";
+type SortOrder = "asc" | "desc";
 
 export default function ReportsPage() {
   const { user } = useAuth();
-  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
+  const selectedOrganizationId = useSelector(
+    (state: RootState) => state.filter.selectedOrganizationId,
+  );
   const { formatDateTime, formatDate } = useDateTime();
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Filters
-  const [studyType, setStudyType] = useState<StudyType>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [studyIdFilter, setStudyIdFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [qaFilter, setQaFilter] = useState<string>('all');
-  const [r3Filter, setR3Filter] = useState<string>('all');
-  const [seriousFilter, setSeriousFilter] = useState<string>('all');
-  const [listednessFilter, setListednessFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
-  
+  const [studyType, setStudyType] = useState<StudyType>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [studyIdFilter, setStudyIdFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [qaFilter, setQaFilter] = useState<string>("all");
+  const [r3Filter, setR3Filter] = useState<string>("all");
+  const [seriousFilter, setSeriousFilter] = useState<string>("all");
+  const [listednessFilter, setListednessFilter] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
+    start: "",
+    end: "",
+  });
+
   // Sorting
-  const [sortField, setSortField] = useState<SortField>('createdAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  
+  const [sortField, setSortField] = useState<SortField>("createdAt");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
-  
+
   // Selected items for export
-  const [selectedStudies, setSelectedStudies] = useState<Set<string>>(new Set());
+  const [selectedStudies, setSelectedStudies] = useState<Set<string>>(
+    new Set(),
+  );
   const [selectAll, setSelectAll] = useState(false);
 
   // Export Configuration
-  const [exportConfig, setExportConfig] = useState({ 
-    password: 'admin', 
-    footer: 'This was generated using the liase tool , MetatronicMinds Technologies 2026' 
+  const [exportConfig, setExportConfig] = useState({
+    password: "admin",
+    footer:
+      "This was generated using the liase tool , MetatronicMinds Technologies 2026",
   });
 
   useEffect(() => {
     const fetchExportConfig = async () => {
       try {
-        const token = localStorage.getItem('auth_token');
+        const token = localStorage.getItem("auth_token");
         if (!token) return;
-        const response = await fetch(`${API_CONFIG.BASE_URL}/admin-config`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const response = await fetch(`${getApiBaseUrl()}/admin-config`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
           const configs = await response.json();
           // The endpoint returns an array of AdminConfig objects: { configType: 'x', configData: { ... } }
-          const expConf = configs.find((c: any) => c.configType === 'export');
+          const expConf = configs.find((c: any) => c.configType === "export");
           if (expConf?.configData) {
-             setExportConfig({
-               password: expConf.configData.pdfPassword || 'admin',
-               footer: expConf.configData.footerText || 'This was generated using the liase tool , MetatronicMinds Technologies 2026'
-             });
+            setExportConfig({
+              password: expConf.configData.pdfPassword || "admin",
+              footer:
+                expConf.configData.footerText ||
+                "This was generated using the liase tool , MetatronicMinds Technologies 2026",
+            });
           }
         }
       } catch (err) {
-        console.error('Failed to fetch export config', err);
+        console.error("Failed to fetch export config", err);
       }
     };
     fetchExportConfig();
@@ -123,32 +139,39 @@ export default function ReportsPage() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem("auth_token");
       if (!token) {
-        setError('No authentication token found. Please log in again.');
+        setError("No authentication token found. Please log in again.");
         setLoading(false);
         return;
       }
 
-      const queryParams = selectedOrganizationId ? `&organizationId=${selectedOrganizationId}` : '';
-      const response = await fetch(`${API_CONFIG.BASE_URL}/studies?limit=1000${queryParams}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      const queryParams = selectedOrganizationId
+        ? `&organizationId=${selectedOrganizationId}`
+        : "";
+      const response = await fetch(
+        `${getApiBaseUrl()}/studies?limit=1000${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to fetch studies: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch studies: ${response.status} ${response.statusText}`,
+        );
       }
 
       const data = await response.json();
-      console.log('Fetched studies:', data.studies?.length || 0);
+      console.log("Fetched studies:", data.studies?.length || 0);
       setStudies(data.studies || []);
     } catch (err: any) {
-      console.error('Error fetching studies:', err);
-      setError(err.message || 'Failed to fetch studies');
+      console.error("Error fetching studies:", err);
+      setError(err.message || "Failed to fetch studies");
     } finally {
       setLoading(false);
     }
@@ -159,26 +182,28 @@ export default function ReportsPage() {
     let filtered = [...studies];
 
     // Filter by study type
-    if (studyType !== 'all') {
-      filtered = filtered.filter(study => study.userTag === studyType);
+    if (studyType !== "all") {
+      filtered = filtered.filter((study) => study.userTag === studyType);
     }
 
     // Study ID filter
     if (studyIdFilter.trim()) {
       const query = studyIdFilter.toLowerCase();
-      filtered = filtered.filter(study => 
-        study.id.toLowerCase().includes(query)
+      filtered = filtered.filter((study) =>
+        study.id.toLowerCase().includes(query),
       );
     }
 
     // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(study => {
-        const authorsStr = Array.isArray(study.authors) 
-          ? study.authors.join(' ') 
-          : (typeof study.authors === 'string' ? study.authors : '');
-          
+      filtered = filtered.filter((study) => {
+        const authorsStr = Array.isArray(study.authors)
+          ? study.authors.join(" ")
+          : typeof study.authors === "string"
+            ? study.authors
+            : "";
+
         return (
           study.title?.toLowerCase().includes(query) ||
           study.pmid?.toLowerCase().includes(query) ||
@@ -189,52 +214,58 @@ export default function ReportsPage() {
     }
 
     // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(study => study.status === statusFilter);
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((study) => study.status === statusFilter);
     }
 
     // QC filter
-    if (qaFilter !== 'all') {
-      filtered = filtered.filter(study => study.qaApprovalStatus === qaFilter);
+    if (qaFilter !== "all") {
+      filtered = filtered.filter(
+        (study) => study.qaApprovalStatus === qaFilter,
+      );
     }
 
     // R3 form filter
-    if (r3Filter !== 'all') {
-      filtered = filtered.filter(study => study.r3FormStatus === r3Filter);
+    if (r3Filter !== "all") {
+      filtered = filtered.filter((study) => study.r3FormStatus === r3Filter);
     }
 
     // Serious filter
-    if (seriousFilter !== 'all') {
-      const wantSerious = seriousFilter === 'serious';
-      filtered = filtered.filter(study => {
-        const isSerious = study.serious === true || study.seriousness === 'Yes' || study.seriousness === 'Serious';
+    if (seriousFilter !== "all") {
+      const wantSerious = seriousFilter === "serious";
+      filtered = filtered.filter((study) => {
+        const isSerious =
+          study.serious === true ||
+          study.seriousness === "Yes" ||
+          study.seriousness === "Serious";
         return wantSerious ? isSerious : !isSerious;
       });
     }
 
     // Listedness filter
-    if (listednessFilter !== 'all') {
-      filtered = filtered.filter(study => {
+    if (listednessFilter !== "all") {
+      filtered = filtered.filter((study) => {
         const val = study.listedness;
         if (!val) return false;
-        
-        if (listednessFilter === 'Yes') {
-          return val === 'Yes' || val === 'Listed';
+
+        if (listednessFilter === "Yes") {
+          return val === "Yes" || val === "Listed";
         } else {
-          return val === 'No' || val === 'Unlisted';
+          return val === "No" || val === "Unlisted";
         }
       });
     }
 
     // Date range filter
     if (dateRange.start) {
-      filtered = filtered.filter(study => 
-        new Date(study.createdAt) >= new Date(dateRange.start)
+      filtered = filtered.filter(
+        (study) => new Date(study.createdAt) >= new Date(dateRange.start),
       );
     }
     if (dateRange.end) {
-      filtered = filtered.filter(study => 
-        new Date(study.createdAt) <= new Date(dateRange.end + 'T23:59:59')
+      filtered = filtered.filter(
+        (study) =>
+          new Date(study.createdAt) <= new Date(dateRange.end + "T23:59:59"),
       );
     }
 
@@ -243,32 +274,51 @@ export default function ReportsPage() {
       let aValue = a[sortField];
       let bValue = b[sortField];
 
-      if (typeof aValue === 'string') aValue = aValue?.toLowerCase() || '';
-      if (typeof bValue === 'string') bValue = bValue?.toLowerCase() || '';
+      if (typeof aValue === "string") aValue = aValue?.toLowerCase() || "";
+      if (typeof bValue === "string") bValue = bValue?.toLowerCase() || "";
 
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
 
     return filtered;
-  }, [studies, studyType, searchQuery, studyIdFilter, statusFilter, qaFilter, r3Filter, seriousFilter, listednessFilter, dateRange, sortField, sortOrder]);
+  }, [
+    studies,
+    studyType,
+    searchQuery,
+    studyIdFilter,
+    statusFilter,
+    qaFilter,
+    r3Filter,
+    seriousFilter,
+    listednessFilter,
+    dateRange,
+    sortField,
+    sortOrder,
+  ]);
 
   // Pagination
   const totalPages = Math.ceil(filteredStudies.length / itemsPerPage);
   const paginatedStudies = filteredStudies.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   // Statistics
   const stats = useMemo(() => {
     const total = filteredStudies.length;
-    const icsrCount = filteredStudies.filter(s => s.userTag === 'ICSR').length;
-    const aoiCount = filteredStudies.filter(s => s.userTag === 'AOI').length;
-    const noCaseCount = filteredStudies.filter(s => s.userTag === 'No Case').length;
-    const unclassified = filteredStudies.filter(s => !s.userTag).length;
-    const seriousCount = filteredStudies.filter(s => s.serious === true).length;
+    const icsrCount = filteredStudies.filter(
+      (s) => s.userTag === "ICSR",
+    ).length;
+    const aoiCount = filteredStudies.filter((s) => s.userTag === "AOI").length;
+    const noCaseCount = filteredStudies.filter(
+      (s) => s.userTag === "No Case",
+    ).length;
+    const unclassified = filteredStudies.filter((s) => !s.userTag).length;
+    const seriousCount = filteredStudies.filter(
+      (s) => s.serious === true,
+    ).length;
 
     return {
       total,
@@ -282,10 +332,10 @@ export default function ReportsPage() {
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortOrder('asc');
+      setSortOrder("asc");
     }
   };
 
@@ -293,7 +343,7 @@ export default function ReportsPage() {
     if (selectAll) {
       setSelectedStudies(new Set());
     } else {
-      setSelectedStudies(new Set(paginatedStudies.map(s => s.id)));
+      setSelectedStudies(new Set(paginatedStudies.map((s) => s.id)));
     }
     setSelectAll(!selectAll);
   };
@@ -310,40 +360,100 @@ export default function ReportsPage() {
   };
 
   const handleExportPDF = () => {
-    const studiesToExport = selectedStudies.size > 0
-      ? filteredStudies.filter(s => selectedStudies.has(s.id))
-      : filteredStudies;
+    const studiesToExport =
+      selectedStudies.size > 0
+        ? filteredStudies.filter((s) => selectedStudies.has(s.id))
+        : filteredStudies;
 
     const headers = [
-      'ID', 'PMID', 'Title', 'Authors', 'Journal', 'Publication Date', 'Created At', 'Updated At',
-      'Abstract', 'DOI', 'Full Text Availability', 'Full Text Source',
-      'Drug Name', 'Adverse Event', 'Substance Group', 'Administered Drugs', 'Patient Details',
-      'Triage Classification', 'AI Classification (ICSR)', 'AI Classification (AOI)', 'Effective Classification',
-      'Manual Review Required', 'Confirmed Potential ICSR',
-      'Listedness', 'Seriousness', 'Serious?', 'Client Name', 'Sponsor', 'Approved Indication',
-      'Justification', 'AOI Drug Effect',
-      'Country of First Author', 'Country of Occurrence', 'Test Subject', 'Specie', 'Study Type',
-      'Attributability', 'Drug Effect', 'Drug Effect on Fetus', 'Pregnancy', 'Pediatric', 'Elderly',
-      'Key Events', 'Relevant Dates', 'Summary', 'Special Case', 'Identifiable Human Subject',
-      'Author Perspective', 'Text Type', 'Vancouver Citation', 'Lead Author',
-      'Status', 'QA Approval Status', 'QA Approved By', 'Medical Review Status', 'R3 Form Status', 'QC R3 Status',
-      'Revoked By', 'Revoked At', 'Revocation Reason',
-      'R3: Batch Number', 'R3: Date of Creation', 'R3: Date Report First Received', 
-      'R3: Patient Initials', 'R3: Patient Sex', 'R3: Patient Age',
-      'R3: Reaction', 'R3: Death', 'R3: Life Threatening', 'R3: Hospitalisation', 'R3: Disabling',
-      'R3: Congenital Anomaly', 'R3: Medically Important', 'R3: Outcome',
-      'R3: Medical Confirmation', 'R3: Case Narrative', 'R3: Sender Comments'
+      "ID",
+      "PMID",
+      "Title",
+      "Authors",
+      "Journal",
+      "Publication Date",
+      "Created At",
+      "Updated At",
+      "Abstract",
+      "DOI",
+      "Full Text Availability",
+      "Full Text Source",
+      "Drug Name",
+      "Adverse Event",
+      "Substance Group",
+      "Administered Drugs",
+      "Patient Details",
+      "Triage Classification",
+      "AI Classification (ICSR)",
+      "AI Classification (AOI)",
+      "Effective Classification",
+      "Manual Review Required",
+      "Confirmed Potential ICSR",
+      "Listedness",
+      "Seriousness",
+      "Serious?",
+      "Client Name",
+      "Sponsor",
+      "Approved Indication",
+      "Justification",
+      "AOI Drug Effect",
+      "Country of First Author",
+      "Country of Occurrence",
+      "Test Subject",
+      "Specie",
+      "Study Type",
+      "Attributability",
+      "Drug Effect",
+      "Drug Effect on Fetus",
+      "Pregnancy",
+      "Pediatric",
+      "Elderly",
+      "Key Events",
+      "Relevant Dates",
+      "Summary",
+      "Special Case",
+      "Identifiable Human Subject",
+      "Author Perspective",
+      "Text Type",
+      "Vancouver Citation",
+      "Lead Author",
+      "Status",
+      "QA Approval Status",
+      "QA Approved By",
+      "Medical Review Status",
+      "R3 Form Status",
+      "QC R3 Status",
+      "Revoked By",
+      "Revoked At",
+      "Revocation Reason",
+      "R3: Batch Number",
+      "R3: Date of Creation",
+      "R3: Date Report First Received",
+      "R3: Patient Initials",
+      "R3: Patient Sex",
+      "R3: Patient Age",
+      "R3: Reaction",
+      "R3: Death",
+      "R3: Life Threatening",
+      "R3: Hospitalisation",
+      "R3: Disabling",
+      "R3: Congenital Anomaly",
+      "R3: Medically Important",
+      "R3: Outcome",
+      "R3: Medical Confirmation",
+      "R3: Case Narrative",
+      "R3: Sender Comments",
     ];
 
     const data = studiesToExport.map((study: any) => {
-      const r3 = (key: string) => study.r3FormData?.[key] || '';
+      const r3 = (key: string) => study.r3FormData?.[key] || "";
       const fmt = (val: any) => {
-        if (!val) return '';
-        if (Array.isArray(val)) return val.join('; ');
-        if (typeof val === 'object') return JSON.stringify(val);
+        if (!val) return "";
+        if (Array.isArray(val)) return val.join("; ");
+        if (typeof val === "object") return JSON.stringify(val);
         return String(val);
       };
-      const fmtDate = (d: string) => d ? new Date(d).toLocaleString() : '';
+      const fmtDate = (d: string) => (d ? new Date(d).toLocaleString() : "");
       const ai = study.aiInferenceData || {};
 
       return [
@@ -355,7 +465,8 @@ export default function ReportsPage() {
         study.publicationDate,
         fmtDate(study.createdAt),
         fmtDate(study.updatedAt),
-        fmt(study.abstract).substring(0, 500) + (study.abstract?.length > 500 ? '...' : ''), // Truncate abstract for PDF
+        fmt(study.abstract).substring(0, 500) +
+          (study.abstract?.length > 500 ? "..." : ""), // Truncate abstract for PDF
         study.doi,
         study.fullTextAvailability,
         fmt(study.fullTextSource),
@@ -368,11 +479,11 @@ export default function ReportsPage() {
         study.icsrClassification || ai.ICSR_classification,
         study.aoiClassification || ai.AOI_classification,
         study.effectiveClassification,
-        study.requiresManualReview ? 'Yes' : 'No',
-        study.confirmedPotentialICSR ? 'Yes' : 'No',
+        study.requiresManualReview ? "Yes" : "No",
+        study.confirmedPotentialICSR ? "Yes" : "No",
         study.listedness,
         study.seriousness,
-        study.serious ? 'Yes' : 'No',
+        study.serious ? "Yes" : "No",
         study.clientName,
         study.sponsor,
         study.approvedIndication,
@@ -381,19 +492,19 @@ export default function ReportsPage() {
         study.countryOfFirstAuthor,
         study.countryOfOccurrence,
         study.testSubject,
-        ai.specie || '',
-        ai.study_type || '', 
+        ai.specie || "",
+        ai.study_type || "",
         study.attributability,
         study.drugEffect,
-        ai.drug_effect_on_fetus || '',
-        ai.pregnancy || '',
-        ai.pediatric || '',
-        ai.elderly || '',
+        ai.drug_effect_on_fetus || "",
+        ai.pregnancy || "",
+        ai.pediatric || "",
+        ai.elderly || "",
         fmt(study.keyEvents),
         fmt(study.relevantDates),
         fmt(study.summary),
         study.specialCase,
-        study.identifiableHumanSubject ? 'Yes' : 'No',
+        study.identifiableHumanSubject ? "Yes" : "No",
         study.authorPerspective,
         study.textType,
         fmt(study.vancouverCitation),
@@ -407,64 +518,131 @@ export default function ReportsPage() {
         study.revokedBy,
         fmtDate(study.revokedAt),
         fmt(study.revocationReason),
-        r3('N_1_2'),
-        r3('C_1_2'),
-        r3('C_1_4'),
-        r3('D_1'),
-        r3('D_5'),
-        `${r3('D_2_2_a') || ''} ${r3('D_2_2_b') || ''}`,
-        r3('E_i_1_a'),
-        r3('E_i_3_2a'),
-        r3('E_i_3_2b'),
-        r3('E_i_3_2c'),
-        r3('E_i_3_2d'),
-        r3('E_i_3_2e'),
-        r3('E_i_3_2f'),
-        r3('E_i_7'),
-        r3('E_i_8'),
-        fmt(r3('H1')).substring(0, 500) + (r3('H1')?.length > 500 ? '...' : ''), // Truncate narrative
-        fmt(r3('H_4'))
+        r3("N_1_2"),
+        r3("C_1_2"),
+        r3("C_1_4"),
+        r3("D_1"),
+        r3("D_5"),
+        `${r3("D_2_2_a") || ""} ${r3("D_2_2_b") || ""}`,
+        r3("E_i_1_a"),
+        r3("E_i_3_2a"),
+        r3("E_i_3_2b"),
+        r3("E_i_3_2c"),
+        r3("E_i_3_2d"),
+        r3("E_i_3_2e"),
+        r3("E_i_3_2f"),
+        r3("E_i_7"),
+        r3("E_i_8"),
+        fmt(r3("H1")).substring(0, 500) + (r3("H1")?.length > 500 ? "..." : ""), // Truncate narrative
+        fmt(r3("H_4")),
       ];
     });
 
-    exportToPDF('Medical Reports Export', headers, data, `reports_export_${new Date().toISOString().split('T')[0]}`, exportConfig.password, exportConfig.footer);
+    exportToPDF(
+      "Medical Reports Export",
+      headers,
+      data,
+      `reports_export_${new Date().toISOString().split("T")[0]}`,
+      exportConfig.password,
+      exportConfig.footer,
+    );
   };
 
   const handleExportCSV = () => {
-    const studiesToExport = selectedStudies.size > 0
-      ? filteredStudies.filter(s => selectedStudies.has(s.id))
-      : filteredStudies;
+    const studiesToExport =
+      selectedStudies.size > 0
+        ? filteredStudies.filter((s) => selectedStudies.has(s.id))
+        : filteredStudies;
 
     const headers = [
-      'Article ID', 'PMID', 'Title', 'Authors', 'Journal', 'Publication Date', 'Created At', 'Updated At',
-      'Abstract', 'DOI', 'Full Text Availability', 'Full Text Source',
-      'Drug Name', 'Adverse Event', 'Substance Group', 'Administered Drugs', 'Patient Details',
-      'Triage Classification', 'AI Classification (ICSR)', 'AI Classification (AOI)', 'Effective Classification',
-      'Manual Review Required', 'Confirmed Potential ICSR',
-      'Listedness', 'Seriousness', 'Serious?', 'Client Name', 'Sponsor', 'Approved Indication',
-      'Justification', 'AOI Drug Effect',
-      'Country of First Author', 'Country of Occurrence', 'Test Subject', 'Specie', 'Study Type',
-      'Attributability', 'Drug Effect', 'Drug Effect on Fetus', 'Pregnancy', 'Pediatric', 'Elderly',
-      'Key Events', 'Relevant Dates', 'Summary', 'Special Case', 'Identifiable Human Subject',
-      'Author Perspective', 'Text Type', 'Vancouver Citation', 'Lead Author',
-      'Status', 'QA Approval Status', 'QA Approved By', 'Medical Review Status', 'R3 Form Status', 'QC R3 Status',
-      'Revoked By', 'Revoked At', 'Revocation Reason',
-      'R3: Batch Number', 'R3: Date of Creation', 'R3: Date Report First Received', 
-      'R3: Patient Initials', 'R3: Patient Sex', 'R3: Patient Age',
-      'R3: Reaction', 'R3: Death', 'R3: Life Threatening', 'R3: Hospitalisation', 'R3: Disabling',
-      'R3: Congenital Anomaly', 'R3: Medically Important', 'R3: Outcome',
-      'R3: Medical Confirmation', 'R3: Case Narrative', 'R3: Sender Comments'
+      "Article ID",
+      "PMID",
+      "Title",
+      "Authors",
+      "Journal",
+      "Publication Date",
+      "Created At",
+      "Updated At",
+      "Abstract",
+      "DOI",
+      "Full Text Availability",
+      "Full Text Source",
+      "Drug Name",
+      "Adverse Event",
+      "Substance Group",
+      "Administered Drugs",
+      "Patient Details",
+      "Triage Classification",
+      "AI Classification (ICSR)",
+      "AI Classification (AOI)",
+      "Effective Classification",
+      "Manual Review Required",
+      "Confirmed Potential ICSR",
+      "Listedness",
+      "Seriousness",
+      "Serious?",
+      "Client Name",
+      "Sponsor",
+      "Approved Indication",
+      "Justification",
+      "AOI Drug Effect",
+      "Country of First Author",
+      "Country of Occurrence",
+      "Test Subject",
+      "Specie",
+      "Study Type",
+      "Attributability",
+      "Drug Effect",
+      "Drug Effect on Fetus",
+      "Pregnancy",
+      "Pediatric",
+      "Elderly",
+      "Key Events",
+      "Relevant Dates",
+      "Summary",
+      "Special Case",
+      "Identifiable Human Subject",
+      "Author Perspective",
+      "Text Type",
+      "Vancouver Citation",
+      "Lead Author",
+      "Status",
+      "QA Approval Status",
+      "QA Approved By",
+      "Medical Review Status",
+      "R3 Form Status",
+      "QC R3 Status",
+      "Revoked By",
+      "Revoked At",
+      "Revocation Reason",
+      "R3: Batch Number",
+      "R3: Date of Creation",
+      "R3: Date Report First Received",
+      "R3: Patient Initials",
+      "R3: Patient Sex",
+      "R3: Patient Age",
+      "R3: Reaction",
+      "R3: Death",
+      "R3: Life Threatening",
+      "R3: Hospitalisation",
+      "R3: Disabling",
+      "R3: Congenital Anomaly",
+      "R3: Medically Important",
+      "R3: Outcome",
+      "R3: Medical Confirmation",
+      "R3: Case Narrative",
+      "R3: Sender Comments",
     ];
 
-    const rows = studiesToExport.map((study : any) => {
-      const r3 = (key: string) => study.r3FormData?.[key] || '';
+    const rows = studiesToExport.map((study: any) => {
+      const r3 = (key: string) => study.r3FormData?.[key] || "";
       const fmt = (val: any) => {
-        if (!val) return '';
-        if (Array.isArray(val)) return val.join('; ');
-        if (typeof val === 'object') return JSON.stringify(val);
+        if (!val) return "";
+        if (Array.isArray(val)) return val.join("; ");
+        if (typeof val === "object") return JSON.stringify(val);
         return String(val).replace(/"/g, '""');
       };
-      const fmtDate = (d: string) => d ? new Date(d).toLocaleString() : '';
+      const fmtDate = (d: string) => (d ? new Date(d).toLocaleString() : "");
       const ai = study.aiInferenceData || {};
 
       return [
@@ -489,11 +667,11 @@ export default function ReportsPage() {
         study.icsrClassification || ai.ICSR_classification,
         study.aoiClassification || ai.AOI_classification,
         study.effectiveClassification,
-        study.requiresManualReview ? 'Yes' : 'No',
-        study.confirmedPotentialICSR ? 'Yes' : 'No',
+        study.requiresManualReview ? "Yes" : "No",
+        study.confirmedPotentialICSR ? "Yes" : "No",
         study.listedness,
         study.seriousness,
-        study.serious ? 'Yes' : 'No',
+        study.serious ? "Yes" : "No",
         study.clientName,
         study.sponsor,
         study.approvedIndication,
@@ -502,19 +680,19 @@ export default function ReportsPage() {
         study.countryOfFirstAuthor,
         study.countryOfOccurrence,
         study.testSubject,
-        ai.specie || '',
-        ai.study_type || '', 
+        ai.specie || "",
+        ai.study_type || "",
         study.attributability,
         study.drugEffect,
-        ai.drug_effect_on_fetus || '',
-        ai.pregnancy || '',
-        ai.pediatric || '',
-        ai.elderly || '',
+        ai.drug_effect_on_fetus || "",
+        ai.pregnancy || "",
+        ai.pediatric || "",
+        ai.elderly || "",
         fmt(study.keyEvents),
         fmt(study.relevantDates),
         fmt(study.summary),
         study.specialCase,
-        study.identifiableHumanSubject ? 'Yes' : 'No',
+        study.identifiableHumanSubject ? "Yes" : "No",
         study.authorPerspective,
         study.textType,
         fmt(study.vancouverCitation),
@@ -528,63 +706,70 @@ export default function ReportsPage() {
         study.revokedBy,
         fmtDate(study.revokedAt),
         fmt(study.revocationReason),
-        r3('N_1_2'),
-        r3('C_1_2'),
-        r3('C_1_4'),
-        r3('D_1'),
-        r3('D_5'),
-        `${r3('D_2_2_a') || ''} ${r3('D_2_2_b') || ''}`,
-        r3('E_i_1_a'),
-        r3('E_i_3_2a'),
-        r3('E_i_3_2b'),
-        r3('E_i_3_2c'),
-        r3('E_i_3_2d'),
-        r3('E_i_3_2e'),
-        r3('E_i_3_2f'),
-        r3('E_i_7'),
-        r3('E_i_8'),
-        fmt(r3('H1')),
-        fmt(r3('H_4'))
-      ].map(val => `"${val || ''}"`).join(',');
+        r3("N_1_2"),
+        r3("C_1_2"),
+        r3("C_1_4"),
+        r3("D_1"),
+        r3("D_5"),
+        `${r3("D_2_2_a") || ""} ${r3("D_2_2_b") || ""}`,
+        r3("E_i_1_a"),
+        r3("E_i_3_2a"),
+        r3("E_i_3_2b"),
+        r3("E_i_3_2c"),
+        r3("E_i_3_2d"),
+        r3("E_i_3_2e"),
+        r3("E_i_3_2f"),
+        r3("E_i_7"),
+        r3("E_i_8"),
+        fmt(r3("H1")),
+        fmt(r3("H_4")),
+      ]
+        .map((val) => `"${val || ""}"`)
+        .join(",");
     });
 
-    const csvHeader = headers.join(',');
-    const csvRows = rows.join('\n');
+    const csvHeader = headers.join(",");
+    const csvRows = rows.join("\n");
     const footerText = exportConfig.footer;
-    const generatedBy = `Generated by: ${user?.name || 'Unknown User'} on ${new Date().toLocaleString()}`;
+    const generatedBy = `Generated by: ${user?.name || "Unknown User"} on ${new Date().toLocaleString()}`;
     const csvContent = `${csvHeader}\n${csvRows}\n\n"${footerText}"\n"${generatedBy}"`;
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `reports_detailed_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `reports_detailed_${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-
-
   const resetFilters = () => {
-    setStudyType('all');
-    setSearchQuery('');
-    setStatusFilter('all');
-    setQaFilter('all');
-    setR3Filter('all');
-    setSeriousFilter('all');
-    setListednessFilter('all');
-    setDateRange({ start: '', end: '' });
+    setStudyType("all");
+    setSearchQuery("");
+    setStatusFilter("all");
+    setQaFilter("all");
+    setR3Filter("all");
+    setSeriousFilter("all");
+    setListednessFilter("all");
+    setDateRange({ start: "", end: "" });
     setCurrentPage(1);
   };
 
   const getClassificationBadgeColor = (tag?: string | null) => {
     switch (tag) {
-      case 'ICSR': return 'bg-red-100 text-red-800 border-red-200';
-      case 'AOI': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'No Case': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-blue-100 text-blue-800 border-blue-200';
+      case "ICSR":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "AOI":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "No Case":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-blue-100 text-blue-800 border-blue-200";
     }
   };
 
@@ -593,7 +778,7 @@ export default function ReportsPage() {
     if (study.userTag) {
       return study.userTag;
     }
-    return 'Pending';
+    return "Pending";
   };
 
   // Get AI classification from ICSR or AOI classification fields
@@ -604,7 +789,7 @@ export default function ReportsPage() {
     if (study.aoiClassification) {
       return study.aoiClassification;
     }
-    return 'N/A';
+    return "N/A";
   };
 
   if (loading) {
@@ -633,533 +818,661 @@ export default function ReportsPage() {
       <div className="max-w-full">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Reports Dashboard</h1>
-          <p className="text-sm sm:text-base text-gray-600">Comprehensive view of all reports with advanced filtering and export options</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            Reports Dashboard
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600">
+            Comprehensive view of all reports with advanced filtering and export
+            options
+          </p>
         </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-blue-500">
-          <div className="text-xs sm:text-sm text-gray-600 truncate">Total Reports</div>
-          <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-red-500">
-          <div className="text-xs sm:text-sm text-gray-600 truncate">ICSR</div>
-          <div className="text-xl sm:text-2xl font-bold text-red-600">{stats.icsrCount}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-yellow-500">
-          <div className="text-xs sm:text-sm text-gray-600 truncate">Article of Interest</div>
-          <div className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.aoiCount}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-gray-500">
-          <div className="text-xs sm:text-sm text-gray-600 truncate">No Case</div>
-          <div className="text-xl sm:text-2xl font-bold text-gray-600">{stats.noCaseCount}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-purple-500">
-          <div className="text-xs sm:text-sm text-gray-600 truncate">Unclassified</div>
-          <div className="text-xl sm:text-2xl font-bold text-purple-600">{stats.unclassified}</div>
-        </div>
-        {/* <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-orange-500">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-blue-500">
+            <div className="text-xs sm:text-sm text-gray-600 truncate">
+              Total Reports
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-gray-900">
+              {stats.total}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-red-500">
+            <div className="text-xs sm:text-sm text-gray-600 truncate">
+              ICSR
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-red-600">
+              {stats.icsrCount}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-yellow-500">
+            <div className="text-xs sm:text-sm text-gray-600 truncate">
+              Article of Interest
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-yellow-600">
+              {stats.aoiCount}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-gray-500">
+            <div className="text-xs sm:text-sm text-gray-600 truncate">
+              No Case
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-gray-600">
+              {stats.noCaseCount}
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-purple-500">
+            <div className="text-xs sm:text-sm text-gray-600 truncate">
+              Unclassified
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-purple-600">
+              {stats.unclassified}
+            </div>
+          </div>
+          {/* <div className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-orange-500">
           <div className="text-xs sm:text-sm text-gray-600 truncate">Serious</div>
           <div className="text-xl sm:text-2xl font-bold text-orange-600">{stats.seriousCount}</div>
         </div> */}
-      </div>
-
-      {/* Filters and Export Section */}
-      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Filters & Export</h2>
-          <button
-            onClick={resetFilters}
-            className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors w-full sm:w-auto"
-          >
-            Reset Filters
-          </button>
         </div>
 
-        {/* Study Type Tabs */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {(['all', 'ICSR', 'AOI', 'No Case'] as const).map((type) => (
+        {/* Filters and Export Section */}
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+              Filters & Export
+            </h2>
             <button
-              key={type}
-              onClick={() => {
-                setStudyType(type);
-                setCurrentPage(1);
-              }}
-              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
-                studyType === type
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              onClick={resetFilters}
+              className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors w-full sm:w-auto"
             >
-              {type === 'all' ? 'All Reports' : type}
-            </button>
-          ))}
-        </div>
-
-        {/* Search and Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="PMID, title, drug, event..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Article ID</label>
-            <input
-              type="text"
-              value={studyIdFilter}
-              onChange={(e) => {
-                setStudyIdFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search by Article ID..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">QC Status</label>
-            <select
-              value={qaFilter}
-              onChange={(e) => {
-                setQaFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All QC Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">R3 Form</label>
-            <select
-              value={r3Filter}
-              onChange={(e) => {
-                setR3Filter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All R3 Statuses</option>
-              <option value="not_started">Not Started</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Seriousness</label>
-            <select
-              value={seriousFilter}
-              onChange={(e) => {
-                setSeriousFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All</option>
-              <option value="serious">Serious Only</option>
-              <option value="non-serious">Non-Serious Only</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Listedness</label>
-            <select
-              value={listednessFilter}
-              onChange={(e) => {
-                setListednessFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All</option>
-              <option value="Yes">Listed</option>
-              <option value="No">Unlisted</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => {
-                setDateRange({ ...dateRange, start: e.target.value });
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => {
-                setDateRange({ ...dateRange, end: e.target.value });
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Items per page</label>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={200}>200</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Export Buttons */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-4 border-t gap-3">
-          <div className="text-xs sm:text-sm text-gray-600">
-            {selectedStudies.size > 0 ? (
-              <span>{selectedStudies.size} selected</span>
-            ) : (
-              <span>Showing {filteredStudies.length} reports</span>
-            )}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <button
-              onClick={handleExportCSV}
-              className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export CSV
-            </button>
-            <button
-              onClick={handleExportPDF}
-              className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              Export PDF
+              Reset Filters
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-red-800">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-              <span className="font-medium">{error}</span>
+          {/* Study Type Tabs */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {(["all", "ICSR", "AOI", "No Case"] as const).map((type) => (
+              <button
+                key={type}
+                onClick={() => {
+                  setStudyType(type);
+                  setCurrentPage(1);
+                }}
+                className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
+                  studyType === type
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {type === "all" ? "All Reports" : type}
+              </button>
+            ))}
+          </div>
+
+          {/* Search and Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Search
+              </label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="PMID, title, drug, event..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
-            <button
-              onClick={fetchStudies}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-            >
-              Retry
-            </button>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Article ID
+              </label>
+              <input
+                type="text"
+                value={studyIdFilter}
+                onChange={(e) => {
+                  setStudyIdFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search by Article ID..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                QC Status
+              </label>
+              <select
+                value={qaFilter}
+                onChange={(e) => {
+                  setQaFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All QC Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                R3 Form
+              </label>
+              <select
+                value={r3Filter}
+                onChange={(e) => {
+                  setR3Filter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All R3 Statuses</option>
+                <option value="not_started">Not Started</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Seriousness
+              </label>
+              <select
+                value={seriousFilter}
+                onChange={(e) => {
+                  setSeriousFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All</option>
+                <option value="serious">Serious Only</option>
+                <option value="non-serious">Non-Serious Only</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Listedness
+              </label>
+              <select
+                value={listednessFilter}
+                onChange={(e) => {
+                  setListednessFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All</option>
+                <option value="Yes">Listed</option>
+                <option value="No">Unlisted</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date From
+              </label>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => {
+                  setDateRange({ ...dateRange, start: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date To
+              </label>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => {
+                  setDateRange({ ...dateRange, end: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Items per page
+              </label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Export Buttons */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-4 border-t gap-3">
+            <div className="text-xs sm:text-sm text-gray-600">
+              {selectedStudies.size > 0 ? (
+                <span>{selectedStudies.size} selected</span>
+              ) : (
+                <span>Showing {filteredStudies.length} reports</span>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <button
+                onClick={handleExportCSV}
+                className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+              >
+                <svg
+                  className="w-4 h-4 sm:w-5 sm:h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Export CSV
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+              >
+                <svg
+                  className="w-4 h-4 sm:w-5 sm:h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+                Export PDF
+              </button>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Reports Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        {/* Scroll Hint for mobile */}
-        <div className="block sm:hidden bg-blue-50 border-b border-blue-100 px-4 py-2 text-xs text-blue-700 text-center">
-          ← Scroll horizontally to see all columns →
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-2 sm:px-4 py-3 sticky left-0 bg-gray-50 z-10">
-                  <input
-                    type="checkbox"
-                    checked={selectAll}
-                    onChange={handleSelectAll}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-red-800">
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
                   />
-                </th>
-                <th
-                  onClick={() => handleSort('id')}
-                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1">
-                    Article ID
-                    {sortField === 'id' && (
-                      <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('pmid')}
-                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1">
-                    PMID
-                    {sortField === 'pmid' && (
-                      <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('title')}
-                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[200px]"
-                >
-                  <div className="flex items-center gap-1">
-                    Title
-                    {sortField === 'title' && (
-                      <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('drugName')}
-                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1">
-                    Drug
-                    {sortField === 'drugName' && (
-                      <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </div>
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                  Triage Class.
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                  AI Class.
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                  QC Triage
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                  QC R3 XML
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                  R3
-                </th>
-                <th
-                  onClick={() => handleSort('createdAt')}
-                  className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1">
-                    Created
-                    {sortField === 'createdAt' && (
-                      <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {paginatedStudies.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-3 sm:px-6 py-12 text-center text-gray-500">
-                    <div className="flex flex-col items-center gap-2">
-                      <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <p className="text-lg font-medium">No reports found</p>
-                      <p className="text-sm">Try adjusting your filters</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                paginatedStudies.map((study) => (
-                  <tr key={study.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-2 sm:px-4 py-3 sm:py-4 sticky left-0 bg-white hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudies.has(study.id)}
-                        onChange={() => handleSelectStudy(study.id)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 font-mono">
-                      {study.id}
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
-                      <PmidLink pmid={study.pmid} className="text-blue-600 hover:underline font-mono" />
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[200px] sm:max-w-md">
-                      <div className="line-clamp-2" title={study.title}>
-                        {study.title}
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-700">
-                      {study.drugName}
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                      <div className="flex flex-col gap-1 items-start">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          getTriageClassification(study) === 'Pending' 
-                            ? 'bg-gray-100 text-gray-800' 
-                            : getClassificationBadgeColor(study.userTag)
-                        }`}>
-                          {getTriageClassification(study)}
-                        </span>
-                        {getTriageClassification(study) !== 'No Case' && study.listedness && (
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            (study.listedness === 'Yes' || study.listedness === 'Listed') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            Listedness: {study.listedness}
-                          </span>
-                        )}
-                        {getTriageClassification(study) !== 'No Case' && study.seriousness && (
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            study.seriousness === 'Yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                          }`}>
-                            Seriousness: {study.seriousness}
-                          </span>
-                        )}
-                        {study.fullTextAvailability && (
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            study.fullTextAvailability === 'Yes' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            Full Text: {study.fullTextAvailability}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        getAIClassification(study) === 'N/A' 
-                          ? 'bg-gray-100 text-gray-800' 
-                          : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {getAIClassification(study)}
-                      </span>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        study.qaApprovalStatus === 'approved' ? 'bg-green-100 text-green-800' :
-                        study.qaApprovalStatus === 'rejected' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {study.qaApprovalStatus === 'approved' ? (
-                          study.qaApprovedBy ? 'Manual Approved' : 'System Approved'
-                        ) : (
-                          study.qaApprovalStatus || 'N/A'
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        (study as any).qcR3Status === 'approved' ? 'bg-green-100 text-green-800' :
-                        (study as any).qcR3Status === 'rejected' ? 'bg-red-100 text-red-800' :
-                        (study as any).qcR3Status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {(study as any).qcR3Status === 'not_applicable' ? 'N/A' : ((study as any).qcR3Status || 'N/A')}
-                      </span>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        study.r3FormStatus === 'completed' ? 'bg-green-100 text-green-800' :
-                        study.r3FormStatus === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {study.r3FormStatus?.replace('_', ' ') || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                      {formatDate(study.createdAt)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
-                Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-                {Math.min(currentPage * itemsPerPage, filteredStudies.length)} of{' '}
-                {filteredStudies.length} results
+                </svg>
+                <span className="font-medium">{error}</span>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                
-                {/* Page numbers */}
-                <div className="flex gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg ${
-                          currentPage === pageNum
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
+              <button
+                onClick={fetchStudies}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+              >
+                Retry
+              </button>
             </div>
           </div>
         )}
-      </div>
+
+        {/* Reports Table */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          {/* Scroll Hint for mobile */}
+          <div className="block sm:hidden bg-blue-50 border-b border-blue-100 px-4 py-2 text-xs text-blue-700 text-center">
+            ← Scroll horizontally to see all columns →
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-2 sm:px-4 py-3 sticky left-0 bg-gray-50 z-10">
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                  <th
+                    onClick={() => handleSort("id")}
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-1">
+                      Article ID
+                      {sortField === "id" && (
+                        <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("pmid")}
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-1">
+                      PMID
+                      {sortField === "pmid" && (
+                        <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("title")}
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 min-w-[200px]"
+                  >
+                    <div className="flex items-center gap-1">
+                      Title
+                      {sortField === "title" && (
+                        <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("drugName")}
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-1">
+                      Drug
+                      {sortField === "drugName" && (
+                        <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Triage Class.
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    AI Class.
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    QC Triage
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    QC R3 XML
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    R3
+                  </th>
+                  <th
+                    onClick={() => handleSort("createdAt")}
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-1">
+                      Created
+                      {sortField === "createdAt" && (
+                        <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {paginatedStudies.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={11}
+                      className="px-3 sm:px-6 py-12 text-center text-gray-500"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <svg
+                          className="w-12 h-12 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <p className="text-lg font-medium">No reports found</p>
+                        <p className="text-sm">Try adjusting your filters</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedStudies.map((study) => (
+                    <tr
+                      key={study.id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-2 sm:px-4 py-3 sm:py-4 sticky left-0 bg-white hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudies.has(study.id)}
+                          onChange={() => handleSelectStudy(study.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 font-mono">
+                        {study.id}
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
+                        <PmidLink
+                          pmid={study.pmid}
+                          className="text-blue-600 hover:underline font-mono"
+                        />
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[200px] sm:max-w-md">
+                        <div className="line-clamp-2" title={study.title}>
+                          {study.title}
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-700">
+                        {study.drugName}
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              getTriageClassification(study) === "Pending"
+                                ? "bg-gray-100 text-gray-800"
+                                : getClassificationBadgeColor(study.userTag)
+                            }`}
+                          >
+                            {getTriageClassification(study)}
+                          </span>
+                          {getTriageClassification(study) !== "No Case" &&
+                            study.listedness && (
+                              <span
+                                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  study.listedness === "Yes" ||
+                                  study.listedness === "Listed"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                Listedness: {study.listedness}
+                              </span>
+                            )}
+                          {getTriageClassification(study) !== "No Case" &&
+                            study.seriousness && (
+                              <span
+                                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  study.seriousness === "Yes"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-green-100 text-green-800"
+                                }`}
+                              >
+                                Seriousness: {study.seriousness}
+                              </span>
+                            )}
+                          {study.fullTextAvailability && (
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                study.fullTextAvailability === "Yes"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              Full Text: {study.fullTextAvailability}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            getAIClassification(study) === "N/A"
+                              ? "bg-gray-100 text-gray-800"
+                              : "bg-purple-100 text-purple-800"
+                          }`}
+                        >
+                          {getAIClassification(study)}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            study.qaApprovalStatus === "approved"
+                              ? "bg-green-100 text-green-800"
+                              : study.qaApprovalStatus === "rejected"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {study.qaApprovalStatus === "approved"
+                            ? study.qaApprovedBy
+                              ? "Manual Approved"
+                              : "System Approved"
+                            : study.qaApprovalStatus || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            (study as any).qcR3Status === "approved"
+                              ? "bg-green-100 text-green-800"
+                              : (study as any).qcR3Status === "rejected"
+                                ? "bg-red-100 text-red-800"
+                                : (study as any).qcR3Status === "pending"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {(study as any).qcR3Status === "not_applicable"
+                            ? "N/A"
+                            : (study as any).qcR3Status || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            study.r3FormStatus === "completed"
+                              ? "bg-green-100 text-green-800"
+                              : study.r3FormStatus === "in_progress"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {study.r3FormStatus?.replace("_", " ") || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                        {formatDate(study.createdAt)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                  {Math.min(currentPage * itemsPerPage, filteredStudies.length)}{" "}
+                  of {filteredStudies.length} results
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+
+                  {/* Page numbers */}
+                  <div className="flex gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg ${
+                            currentPage === pageNum
+                              ? "bg-blue-600 text-white"
+                              : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setCurrentPage(Math.min(totalPages, currentPage + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

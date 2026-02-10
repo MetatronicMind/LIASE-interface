@@ -1,18 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
-import { LockClosedIcon } from "@heroicons/react/24/solid";
+import { LockClosedIcon, ServerStackIcon } from "@heroicons/react/24/solid";
 import { setCredentials } from "@/redux/slices/authSlice";
+import { getApiBaseUrl, ENVIRONMENTS, environmentManager } from "@/config/api";
 
 export default function CRMLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [currentEnv, setCurrentEnv] = useState("");
   const router = useRouter();
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    // Determine current environment on mount
+    const env = environmentManager.getCurrent();
+    setCurrentEnv(env.id);
+  }, []);
+
+  const handleEnvChange = (envId: string) => {
+    environmentManager.set(envId);
+    // environmentManager.set() reloads the page, so no state update needed here
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,13 +33,25 @@ export default function CRMLoginPage() {
     setError("");
 
     try {
-      // Pointing to your SHARED backend API
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      // Use the configured API URL (respecting environment selection)
+      const apiUrl = getApiBaseUrl();
+      console.log(`[Login] Attempting login to: ${apiUrl}`);
+
+      const loginPayload = {
+        password: password,
+      } as any;
+
+      // Determine if input is email or username
+      if (email.includes("@")) {
+        loginPayload.email = email;
+      } else {
+        loginPayload.username = email;
+      }
+
       const res = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(loginPayload),
       });
 
       const data = await res.json();
@@ -63,13 +88,15 @@ export default function CRMLoginPage() {
 
         // Dispatch Redux action to immediately update state
         // This fixes the double-submit bug by ensuring isAuthenticated is true immediately
-        dispatch(setCredentials({
-          message: "Login successful",
-          token: data.token,
-          user: data.user,
-          organization: data.organization || null,
-          passwordWarning: data.passwordWarning,
-        }));
+        dispatch(
+          setCredentials({
+            message: "Login successful",
+            token: data.token,
+            user: data.user,
+            organization: data.organization || null,
+            passwordWarning: data.passwordWarning,
+          }),
+        );
 
         router.push("/dashboard");
       } else {
@@ -82,7 +109,6 @@ export default function CRMLoginPage() {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center flex-col">
@@ -114,12 +140,12 @@ export default function CRMLoginPage() {
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Email Address
+              Email or Username
             </label>
             <input
-              type="email"
+              type="text"
               required
-              placeholder="admin@organization.com"
+              placeholder="admin@organization.com or username"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-3 border placeholder-gray-400"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -146,6 +172,29 @@ export default function CRMLoginPage() {
             {loading ? "Authenticating..." : "Access CRM Dashboard"}
           </button>
         </form>
+
+        <div className="mt-8 border-t border-gray-200 pt-6">
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mb-3">
+            <ServerStackIcon className="w-4 h-4" />
+            <span>Target Environment</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {Object.values(ENVIRONMENTS).map((env) => (
+              <button
+                key={env.id}
+                type="button"
+                onClick={() => handleEnvChange(env.id)}
+                className={`px-2 py-2 text-xs font-medium rounded border transition-colors ${
+                  currentEnv === env.id
+                    ? "bg-indigo-50 border-indigo-200 text-indigo-700 ring-2 ring-indigo-100"
+                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {env.name}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <p className="mt-8 text-slate-500 text-xs">

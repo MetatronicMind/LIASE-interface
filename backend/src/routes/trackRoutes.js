@@ -572,63 +572,44 @@ router.post(
       const today = new Date().toISOString().split("T")[0];
 
       // Build query based on track type using strictly icsrClassification
+      // Use FIFO (Oldest first) for allocation queues
       let query;
       let parameters = [
         { name: "@orgId", value: targetOrgId },
-        { name: "@userId", value: userId },
-        { name: "@today", value: today },
       ];
 
       // SIMPLIFIED LOGIC: Use ONLY icsrClassification as the source of truth
       // BUT exclude items that have already been manually classified (userTag is set)
+      // AND exclude items already assigned
+      const baseQuery = `
+          SELECT * FROM c 
+          WHERE c.organizationId = @orgId 
+          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
+          AND (NOT IS_DEFINED(c.userTag) OR c.userTag = null)
+      `;
+
       if (trackType === "ICSR") {
         query = `
-                    SELECT * FROM c 
-                    WHERE c.organizationId = @orgId 
-                    AND STARTSWITH(c.createdAt, @today)
-                    AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = @userId)
-                    AND (NOT IS_DEFINED(c.userTag) OR c.userTag = null)
-                    AND (
-                        c.icsrClassification = 'Probable ICSR' 
-                        OR c.icsrClassification = 'Probable ICSR/AOI'
-                        OR CONTAINS(LOWER(c.icsrClassification), 'manual review')
-                    )
-                    ORDER BY c.updatedAt DESC
-                `;
+            ${baseQuery}
+            AND (
+                c.icsrClassification = 'Probable ICSR' 
+                OR c.icsrClassification = 'Probable ICSR/AOI'
+                OR c.icsrClassification = 'Article requires manual review'
+            )
+            ORDER BY c.createdAt ASC
+        `;
       } else if (trackType === "AOI") {
         query = `
-                    SELECT * FROM c 
-                    WHERE c.organizationId = @orgId 
-                    AND STARTSWITH(c.createdAt, @today)
-                    AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = @userId)
-                    AND (NOT IS_DEFINED(c.userTag) OR c.userTag = null)
-                    AND (
-                        c.icsrClassification = 'Probable AOI'
-                        OR c.aoiClassification = 'Probable AOI'
-                        OR c.aoiClassification = 'AOI'
-                        OR c.aoiClassification = 'Yes'
-                        OR c.aoiClassification = 'Yes (AOI)'
-                        OR CONTAINS(LOWER(c.aoiClassification), 'probable')
-                    )
-                    ORDER BY c.updatedAt DESC
-                `;
+            ${baseQuery}
+            AND c.icsrClassification = 'Probable AOI'
+            ORDER BY c.createdAt ASC
+        `;
       } else if (trackType === "NoCase") {
         query = `
-                    SELECT * FROM c 
-                    WHERE c.organizationId = @orgId 
-                    AND STARTSWITH(c.createdAt, @today)
-                    AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = @userId)
-                    AND (NOT IS_DEFINED(c.userTag) OR c.userTag = null)
-                    AND c.icsrClassification = 'No Case'
-                    AND (NOT IS_DEFINED(c.aoiClassification) OR (
-                        c.aoiClassification != 'Yes' 
-                        AND c.aoiClassification != 'Yes (AOI)' 
-                        AND c.aoiClassification != 'AOI'
-                        AND c.aoiClassification != 'Probable AOI'
-                        AND NOT CONTAINS(LOWER(c.aoiClassification), 'probable')
-                    ))
-                    ORDER BY c.updatedAt DESC
-                `;
+            ${baseQuery}
+            AND c.icsrClassification = 'No Case'
+            ORDER BY c.createdAt ASC
+        `;
       }
 
       const allStudies = await cosmosService.queryItems(
@@ -637,64 +618,36 @@ router.post(
         parameters,
       );
 
-      // Perform strict filtering in JavaScript to handle case sensitivity
-      // STRICTLY use ONLY icsrClassification as the source of truth
-      const filteredStudies = allStudies.filter((study) => {
-        // Double-check: Skip already classified studies
-        if (study.userTag) return false;
-
-        const icsrClass = (study.icsrClassification || "").trim();
-        const lowerClass = icsrClass.toLowerCase();
-
-        if (trackType === "ICSR") {
-          return (
-            lowerClass === "probable icsr" ||
-            lowerClass === "probable icsr/aoi" ||
-            lowerClass.includes("manual review")
-          );
-        }
-
-        if (trackType === "AOI") {
-          const aoiClass = (study.aoiClassification || "").trim().toLowerCase();
-          return (
-            lowerClass === "probable aoi" ||
-            lowerClass === "yes (icsr)" ||
-            aoiClass === "probable aoi" ||
-            aoiClass === "aoi" ||
-            aoiClass === "yes" ||
-            aoiClass === "yes (aoi)" ||
-            aoiClass.includes("probable")
-          );
-        }
-
-        if (trackType === "NoCase") {
-          const aoiClass = (study.aoiClassification || "").trim().toLowerCase();
-          return (
-            lowerClass === "no case" &&
-            !aoiClass.includes("yes") &&
-            !aoiClass.includes("aoi") &&
-            !aoiClass.includes("probable")
-          );
-        }
-
-        return false;
-      });
-
       // Take up to batchSize studies from the filtered list
-      const casesToAllocate = filteredStudies.slice(0, parseInt(batchSize));
+      const casesToAllocate = allStudies.slice(0, parseInt(batchSize));
+      const batchId = uuidv4();
+      const allocatedAt = new Date().toISOString();
 
-      // Lock the studies to this user and set workflowTrack if not already set
+      // Lock the studies to this user and set workflowTrack
       const allocatedCases = [];
       for (const studyData of casesToAllocate) {
         try {
           studyData.assignedTo = userId;
-          studyData.lockedAt = new Date().toISOString();
+          studyData.batchId = batchId;
+          studyData.allocatedAt = allocatedAt;
+          studyData.status = "Under Assessment"; // UI Status
 
-          // Set workflowTrack and subStatus if not already set (migrate legacy studies)
-          if (!studyData.workflowTrack) {
-            studyData.workflowTrack = trackType;
-            studyData.subStatus = "triage";
+          // Set workflowTrack and stage
+          studyData.workflowTrack = trackType;
+          
+          if (trackType === "ICSR") {
+              studyData.workflowStage = "ASSESSMENT_ICSR";
+          } else if (trackType === "AOI") {
+              studyData.workflowStage = "ASSESSMENT_AOI";
+          } else {
+              studyData.workflowStage = "ASSESSMENT_NO_CASE";
           }
+
+          // Legacy field support
+          studyData.subStatus = "assessment"; 
+          
+          // Clear any previous temporary locks if strictly re-allocating (though query filters out assigned)
+          studyData.lockedAt = allocatedAt;
 
           await cosmosService.updateItem(
             "studies",

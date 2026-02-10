@@ -1,7 +1,5 @@
 import { getApiBaseUrl } from '../config/api';
 
-const API_BASE_URL = getApiBaseUrl();
-
 export interface LegacyDataItem {
   [key: string]: any;
 }
@@ -16,7 +14,7 @@ class LegacyDataService {
   }
 
   async uploadData(data: any[]) {
-    const response = await fetch(`${API_BASE_URL}/legacy-data`, {
+    const response = await fetch(`${getApiBaseUrl()}/legacy-data`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ data })
@@ -26,7 +24,7 @@ class LegacyDataService {
   }
 
   async getData() {
-    const response = await fetch(`${API_BASE_URL}/legacy-data`, {
+    const response = await fetch(`${getApiBaseUrl()}/legacy-data`, {
       method: 'GET',
       headers: this.getAuthHeaders()
     });
@@ -35,7 +33,7 @@ class LegacyDataService {
   }
 
   async resetData() {
-    const response = await fetch(`${API_BASE_URL}/legacy-data`, {
+    const response = await fetch(`${getApiBaseUrl()}/legacy-data`, {
       method: 'DELETE',
       headers: this.getAuthHeaders()
     });
