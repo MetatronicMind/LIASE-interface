@@ -3604,6 +3604,7 @@ router.post(
     try {
       const userId = req.user.id;
       const organizationId = req.user.organizationId;
+      const today = new Date().toISOString().split("T")[0];
 
       // Fetch Triage Configuration for Priority
       const triageConfig = await adminConfigService.getConfig(
@@ -3709,7 +3710,11 @@ router.post(
 
       while (!allocatedCase && attempts < MAX_ATTEMPTS) {
         attempts++;
-        const findParams = [{ name: "@orgId", value: organizationId }];
+        const findParams = [
+          { name: "@orgId", value: organizationId },
+          { name: "@today", value: today },
+          { name: "@userId", value: userId },
+        ];
 
         // Step 2x: Prioritize cases previously classified by this user (Rejected/Returned)
         // This ensures users fix their own errors or re-classify their own cases first.
@@ -3717,6 +3722,7 @@ router.post(
         const myReturnedCasesQuery = `
             SELECT TOP 1 * FROM c 
             WHERE c.organizationId = @orgId 
+            AND STARTSWITH(c.createdAt, @today)
             AND c.classifiedBy = @userId
             AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
             AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
@@ -3731,10 +3737,7 @@ router.post(
         let availableCases = [];
         try {
           // Add userId param for this query
-          const myCasesParams = [
-            ...findParams,
-            { name: "@userId", value: userId },
-          ];
+          const myCasesParams = findParams;
           const myCases = await cosmosService.queryItems(
             "studies",
             myReturnedCasesQuery,
@@ -3758,6 +3761,7 @@ router.post(
           const highPriorityQuery = `
                 SELECT TOP 50 * FROM c 
                 WHERE c.organizationId = @orgId 
+                AND STARTSWITH(c.createdAt, @today)
                 AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
                 AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
                 AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId)
@@ -3789,7 +3793,7 @@ router.post(
           // Step 2b: Fallback to general query if no high priority cases found
           // Filter for ICSR Triage cases only
           const fetchLimit = 100;
-          const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
+          const findQuery = `SELECT TOP ${fetchLimit} * FROM c WHERE c.organizationId = @orgId AND STARTSWITH(c.createdAt, @today) AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) AND (c.status = "Pending Review" OR c.status = "Under Triage Review")`;
           availableCases = await cosmosService.queryItems(
             "studies",
             findQuery,
@@ -3881,6 +3885,7 @@ router.post(
     try {
       const userId = req.user.id;
       const organizationId = req.user.organizationId;
+      const today = new Date().toISOString().split("T")[0];
 
       // Fetch Triage Configuration
       const triageConfig = await adminConfigService.getConfig(
@@ -4008,6 +4013,7 @@ router.post(
       const myReturnedCasesQuery = `
             SELECT * FROM c 
             WHERE c.organizationId = @orgId 
+            AND STARTSWITH(c.createdAt, @today)
             AND c.classifiedBy = @userId
             AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
             AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
@@ -4025,6 +4031,7 @@ router.post(
         const myCasesParams = [
           { name: "@orgId", value: organizationId },
           { name: "@userId", value: userId },
+          { name: "@today", value: today },
         ];
         const myCases = await cosmosService.queryItems(
           "studies",
@@ -4051,6 +4058,7 @@ router.post(
       const findQuery = `
         SELECT TOP ${fetchLimit} * FROM c 
         WHERE c.organizationId = @orgId 
+        AND STARTSWITH(c.createdAt, @today)
         AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null) 
         AND (NOT IS_DEFINED(c.classifiedBy) OR c.classifiedBy = null OR c.classifiedBy = @userId) 
         AND (c.status = "Pending Review" OR c.status = "Under Triage Review" OR c.status = "triage")
@@ -4064,6 +4072,7 @@ router.post(
       const findParams = [
         { name: "@orgId", value: organizationId },
         { name: "@userId", value: userId },
+        { name: "@today", value: today },
       ];
 
       const standardCases = await cosmosService.queryItems(
@@ -4258,12 +4267,10 @@ router.post(
       );
 
       if (!availableCases || availableCases.length === 0) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message: "No AOI cases available for allocation",
-          });
+        return res.status(404).json({
+          success: false,
+          message: "No AOI cases available for allocation",
+        });
       }
 
       // 3. Try to lock the cases
@@ -4378,12 +4385,10 @@ router.post(
       );
 
       if (!availableCases || availableCases.length === 0) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message: "No Case studies are not available for allocation",
-          });
+        return res.status(404).json({
+          success: false,
+          message: "No Case studies are not available for allocation",
+        });
       }
 
       // 3. Try to lock the cases
