@@ -1,0 +1,20 @@
+{
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/admin-utils/page": "app/admin-utils/page.js",
+  "/debug-auth/page": "app/debug-auth/page.js",
+  "/debug-permissions/page": "app/debug-permissions/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/register/page": "app/register/page.js",
+  "/dashboard/audit-trail/page": "app/dashboard/audit-trail/page.js",
+  "/dashboard/drug-management/page": "app/dashboard/drug-management/page.js",
+  "/dashboard/overview/page": "app/dashboard/overview/page.js",
+  "/dashboard/settings/page": "app/dashboard/settings/page.js",
+  "/dashboard/role-management/page": "app/dashboard/role-management/page.js",
+  "/dashboard/user-management/page": "app/dashboard/user-management/page.js",
+  "/dashboard/user-management/add-user/page": "app/dashboard/user-management/add-user/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/user-management/role-management/page": "app/dashboard/user-management/role-management/page.js",
+  "/dashboard/study-review/page": "app/dashboard/study-review/page.js"
+}

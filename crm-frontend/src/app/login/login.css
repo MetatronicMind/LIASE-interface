@@ -1,0 +1,28 @@
+/* Login page custom styles for Next.js version */
+.demo-credentials {
+  border-top: 1px solid var(--primary-light);
+  padding-top: 1.5rem;
+  text-align: center;
+  background: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.05);
+  margin-top: 2rem;
+}
+.demo-credentials h3 {
+  color: var(--primary-dark);
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+.demo-credentials .credentials-list {
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.8;
+}
+.demo-credentials .credentials-list div {
+  margin-bottom: 0.25rem;
+}
+.demo-credentials .credentials-list .font-semibold {
+  color: var(--primary);
+  font-weight: 600;
+}

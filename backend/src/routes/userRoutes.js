@@ -10,16 +10,27 @@ const { auditLogger, auditAction } = require('../middleware/audit');
 
 const router = express.Router();
 
+const SUPER_ADMIN_ORG_ID = '94b7e106-1e86-4805-9725-5bdec4a4375f';
+
 // Apply audit logging to all routes
 router.use(auditLogger());
 
 // Get all users in organization with role information
-router.get('/', 
+router.get('/',
   authorizePermission('users', 'read'),
   async (req, res) => {
     try {
-      const users = await userService.getUsersByOrganization(req.user.organizationId);
-      
+      let users;
+
+      // Check if user is from SuperAdmin Organization
+      if (req.user.organizationId === SUPER_ADMIN_ORG_ID) {
+        // SuperAdmin Org sees ALL users
+        users = await userService.getAllUsers();
+      } else {
+        // Regular tenants ONLY see their own users
+        users = await userService.getUsersByOrganization(req.user.organizationId);
+      }
+
       // Remove passwords and format response
       const safeUsers = users.map(user => user.toSafeJSON());
 
@@ -44,7 +55,7 @@ router.get('/:userId',
   async (req, res) => {
     try {
       const user = await userService.getUserById(req.params.userId, req.user.organizationId);
-      
+
       if (!user) {
         return res.status(404).json({
           error: 'User not found'
@@ -91,6 +102,19 @@ router.post('/',
         ...req.body,
         organizationId: req.user.organizationId
       };
+
+      // ===== SECURITY GUARD: Prevent non-SuperAdmin from creating admin users =====
+      const RESTRICTED_ROLES = ['admin', 'superadmin', 'super_admin', 'administrator'];
+      const requestedRole = (req.body.role || '').toLowerCase().replace(/[\s_]/g, '');
+
+      if (RESTRICTED_ROLES.some(r => r.replace(/[\s_]/g, '') === requestedRole)) {
+        if (req.user.organizationId !== SUPER_ADMIN_ORG_ID) {
+          return res.status(403).json({
+            error: 'Only SuperAdmin can create users with admin-level roles',
+            code: 'ADMIN_ROLE_RESTRICTED'
+          });
+        }
+      }
 
       // Create user with dynamic role assignment
       const user = await userService.createUser(userData, req.user);
@@ -158,9 +182,9 @@ router.put('/:userId',
         const oneWeek = 7 * 24 * 60 * 60 * 1000;
         const expiryDate = new Date(passwordChangedAt.getTime() + threeMonths);
         const windowStart = new Date(expiryDate.getTime() - oneWeek);
-        
+
         if (Date.now() < windowStart.getTime()) {
-             return res.status(403).json({ error: 'Password can only be changed 1 week before expiration (3 months)' });
+          return res.status(403).json({ error: 'Password can only be changed 1 week before expiration (3 months)' });
         }
       }
 
@@ -184,6 +208,21 @@ router.put('/:userId',
         return res.status(403).json({
           error: 'Insufficient permissions to change user roles'
         });
+      }
+
+      // ===== SECURITY GUARD: Prevent non-SuperAdmin from assigning admin roles =====
+      if (updates.role) {
+        const RESTRICTED_ROLES = ['admin', 'superadmin', 'super_admin', 'administrator'];
+        const requestedRole = updates.role.toLowerCase().replace(/[\s_]/g, '');
+
+        if (RESTRICTED_ROLES.some(r => r.replace(/[\s_]/g, '') === requestedRole)) {
+          if (req.user.organizationId !== SUPER_ADMIN_ORG_ID) {
+            return res.status(403).json({
+              error: 'Only SuperAdmin can assign admin-level roles',
+              code: 'ADMIN_ROLE_RESTRICTED'
+            });
+          }
+        }
       }
 
       // Update user with dynamic role assignment
@@ -231,8 +270,8 @@ router.delete('/:userId',
 
       // Delete user using service (soft delete by default, hard delete if requested)
       const deletedUser = await userService.deleteUser(
-        userId, 
-        req.user.organizationId, 
+        userId,
+        req.user.organizationId,
         req.user,
         hardDelete === 'true'
       );
@@ -265,23 +304,41 @@ router.get('/roles/available',
   async (req, res) => {
     try {
       const roles = await roleService.getRolesByOrganization(req.user.organizationId);
-      
-      // Filter roles based on user's permissions
+
+      // Filter roles based on user's permissions and organization
+      const isSuperAdminOrg = req.user.organizationId === SUPER_ADMIN_ORG_ID;
+
       const availableRoles = roles.filter(role => {
-        // Superadmins can assign any role
-        if (req.user.isSuperAdmin()) {
+        // SuperAdmin Org users can see all roles
+        if (isSuperAdminOrg) {
           return true;
         }
-        // Admins can assign all roles except superadmin
-        if (req.user.isAdmin()) {
-          return role.name !== 'superadmin';
+
+        // For client orgs: exclude admin-level system roles
+        const normalizedName = role.name.toLowerCase().replace(/[\s_]/g, '');
+        const restrictedRoles = ['admin', 'superadmin', 'administrator'];
+
+        // Hide system roles with admin-level names
+        if (role.isSystemRole && restrictedRoles.includes(normalizedName)) {
+          return false;
         }
-        // Other users cannot assign roles
-        return false;
+
+        return true;
+      });
+
+      // Deduplicate roles by displayName (keep first occurrence)
+      const uniqueRoles = [];
+      const seenDisplayNames = new Set();
+
+      availableRoles.forEach(role => {
+        if (!seenDisplayNames.has(role.displayName)) {
+          seenDisplayNames.add(role.displayName);
+          uniqueRoles.push(role);
+        }
       });
 
       res.json({
-        roles: availableRoles.map(role => ({
+        roles: uniqueRoles.map(role => ({
           id: role.id,
           name: role.name,
           displayName: role.displayName,
@@ -334,7 +391,7 @@ router.put('/profile/me',
       }
 
       const updates = req.body;
-      
+
       // Remove fields that users shouldn't update themselves
       delete updates.role;
       delete updates.permissions;
@@ -348,9 +405,9 @@ router.put('/profile/me',
         const oneWeek = 7 * 24 * 60 * 60 * 1000;
         const expiryDate = new Date(passwordChangedAt.getTime() + threeMonths);
         const windowStart = new Date(expiryDate.getTime() - oneWeek);
-        
+
         if (Date.now() < windowStart.getTime()) {
-             return res.status(403).json({ error: 'Password can only be changed 1 week before expiration (3 months)' });
+          return res.status(403).json({ error: 'Password can only be changed 1 week before expiration (3 months)' });
         }
       }
 
