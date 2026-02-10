@@ -3,7 +3,7 @@ name: Build and deploy Frontend to Azure Web App - LIASE-Frontend
 on:
   push:
     branches:
-      - main
+      - sandbox
       - prod
       - dev
     tags:
@@ -25,15 +25,19 @@ jobs:
         id: context
         run: |
           # LOGIC: Frontend App Service = "LIASE"
-          if [[ $GITHUB_REF_NAME == main || $GITHUB_REF_NAME == prod ]]; then
+          if [[ $GITHUB_REF_NAME == prod ]]; then
             echo "SLOT=production" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
+          elif [[ $GITHUB_REF_NAME == sandbox ]]; then
+            # Slot is named "sandbox"
+            echo "SLOT=sandbox" >> $GITHUB_OUTPUT
+            echo "API_URL=https://liase-backend-liase-sandbox-akbkcfgyc0bkdhfs.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
           elif [[ $GITHUB_REF_NAME == dev || $GITHUB_REF_NAME == v-dev-* ]]; then
             # Slot is named "dev"
             echo "SLOT=dev" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend-liase-dev-a3btbhewhmddgjbm.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
           else
-            # Slot is named "sandbox"
+            # Default/Fallback
             echo "SLOT=sandbox" >> $GITHUB_OUTPUT
             echo "API_URL=https://liase-backend-liase-sandbox-akbkcfgyc0bkdhfs.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
           fi
