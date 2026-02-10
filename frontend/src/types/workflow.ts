@@ -14,7 +14,7 @@ export enum WorkflowStage {
     // 3. Processing
     DATA_ENTRY = 'DATA_ENTRY',
     MEDICAL_REVIEW = 'MEDICAL_REVIEW',
-    
+
     // 4. Finalization
     REPORTING = 'REPORTING',
     COMPLETED = 'COMPLETED'

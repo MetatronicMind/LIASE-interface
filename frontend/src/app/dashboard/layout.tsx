@@ -95,8 +95,8 @@ const permissionBasedNavItems = [
     permission: { resource: 'reports', action: 'read' }
   },
   {
-    name: "AOI Assessment",
-    href: "/dashboard/aoi-assessment",
+    name: "AOI Allocation",
+    href: "/dashboard/aoi-allocation",
     icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />,
     permission: { resource: 'aoiAssessment', action: 'read' }
   },

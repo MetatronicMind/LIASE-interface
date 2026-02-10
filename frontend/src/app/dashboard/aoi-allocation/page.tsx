@@ -53,7 +53,7 @@ export default function AOIAllocationPage() {
     setIsAllocating(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE}/studies/allocate-aoi-batch`, {
+      const response = await fetch(`${API_BASE}/track/AOI/allocate-batch`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

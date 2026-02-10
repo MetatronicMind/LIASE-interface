@@ -3,12 +3,12 @@ import { WorkflowStage, ClassificationTrack, WorkflowConfig } from '../types/wor
 import { STUDY_BUCKETS } from '../config/classification-rules';
 
 export function allocateBatch(
-    allStudies: Study[], 
-    track: ClassificationTrack, 
+    allStudies: Study[],
+    track: ClassificationTrack,
     userId: string,
     config: WorkflowConfig
 ): Study[] {
-    
+
     let targetLabels: string[] = [];
     let batchSize = 0;
     let targetStage = WorkflowStage.ASSESSMENT_ICSR; // Default
@@ -33,7 +33,7 @@ export function allocateBatch(
     // - icsrClassification matches one of the target labels
     // - status is "Under Triage Review" (waiting)
     // - not currently assigned to anyone
-    const available = allStudies.filter(s => 
+    const available = allStudies.filter(s =>
         targetLabels.includes(s.icsrClassification) &&
         !s.assignedTo &&
         (s.status === "Under Triage Review" || s.workflowStage === getQueueStage(track))

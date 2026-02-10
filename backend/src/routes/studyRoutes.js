@@ -1187,183 +1187,186 @@ router.put(
         // --- NEW WORKFLOW LOGIC START ---
         // Implementation of the "Mixed Batch" & "Three Types" logic
         if (study.workflowStage) {
-             const decision = updates.userTag; // "ICSR", "AOI", "No Case"
-             let nextStageId = null;
-             let nextStatus = null;
-             let nextSubStatus = null;
-             let nextClassification = null;
+          const decision = updates.userTag; // "ICSR", "AOI", "No Case"
+          let nextStageId = null;
+          let nextStatus = null;
+          let nextSubStatus = null;
+          let nextClassification = null;
 
-             // Logic for ICSR Assessment
-             if (study.workflowStage === 'ASSESSMENT_ICSR') {
-                 if (decision === 'ICSR') {
-                     nextStageId = 'DATA_ENTRY';
-                     nextStatus = 'Data Entry';
-                     nextSubStatus = 'processing';
-                     nextClassification = 'Probable ICSR';
-                 } else if (decision === 'AOI') {
-                     nextStageId = 'TRIAGE_QUEUE_AOI'; // Re-queue
-                     nextStatus = 'Under Triage Review';
-                     nextSubStatus = 'triage';
-                     nextClassification = 'Probable AOI';
-                     study.workflowTrack = 'AOI'; // Switch track
-                 } else { // No Case
-                     nextStageId = 'TRIAGE_QUEUE_NO_CASE'; // Re-queue
-                     nextStatus = 'Under Triage Review';
-                     nextSubStatus = 'triage';
-                     nextClassification = 'No Case';
-                     study.workflowTrack = 'NoCase'; // Switch track
-                 }
-             }
-             // Logic for AOI Assessment
-             else if (study.workflowStage === 'ASSESSMENT_AOI') {
-                 if (decision === 'AOI') {
-                     nextStageId = 'REPORTING'; // Or COMPLETED
-                     nextStatus = 'Reporting';
-                     nextSubStatus = 'archived';
-                     nextClassification = 'Probable AOI';
-                 } else if (decision === 'ICSR') {
-                     nextStageId = 'TRIAGE_QUEUE_ICSR'; // Upgrade
-                     nextStatus = 'Under Triage Review';
-                     nextSubStatus = 'triage';
-                     nextClassification = 'Probable ICSR';
-                     study.workflowTrack = 'ICSR';
-                 } else { // No Case
-                     nextStageId = 'TRIAGE_QUEUE_NO_CASE'; // Downgrade
-                     nextStatus = 'Under Triage Review';
-                     nextSubStatus = 'triage';
-                     nextClassification = 'No Case';
-                     study.workflowTrack = 'NoCase';
-                 }
-             }
-             // Logic for No Case Assessment
-             else if (study.workflowStage === 'ASSESSMENT_NO_CASE') {
-                 if (decision === 'No Case') {
-                     nextStageId = 'COMPLETED';
-                     nextStatus = 'Completed';
-                     nextSubStatus = 'archived';
-                     nextClassification = 'No Case';
-                 } else if (decision === 'ICSR') {
-                     nextStageId = 'TRIAGE_QUEUE_ICSR'; // Upgrade
-                     nextStatus = 'Under Triage Review';
-                     nextSubStatus = 'triage';
-                     nextClassification = 'Probable ICSR';
-                     study.workflowTrack = 'ICSR';
-                 } else { // AOI
-                     nextStageId = 'TRIAGE_QUEUE_AOI'; // Upgrade
-                     nextStatus = 'Under Triage Review';
-                     nextSubStatus = 'triage';
-                     nextClassification = 'Probable AOI';
-                     study.workflowTrack = 'AOI';
-                 }
-             }
+          // Logic for ICSR Assessment
+          if (study.workflowStage === "ASSESSMENT_ICSR") {
+            if (decision === "ICSR") {
+              nextStageId = "DATA_ENTRY";
+              nextStatus = "Data Entry";
+              nextSubStatus = "processing";
+              nextClassification = "Probable ICSR";
+            } else if (decision === "AOI") {
+              nextStageId = "TRIAGE_QUEUE_AOI"; // Re-queue
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "AOI"; // Switch track
+            } else {
+              // No Case
+              nextStageId = "TRIAGE_QUEUE_NO_CASE"; // Re-queue
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase"; // Switch track
+            }
+          }
+          // Logic for AOI Assessment
+          else if (study.workflowStage === "ASSESSMENT_AOI") {
+            if (decision === "AOI") {
+              nextStageId = "REPORTING"; // Or COMPLETED
+              nextStatus = "Reporting";
+              nextSubStatus = "archived";
+              nextClassification = "Probable AOI";
+            } else if (decision === "ICSR") {
+              nextStageId = "TRIAGE_QUEUE_ICSR"; // Upgrade
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else {
+              // No Case
+              nextStageId = "TRIAGE_QUEUE_NO_CASE"; // Downgrade
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+            }
+          }
+          // Logic for No Case Assessment
+          else if (study.workflowStage === "ASSESSMENT_NO_CASE") {
+            if (decision === "No Case") {
+              nextStageId = "COMPLETED";
+              nextStatus = "Completed";
+              nextSubStatus = "archived";
+              nextClassification = "No Case";
+            } else if (decision === "ICSR") {
+              nextStageId = "TRIAGE_QUEUE_ICSR"; // Upgrade
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else {
+              // AOI
+              nextStageId = "TRIAGE_QUEUE_AOI"; // Upgrade
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "AOI";
+            }
+          }
 
-             if (nextStageId) {
-                 study.workflowStage = nextStageId;
-                 study.status = nextStatus;
-                 study.subStatus = nextSubStatus;
-                 study.icsrClassification = nextClassification;
-                 
-                 // Release Assignment
-                 study.assignedTo = null;
-                 study.batchId = null;
-                 study.allocatedAt = null;
-                 study.lockedAt = null; 
+          if (nextStageId) {
+            study.workflowStage = nextStageId;
+            study.status = nextStatus;
+            study.subStatus = nextSubStatus;
+            study.icsrClassification = nextClassification;
 
-                 // Manual update of classification fields
-                 study.userTag = updates.userTag;
-                 study.classifiedBy = req.user.id;
-                 study.updatedAt = new Date().toISOString();
-                 
-                 // Log comment
-                 study.addComment({
-                     userId: req.user.id,
-                     userName: req.user.name,
-                     text: `Assessment completed: ${decision}. Moved to ${nextStatus}.`,
-                     type: 'system'
-                 });
+            // Release Assignment
+            study.assignedTo = null;
+            study.batchId = null;
+            study.allocatedAt = null;
+            study.lockedAt = null;
 
-                 workflowHandled = true;
-             }
+            // Manual update of classification fields
+            study.userTag = updates.userTag;
+            study.classifiedBy = req.user.id;
+            study.updatedAt = new Date().toISOString();
+
+            // Log comment
+            study.addComment({
+              userId: req.user.id,
+              userName: req.user.name,
+              text: `Assessment completed: ${decision}. Moved to ${nextStatus}.`,
+              type: "system",
+            });
+
+            workflowHandled = true;
+          }
         }
         // --- NEW WORKFLOW LOGIC END ---
 
         let debugInfo = {};
         if (!workflowHandled) {
-            let nextStage = null;
-            try {
-              const workflowConfig = await adminConfigService.getConfig(
-                req.user.organizationId,
-                "workflow",
-              );
-    
-              debugInfo.hasConfig = !!workflowConfig;
-              debugInfo.orgId = req.user.organizationId;
-    
-              if (
-                workflowConfig &&
-                workflowConfig.configData &&
-                workflowConfig.configData.transitions
-              ) {
-                // Determine current status ID
-                let currentStatus = study.status;
-    
-                // Handle legacy statuses - map them to the initial workflow stage
-                const legacyStatuses = [
-                  "Pending Review",
-                  "Pending",
-                  "Under Triage Review",
-                ];
-                if (legacyStatuses.includes(currentStatus)) {
-                  currentStatus = "triage"; // Default fallback
-                  const initialStage = workflowConfig.configData.stages.find(
-                    (s) => s.type === "initial",
-                  );
-                  if (initialStage) {
-                    currentStatus = initialStage.id;
-                  }
-                }
-    
-                debugInfo.currentStatus = currentStatus;
-                debugInfo.originalStatus = study.status;
-                debugInfo.availableTransitions =
-                  workflowConfig.configData.transitions.map(
-                    (t) => `${t.from} -> ${t.to}`,
-                  );
-    
-                // Find transition from current status
-                // We search in reverse order to prioritize the most recently added transition
-                const transition = [...workflowConfig.configData.transitions]
-                  .reverse()
-                  .find((t) => t.from === currentStatus);
-    
-                debugInfo.transition = transition;
-    
-                // Check for ICSR Bypass - REMOVED per requirements (ICSRs don't bypass)
-                // Original logic for checking bypassQcForIcsr has been removed.
-    
-                if (!nextStage && transition) {
-                  // Standard transition logic - always follow the configured transition
-                  // The QC Sampling logic is now handled in the bulk process endpoint
-                  nextStage = workflowConfig.configData.stages.find(
-                    (s) => s.id === transition.to,
-                  );
-                  debugInfo.nextStage = nextStage;
+          let nextStage = null;
+          try {
+            const workflowConfig = await adminConfigService.getConfig(
+              req.user.organizationId,
+              "workflow",
+            );
+
+            debugInfo.hasConfig = !!workflowConfig;
+            debugInfo.orgId = req.user.organizationId;
+
+            if (
+              workflowConfig &&
+              workflowConfig.configData &&
+              workflowConfig.configData.transitions
+            ) {
+              // Determine current status ID
+              let currentStatus = study.status;
+
+              // Handle legacy statuses - map them to the initial workflow stage
+              const legacyStatuses = [
+                "Pending Review",
+                "Pending",
+                "Under Triage Review",
+              ];
+              if (legacyStatuses.includes(currentStatus)) {
+                currentStatus = "triage"; // Default fallback
+                const initialStage = workflowConfig.configData.stages.find(
+                  (s) => s.type === "initial",
+                );
+                if (initialStage) {
+                  currentStatus = initialStage.id;
                 }
               }
-            } catch (err) {
-              console.warn(
-                "Failed to fetch workflow config during classification:",
-                err,
-              );
-              debugInfo.error = err.message;
+
+              debugInfo.currentStatus = currentStatus;
+              debugInfo.originalStatus = study.status;
+              debugInfo.availableTransitions =
+                workflowConfig.configData.transitions.map(
+                  (t) => `${t.from} -> ${t.to}`,
+                );
+
+              // Find transition from current status
+              // We search in reverse order to prioritize the most recently added transition
+              const transition = [...workflowConfig.configData.transitions]
+                .reverse()
+                .find((t) => t.from === currentStatus);
+
+              debugInfo.transition = transition;
+
+              // Check for ICSR Bypass - REMOVED per requirements (ICSRs don't bypass)
+              // Original logic for checking bypassQcForIcsr has been removed.
+
+              if (!nextStage && transition) {
+                // Standard transition logic - always follow the configured transition
+                // The QC Sampling logic is now handled in the bulk process endpoint
+                nextStage = workflowConfig.configData.stages.find(
+                  (s) => s.id === transition.to,
+                );
+                debugInfo.nextStage = nextStage;
+              }
             }
-    
-            study.updateUserTag(
-              updates.userTag,
-              req.user.id,
-              req.user.name,
-              nextStage,
+          } catch (err) {
+            console.warn(
+              "Failed to fetch workflow config during classification:",
+              err,
             );
+            debugInfo.error = err.message;
+          }
+
+          study.updateUserTag(
+            updates.userTag,
+            req.user.id,
+            req.user.name,
+            nextStage,
+          );
         }
 
         // Update additional classification fields if provided

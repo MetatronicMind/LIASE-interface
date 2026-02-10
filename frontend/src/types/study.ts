@@ -7,14 +7,14 @@ export interface Study {
     title: string;
     status: string;
     subStatus?: string;
-    
+
     // Core Classification
     icsrClassification: string; // The AI or Human classification
-    
+
     // Workflow State
     workflowStage?: WorkflowStage;
     workflowTrack?: string | null;
-    
+
     // Assignment / Batching
     assignedTo?: string | null; // User ID
     batchId?: string | null;    // UUID for the batch

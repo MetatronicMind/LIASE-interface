@@ -96,8 +96,8 @@ class Study {
     subStatus = "triage", // 'triage', 'allocation', 'assessment' - position within track lifecycle
     isAutoPassed = false, // Whether this case bypassed manual assessment via percentage split
     workflowStage = null, // Granular stage from WorkflowStage enum
-    batchId = null,       // ID for the batch allocation
-    allocatedAt = null,   // Timestamp when allocated
+    batchId = null, // ID for the batch allocation
+    allocatedAt = null, // Timestamp when allocated
   }) {
     this.id = id;
     this.organizationId = organizationId;

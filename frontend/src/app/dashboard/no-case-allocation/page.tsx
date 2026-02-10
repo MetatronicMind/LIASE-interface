@@ -52,7 +52,7 @@ export default function NoCaseAllocationPage() {
     setIsAllocating(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE}/studies/allocate-no-case-batch`, {
+      const response = await fetch(`${API_BASE}/track/NoCase/allocate-batch`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

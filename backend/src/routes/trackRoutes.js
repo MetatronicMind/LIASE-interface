@@ -574,9 +574,7 @@ router.post(
       // Build query based on track type using strictly icsrClassification
       // Use FIFO (Oldest first) for allocation queues
       let query;
-      let parameters = [
-        { name: "@orgId", value: targetOrgId },
-      ];
+      let parameters = [{ name: "@orgId", value: targetOrgId }];
 
       // SIMPLIFIED LOGIC: Use ONLY icsrClassification as the source of truth
       // BUT exclude items that have already been manually classified (userTag is set)
@@ -634,18 +632,18 @@ router.post(
 
           // Set workflowTrack and stage
           studyData.workflowTrack = trackType;
-          
+
           if (trackType === "ICSR") {
-              studyData.workflowStage = "ASSESSMENT_ICSR";
+            studyData.workflowStage = "ASSESSMENT_ICSR";
           } else if (trackType === "AOI") {
-              studyData.workflowStage = "ASSESSMENT_AOI";
+            studyData.workflowStage = "ASSESSMENT_AOI";
           } else {
-              studyData.workflowStage = "ASSESSMENT_NO_CASE";
+            studyData.workflowStage = "ASSESSMENT_NO_CASE";
           }
 
           // Legacy field support
-          studyData.subStatus = "assessment"; 
-          
+          studyData.subStatus = "assessment";
+
           // Clear any previous temporary locks if strictly re-allocating (though query filters out assigned)
           studyData.lockedAt = allocatedAt;
 

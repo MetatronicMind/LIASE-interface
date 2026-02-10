@@ -12,19 +12,19 @@ export const DECISIONS = {
 };
 
 export function processAssessment(
-    study: Study, 
+    study: Study,
     decision: string
 ): Partial<Study> {
-    
+
     // Default updates: Clear assignment to release the study
     const updates: Partial<Study> = {
-        assignedTo: null, 
+        assignedTo: null,
         allocatedAt: null,
         batchId: null
     };
 
     switch (decision) {
-        
+
         // --- ICSR PATH ---
         case DECISIONS.CONFIRM_ICSR:
             // Valid ICSR -> Move to Data Entry
@@ -98,7 +98,7 @@ export function processAssessment(
         // If "Upgrade to ICSR" is used here, it matches the case above.
         // But if there's an "Upgrade to AOI" needed:
         // case DECISIONS.UPGRADE_TO_AOI: ...
-            
+
         default:
             console.warn(`Unknown decision: ${decision}`);
             return updates;
