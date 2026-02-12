@@ -1,7 +1,6 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import { getApiBaseUrl } from '../config/api';
+import React, { useState, useEffect } from "react";
+import { getApiBaseUrl } from "../config/api";
 
 interface StudyCreationJob {
   id: string;
@@ -24,331 +23,433 @@ interface StudyProgressTrackerProps {
   onComplete?: (results: any) => void;
 }
 
-export default function StudyProgressTracker({ jobId, onComplete }: StudyProgressTrackerProps) {
-  const [job, setJob] = useState<StudyCreationJob | null>(null);
-  const [error, setError] = useState('');
-  const [isRetrying, setIsRetrying] = useState(false);
+// ── Stage definitions ──────────────────────────────────────────────
+const STAGES = [
+  {
+    key: "search",
+    label: "Literature Search",
+    desc: "Searching PubMed database",
+  },
+  {
+    key: "ai",
+    label: "AI Analysis",
+    desc: "Processing articles with AI",
+  },
+  {
+    key: "creation",
+    label: "Study Creation",
+    desc: "Creating & routing studies",
+  },
+  {
+    key: "complete",
+    label: "Complete",
+    desc: "All studies processed",
+  },
+];
 
+function resolveStageIndex(phase: string, status: string): number {
+  if (status === "completed") return 3;
+  if (status === "failed") return -1;
+  switch (phase) {
+    case "starting":
+    case "pubmed_search":
+    case "searching":
+      return 0;
+    case "pubmed_completed":
+    case "ai_inference_guaranteed":
+    case "ai_inference":
+      return 1;
+    case "study_creation":
+    case "processing_complete":
+      return 2;
+    default:
+      return 0;
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
+function formatElapsed(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+// ── Component ──────────────────────────────────────────────────────
+export default function StudyProgressTracker({
+  jobId,
+  onComplete,
+}: StudyProgressTrackerProps) {
+  const [job, setJob] = useState<StudyCreationJob | null>(null);
+  const [error, setError] = useState("");
+  const [elapsed, setElapsed] = useState(0);
+  const [startTs] = useState(Date.now());
+
+  // Timer
   useEffect(() => {
     if (!jobId) return;
+    const timer = setInterval(() => setElapsed(Date.now() - startTs), 1000);
+    return () => clearInterval(timer);
+  }, [jobId, startTs]);
 
-    let pollInterval: NodeJS.Timeout | null = null;
-    let failureCount = 0;
-    const maxFailures = 3; // Reduced from 5 to stop faster for invalid jobs
-    let currentDelay = 2000; // Start with 2 second delay
-    let isValidJob = true; // Track if this is a valid job worth polling
+  // Polling
+  useEffect(() => {
+    if (!jobId) return;
+    let timeout: NodeJS.Timeout | null = null;
+    let alive = true;
+    let failures = 0;
 
-    const pollJobStatus = async () => {
-      if (!isValidJob) return; // Stop if job is determined invalid
-
+    const poll = async () => {
+      if (!alive) return;
       try {
-        const token = localStorage.getItem('auth_token');
-        const url = `${getApiBaseUrl()}/drugs/jobs/${jobId}`;
-        
-        // Create timeout controller for fetch request
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
-        const response = await fetch(url, {
-          headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          },
-          signal: controller.signal
+        const token = localStorage.getItem("auth_token");
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 10000);
+        const res = await fetch(`${getApiBaseUrl()}/drugs/jobs/${jobId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: ctrl.signal,
         });
-        
-        clearTimeout(timeoutId); // Clear timeout on successful response
+        clearTimeout(tid);
 
-        if (response.ok) {
-          const jobData = await response.json();
-          setJob(jobData);
-          setError(''); // Clear any previous errors
-          setIsRetrying(false); // Clear retry state
-          failureCount = 0; // Reset failure count on success
-          currentDelay = 2000; // Reset delay to normal
+        if (res.ok) {
+          const data: StudyCreationJob = await res.json();
+          setJob(data);
+          setError("");
+          failures = 0;
 
-          // If job is completed or failed, stop polling and cleanup
-          if (jobData.status === 'completed' || jobData.status === 'failed') {
-            if (pollInterval) {
-              clearInterval(pollInterval);
-              pollInterval = null;
+          if (data.status === "completed" || data.status === "failed") {
+            // Clear localStorage
+            if (localStorage.getItem("activeJobId") === jobId) {
+              localStorage.removeItem("activeJobId");
+              localStorage.removeItem("showProgressTracker");
             }
-            
-            if (onComplete && jobData.status === 'completed') {
-              onComplete({
-                message: jobData.message,
-                results: jobData.results
-              });
-            } else if (jobData.status === 'failed') {
-              setError(jobData.error || 'Job failed to complete');
+            if (data.status === "completed" && onComplete) {
+              onComplete({ message: data.message, results: data.results });
             }
-            
-            // Clear job from localStorage since it's finished
-            const persistedJobId = localStorage.getItem('activeJobId');
-            if (persistedJobId === jobId) {
-              localStorage.removeItem('activeJobId');
-              localStorage.removeItem('showProgressTracker');
+            if (data.status === "failed") {
+              setError(data.error || "Job failed");
             }
-            
-            return; // Stop polling
+            return; // stop polling
           }
-
-          // Schedule next poll
-          if (pollInterval) {
-            clearInterval(pollInterval);
-          }
-          pollInterval = setTimeout(pollJobStatus, currentDelay);
-        } else {
-          failureCount++;
-          
-          // Handle different error types
-          if (response.status === 404) {
-            // Job not found - likely old/expired job, stop polling immediately
-            setError('Job not found. This may be an old job that has expired.');
-            isValidJob = false;
-            
-            // Clear the stale job from localStorage
-            const persistedJobId = localStorage.getItem('activeJobId');
-            if (persistedJobId === jobId) {
-              localStorage.removeItem('activeJobId');
-              localStorage.removeItem('showProgressTracker');
-            }
-            
-            if (pollInterval) {
-              clearInterval(pollInterval);
-              pollInterval = null;
-            }
-            return;
-          } else if (response.status === 429) {
-            // Rate limit exceeded - back off significantly
-            setError('Server is busy. Slowing down requests...');
-            setIsRetrying(true);
-            
-            // Get retry-after header if available
-            const retryAfter = response.headers.get('Retry-After');
-            const backoffDelay = retryAfter ? parseInt(retryAfter) * 1000 : Math.max(currentDelay * 3, 30000); // At least 30 seconds
-            
-            currentDelay = Math.min(backoffDelay, 120000); // Max 2 minutes
-            
-            if (pollInterval) {
-              clearInterval(pollInterval);
-            }
-            pollInterval = setTimeout(pollJobStatus, currentDelay);
-            return; // Don't increment failure count for rate limits
-          } else if (response.status === 503) {
-            // Service unavailable - server overloaded
-            setError('Server is temporarily overloaded. Retrying with longer delays...');
-            setIsRetrying(true);
-            
-            // Aggressive backoff for server overload
-            currentDelay = Math.min(currentDelay * 4, 180000); // Up to 3 minutes
-            
-            if (pollInterval) {
-              clearInterval(pollInterval);
-            }
-            pollInterval = setTimeout(pollJobStatus, currentDelay);
-            return; // Don't increment failure count for server overload
-          } else if (response.status === 500) {
-            setError('Server error occurred during processing. The job may still be running, please check back later.');
-          } else {
-            setError(`Failed to fetch job status (${response.status}). Please try refreshing the page.`);
-          }
-
-          // Stop polling after too many failures
-          if (failureCount >= maxFailures) {
-            setError('Too many failed attempts. This may be an invalid or expired job.');
-            isValidJob = false;
-            
-            // Clear potentially stale job from localStorage
-            const persistedJobId = localStorage.getItem('activeJobId');
-            if (persistedJobId === jobId) {
-              localStorage.removeItem('activeJobId');
-              localStorage.removeItem('showProgressTracker');
-            }
-            
-            if (pollInterval) {
-              clearInterval(pollInterval);
-              pollInterval = null;
-            }
-            return;
-          }
-
-          // Exponential backoff: increase delay after failures
-          currentDelay = Math.min(currentDelay * 1.5, 10000); // Max 10 seconds
-          setIsRetrying(true);
-          if (pollInterval) {
-            clearInterval(pollInterval);
-          }
-          pollInterval = setTimeout(pollJobStatus, currentDelay);
-        }
-      } catch (err: any) {
-        failureCount++;
-        
-        if (err.name === 'AbortError') {
-          setError('Request timeout - server may be overloaded. Retrying with longer intervals...');
-        } else {
-          setError('Network error - unable to check job status. Please check your connection and try again.');
-        }
-
-        // Stop polling after too many failures
-        if (failureCount >= maxFailures) {
-          setError('Too many failed attempts. This may be an invalid or expired job.');
-          isValidJob = false;
-          
-          // Clear potentially stale job from localStorage
-          const persistedJobId = localStorage.getItem('activeJobId');
-          if (persistedJobId === jobId) {
-            localStorage.removeItem('activeJobId');
-            localStorage.removeItem('showProgressTracker');
-          }
-          
-          if (pollInterval) {
-            clearInterval(pollInterval);
-            pollInterval = null;
+        } else if (res.status === 404) {
+          setError("Job not found – it may have expired.");
+          if (localStorage.getItem("activeJobId") === jobId) {
+            localStorage.removeItem("activeJobId");
+            localStorage.removeItem("showProgressTracker");
           }
           return;
+        } else {
+          failures++;
+          if (failures >= 5) {
+            setError("Lost connection to the server.");
+            return;
+          }
         }
-
-        // Exponential backoff on network errors
-        currentDelay = Math.min(currentDelay * 2, 15000); // Max 15 seconds for network errors
-        setIsRetrying(true);
-        if (pollInterval) {
-          clearInterval(pollInterval);
+      } catch {
+        failures++;
+        if (failures >= 5) {
+          setError("Network error – please check your connection.");
+          return;
         }
-        pollInterval = setTimeout(pollJobStatus, currentDelay);
       }
+      if (alive) timeout = setTimeout(poll, 1500);
     };
 
-    // Start polling
-    pollJobStatus();
-
-    // Cleanup function
+    poll();
     return () => {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-      }
+      alive = false;
+      if (timeout) clearTimeout(timeout);
     };
   }, [jobId, onComplete]);
 
-  if (!jobId) {
-    return null;
-  }
+  if (!jobId) return null;
 
-  // Show loading state when no job data yet (even if there are retriable errors)
-  if (!job) {
+  // ── Loading / Error states ────────────────────────────────────
+  if (!job && !error) {
     return (
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-          <div className="text-blue-800">
-            {isRetrying ? 'Connecting to server...' : 'Loading job status...'}
-          </div>
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+        <div className="flex items-center gap-3">
+          <Spinner />
+          <span className="text-gray-600 text-sm">
+            Connecting to job server…
+          </span>
         </div>
-        {error && isRetrying && (
-          <div className="text-yellow-700 text-xs mt-2">
-            Having trouble connecting, retrying...
-          </div>
-        )}
       </div>
     );
   }
 
-  // Only show error state for permanent errors when we can't continue
-  if (error && !isRetrying) {
+  if (error && !job) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <div className="text-red-600 font-medium">Error</div>
-        </div>
-        <div className="text-red-700 text-sm mt-1">{error}</div>
+      <div className="bg-white border border-red-200 rounded-xl shadow-sm p-6">
+        <p className="text-red-600 text-sm font-medium">{error}</p>
       </div>
     );
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'text-green-600 bg-green-50 border-green-200';
-      case 'failed': return 'text-red-600 bg-red-50 border-red-200';
-      case 'started': 
-      case 'running': return 'text-blue-600 bg-blue-50 border-blue-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
-    }
-  };
+  if (!job) return null;
 
-  // Extract values from metadata for display
-  const studiesFound = job.metadata?.studiesFound || 0;
-  // backend doesn't update studiesCreated in real-time metadata, only currentStudy
-  const rawStudiesCreated = job.results?.studiesCreated || job.metadata?.studiesCreated || 0;
+  // ── Derived state ─────────────────────────────────────────────
+  const phase = job.metadata?.phase || "starting";
+  const currentStage = resolveStageIndex(phase, job.status);
+  const totalStudies =
+    job.metadata?.totalStudies || job.metadata?.studiesFound || 0;
+  const studiesCreated =
+    job.metadata?.studiesCreated || job.results?.studiesCreated || 0;
   const currentStudy = job.metadata?.currentStudy || 0;
-  const totalStudies = job.metadata?.totalStudies || studiesFound || 0;
-  const phase = job.metadata?.phase || 'starting';
+  const aiProcessed = job.metadata?.aiProcessed || 0;
+  const aiTotal = job.metadata?.aiTotal || totalStudies;
+  const icsrCount = job.metadata?.trackCounts?.ICSR || 0;
+  const aoiCount = job.metadata?.trackCounts?.AOI || 0;
+  const noCaseCount = job.metadata?.trackCounts?.NoCase || 0;
+  const duplicatesSkipped =
+    job.metadata?.duplicatesSkipped || job.results?.duplicatesSkipped || 0;
+  const isComplete = job.status === "completed";
+  const isFailed = job.status === "failed";
 
-  // Calculate simplified progress based on user request
-  // Use currentStudy as completed count during processing
-  const effectiveCompleted = (job.status === 'completed') 
-    ? rawStudiesCreated 
-    : Math.max(rawStudiesCreated, currentStudy);
+  const effectiveCreated = isComplete
+    ? job.results?.studiesCreated || studiesCreated
+    : Math.max(studiesCreated, currentStudy);
 
-  let displayProgress = 0;
-  let progressText = '';
-  
-  if (job.status === 'completed') {
-    displayProgress = 100;
-    progressText = `Completed: Found ${studiesFound}, processed ${effectiveCompleted}`;
-  } else if (phase === 'searching' || phase === 'pubmed_search' || (phase === 'starting' && totalStudies === 0)) {
-     // Search phase
-     displayProgress = 5; 
-     progressText = 'Searching for studies...';
-  } else if (totalStudies > 0) {
-    // Processing phase
-    displayProgress = Math.round((effectiveCompleted / totalStudies) * 100);
-    progressText = `Processed: ${effectiveCompleted} / ${totalStudies} studies`;
-  } else if (phase === 'pubmed_completed') {
-    displayProgress = 10;
-    progressText = `Found ${studiesFound} studies. Preparing to process...`;
-  } else if (phase === 'ai_inference_guaranteed' || phase === 'ai_inference') {
-    // Fallback if totalStudies is 0 but we are in inference phase
-    displayProgress = 15;
-    progressText = 'Starting AI Analysis...';
-  } else {
-    displayProgress = 0;
-    progressText = `Initializing... (${phase})`;
+  // Overall progress (0-100)
+  let overallProgress = 0;
+  if (isComplete) {
+    overallProgress = 100;
+  } else if (currentStage === 0) {
+    overallProgress = 8;
+  } else if (currentStage === 1) {
+    // AI stage: 15-55%
+    const aiPct = aiTotal > 0 ? aiProcessed / aiTotal : 0;
+    overallProgress = 15 + Math.round(aiPct * 40);
+  } else if (currentStage === 2) {
+    // Creation: 55-95%
+    const crPct = totalStudies > 0 ? effectiveCreated / totalStudies : 0;
+    overallProgress = 55 + Math.round(crPct * 40);
+  }
+
+  // ── Stage detail text ─────────────────────────────────────────
+  function stageDetail(idx: number): string {
+    if (idx < currentStage) return "Done";
+    if (idx > currentStage) return "Waiting";
+    // Current stage
+    switch (idx) {
+      case 0:
+        return totalStudies > 0
+          ? `Found ${totalStudies} articles`
+          : "Querying PubMed…";
+      case 1:
+        return aiTotal > 0
+          ? `${aiProcessed} / ${aiTotal} articles analysed`
+          : "Sending to AI engine…";
+      case 2:
+        return totalStudies > 0
+          ? `${effectiveCreated} / ${totalStudies} studies created`
+          : "Preparing…";
+      case 3:
+        return `${job.results?.studiesCreated ?? effectiveCreated} studies ready`;
+      default:
+        return "";
+    }
   }
 
   return (
-    <div className={`border rounded-lg p-6 ${getStatusColor(job.status)}`}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-medium text-lg">Scraping Progress</h3>
-        
-      </div>
-      
-      {/* Simple Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-6 mb-3 overflow-hidden shadow-inner">
-        <div 
-          className={`h-6 rounded-full transition-all duration-500 ease-out flex items-center justify-center text-xs text-white font-medium ${
-            phase === 'searching' ? 'animate-pulse bg-blue-400' : 'bg-blue-600'
-          }`}
-          style={{ width: `${Math.max(displayProgress, 5)}%` }}
-        >
-        </div>
-      </div>
-      
-      {/* Simplified Status Text */}
-      <div className="flex justify-between items-center text-sm font-medium text-gray-700">
-        <div className="flex items-center">
-          {(job.status === 'started' || job.status === 'running') && (
-             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 className="font-semibold text-gray-900 text-base">
+          Study Processing Pipeline
+        </h3>
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <span>Elapsed: {formatElapsed(elapsed)}</span>
+          {!isComplete && !isFailed && (
+            <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+              </span>
+              Running
+            </span>
           )}
-          <span>{progressText}</span>
+          {isComplete && (
+            <span className="text-green-600 font-medium">Complete</span>
+          )}
+          {isFailed && <span className="text-red-600 font-medium">Failed</span>}
         </div>
-        {totalStudies > 0 && <span>{displayProgress}%</span>}
       </div>
 
-      {job.status === 'failed' && (
-        <div className="mt-3 p-3 bg-red-100 rounded text-sm text-red-700 font-medium">
-          Error: {job.error || 'Unknown error'}
+      <div className="px-6 py-5 space-y-5">
+        {/* ── Overall progress bar ─────────────────────────────── */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Overall Progress
+            </span>
+            <span className="text-sm font-semibold text-gray-700">
+              {overallProgress}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+            <div
+              className={`h-3 rounded-full transition-all duration-700 ease-out ${
+                isComplete
+                  ? "bg-green-500"
+                  : isFailed
+                    ? "bg-red-500"
+                    : "bg-blue-500"
+              }`}
+              style={{ width: `${overallProgress}%` }}
+            />
+          </div>
         </div>
-      )}
+
+        {/* ── Stage stepper ────────────────────────────────────── */}
+        <div className="grid grid-cols-4 gap-0">
+          {STAGES.map((stage, idx) => {
+            const isDone = idx < currentStage || isComplete;
+            const isActive = idx === currentStage && !isComplete && !isFailed;
+            return (
+              <div
+                key={stage.key}
+                className="flex flex-col items-center text-center relative"
+              >
+                {/* Connector line */}
+                {idx > 0 && (
+                  <div
+                    className={`absolute top-4 -left-1/2 w-full h-0.5 ${
+                      isDone ? "bg-green-400" : "bg-gray-200"
+                    }`}
+                    style={{ zIndex: 0 }}
+                  />
+                )}
+                {/* Circle */}
+                <div
+                  className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 text-xs font-bold transition-all duration-300 ${
+                    isDone
+                      ? "bg-green-500 border-green-500 text-white"
+                      : isActive
+                        ? "bg-blue-500 border-blue-500 text-white animate-pulse"
+                        : "bg-white border-gray-300 text-gray-400"
+                  }`}
+                >
+                  {isDone ? (
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  ) : (
+                    idx + 1
+                  )}
+                </div>
+                {/* Label */}
+                <span
+                  className={`mt-2 text-xs font-semibold leading-tight ${
+                    isDone
+                      ? "text-green-600"
+                      : isActive
+                        ? "text-blue-600"
+                        : "text-gray-400"
+                  }`}
+                >
+                  {stage.label}
+                </span>
+                {/* Detail */}
+                <span className="mt-0.5 text-[11px] text-gray-500 leading-tight min-h-[28px]">
+                  {stageDetail(idx)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── Live stats row (visible once we have numbers) ───── */}
+        {(totalStudies > 0 || isComplete) && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+            <StatCard
+              label="Articles Found"
+              value={totalStudies}
+              color="blue"
+            />
+            <StatCard
+              label="Studies Created"
+              value={effectiveCreated}
+              color="green"
+            />
+            <StatCard
+              label="Duplicates Skipped"
+              value={duplicatesSkipped}
+              color="yellow"
+            />
+            <StatCard
+              label="ICSR / AOI / No Case"
+              value={`${icsrCount} / ${aoiCount} / ${noCaseCount}`}
+              color="purple"
+            />
+          </div>
+        )}
+
+        {/* ── Error ────────────────────────────────────────────── */}
+        {isFailed && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            {job.error || "An unknown error occurred."}
+          </div>
+        )}
+
+        {/* ── Completion summary ───────────────────────────────── */}
+        {isComplete && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
+            <p className="font-semibold mb-1">Processing Complete</p>
+            <p>
+              Found {totalStudies} articles, created{" "}
+              {job.results?.studiesCreated ?? effectiveCreated} studies
+              {duplicatesSkipped > 0 &&
+                `, skipped ${duplicatesSkipped} duplicates`}
+              . Studies have been automatically routed to their workflow tracks.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+// ── Small sub-components ────────────────────────────────────────
+function StatCard({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  color: string;
+}) {
+  const colors: Record<string, string> = {
+    blue: "bg-blue-50 text-blue-700 border-blue-100",
+    green: "bg-green-50 text-green-700 border-green-100",
+    yellow: "bg-yellow-50 text-yellow-700 border-yellow-100",
+    purple: "bg-purple-50 text-purple-700 border-purple-100",
+  };
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2 ${colors[color] || colors.blue}`}
+    >
+      <div className="text-[11px] uppercase tracking-wide font-medium opacity-60">
+        {label}
+      </div>
+      <div className="text-lg font-bold mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-200 border-t-blue-600" />
   );
 }

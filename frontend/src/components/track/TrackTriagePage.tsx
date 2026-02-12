@@ -68,6 +68,31 @@ export default function TrackTriagePage({
   const [allocatedCases, setAllocatedCases] = useState<Study[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAllocating, setIsAllocating] = useState(false);
+  const [poolCount, setPoolCount] = useState<number | null>(null);
+
+  // Fetch pool stats
+  useEffect(() => {
+    fetchPoolStats();
+  }, [trackType]);
+
+  const fetchPoolStats = async () => {
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/track/statistics`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const stats = data.data?.[trackType];
+        if (stats) {
+          // Use 'triage' count for Triage Page
+          setPoolCount(stats.triage || 0);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch pool stats", err);
+    }
+  };
 
   // Ensure currentIndex is valid when allocatedCases changes
   useEffect(() => {
@@ -295,7 +320,14 @@ export default function TrackTriagePage({
       study.aiInferenceData?.ICSR_classification ||
       study.ICSR_classification ||
       study.icsrClassification;
-    return normalizeClassification(rawIcsrClassification) || null;
+
+    const normalized = normalizeClassification(rawIcsrClassification);
+
+    if (normalized === "Article requires manual review") {
+      return "Manual Review";
+    }
+
+    return normalized || null;
   };
 
   const getClassificationLabel = (study: Study) => {
@@ -360,6 +392,11 @@ export default function TrackTriagePage({
           {allocatedCases.length > 0 && (
             <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
               Case {currentIndex + 1} of {allocatedCases.length}
+            </span>
+          )}
+          {allocatedCases.length === 0 && poolCount !== null && (
+            <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-100">
+              Case Pool: {poolCount}
             </span>
           )}
         </div>
@@ -524,6 +561,7 @@ export default function TrackTriagePage({
                   API_BASE={API_BASE}
                   fetchStudies={() => {}} // No-op since we don't fetch list anymore
                   canClassify={canClassify}
+                  ignorePreExistingClassification={true}
                 />
               </div>
             </div>

@@ -14,6 +14,11 @@ if (process.env.NODE_ENV === "development") {
 }
 
 const cosmosService = require("./services/cosmosService");
+// Attempt to bootstrap the environment with default admin if missing
+const ensureSuperAdmin = require("./utils/bootstrapEnv");
+// Run valid bootstrap in background (non-blocking but essential)
+ensureSuperAdmin().catch((err) => console.error("Bootstrap failed:", err));
+
 const drugSearchScheduler = require("./services/drugSearchScheduler");
 const schedulerService = require("./services/schedulerService");
 const azureSchedulerService = require("./services/azureSchedulerService");
@@ -48,6 +53,7 @@ const legacyDataRoutes = require("./routes/legacyDataRoutes");
 const r3Routes = require("./routes/r3Routes");
 const developerRoutes = require("./routes/developerRoutes");
 const trackRoutes = require("./routes/trackRoutes");
+const environmentRoutes = require("./routes/environmentRoutes");
 const developerController = require("./controllers/developerController");
 
 console.log("drugRoutes loaded:", typeof drugRoutes);
@@ -316,6 +322,16 @@ app.use("/api/legacy-data", legacyDataRoutes);
 app.use("/api/r3", authenticateToken, r3Routes);
 app.use("/api/developer", authenticateToken, developerRoutes);
 app.use("/api/track", authenticateToken, trackRoutes);
+app.use(
+  "/api/environments",
+  (req, res, next) => {
+    // Allow public access to the public list endpoint
+    if (req.path === "/public") return next();
+    // Require auth for everything else
+    return authenticateToken(req, res, next);
+  },
+  environmentRoutes,
+);
 
 // Root endpoint
 app.get("/", (req, res) => {

@@ -1841,6 +1841,14 @@ router.get(
           qcDataEntry: 0,
           medicalReview: 0,
           completed: 0,
+          // New Track Stats
+          icsrTriage: 0,
+          icsrAssessment: 0,
+          aoiTriage: 0,
+          aoiAssessment: 0,
+          noCaseTriage: 0,
+          noCaseAssessment: 0,
+          reportsCreated: 0,
         },
         byDrug: {},
         byMonth: {},
@@ -1970,6 +1978,33 @@ router.get(
           ) {
             stats.workflowStats.completed++;
           }
+
+          // --- New Track Stats ---
+          if (study.workflowTrack) {
+            const track = study.workflowTrack;
+            const sub = study.subStatus;
+
+            // Check for reporting status first
+            if (
+              sub === "reporting" ||
+              study.status === "Ready for Report" ||
+              study.status === "No Case Confirmed"
+            ) {
+              stats.workflowStats.reportsCreated++;
+            } else if (track === "ICSR") {
+              if (sub === "triage") stats.workflowStats.icsrTriage++;
+              else if (sub === "assessment")
+                stats.workflowStats.icsrAssessment++;
+            } else if (track === "AOI") {
+              if (sub === "triage") stats.workflowStats.aoiTriage++;
+              else if (sub === "assessment")
+                stats.workflowStats.aoiAssessment++;
+            } else if (track === "NoCase") {
+              if (sub === "triage") stats.workflowStats.noCaseTriage++;
+              else if (sub === "assessment")
+                stats.workflowStats.noCaseAssessment++;
+            }
+          }
         }
 
         // --- Date Specific Stats ---
@@ -2003,12 +2038,6 @@ router.get(
               study.aiInferenceData?.ICSR_classification ||
               study.aiInferenceData?.icsrPrediction ||
               "";
-            const rawAoi_pq =
-              study.aoiClassification ||
-              study.AOI_classification ||
-              study.aiInferenceData?.AOI_classification ||
-              study.aiInferenceData?.aoiPrediction ||
-              "";
 
             const normalize_pq = (val) => {
               if (!val) return "";
@@ -2019,7 +2048,6 @@ router.get(
             };
 
             const icsr_pq = normalize_pq(rawIcsr_pq);
-            const aoi_pq = normalize_pq(rawAoi_pq);
 
             let finalStatus = "Other";
 
@@ -2031,17 +2059,9 @@ router.get(
             } else if (icsr_pq === "Probable ICSR/AOI") {
               finalStatus = "Probable ICSR/AOI";
             } else if (icsr_pq === "Probable ICSR") {
-              if (aoi_pq === "Yes" || aoi_pq === "Yes (ICSR)") {
-                finalStatus = "Probable ICSR/AOI";
-              } else {
-                finalStatus = "Probable ICSR";
-              }
+              finalStatus = "Probable ICSR";
             } else if (icsr_pq === "No Case") {
-              if (aoi_pq === "Yes" || aoi_pq === "Yes (AOI)") {
-                finalStatus = "Probable AOI";
-              } else {
-                finalStatus = "No Case";
-              }
+              finalStatus = "No Case";
             } else if (icsr_pq === "Probable AOI") {
               finalStatus = "Probable AOI";
             }
@@ -2154,13 +2174,25 @@ router.get(
       // Reports Stats - Count reports created on selected date
       if (reports && reports.length > 0) {
         reports.forEach((report) => {
+          let includeInWorkflow = true;
           if (filterDateStr && report.createdAt) {
             const createdDate = new Date(report.createdAt);
             const createdYMD = createdDate.toISOString().split("T")[0];
             if (createdYMD === filterDateStr) {
               stats.dateStats.totalReportsCreated++;
+            } else {
+              includeInWorkflow = false;
             }
           }
+
+          /* 
+           * Removing this as "Reports Created" in workflow stats should reflect 
+           * studies in the "Reporting" stage, not the total count of Report documents.
+           *
+          if (includeInWorkflow) {
+            stats.workflowStats.reportsCreated++;
+          }
+          */
         });
       }
 

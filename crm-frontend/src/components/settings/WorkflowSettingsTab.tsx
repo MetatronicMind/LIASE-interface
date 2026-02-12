@@ -27,6 +27,9 @@ interface WorkflowConfig {
   noCaseQcPercentage?: number;
   stages: Stage[];
   transitions: Transition[];
+  icsrAllocationPercentage?: number;
+  aoiAllocationPercentage?: number;
+  noCaseAllocationPercentage?: number;
 }
 
 export default function WorkflowSettingsTab() {
@@ -162,11 +165,138 @@ export default function WorkflowSettingsTab() {
     }
   };
 
+  const handleAllocationChange = (
+    key:
+      | "icsrAllocationPercentage"
+      | "aoiAllocationPercentage"
+      | "noCaseAllocationPercentage",
+    value: string,
+  ) => {
+    if (!config) return;
+
+    // Allow empty value to clear it
+    if (value === "") {
+      setConfig({ ...config, [key]: undefined });
+      return;
+    }
+
+    // Only allow numbers
+    if (!/^\d*$/.test(value)) return;
+
+    const percentage = parseInt(value);
+    if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
+      setConfig({ ...config, [key]: percentage });
+    }
+  };
+
   if (loading) return <div>Loading...</div>;
   if (!config) return <div>Error loading config</div>;
 
   return (
     <div className="space-y-8">
+      {/* Tri-Channel Allocation Settings */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">
+          Tri-Channel Workflow Allocation
+        </h2>
+        <div className="bg-white shadow overflow-hidden sm:rounded-md p-6 space-y-4">
+          {/* ICSR Allocation */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">
+                ICSR QC Allocation
+              </h3>
+              <p className="text-sm text-gray-500">
+                Percentage of ICSR Triage cases sent to ICSR Assessment (QC).
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={config.icsrAllocationPercentage?.toString() ?? ""}
+                onChange={(e) =>
+                  handleAllocationChange(
+                    "icsrAllocationPercentage",
+                    e.target.value,
+                  )
+                }
+                className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
+                placeholder="10"
+              />
+              <span className="text-sm text-gray-500">%</span>
+            </div>
+          </div>
+
+          {/* AOI Allocation */}
+          <div className="flex items-center justify-between border-t pt-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">
+                AOI QC Allocation
+              </h3>
+              <p className="text-sm text-gray-500">
+                Percentage of AOI Triage cases sent to AOI Assessment (QC).
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={config.aoiAllocationPercentage?.toString() ?? ""}
+                onChange={(e) =>
+                  handleAllocationChange(
+                    "aoiAllocationPercentage",
+                    e.target.value,
+                  )
+                }
+                className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
+                placeholder="10"
+              />
+              <span className="text-sm text-gray-500">%</span>
+            </div>
+          </div>
+
+          {/* No Case Allocation */}
+          <div className="flex items-center justify-between border-t pt-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">
+                No Case QC Allocation
+              </h3>
+              <p className="text-sm text-gray-500">
+                Percentage of No Case Triage cases sent to No Case Assessment
+                (QC).
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={config.noCaseAllocationPercentage?.toString() ?? ""}
+                onChange={(e) =>
+                  handleAllocationChange(
+                    "noCaseAllocationPercentage",
+                    e.target.value,
+                  )
+                }
+                className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
+                placeholder="10"
+              />
+              <span className="text-sm text-gray-500">%</span>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <button
+              onClick={() => saveConfig(config)}
+              disabled={saving}
+              className="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+            >
+              {saving ? "Saving..." : "Save Configuration"}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div>
         <h2 className="text-xl font-semibold mb-4">Workflow Stages</h2>
         <div className="bg-white shadow overflow-hidden sm:rounded-md p-6 space-y-4">

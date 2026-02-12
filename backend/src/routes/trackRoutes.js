@@ -4,8 +4,10 @@
  */
 
 const express = require("express");
+const { v4: uuidv4 } = require("uuid");
 const trackAllocationService = require("../services/trackAllocationService");
 const cosmosService = require("../services/cosmosService");
+const adminConfigService = require("../services/adminConfigService");
 const Study = require("../models/Study");
 const { authorizePermission } = require("../middleware/authorization");
 const { auditLogger, auditAction } = require("../middleware/audit");
@@ -428,7 +430,14 @@ router.post(
       const { studyId } = req.params;
       const { destination } = req.body;
 
-      const validDestinations = ["data_entry", "medical_review", "reporting"];
+      const validDestinations = [
+        "data_entry",
+        "medical_review",
+        "reporting",
+        "aoi_assessment",
+        "no_case_assessment",
+        "icsr_triage",
+      ];
       if (!validDestinations.includes(destination)) {
         return res.status(400).json({
           error: "Invalid destination",
@@ -557,7 +566,7 @@ router.post(
   async (req, res) => {
     try {
       const { trackType } = req.params;
-      const { batchSize = 10 } = req.body;
+      let { batchSize } = req.body;
 
       const validTracks = ["ICSR", "AOI", "NoCase"];
       if (!validTracks.includes(trackType)) {
@@ -569,46 +578,54 @@ router.post(
 
       const targetOrgId = req.user.organizationId;
       const userId = req.user.id;
+
+      // Fetch batch size from config if not provided
+      if (!batchSize) {
+        try {
+          const config = await adminConfigService.getConfig(
+            targetOrgId,
+            "triage",
+          );
+          const data = config?.configData || {};
+
+          if (trackType === "ICSR")
+            batchSize = data.icsrTriageBatchSize || data.batchSize || 10;
+          else if (trackType === "AOI")
+            batchSize = data.aoiTriageBatchSize || data.batchSize || 10;
+          else if (trackType === "NoCase")
+            batchSize = data.noCaseTriageBatchSize || data.batchSize || 10;
+          else batchSize = data.batchSize || 10;
+        } catch (e) {
+          console.warn("Failed to load batch config, using default 10", e);
+          batchSize = 10;
+        }
+      }
       const today = new Date().toISOString().split("T")[0];
 
-      // Build query based on track type using strictly icsrClassification
+      // Build query based on track type
       // Use FIFO (Oldest first) for allocation queues
       let query;
-      let parameters = [{ name: "@orgId", value: targetOrgId }];
+      let parameters = [
+        { name: "@orgId", value: targetOrgId },
+        { name: "@track", value: trackType },
+      ];
 
-      // SIMPLIFIED LOGIC: Use ONLY icsrClassification as the source of truth
-      // BUT exclude items that have already been manually classified (userTag is set)
-      // AND exclude items already assigned
+      // SIMPLIFIED LOGIC: Use workflowTrack and subStatus
+      // Source bucket depends on track type
       const baseQuery = `
           SELECT * FROM c 
           WHERE c.organizationId = @orgId 
+          AND c.workflowTrack = @track
           AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
-          AND (NOT IS_DEFINED(c.userTag) OR c.userTag = null)
       `;
 
-      if (trackType === "ICSR") {
-        query = `
-            ${baseQuery}
-            AND (
-                c.icsrClassification = 'Probable ICSR' 
-                OR c.icsrClassification = 'Probable ICSR/AOI'
-                OR c.icsrClassification = 'Article requires manual review'
-            )
-            ORDER BY c.createdAt ASC
-        `;
-      } else if (trackType === "AOI") {
-        query = `
-            ${baseQuery}
-            AND c.icsrClassification = 'Probable AOI'
-            ORDER BY c.createdAt ASC
-        `;
-      } else if (trackType === "NoCase") {
-        query = `
-            ${baseQuery}
-            AND c.icsrClassification = 'No Case'
-            ORDER BY c.createdAt ASC
-        `;
-      }
+      // Corrected: All tracks pull from 'triage' bucket for the initial Triage Phase
+      // Whether ICSR, AOI, or NoCase, the manual review items start in 'triage'
+      query = `
+          ${baseQuery}
+          AND c.subStatus = 'triage'
+          ORDER BY c.createdAt ASC
+      `;
 
       const allStudies = await cosmosService.queryItems(
         "studies",
@@ -634,15 +651,24 @@ router.post(
           studyData.workflowTrack = trackType;
 
           if (trackType === "ICSR") {
-            studyData.workflowStage = "ASSESSMENT_ICSR";
+            // ICSR stays in Triage (SubStatus: triage)
+            studyData.workflowStage = "TRIAGE_ICSR";
+            studyData.subStatus = "triage";
+            studyData.status = "Under Triage Review";
           } else if (trackType === "AOI") {
+            // AOI moves to Assessment (SubStatus: assessment)
             studyData.workflowStage = "ASSESSMENT_AOI";
+            studyData.subStatus = "assessment";
+            studyData.status = "Under Assessment";
           } else {
+            // No Case moves to Assessment (SubStatus: assessment)
             studyData.workflowStage = "ASSESSMENT_NO_CASE";
+            studyData.subStatus = "assessment";
+            studyData.status = "Under Assessment";
           }
 
           // Legacy field support
-          studyData.subStatus = "assessment";
+          // studyData.subStatus = "assessment"; // Logic moved above
 
           // Clear any previous temporary locks if strictly re-allocating (though query filters out assigned)
           studyData.lockedAt = allocatedAt;
@@ -766,6 +792,221 @@ router.post(
     } catch (error) {
       console.error(
         `Error releasing batch for ${req.params.trackType}: `,
+        error,
+      );
+      res.status(500).json({
+        error: "Failed to release cases",
+        message: error.message,
+      });
+    }
+  },
+);
+
+/**
+ * POST /track/:trackType/allocate-assessment-batch
+ * Allocate a batch of cases for assessment review
+ */
+router.post(
+  "/:trackType/allocate-assessment-batch",
+  authorizePermission("QC", "write"),
+  async (req, res) => {
+    try {
+      const { trackType } = req.params;
+      let { batchSize } = req.body;
+
+      const validTracks = ["ICSR", "AOI", "NoCase"];
+      if (!validTracks.includes(trackType)) {
+        return res.status(400).json({
+          error: "Invalid track type",
+          validTracks,
+        });
+      }
+
+      const targetOrgId = req.user.organizationId;
+
+      // Fetch batch size from config if not provided
+      if (!batchSize) {
+        try {
+          const config = await adminConfigService.getConfig(
+            targetOrgId,
+            "triage",
+          );
+          const data = config?.configData || {};
+
+          if (trackType === "ICSR")
+            batchSize = data.icsrAssessmentBatchSize || 10;
+          else if (trackType === "AOI")
+            batchSize = data.aoiAssessmentBatchSize || 10;
+          else if (trackType === "NoCase")
+            batchSize = data.noCaseAssessmentBatchSize || 10;
+          else batchSize = 10;
+        } catch (e) {
+          console.warn(
+            "Failed to load assessment batch config, using default 10",
+            e,
+          );
+          batchSize = 10;
+        }
+      }
+
+      const userId = req.user.id;
+
+      // Query for unassigned assessment cases
+      const query = `
+          SELECT * FROM c 
+          WHERE c.organizationId = @orgId 
+          AND c.workflowTrack = @track
+          AND c.subStatus = 'assessment'
+          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
+          ORDER BY c.createdAt ASC
+      `;
+
+      const parameters = [
+        { name: "@orgId", value: targetOrgId },
+        { name: "@track", value: trackType },
+      ];
+
+      const allStudies = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+
+      // Take up to batchSize studies
+      const casesToAllocate = allStudies.slice(0, parseInt(batchSize));
+      const batchId = uuidv4();
+      const allocatedAt = new Date().toISOString();
+
+      const allocatedCases = [];
+      for (const studyData of casesToAllocate) {
+        try {
+          studyData.assignedTo = userId;
+          studyData.batchId = batchId;
+          studyData.allocationType = "assessment"; // Distinguish from triage allocation
+          studyData.allocatedAt = allocatedAt;
+
+          // Keep subStatus as assessment, just assigning
+
+          await cosmosService.updateItem(
+            "studies",
+            studyData.id,
+            targetOrgId,
+            studyData,
+          );
+
+          allocatedCases.push(studyData);
+        } catch (err) {
+          console.error(`Error locking study ${studyData.id}: `, err);
+        }
+      }
+
+      await auditAction(
+        req.user,
+        "track_allocate",
+        "study",
+        trackType,
+        `Allocated ${allocatedCases.length} ${trackType} cases for assessment`,
+        { trackType, batchSize, allocated: allocatedCases.length },
+      );
+
+      res.json({
+        success: true,
+        message: `Allocated ${allocatedCases.length} cases for ${trackType} assessment`,
+        cases: allocatedCases,
+        count: allocatedCases.length,
+      });
+    } catch (error) {
+      console.error(
+        `Error allocating assessment batch for ${req.params.trackType}: `,
+        error,
+      );
+      res.status(500).json({
+        error: "Failed to allocate cases",
+        message: error.message,
+      });
+    }
+  },
+);
+
+/**
+ * POST /track/:trackType/release-assessment-batch
+ * Release all locked cases from assessment
+ */
+router.post(
+  "/:trackType/release-assessment-batch",
+  authorizePermission("QC", "write"),
+  async (req, res) => {
+    try {
+      const { trackType } = req.params;
+
+      const validTracks = ["ICSR", "AOI", "NoCase"];
+      if (!validTracks.includes(trackType)) {
+        return res.status(400).json({
+          error: "Invalid track type",
+          validTracks,
+        });
+      }
+
+      const targetOrgId = req.user.organizationId;
+      const userId = req.user.id;
+
+      // Find studies locked by this user in this track and subStatus assessment
+      const query = `
+                SELECT * FROM c 
+                WHERE c.organizationId = @orgId 
+                AND c.workflowTrack = @track 
+                AND c.subStatus = 'assessment'
+                AND c.assignedTo = @userId
+            `;
+      const parameters = [
+        { name: "@orgId", value: targetOrgId },
+        { name: "@track", value: trackType },
+        { name: "@userId", value: userId },
+      ];
+
+      const lockedStudies = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+
+      let released = 0;
+      for (const studyData of lockedStudies) {
+        try {
+          studyData.assignedTo = null;
+          studyData.lockedAt = null;
+          studyData.batchId = null;
+
+          await cosmosService.updateItem(
+            "studies",
+            studyData.id,
+            targetOrgId,
+            studyData,
+          );
+
+          released++;
+        } catch (err) {
+          console.error(`Error releasing study ${studyData.id}: `, err);
+        }
+      }
+
+      await auditAction(
+        req.user,
+        "track_allocate",
+        "study",
+        trackType,
+        `Released ${released} ${trackType} cases from assessment`,
+        { trackType, released },
+      );
+
+      res.json({
+        success: true,
+        message: `Released ${released} cases`,
+        released,
+      });
+    } catch (error) {
+      console.error(
+        `Error releasing assessment batch for ${req.params.trackType}: `,
         error,
       );
       res.status(500).json({

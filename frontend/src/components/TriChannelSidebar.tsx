@@ -54,7 +54,7 @@ const trackNavGroups: NavGroup[] = [
     permission: { resource: "triage", action: "read" },
     children: [
       {
-        name: "Triage",
+        name: "ICSR Triage",
         href: "/dashboard/icsr/triage",
         icon: <DocumentMagnifyingGlassIcon className="w-4 h-4" />,
         permission: { resource: "triage", action: "read" },
@@ -73,13 +73,13 @@ const trackNavGroups: NavGroup[] = [
     permission: { resource: "aoiAssessment", action: "read" },
     children: [
       {
-        name: "Allocation",
+        name: "AOI QC",
         href: "/dashboard/aoi/triage",
         icon: <DocumentMagnifyingGlassIcon className="w-4 h-4" />,
         permission: { resource: "triage", action: "read" },
       },
       {
-        name: "Assessment",
+        name: "AOI Assessment",
         href: "/dashboard/aoi/assessment",
         icon: <ClipboardDocumentListIcon className="w-4 h-4" />,
         permission: { resource: "aoiAssessment", action: "read" },
@@ -92,13 +92,13 @@ const trackNavGroups: NavGroup[] = [
     permission: { resource: "QA", action: "read" },
     children: [
       {
-        name: "Allocation",
+        name: "No Case QC",
         href: "/dashboard/no-case/triage",
         icon: <DocumentMagnifyingGlassIcon className="w-4 h-4" />,
         permission: { resource: "triage", action: "read" },
       },
       {
-        name: "Assessment",
+        name: "No Case Assessment",
         href: "/dashboard/no-case/assessment",
         icon: <ClipboardDocumentListIcon className="w-4 h-4" />,
         permission: { resource: "QC", action: "read" },

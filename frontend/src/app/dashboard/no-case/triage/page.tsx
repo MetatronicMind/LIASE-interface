@@ -6,7 +6,7 @@ export default function NoCaseTriagePage() {
     <TrackTriagePage
       trackType="NoCase"
       trackDisplayName="No Case"
-      pageTitle="No Case Allocation"
+      pageTitle="No Case QC"
     />
   );
 }

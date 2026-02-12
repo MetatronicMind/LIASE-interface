@@ -6,7 +6,7 @@ export default function AOITriagePage() {
     <TrackTriagePage
       trackType="AOI"
       trackDisplayName="AOI"
-      pageTitle="AOI Allocation"
+      pageTitle="AOI QC"
     />
   );
 }

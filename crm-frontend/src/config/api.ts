@@ -7,6 +7,12 @@ export interface Environment {
 }
 
 export const ENVIRONMENTS: Record<string, Environment> = {
+  LOCAL: {
+    id: 'local',
+    name: 'Local Control Plane',
+    url: 'http://localhost:8000/api',
+    badge: 'yellow'
+  },
   DEV: {
     id: 'dev',
     name: 'Development',
@@ -42,12 +48,44 @@ export const environmentManager = {
   getCurrent: (): Environment => {
     if (typeof window !== 'undefined') {
       const storedEnvId = localStorage.getItem(STORAGE_KEY);
+
+      // Check stored custom environments first
+      const storedCustomEnvsStr = localStorage.getItem('crm_custom_environments');
+      if (storedCustomEnvsStr) {
+        const customEnvs = JSON.parse(storedCustomEnvsStr);
+        if (customEnvs[storedEnvId!]) return customEnvs[storedEnvId!];
+      }
+
       if (storedEnvId) {
         const env = Object.values(ENVIRONMENTS).find(e => e.id === storedEnvId);
         if (env) return env;
       }
     }
-    return ENVIRONMENTS.PROD;
+    return ENVIRONMENTS.LOCAL;
+  },
+  getAll: (): Environment[] => {
+    let combined = { ...ENVIRONMENTS };
+    if (typeof window !== 'undefined') {
+      const storedCustom = localStorage.getItem('crm_custom_environments');
+      if (storedCustom) {
+        combined = { ...combined, ...JSON.parse(storedCustom) };
+      }
+    }
+    return Object.values(combined);
+  },
+  merge: (newEnvs: any[]) => {
+    if (typeof window !== 'undefined') {
+      const currentCustom = JSON.parse(localStorage.getItem('crm_custom_environments') || '{}');
+      newEnvs.forEach(env => {
+        currentCustom[env.id] = {
+          id: env.id,
+          name: env.name,
+          url: env.url || env.endpoint, // Handle both backend formats
+          badge: env.type === 'production' ? 'red' : 'green'
+        };
+      });
+      localStorage.setItem('crm_custom_environments', JSON.stringify(currentCustom));
+    }
   },
   set: (envId: string) => {
     if (typeof window !== 'undefined') {

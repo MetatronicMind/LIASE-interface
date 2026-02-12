@@ -20,7 +20,33 @@ export default function CRMLoginPage() {
     // Determine current environment on mount
     const env = environmentManager.getCurrent();
     setCurrentEnv(env.id);
+
+    // Fetch dynamic environments from the Control Plane (backend)
+    // We try to hit the default/current API's environment endpoint
+    const fetchDynamicEnvs = async () => {
+      try {
+        // Use local backend or current configured one as control plane
+        const controlPlaneUrl =
+          process.env.NEXT_PUBLIC_API_URL || getApiBaseUrl();
+        const res = await fetch(`${controlPlaneUrl}/environments/public`);
+        if (res.ok) {
+          const dynamicEnvs = await res.json();
+          if (dynamicEnvs && dynamicEnvs.length > 0) {
+            environmentManager.merge(dynamicEnvs);
+            // Force re-render of local component environment list
+            setAvailableEnvs(environmentManager.getAll());
+          }
+        }
+      } catch (e) {
+        console.log("Could not fetch dynamic environments", e);
+      }
+    };
+    fetchDynamicEnvs();
   }, []);
+
+  const [availableEnvs, setAvailableEnvs] = useState(
+    Object.values(ENVIRONMENTS),
+  );
 
   const handleEnvChange = (envId: string) => {
     environmentManager.set(envId);
@@ -179,16 +205,17 @@ export default function CRMLoginPage() {
             <span>Target Environment</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {Object.values(ENVIRONMENTS).map((env) => (
+            {availableEnvs.map((env) => (
               <button
                 key={env.id}
                 type="button"
                 onClick={() => handleEnvChange(env.id)}
-                className={`px-2 py-2 text-xs font-medium rounded border transition-colors ${
+                className={`px-2 py-2 text-xs font-medium rounded border transition-colors truncate ${
                   currentEnv === env.id
                     ? "bg-indigo-50 border-indigo-200 text-indigo-700 ring-2 ring-indigo-100"
                     : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                 }`}
+                title={env.name}
               >
                 {env.name}
               </button>

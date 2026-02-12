@@ -29,6 +29,8 @@ interface WorkflowConfig {
   icsrAllocationPercentage?: number;
   aoiAllocationPercentage?: number;
   noCaseAllocationPercentage?: number;
+  // Destination for ICSR track after assessment
+  icsrAssessmentDestination?: "data_entry" | "medical_review" | "reporting";
   stages: Stage[];
   transitions: Transition[];
 }
@@ -226,50 +228,6 @@ export default function WorkflowSettingsTab() {
               </button>
             </div>
           </div>
-
-          <div className="flex items-center justify-between border-t pt-4">
-            <div>
-              <h3 className="text-sm font-medium text-gray-900">
-                QC Data Entry
-              </h3>
-              <p className="text-sm text-gray-500">
-                Enable or disable the QC Data Entry stage.
-              </p>
-            </div>
-            <div className="flex items-center">
-              <input
-                id="toggle-qc-data-entry"
-                type="checkbox"
-                checked={config.qcDataEntry !== false} // Default to true
-                onChange={(e) =>
-                  handleToggleStage("qcDataEntry", e.target.checked)
-                }
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between border-t pt-4">
-            <div>
-              <h3 className="text-sm font-medium text-gray-900">
-                Medical Review
-              </h3>
-              <p className="text-sm text-gray-500">
-                Enable or disable the Medical Review stage.
-              </p>
-            </div>
-            <div className="flex items-center">
-              <input
-                id="toggle-medical-review"
-                type="checkbox"
-                checked={config.medicalReview !== false} // Default to true
-                onChange={(e) =>
-                  handleToggleStage("medicalReview", e.target.checked)
-                }
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-            </div>
-          </div>
         </div>
       </div>
 
@@ -280,8 +238,8 @@ export default function WorkflowSettingsTab() {
         </h2>
         <p className="text-sm text-gray-500 mb-4">
           Configure what percentage of studies in each track should be routed to
-          Allocation. The remainder will bypass Allocation and go directly to
-          Assessment.
+          Allocation (Assessment). The remainder will bypass Allocation and go
+          directly to Assessment.
         </p>
         <div className="bg-white shadow overflow-hidden sm:rounded-md p-6 space-y-6">
           {/* ICSR Track */}
@@ -388,59 +346,34 @@ export default function WorkflowSettingsTab() {
 
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Transitions</h2>
+          <h2 className="text-xl font-semibold">
+            Current Workflow Transitions
+          </h2>
         </div>
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
-            {config.transitions.map((transition, index) => (
+            {[
+              { label: "Step 1", desc: "Triage -> Assessment (QC)" },
+              { label: "Step 2 (ICSR)", desc: "Assessment -> Data Entry" },
+              {
+                label: "Step 2 (AOI/No Case)",
+                desc: "Assessment -> Reporting",
+              },
+              {
+                label: "Step 3 (ICSR)",
+                desc: "Data Entry -> Medical Review / Reporting",
+              },
+              { label: "Step 4", desc: "Reporting -> Archived" },
+            ].map((step, index) => (
               <li
                 key={index}
                 className="px-6 py-4 flex items-center justify-between"
               >
                 <div>
                   <p className="text-sm font-medium text-gray-900">
-                    {transition.label}
+                    {step.label}
                   </p>
-                  <p className="text-sm text-gray-500">
-                    {config.stages.find((s) => s.id === transition.from)
-                      ?.label || transition.from}
-                    {" -> "}
-                    {config.stages.find((s) => s.id === transition.to)?.label ||
-                      transition.to}
-                  </p>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  {transition.from === "triage" && (
-                    <div className="flex items-center gap-2">
-                      <label
-                        htmlFor={`qc-percent-${index}`}
-                        className="text-sm text-gray-900"
-                      >
-                        QC Sample %:
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          id={`qc-percent-${index}`}
-                          type="text"
-                          inputMode="numeric"
-                          value={transition.qcPercentage?.toString() ?? ""}
-                          onChange={(e) =>
-                            handleQcPercentageChange(index, e.target.value)
-                          }
-                          className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
-                          placeholder="0-100"
-                        />
-                        <button
-                          onClick={() => saveConfig(config)}
-                          disabled={saving}
-                          className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
-                        >
-                          {saving ? "..." : "Save"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  <p className="text-sm text-gray-500">{step.desc}</p>
                 </div>
               </li>
             ))}
@@ -450,57 +383,31 @@ export default function WorkflowSettingsTab() {
 
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Revocations</h2>
+          <h2 className="text-xl font-semibold">ICSR Routing Configuration</h2>
         </div>
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
-            {config.transitions.map((transition, index) => {
-              const fromStageLabel =
-                config.stages.find((s) => s.id === transition.from)?.label ||
-                transition.from;
-              return (
-                <li
-                  key={`revoke-${index}`}
-                  className="px-6 py-4 flex items-center justify-between"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Revocation from {fromStageLabel}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {transition.canRevoke && transition.revokeTo
-                        ? `Revokes to ${config.stages.find((s) => s.id === transition.revokeTo)?.label || transition.revokeTo}`
-                        : "No active revocation"}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center">
-                    <select
-                      value={
-                        transition.canRevoke && transition.revokeTo
-                          ? transition.revokeTo
-                          : "no_revoke"
-                      }
-                      onChange={(e) =>
-                        handleRevokeChange(index, e.target.value)
-                      }
-                      className="mt-1 block w-64 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                      disabled={saving}
-                    >
-                      <option value="no_revoke">No revoke</option>
-                      {config.stages
-                        .filter((stage) => stage.id !== transition.from)
-                        .map((stage) => (
-                          <option key={stage.id} value={stage.id}>
-                            {stage.label}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+        <div className="bg-white shadow overflow-hidden sm:rounded-md p-6">
+          <div className="max-w-xl">
+            <label className="block text-sm font-medium text-gray-900 mb-2">
+              Where do ICSR studies go after Assessment Approval?
+            </label>
+            <p className="text-sm text-gray-500 mb-4">
+              Select the next stage for approved ICSR cases.
+            </p>
+            <select
+              value={config.icsrAssessmentDestination || "data_entry"}
+              onChange={(e) => {
+                const newVal = e.target.value as any;
+                setConfig({ ...config, icsrAssessmentDestination: newVal });
+                saveConfig({ ...config, icsrAssessmentDestination: newVal });
+              }}
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+              disabled={saving}
+            >
+              <option value="data_entry">Data Entry</option>
+              <option value="medical_review">Medical Review</option>
+              {/* <option value="reporting">Reports</option> */}
+            </select>
+          </div>
         </div>
       </div>
     </div>

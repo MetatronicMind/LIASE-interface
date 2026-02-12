@@ -24,13 +24,13 @@ interface SystemConfig {
   r3XmlEndpoint: string;
   pubmedApiEndpoint: string;
   pmidListEndpoint: string;
-  
+
   // Ports and URLs
   backendPort: number;
   frontendPort: number;
   backendUrl: string;
   frontendUrl: string;
-  
+
   // AI Processing Configuration
   aiProcessing: {
     maxConcurrentRequests: number;
@@ -40,7 +40,19 @@ interface SystemConfig {
     enableCircuitBreaker: boolean;
     circuitBreakerThreshold: number;
   };
-  
+
+  // Workflow & Allocation
+  workflow: {
+    icsrTriageBatchSize: number;
+    icsrAssessmentBatchSize: number;
+    aoiTriageBatchSize: number;
+    aoiAssessmentBatchSize: number;
+    noCaseTriageBatchSize: number;
+    noCaseAssessmentBatchSize: number;
+    aoiAutoQCPercent: number;
+    noCaseAutoQCPercent: number;
+  };
+
   // Database Configuration
   database: {
     cosmosDbEndpoint: string;
@@ -48,14 +60,14 @@ interface SystemConfig {
     maxConnectionPoolSize: number;
     requestTimeout: number;
   };
-  
+
   // Rate Limiting
   rateLimiting: {
     enabled: boolean;
     windowMs: number;
     maxRequests: number;
   };
-  
+
   // Email Configuration
   email: {
     smtpHost: string;
@@ -64,14 +76,14 @@ interface SystemConfig {
     fromName: string;
     fromEmail: string;
   };
-  
+
   // Scheduler Configuration
   scheduler: {
     drugSearchInterval: string; // cron expression
     dailyReportsTime: string; // cron expression
     notificationProcessingInterval: number; // seconds
   };
-  
+
   // Security Configuration
   security: {
     jwtExpiresIn: string;
@@ -80,7 +92,7 @@ interface SystemConfig {
     sessionTimeout: number; // minutes
     maxLoginAttempts: number;
   };
-  
+
   // System Maintenance
   maintenance: {
     enabled: boolean;
@@ -94,9 +106,14 @@ export default function SuperAdminConfigTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<{ [key: string]: boolean }>({});
-  const [testResults, setTestResults] = useState<{ [key: string]: { success: boolean; message: string } }>({});
+  const [testResults, setTestResults] = useState<{
+    [key: string]: { success: boolean; message: string };
+  }>({});
   const [activeSection, setActiveSection] = useState<string>("api-endpoints");
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchConfig();
@@ -105,7 +122,8 @@ export default function SuperAdminConfigTab() {
   const fetchConfig = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
       const response = await fetch(`${apiUrl}/admin-config/system-config`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -129,18 +147,34 @@ export default function SuperAdminConfigTab() {
 
   const getDefaultConfig = (): SystemConfig => ({
     aiInferenceEndpoints: {
-      primary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_1 || "http://48.217.12.7/get_AI_inference",
-      secondary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_2 || "http://4.157.127.230/get_AI_inference",
-      tertiary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_3 || "http://4.157.29.153/get_AI_inference",
-      quaternary: process.env.NEXT_PUBLIC_AI_INFERENCE_URL_4 || "http://4.236.195.153/get_AI_inference",
+      primary:
+        process.env.NEXT_PUBLIC_AI_INFERENCE_URL_1 ||
+        "http://48.217.12.7/get_AI_inference",
+      secondary:
+        process.env.NEXT_PUBLIC_AI_INFERENCE_URL_2 ||
+        "http://4.157.127.230/get_AI_inference",
+      tertiary:
+        process.env.NEXT_PUBLIC_AI_INFERENCE_URL_3 ||
+        "http://4.157.29.153/get_AI_inference",
+      quaternary:
+        process.env.NEXT_PUBLIC_AI_INFERENCE_URL_4 ||
+        "http://4.236.195.153/get_AI_inference",
     },
-    r3XmlEndpoint: process.env.NEXT_PUBLIC_R3_XML_ENDPOINT || "http://4.236.195.153/get_r3_xml",
+    r3XmlEndpoint:
+      process.env.NEXT_PUBLIC_R3_XML_ENDPOINT ||
+      "http://4.236.195.153/get_r3_xml",
     pubmedApiEndpoint: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/",
-    pmidListEndpoint: process.env.NEXT_PUBLIC_PMID_LIST_ENDPOINT || "http://48.217.12.7/get_pmidlist/",
+    pmidListEndpoint:
+      process.env.NEXT_PUBLIC_PMID_LIST_ENDPOINT ||
+      "http://48.217.12.7/get_pmidlist/",
     backendPort: 8000,
     frontendPort: 3000,
-    backendUrl: process.env.NEXT_PUBLIC_API_URL || "https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api",
-    frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL || "https://liase-interface.azurewebsites.net",
+    backendUrl:
+      process.env.NEXT_PUBLIC_API_URL ||
+      "https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api",
+    frontendUrl:
+      process.env.NEXT_PUBLIC_FRONTEND_URL ||
+      "https://liase-interface.azurewebsites.net",
     aiProcessing: {
       maxConcurrentRequests: 5,
       requestTimeout: 30000,
@@ -148,6 +182,16 @@ export default function SuperAdminConfigTab() {
       batchSize: 10,
       enableCircuitBreaker: true,
       circuitBreakerThreshold: 5,
+    },
+    workflow: {
+      icsrTriageBatchSize: 10,
+      icsrAssessmentBatchSize: 6,
+      aoiTriageBatchSize: 10,
+      aoiAssessmentBatchSize: 6,
+      noCaseTriageBatchSize: 10,
+      noCaseAssessmentBatchSize: 6,
+      aoiAutoQCPercent: 20,
+      noCaseAutoQCPercent: 20,
     },
     database: {
       cosmosDbEndpoint: process.env.COSMOS_DB_ENDPOINT || "",
@@ -188,13 +232,14 @@ export default function SuperAdminConfigTab() {
 
   const handleSave = async () => {
     if (!config) return;
-    
+
     setSaving(true);
     setMessage(null);
-    
+
     try {
       const token = localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
       const response = await fetch(`${apiUrl}/admin-config/system-config`, {
         method: "POST",
         headers: {
@@ -205,10 +250,16 @@ export default function SuperAdminConfigTab() {
       });
 
       if (response.ok) {
-        setMessage({ type: "success", text: "System configuration saved successfully!" });
+        setMessage({
+          type: "success",
+          text: "System configuration saved successfully!",
+        });
       } else {
         const error = await response.json();
-        setMessage({ type: "error", text: error.message || "Failed to save configuration" });
+        setMessage({
+          type: "error",
+          text: error.message || "Failed to save configuration",
+        });
       }
     } catch (error) {
       console.error("Error saving config:", error);
@@ -220,10 +271,11 @@ export default function SuperAdminConfigTab() {
 
   const testEndpoint = async (type: string, url: string) => {
     setTesting({ ...testing, [type]: true });
-    
+
     try {
       const token = localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
       const response = await fetch(`${apiUrl}/admin-config/test-endpoint`, {
         method: "POST",
         headers: {
@@ -238,7 +290,9 @@ export default function SuperAdminConfigTab() {
         ...testResults,
         [type]: {
           success: response.ok && result.success,
-          message: result.message || (response.ok ? "Connection successful" : "Connection failed"),
+          message:
+            result.message ||
+            (response.ok ? "Connection successful" : "Connection failed"),
         },
       });
     } catch (error) {
@@ -256,26 +310,59 @@ export default function SuperAdminConfigTab() {
 
   const updateConfig = (path: string[], value: any) => {
     if (!config) return;
-    
+
     const newConfig = { ...config };
     let current: any = newConfig;
-    
+
     for (let i = 0; i < path.length - 1; i++) {
       current = current[path[i]];
     }
-    
+
     current[path[path.length - 1]] = value;
     setConfig(newConfig);
   };
 
   const sections = [
-    { id: "api-endpoints", name: "API Endpoints", icon: <LinkIcon className="w-5 h-5" /> },
-    { id: "ai-processing", name: "AI Processing", icon: <CpuChipIcon className="w-5 h-5" /> },
-    { id: "database", name: "Database", icon: <ServerIcon className="w-5 h-5" /> },
-    { id: "email", name: "Email", icon: <DocumentTextIcon className="w-5 h-5" /> },
-    { id: "scheduler", name: "Scheduler", icon: <ClockIcon className="w-5 h-5" /> },
-    { id: "security", name: "Security", icon: <ShieldCheckIcon className="w-5 h-5" /> },
-    { id: "maintenance", name: "Maintenance", icon: <ExclamationTriangleIcon className="w-5 h-5" /> },
+    {
+      id: "api-endpoints",
+      name: "API Endpoints",
+      icon: <LinkIcon className="w-5 h-5" />,
+    },
+    {
+      id: "ai-processing",
+      name: "AI Processing",
+      icon: <CpuChipIcon className="w-5 h-5" />,
+    },
+    {
+      id: "workflow",
+      name: "Workflow & Allocation",
+      icon: <CheckCircleIcon className="w-5 h-5" />,
+    },
+    {
+      id: "database",
+      name: "Database",
+      icon: <ServerIcon className="w-5 h-5" />,
+    },
+    {
+      id: "email",
+      name: "Email",
+      icon: <DocumentTextIcon className="w-5 h-5" />,
+    },
+    {
+      id: "scheduler",
+      name: "Scheduler",
+      icon: <ClockIcon className="w-5 h-5" />,
+    },
+    {
+      id: "security",
+      name: "Security",
+      icon: <ShieldCheckIcon className="w-5 h-5" />,
+    },
+    {
+      id: "maintenance",
+      name: "Maintenance",
+      icon: <ExclamationTriangleIcon className="w-5 h-5" />,
+    },
   ];
 
   if (loading) {
@@ -297,7 +384,9 @@ export default function SuperAdminConfigTab() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Super Admin System Configuration</h2>
+        <h2 className="text-2xl font-bold text-gray-900">
+          Super Admin System Configuration
+        </h2>
         <p className="text-gray-600 mt-2">
           Manage all system-wide configurations, endpoints, and settings
         </p>
@@ -338,60 +427,77 @@ export default function SuperAdminConfigTab() {
         {/* API Endpoints Section */}
         {activeSection === "api-endpoints" && (
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">API Endpoints Configuration</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              API Endpoints Configuration
+            </h3>
 
             {/* AI Inference Endpoints */}
             <div className="space-y-4">
-              <h4 className="font-medium text-gray-700">AI Inference Endpoints</h4>
-              
-              {["primary", "secondary", "tertiary", "quaternary"].map((endpoint) => (
-                <div key={endpoint} className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 capitalize">
-                    {endpoint} AI Endpoint
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={config.aiInferenceEndpoints[endpoint as keyof typeof config.aiInferenceEndpoints]}
-                      onChange={(e) =>
-                        updateConfig(["aiInferenceEndpoints", endpoint], e.target.value)
-                      }
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="https://api.example.com/ai-inference"
-                    />
-                    <button
-                      onClick={() =>
-                        testEndpoint(
-                          `ai-${endpoint}`,
-                          config.aiInferenceEndpoints[endpoint as keyof typeof config.aiInferenceEndpoints]
-                        )
-                      }
-                      disabled={testing[`ai-${endpoint}`]}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {testing[`ai-${endpoint}`] ? (
-                        <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                      ) : (
-                        "Test"
-                      )}
-                    </button>
-                  </div>
-                  {testResults[`ai-${endpoint}`] && (
-                    <div
-                      className={`flex items-center gap-2 text-sm ${
-                        testResults[`ai-${endpoint}`].success ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {testResults[`ai-${endpoint}`].success ? (
-                        <CheckCircleIcon className="w-4 h-4" />
-                      ) : (
-                        <XCircleIcon className="w-4 h-4" />
-                      )}
-                      {testResults[`ai-${endpoint}`].message}
+              <h4 className="font-medium text-gray-700">
+                AI Inference Endpoints
+              </h4>
+
+              {["primary", "secondary", "tertiary", "quaternary"].map(
+                (endpoint) => (
+                  <div key={endpoint} className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 capitalize">
+                      {endpoint} AI Endpoint
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={
+                          config.aiInferenceEndpoints[
+                            endpoint as keyof typeof config.aiInferenceEndpoints
+                          ]
+                        }
+                        onChange={(e) =>
+                          updateConfig(
+                            ["aiInferenceEndpoints", endpoint],
+                            e.target.value,
+                          )
+                        }
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="https://api.example.com/ai-inference"
+                      />
+                      <button
+                        onClick={() =>
+                          testEndpoint(
+                            `ai-${endpoint}`,
+                            config.aiInferenceEndpoints[
+                              endpoint as keyof typeof config.aiInferenceEndpoints
+                            ],
+                          )
+                        }
+                        disabled={testing[`ai-${endpoint}`]}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {testing[`ai-${endpoint}`] ? (
+                          <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                        ) : (
+                          "Test"
+                        )}
+                      </button>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {testResults[`ai-${endpoint}`] && (
+                      <div
+                        className={`flex items-center gap-2 text-sm ${
+                          testResults[`ai-${endpoint}`].success
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {testResults[`ai-${endpoint}`].success ? (
+                          <CheckCircleIcon className="w-4 h-4" />
+                        ) : (
+                          <XCircleIcon className="w-4 h-4" />
+                        )}
+                        {testResults[`ai-${endpoint}`].message}
+                      </div>
+                    )}
+                  </div>
+                ),
+              )}
             </div>
 
             {/* R3 XML Endpoint */}
@@ -403,7 +509,9 @@ export default function SuperAdminConfigTab() {
                 <input
                   type="url"
                   value={config.r3XmlEndpoint}
-                  onChange={(e) => updateConfig(["r3XmlEndpoint"], e.target.value)}
+                  onChange={(e) =>
+                    updateConfig(["r3XmlEndpoint"], e.target.value)
+                  }
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="https://api.example.com/r3-xml"
                 />
@@ -422,7 +530,9 @@ export default function SuperAdminConfigTab() {
               {testResults["r3-xml"] && (
                 <div
                   className={`flex items-center gap-2 text-sm ${
-                    testResults["r3-xml"].success ? "text-green-600" : "text-red-600"
+                    testResults["r3-xml"].success
+                      ? "text-green-600"
+                      : "text-red-600"
                   }`}
                 >
                   {testResults["r3-xml"].success ? (
@@ -444,12 +554,16 @@ export default function SuperAdminConfigTab() {
                 <input
                   type="url"
                   value={config.pmidListEndpoint || ""}
-                  onChange={(e) => updateConfig(["pmidListEndpoint"], e.target.value)}
+                  onChange={(e) =>
+                    updateConfig(["pmidListEndpoint"], e.target.value)
+                  }
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="http://..."
                 />
                 <button
-                  onClick={() => testEndpoint("pmid-list", config.pmidListEndpoint)}
+                  onClick={() =>
+                    testEndpoint("pmid-list", config.pmidListEndpoint)
+                  }
                   disabled={testing["pmid-list"]}
                   className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 flex items-center gap-2"
                 >
@@ -463,7 +577,9 @@ export default function SuperAdminConfigTab() {
               {testResults["pmid-list"] && (
                 <div
                   className={`flex items-center gap-2 text-sm ${
-                    testResults["pmid-list"].success ? "text-green-600" : "text-red-600"
+                    testResults["pmid-list"].success
+                      ? "text-green-600"
+                      : "text-red-600"
                   }`}
                 >
                   {testResults["pmid-list"].success ? (
@@ -484,7 +600,9 @@ export default function SuperAdminConfigTab() {
               <input
                 type="url"
                 value={config.pubmedApiEndpoint}
-                onChange={(e) => updateConfig(["pubmedApiEndpoint"], e.target.value)}
+                onChange={(e) =>
+                  updateConfig(["pubmedApiEndpoint"], e.target.value)
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
               />
@@ -493,7 +611,9 @@ export default function SuperAdminConfigTab() {
             {/* Backend/Frontend URLs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Backend URL</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Backend URL
+                </label>
                 <input
                   type="url"
                   value={config.backendUrl}
@@ -503,11 +623,15 @@ export default function SuperAdminConfigTab() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Frontend URL</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Frontend URL
+                </label>
                 <input
                   type="url"
                   value={config.frontendUrl}
-                  onChange={(e) => updateConfig(["frontendUrl"], e.target.value)}
+                  onChange={(e) =>
+                    updateConfig(["frontendUrl"], e.target.value)
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="https://liase-interface.azurewebsites.net"
                 />
@@ -517,22 +641,30 @@ export default function SuperAdminConfigTab() {
             {/* Ports */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Backend Port</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Backend Port
+                </label>
                 <input
                   type="number"
                   value={config.backendPort}
-                  onChange={(e) => updateConfig(["backendPort"], parseInt(e.target.value))}
+                  onChange={(e) =>
+                    updateConfig(["backendPort"], parseInt(e.target.value))
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="1000"
                   max="65535"
                 />
               </div>
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Frontend Port</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Frontend Port
+                </label>
                 <input
                   type="number"
                   value={config.frontendPort}
-                  onChange={(e) => updateConfig(["frontendPort"], parseInt(e.target.value))}
+                  onChange={(e) =>
+                    updateConfig(["frontendPort"], parseInt(e.target.value))
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="1000"
                   max="65535"
@@ -545,7 +677,9 @@ export default function SuperAdminConfigTab() {
         {/* AI Processing Section */}
         {activeSection === "ai-processing" && (
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">AI Processing Configuration</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              AI Processing Configuration
+            </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -556,13 +690,18 @@ export default function SuperAdminConfigTab() {
                   type="number"
                   value={config.aiProcessing.maxConcurrentRequests}
                   onChange={(e) =>
-                    updateConfig(["aiProcessing", "maxConcurrentRequests"], parseInt(e.target.value))
+                    updateConfig(
+                      ["aiProcessing", "maxConcurrentRequests"],
+                      parseInt(e.target.value),
+                    )
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="1"
                   max="20"
                 />
-                <p className="text-xs text-gray-500">Number of simultaneous AI requests (1-20)</p>
+                <p className="text-xs text-gray-500">
+                  Number of simultaneous AI requests (1-20)
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -573,14 +712,19 @@ export default function SuperAdminConfigTab() {
                   type="number"
                   value={config.aiProcessing.requestTimeout}
                   onChange={(e) =>
-                    updateConfig(["aiProcessing", "requestTimeout"], parseInt(e.target.value))
+                    updateConfig(
+                      ["aiProcessing", "requestTimeout"],
+                      parseInt(e.target.value),
+                    )
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="5000"
                   max="120000"
                   step="1000"
                 />
-                <p className="text-xs text-gray-500">Timeout for AI API requests (5000-120000ms)</p>
+                <p className="text-xs text-gray-500">
+                  Timeout for AI API requests (5000-120000ms)
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -591,13 +735,18 @@ export default function SuperAdminConfigTab() {
                   type="number"
                   value={config.aiProcessing.retryAttempts}
                   onChange={(e) =>
-                    updateConfig(["aiProcessing", "retryAttempts"], parseInt(e.target.value))
+                    updateConfig(
+                      ["aiProcessing", "retryAttempts"],
+                      parseInt(e.target.value),
+                    )
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="0"
                   max="10"
                 />
-                <p className="text-xs text-gray-500">Number of retry attempts on failure (0-10)</p>
+                <p className="text-xs text-gray-500">
+                  Number of retry attempts on failure (0-10)
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -608,13 +757,18 @@ export default function SuperAdminConfigTab() {
                   type="number"
                   value={config.aiProcessing.batchSize}
                   onChange={(e) =>
-                    updateConfig(["aiProcessing", "batchSize"], parseInt(e.target.value))
+                    updateConfig(
+                      ["aiProcessing", "batchSize"],
+                      parseInt(e.target.value),
+                    )
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="1"
                   max="50"
                 />
-                <p className="text-xs text-gray-500">Items per batch for processing (1-50)</p>
+                <p className="text-xs text-gray-500">
+                  Items per batch for processing (1-50)
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -625,7 +779,10 @@ export default function SuperAdminConfigTab() {
                   type="number"
                   value={config.aiProcessing.circuitBreakerThreshold}
                   onChange={(e) =>
-                    updateConfig(["aiProcessing", "circuitBreakerThreshold"], parseInt(e.target.value))
+                    updateConfig(
+                      ["aiProcessing", "circuitBreakerThreshold"],
+                      parseInt(e.target.value),
+                    )
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="1"
@@ -643,7 +800,10 @@ export default function SuperAdminConfigTab() {
                     type="checkbox"
                     checked={config.aiProcessing.enableCircuitBreaker}
                     onChange={(e) =>
-                      updateConfig(["aiProcessing", "enableCircuitBreaker"], e.target.checked)
+                      updateConfig(
+                        ["aiProcessing", "enableCircuitBreaker"],
+                        e.target.checked,
+                      )
                     }
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                   />
@@ -659,10 +819,215 @@ export default function SuperAdminConfigTab() {
           </div>
         )}
 
+        {/* Workflow & Allocation Configuration */}
+        {activeSection === "workflow" && (
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Workflow & Allocation Configuration
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* ICSR Track */}
+              <div className="md:col-span-2 bg-red-50 p-4 rounded-lg border border-red-100">
+                <h4 className="font-semibold text-red-800 border-b border-red-200 pb-2 mb-4 flex items-center">
+                  <span className="bg-red-200 text-red-800 text-xs px-2 py-1 rounded mr-2">
+                    Track 1
+                  </span>
+                  ICSR Track Settings
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Triage Batch Size
+                    </label>
+                    <input
+                      type="number"
+                      value={config.workflow?.icsrTriageBatchSize || 10}
+                      onChange={(e) =>
+                        updateConfig(
+                          ["workflow", "icsrTriageBatchSize"],
+                          parseInt(e.target.value),
+                        )
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      min="1"
+                      max="50"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Cases per batch for Triage allocation
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Assessment Batch Size
+                    </label>
+                    <input
+                      type="number"
+                      value={config.workflow?.icsrAssessmentBatchSize || 6}
+                      onChange={(e) =>
+                        updateConfig(
+                          ["workflow", "icsrAssessmentBatchSize"],
+                          parseInt(e.target.value),
+                        )
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      min="1"
+                      max="50"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Cases per batch for Assessment allocation
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* AOI Track */}
+              <div className="md:col-span-2 bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                <h4 className="font-semibold text-yellow-800 border-b border-yellow-200 pb-2 mb-4 flex items-center">
+                  <span className="bg-yellow-200 text-yellow-800 text-xs px-2 py-1 rounded mr-2">
+                    Track 2
+                  </span>
+                  Article of Interest (AOI) Track Settings
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Auto-QC Pass %
+                    </label>
+                    <input
+                      type="number"
+                      value={config.workflow?.aoiAutoQCPercent || 20}
+                      onChange={(e) =>
+                        updateConfig(
+                          ["workflow", "aoiAutoQCPercent"],
+                          parseInt(e.target.value),
+                        )
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                      min="0"
+                      max="100"
+                    />
+                    <p className="text-xs text-gray-500">
+                      % of cases skipping manual triage
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Triage Batch Size
+                    </label>
+                    <input
+                      type="number"
+                      value={config.workflow?.aoiTriageBatchSize || 10}
+                      onChange={(e) =>
+                        updateConfig(
+                          ["workflow", "aoiTriageBatchSize"],
+                          parseInt(e.target.value),
+                        )
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                      min="1"
+                      max="50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Assessment Batch Size
+                    </label>
+                    <input
+                      type="number"
+                      value={config.workflow?.aoiAssessmentBatchSize || 6}
+                      onChange={(e) =>
+                        updateConfig(
+                          ["workflow", "aoiAssessmentBatchSize"],
+                          parseInt(e.target.value),
+                        )
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                      min="1"
+                      max="50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* No Case Track */}
+              <div className="md:col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h4 className="font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4 flex items-center">
+                  <span className="bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded mr-2">
+                    Track 3
+                  </span>
+                  No Case Track Settings
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Auto-QC Pass %
+                    </label>
+                    <input
+                      type="number"
+                      value={config.workflow?.noCaseAutoQCPercent || 20}
+                      onChange={(e) =>
+                        updateConfig(
+                          ["workflow", "noCaseAutoQCPercent"],
+                          parseInt(e.target.value),
+                        )
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500"
+                      min="0"
+                      max="100"
+                    />
+                    <p className="text-xs text-gray-500">
+                      % of cases skipping manual triage
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Triage Batch Size
+                    </label>
+                    <input
+                      type="number"
+                      value={config.workflow?.noCaseTriageBatchSize || 10}
+                      onChange={(e) =>
+                        updateConfig(
+                          ["workflow", "noCaseTriageBatchSize"],
+                          parseInt(e.target.value),
+                        )
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500"
+                      min="1"
+                      max="50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Assessment Batch Size
+                    </label>
+                    <input
+                      type="number"
+                      value={config.workflow?.noCaseAssessmentBatchSize || 6}
+                      onChange={(e) =>
+                        updateConfig(
+                          ["workflow", "noCaseAssessmentBatchSize"],
+                          parseInt(e.target.value),
+                        )
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500"
+                      min="1"
+                      max="50"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Database Section */}
         {activeSection === "database" && (
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Database Configuration</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Database Configuration
+            </h3>
 
             <div className="space-y-4">
               <div className="space-y-2">
@@ -672,7 +1037,12 @@ export default function SuperAdminConfigTab() {
                 <input
                   type="url"
                   value={config.database.cosmosDbEndpoint}
-                  onChange={(e) => updateConfig(["database", "cosmosDbEndpoint"], e.target.value)}
+                  onChange={(e) =>
+                    updateConfig(
+                      ["database", "cosmosDbEndpoint"],
+                      e.target.value,
+                    )
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="https://your-cosmos-db.documents.azure.com:443/"
                 />
@@ -685,7 +1055,9 @@ export default function SuperAdminConfigTab() {
                 <input
                   type="text"
                   value={config.database.databaseId}
-                  onChange={(e) => updateConfig(["database", "databaseId"], e.target.value)}
+                  onChange={(e) =>
+                    updateConfig(["database", "databaseId"], e.target.value)
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="LIASE-DB"
                 />
@@ -700,13 +1072,18 @@ export default function SuperAdminConfigTab() {
                     type="number"
                     value={config.database.maxConnectionPoolSize}
                     onChange={(e) =>
-                      updateConfig(["database", "maxConnectionPoolSize"], parseInt(e.target.value))
+                      updateConfig(
+                        ["database", "maxConnectionPoolSize"],
+                        parseInt(e.target.value),
+                      )
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     min="10"
                     max="500"
                   />
-                  <p className="text-xs text-gray-500">Maximum database connections (10-500)</p>
+                  <p className="text-xs text-gray-500">
+                    Maximum database connections (10-500)
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -717,14 +1094,19 @@ export default function SuperAdminConfigTab() {
                     type="number"
                     value={config.database.requestTimeout}
                     onChange={(e) =>
-                      updateConfig(["database", "requestTimeout"], parseInt(e.target.value))
+                      updateConfig(
+                        ["database", "requestTimeout"],
+                        parseInt(e.target.value),
+                      )
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     min="5000"
                     max="120000"
                     step="1000"
                   />
-                  <p className="text-xs text-gray-500">Database request timeout (5000-120000ms)</p>
+                  <p className="text-xs text-gray-500">
+                    Database request timeout (5000-120000ms)
+                  </p>
                 </div>
               </div>
             </div>
@@ -734,7 +1116,9 @@ export default function SuperAdminConfigTab() {
         {/* Email Section */}
         {activeSection === "email" && (
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Email Configuration</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Email Configuration
+            </h3>
 
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -745,7 +1129,9 @@ export default function SuperAdminConfigTab() {
                   <input
                     type="text"
                     value={config.email.smtpHost}
-                    onChange={(e) => updateConfig(["email", "smtpHost"], e.target.value)}
+                    onChange={(e) =>
+                      updateConfig(["email", "smtpHost"], e.target.value)
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="smtp.gmail.com"
                   />
@@ -758,7 +1144,12 @@ export default function SuperAdminConfigTab() {
                   <input
                     type="number"
                     value={config.email.smtpPort}
-                    onChange={(e) => updateConfig(["email", "smtpPort"], parseInt(e.target.value))}
+                    onChange={(e) =>
+                      updateConfig(
+                        ["email", "smtpPort"],
+                        parseInt(e.target.value),
+                      )
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="587"
                   />
@@ -770,7 +1161,9 @@ export default function SuperAdminConfigTab() {
                   <input
                     type="checkbox"
                     checked={config.email.smtpSecure}
-                    onChange={(e) => updateConfig(["email", "smtpSecure"], e.target.checked)}
+                    onChange={(e) =>
+                      updateConfig(["email", "smtpSecure"], e.target.checked)
+                    }
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="text-sm font-medium text-gray-700">
@@ -790,7 +1183,9 @@ export default function SuperAdminConfigTab() {
                   <input
                     type="text"
                     value={config.email.fromName}
-                    onChange={(e) => updateConfig(["email", "fromName"], e.target.value)}
+                    onChange={(e) =>
+                      updateConfig(["email", "fromName"], e.target.value)
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="LIASE Notifications"
                   />
@@ -803,7 +1198,9 @@ export default function SuperAdminConfigTab() {
                   <input
                     type="email"
                     value={config.email.fromEmail}
-                    onChange={(e) => updateConfig(["email", "fromEmail"], e.target.value)}
+                    onChange={(e) =>
+                      updateConfig(["email", "fromEmail"], e.target.value)
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="noreply@example.com"
                   />
@@ -816,7 +1213,9 @@ export default function SuperAdminConfigTab() {
         {/* Scheduler Section */}
         {activeSection === "scheduler" && (
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Scheduler Configuration</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Scheduler Configuration
+            </h3>
 
             <div className="space-y-4">
               <div className="space-y-2">
@@ -826,7 +1225,12 @@ export default function SuperAdminConfigTab() {
                 <input
                   type="text"
                   value={config.scheduler.drugSearchInterval}
-                  onChange={(e) => updateConfig(["scheduler", "drugSearchInterval"], e.target.value)}
+                  onChange={(e) =>
+                    updateConfig(
+                      ["scheduler", "drugSearchInterval"],
+                      e.target.value,
+                    )
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                   placeholder="0 */6 * * *"
                 />
@@ -842,7 +1246,12 @@ export default function SuperAdminConfigTab() {
                 <input
                   type="text"
                   value={config.scheduler.dailyReportsTime}
-                  onChange={(e) => updateConfig(["scheduler", "dailyReportsTime"], e.target.value)}
+                  onChange={(e) =>
+                    updateConfig(
+                      ["scheduler", "dailyReportsTime"],
+                      e.target.value,
+                    )
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                   placeholder="0 9 * * *"
                 />
@@ -861,7 +1270,7 @@ export default function SuperAdminConfigTab() {
                   onChange={(e) =>
                     updateConfig(
                       ["scheduler", "notificationProcessingInterval"],
-                      parseInt(e.target.value)
+                      parseInt(e.target.value),
                     )
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -874,7 +1283,9 @@ export default function SuperAdminConfigTab() {
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Cron Expression Examples</h4>
+                <h4 className="font-medium text-blue-900 mb-2">
+                  Cron Expression Examples
+                </h4>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• "0 */6 * * *" - Every 6 hours</li>
                   <li>• "0 9 * * *" - Daily at 9:00 AM</li>
@@ -890,7 +1301,9 @@ export default function SuperAdminConfigTab() {
         {/* Security Section */}
         {activeSection === "security" && (
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Security Configuration</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Security Configuration
+            </h3>
 
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -901,11 +1314,15 @@ export default function SuperAdminConfigTab() {
                   <input
                     type="text"
                     value={config.security.jwtExpiresIn}
-                    onChange={(e) => updateConfig(["security", "jwtExpiresIn"], e.target.value)}
+                    onChange={(e) =>
+                      updateConfig(["security", "jwtExpiresIn"], e.target.value)
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="24h"
                   />
-                  <p className="text-xs text-gray-500">Examples: 24h, 7d, 30d</p>
+                  <p className="text-xs text-gray-500">
+                    Examples: 24h, 7d, 30d
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -916,13 +1333,18 @@ export default function SuperAdminConfigTab() {
                     type="number"
                     value={config.security.passwordMinLength}
                     onChange={(e) =>
-                      updateConfig(["security", "passwordMinLength"], parseInt(e.target.value))
+                      updateConfig(
+                        ["security", "passwordMinLength"],
+                        parseInt(e.target.value),
+                      )
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     min="6"
                     max="32"
                   />
-                  <p className="text-xs text-gray-500">Minimum password length (6-32)</p>
+                  <p className="text-xs text-gray-500">
+                    Minimum password length (6-32)
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -933,13 +1355,18 @@ export default function SuperAdminConfigTab() {
                     type="number"
                     value={config.security.sessionTimeout}
                     onChange={(e) =>
-                      updateConfig(["security", "sessionTimeout"], parseInt(e.target.value))
+                      updateConfig(
+                        ["security", "sessionTimeout"],
+                        parseInt(e.target.value),
+                      )
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     min="15"
                     max="480"
                   />
-                  <p className="text-xs text-gray-500">Auto-logout after inactivity (15-480 min)</p>
+                  <p className="text-xs text-gray-500">
+                    Auto-logout after inactivity (15-480 min)
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -950,13 +1377,18 @@ export default function SuperAdminConfigTab() {
                     type="number"
                     value={config.security.maxLoginAttempts}
                     onChange={(e) =>
-                      updateConfig(["security", "maxLoginAttempts"], parseInt(e.target.value))
+                      updateConfig(
+                        ["security", "maxLoginAttempts"],
+                        parseInt(e.target.value),
+                      )
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     min="3"
                     max="10"
                   />
-                  <p className="text-xs text-gray-500">Failed attempts before lockout (3-10)</p>
+                  <p className="text-xs text-gray-500">
+                    Failed attempts before lockout (3-10)
+                  </p>
                 </div>
               </div>
 
@@ -983,7 +1415,9 @@ export default function SuperAdminConfigTab() {
         {/* Maintenance Section */}
         {activeSection === "maintenance" && (
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Maintenance Mode</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Maintenance Mode
+            </h3>
 
             <div className="space-y-4">
               <div className="space-y-2">
@@ -991,7 +1425,9 @@ export default function SuperAdminConfigTab() {
                   <input
                     type="checkbox"
                     checked={config.maintenance.enabled}
-                    onChange={(e) => updateConfig(["maintenance", "enabled"], e.target.checked)}
+                    onChange={(e) =>
+                      updateConfig(["maintenance", "enabled"], e.target.checked)
+                    }
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="text-sm font-medium text-gray-700">
@@ -1011,7 +1447,9 @@ export default function SuperAdminConfigTab() {
                     </label>
                     <textarea
                       value={config.maintenance.message}
-                      onChange={(e) => updateConfig(["maintenance", "message"], e.target.value)}
+                      onChange={(e) =>
+                        updateConfig(["maintenance", "message"], e.target.value)
+                      }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       rows={3}
                       placeholder="System is under maintenance. Please try again later."
@@ -1027,7 +1465,7 @@ export default function SuperAdminConfigTab() {
                       onChange={(e) =>
                         updateConfig(
                           ["maintenance", "allowedIps"],
-                          e.target.value.split("\n").filter((ip) => ip.trim())
+                          e.target.value.split("\n").filter((ip) => ip.trim()),
                         )
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"

@@ -546,9 +546,41 @@ class Study {
       this.qaApprovedBy = null;
       this.qaApprovedAt = null;
       this.r3FormStatus = "not_started";
+    } else if (targetStage === "qc_data_entry") {
+      // Revoke to QC Data Entry (e.g. from Medical Review)
+      this.status = "qc_data_entry";
+      this.qcR3Status = "pending"; // Reset to pending to appear in QC queue
+      this.medicalReviewStatus = "not_started";
+      // Do NOT reset r3FormStatus as it is already completed
+    } else if (
+      targetStage === "assessment" ||
+      targetStage === "qc_allocation"
+    ) {
+      // Revoke to Assessment/Allocation (e.g. from Data Entry)
+
+      const track = this.workflowTrack || "ICSR"; // Default to ICSR
+
+      if (track === "ICSR") {
+        this.status = "qc_allocation";
+        this.subStatus = "assessment";
+        this.qaApprovalStatus = "pending"; // Pending allocation/QC
+      } else if (track === "AOI") {
+        this.status = "aoi_assessment";
+        this.subStatus = "assessment";
+        this.isAutoPassed = false;
+      } else if (track === "NoCase" || track === "No Case") {
+        this.status = "no_case_assessment";
+        this.subStatus = "assessment";
+        this.isAutoPassed = false;
+      }
+
+      // Reset Data Entry / R3 progress
+      this.r3FormStatus = "not_started";
+      this.qcR3Status = "not_started";
+      this.medicalReviewStatus = "not_started";
+      this.qaApprovedAt = null; // Clear approval that moved it to Data Entry
     } else {
       // Default behavior (revoke to Data Entry)
-
       // Assign back to classifier if available, otherwise Data Entry user
       if (this.classifiedBy) {
         this.assignedTo = this.classifiedBy;
@@ -558,7 +590,9 @@ class Study {
         this.lockedAt = new Date().toISOString();
       }
 
+      this.status = "data_entry";
       this.r3FormStatus = "in_progress"; // Reset to allow data entry to fix
+      this.qcR3Status = "not_started"; // Reset QC R3 status
     }
 
     this.updatedAt = new Date().toISOString();
@@ -784,7 +818,15 @@ class Study {
    * @param {string} userName - User name making the change
    */
   routeFromAssessment(destination, userId, userName) {
-    const validDestinations = ["data_entry", "medical_review", "reporting"];
+    const validDestinations = [
+      "data_entry",
+      "medical_review",
+      "reporting",
+      "aoi_assessment",
+      "no_case_assessment",
+      "icsr_triage",
+    ];
+
     if (!validDestinations.includes(destination)) {
       throw new Error(
         `Invalid destination. Must be one of: ${validDestinations.join(", ")}`,
@@ -792,12 +834,74 @@ class Study {
     }
 
     if (this.subStatus !== "assessment") {
-      throw new Error("Study must be in assessment phase to route");
+      // Allow if strictly re-routing, but warning: subStatus must catch logic issues
+      // throw new Error("Study must be in assessment phase to route");
     }
 
     const previousStatus = this.status;
-    this.status = destination;
     this.updatedAt = new Date().toISOString();
+
+    // Mapping Logic
+    switch (destination) {
+      case "data_entry":
+        this.workflowTrack = "ICSR";
+        this.workflowStage = "DATA_ENTRY";
+        this.subStatus = "data_entry";
+        this.status = "Pending Data Entry";
+        break;
+
+      case "aoi_assessment":
+        this.workflowTrack = "AOI";
+        this.workflowStage = "ASSESSMENT_AOI";
+        this.subStatus = "assessment";
+        this.status = "Under Assessment";
+        break;
+
+      case "no_case_assessment":
+        this.workflowTrack = "NoCase";
+        this.workflowStage = "ASSESSMENT_NO_CASE";
+        this.subStatus = "assessment";
+        this.status = "Under Assessment";
+        break;
+
+      case "icsr_triage":
+        this.workflowTrack = "ICSR";
+        this.workflowStage = "TRIAGE_ICSR";
+        this.subStatus = "triage";
+        this.status = "Under Triage Review";
+        break;
+
+      case "reporting":
+        // Logic for reporting state
+        if (this.userTag === "AOI" || this.workflowTrack === "AOI") {
+          this.workflowTrack = "AOI";
+          this.workflowStage = "REPORTING";
+          this.subStatus = "reporting";
+          this.status = "Ready for Report";
+        } else if (
+          this.userTag === "No Case" ||
+          this.workflowTrack === "NoCase"
+        ) {
+          this.workflowTrack = "NoCase";
+          this.workflowStage = "REPORTING";
+          this.subStatus = "reporting";
+          this.status = "No Case Confirmed";
+        } else {
+          this.workflowStage = "REPORTING";
+          this.subStatus = "reporting";
+          this.status = "Ready for Report";
+        }
+        break;
+
+      case "medical_review":
+        this.workflowStage = "MEDICAL_REVIEW";
+        this.subStatus = "medical_review";
+        this.status = "Pending Medical Review";
+        break;
+
+      default:
+        this.status = destination; // Fallback
+    }
 
     // Clear assignment for next phase
     this.assignedTo = null;

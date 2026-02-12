@@ -376,6 +376,8 @@ class StudyCreationService {
       studyData.icsrClassification || ""
     ).toLowerCase();
 
+    const aoiClassification = (studyData.aoiClassification || "").toLowerCase();
+
     // Fetch allocation and workflow config
     let allocationConfig = null;
     let workflowConfig = null;
@@ -403,66 +405,63 @@ class StudyCreationService {
       workflowConfig?.noCaseAllocationPercentage ??
       (allocationConfig?.noCaseAllocationPercentage || 10);
 
-    // ICSR Triage: Probable ICSR/AOI, Probable ICSR, or Article requires manual review
-    if (
-      icsrClassification.includes("probable icsr/aoi") ||
-      icsrClassification.includes("probable icsr") ||
-      icsrClassification.includes("article requires manual review")
-    ) {
+    // Classification Logic - STRICT based on ICSR Classification tag only
+    // 1. ICSR Track identifiers
+    const isProbableICSR =
+      icsrClassification === "probable icsr" ||
+      icsrClassification === "probable icsr/aoi" ||
+      icsrClassification === "article requires manual review";
+
+    // 2. AOI Track identifier
+    const isProbableAOI = icsrClassification === "probable aoi";
+
+    // 3. No Case identifier
+    const isNoCase = icsrClassification === "no case";
+
+    // 1. ICSR Triage: Probable ICSR/AOI, Probable ICSR, or Article requires manual review
+    if (isProbableICSR) {
       // Keep in triage (default status)
       studyData.routingTarget = "icsr_triage";
+      studyData.workflowTrack = "ICSR";
+      studyData.subStatus = "triage";
       console.log(
         `Study routed to ICSR Triage based on icsrClassification: ${studyData.icsrClassification}`,
       );
       return;
     }
 
-    // AOI Allocation/Assessment: Probable AOI
-    if (icsrClassification.includes("probable aoi")) {
-      const random = Math.random() * 100;
-      if (random < aoiAllocationPercentage) {
-        // Route to AOI Allocation
-        studyData.status = "aoi_allocation";
-        studyData.routingTarget = "aoi_allocation";
-        console.log(
-          `Study routed to AOI Allocation (${aoiAllocationPercentage}% sampling)`,
-        );
-      } else {
-        // Route directly to AOI Assessment
-        studyData.status = "aoi_assessment";
-        studyData.routingTarget = "aoi_assessment";
-        studyData.userTag = "AOI"; // Auto-tag as AOI
-        studyData.qaApprovalStatus = "not_applicable"; // Bypass QC
-        console.log(`Study automatically routed to AOI Assessment`);
-      }
+    // 2. AOI Allocation/Assessment: Probable AOI
+    if (isProbableAOI) {
+      // Route directly to AOI Assessment (100% flow)
+      studyData.status = "aoi_assessment";
+      studyData.routingTarget = "aoi_assessment";
+      studyData.workflowTrack = "AOI";
+      studyData.subStatus = "assessment";
+      studyData.userTag = "AOI"; // Auto-tag as AOI
+      studyData.qaApprovalStatus = "not_applicable"; // Bypass QC
+      studyData.isAutoPassed = true;
+      console.log(`Study automatically routed to AOI Assessment`);
       return;
     }
 
-    // No Case Allocation/Assessment: No Case
-    if (icsrClassification.includes("no case")) {
-      const random = Math.random() * 100;
-      if (random < noCaseAllocationPercentage) {
-        // Route to No Case Allocation
-        studyData.status = "no_case_allocation";
-        studyData.routingTarget = "no_case_allocation";
-        console.log(
-          `Study routed to No Case Allocation (${noCaseAllocationPercentage}% sampling)`,
-        );
-      } else {
-        // Route directly to No Case Assessment (Reports)
-        studyData.status = "reporting";
-        studyData.routingTarget = "reporting";
-        studyData.userTag = "No Case"; // Auto-tag as No Case
-        studyData.qaApprovalStatus = "not_applicable"; // Bypass QC
-        console.log(
-          `Study automatically routed to No Case Assessment (Reports)`,
-        );
-      }
+    // 3. No Case Allocation/Assessment: No Case
+    if (isNoCase) {
+      // Route directly to No Case Assessment (100% flow)
+      studyData.status = "no_case_assessment";
+      studyData.routingTarget = "no_case_assessment";
+      studyData.workflowTrack = "NoCase";
+      studyData.subStatus = "assessment";
+      studyData.userTag = "No Case"; // Auto-tag as No Case
+      studyData.qaApprovalStatus = "not_applicable"; // Bypass QC
+      studyData.isAutoPassed = true;
+      console.log(`Study automatically routed to No Case Assessment`);
       return;
     }
 
     // Default: Keep in triage for manual review
     studyData.routingTarget = "icsr_triage";
+    studyData.workflowTrack = "ICSR";
+    studyData.subStatus = "triage";
     console.log(`Study routed to ICSR Triage (default route)`);
   }
 
