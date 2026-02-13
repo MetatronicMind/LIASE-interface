@@ -4,13 +4,16 @@ const cosmosService = require("./backend/src/services/cosmosService");
 
 async function diagnoseTracks() {
   try {
-    console.log("Diagnosing Studies Created Today...");
-    const today = new Date().toISOString().split("T")[0];
+    console.log("Diagnosing Studies Created Recently...");
+    // Look back 2 days
+    const date = new Date();
+    date.setDate(date.getDate() - 2);
+    const fromDate = date.toISOString().split("T")[0];
 
     const query = `
             SELECT *
             FROM c 
-            WHERE c.createdAt >= '${today}'
+            WHERE c.createdAt >= '${fromDate}'
         `;
 
     const studies = await cosmosService.queryItems("studies", query, []);

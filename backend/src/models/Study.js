@@ -847,7 +847,7 @@ class Study {
         this.workflowTrack = "ICSR";
         this.workflowStage = "DATA_ENTRY";
         this.subStatus = "data_entry";
-        this.status = "Pending Data Entry";
+        this.status = "data_entry";
         break;
 
       case "aoi_assessment":

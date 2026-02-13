@@ -1197,7 +1197,7 @@ router.put(
           if (study.workflowStage === "ASSESSMENT_ICSR") {
             if (decision === "ICSR") {
               nextStageId = "DATA_ENTRY";
-              nextStatus = "Data Entry";
+              nextStatus = "data_entry";
               nextSubStatus = "processing";
               nextClassification = "Probable ICSR";
             } else if (decision === "AOI") {
