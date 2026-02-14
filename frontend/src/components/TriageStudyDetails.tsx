@@ -692,8 +692,15 @@ export default function TriageStudyDetails({
                   )}
                 </div>
 
-                {selectedClassification === "ICSR" && (
-                  <div className="bg-red-50 p-3 rounded-md border border-red-100">
+                {(selectedClassification === "ICSR" ||
+                  selectedClassification === "AOI") && (
+                  <div
+                    className={`${
+                      selectedClassification === "ICSR"
+                        ? "bg-red-50 border-red-100"
+                        : "bg-yellow-50 border-yellow-100"
+                    } p-3 rounded-md border`}
+                  >
                     {/* <p className="text-sm font-medium text-red-800 mb-2">Additional ICSR Options</p> */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -704,7 +711,11 @@ export default function TriageStudyDetails({
                           <label className="inline-flex items-center">
                             <input
                               type="radio"
-                              className="form-radio text-red-600"
+                              className={`form-radio ${
+                                selectedClassification === "ICSR"
+                                  ? "text-red-600"
+                                  : "text-yellow-600"
+                              }`}
                               name="listedness"
                               value="Listed"
                               checked={listedness === "Listed"}
@@ -717,7 +728,11 @@ export default function TriageStudyDetails({
                           <label className="inline-flex items-center">
                             <input
                               type="radio"
-                              className="form-radio text-red-600"
+                              className={`form-radio ${
+                                selectedClassification === "ICSR"
+                                  ? "text-red-600"
+                                  : "text-yellow-600"
+                              }`}
                               name="listedness"
                               value="Unlisted"
                               checked={listedness === "Unlisted"}
@@ -737,7 +752,11 @@ export default function TriageStudyDetails({
                           <label className="inline-flex items-center">
                             <input
                               type="radio"
-                              className="form-radio text-red-600"
+                              className={`form-radio ${
+                                selectedClassification === "ICSR"
+                                  ? "text-red-600"
+                                  : "text-yellow-600"
+                              }`}
                               name="seriousness"
                               value="Serious"
                               checked={seriousness === "Serious"}
@@ -750,7 +769,11 @@ export default function TriageStudyDetails({
                           <label className="inline-flex items-center">
                             <input
                               type="radio"
-                              className="form-radio text-red-600"
+                              className={`form-radio ${
+                                selectedClassification === "ICSR"
+                                  ? "text-red-600"
+                                  : "text-yellow-600"
+                              }`}
                               name="seriousness"
                               value="Non-Serious"
                               checked={seriousness === "Non-Serious"}
@@ -778,11 +801,13 @@ export default function TriageStudyDetails({
                       classifyStudy(study.id, selectedClassification, {
                         justification: justification,
                         listedness:
-                          selectedClassification === "ICSR"
+                          selectedClassification === "ICSR" ||
+                          selectedClassification === "AOI"
                             ? listedness
                             : undefined,
                         seriousness:
-                          selectedClassification === "ICSR"
+                          selectedClassification === "ICSR" ||
+                          selectedClassification === "AOI"
                             ? seriousness
                             : undefined,
                         fullTextAvailability: fullTextAvailability,
