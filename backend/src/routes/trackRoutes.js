@@ -82,11 +82,19 @@ router.get(
         targetOrgId = req.query.organizationId;
       }
 
+      // Allow fallback to userTag if workflowTrack is missing
+      // Also include case-insensitive and subStatus flexibility
       let query = `
         SELECT * FROM c 
         WHERE c.organizationId = @orgId 
-        AND c.workflowTrack = @track 
-        AND c.subStatus = 'triage'
+        AND (
+            c.workflowTrack = @track
+            OR (
+                (NOT IS_DEFINED(c.workflowTrack) OR c.workflowTrack = null) 
+                AND (c.userTag = @track OR LOWER(c.userTag) = LOWER(@track))
+            )
+        )
+        AND (c.subStatus = 'triage' OR NOT IS_DEFINED(c.subStatus) OR c.subStatus = null)
       `;
       const parameters = [
         { name: "@orgId", value: targetOrgId },
@@ -428,7 +436,7 @@ router.post(
   async (req, res) => {
     try {
       const { studyId } = req.params;
-      const { destination } = req.body;
+      const { destination, previousTrack } = req.body;
 
       const validDestinations = [
         "data_entry",
@@ -437,6 +445,9 @@ router.post(
         "aoi_assessment",
         "no_case_assessment",
         "icsr_triage",
+        "icsr_assessment",
+        "aoi_triage", // Added
+        "no_case_triage", // Added
       ];
       if (!validDestinations.includes(destination)) {
         return res.status(400).json({
@@ -450,6 +461,7 @@ router.post(
         studyId,
         destination,
         req.user,
+        previousTrack,
       );
 
       await auditAction(
@@ -610,20 +622,58 @@ router.post(
         { name: "@track", value: trackType },
       ];
 
+      // 1. FIRST CHECK: Do I already have unfinished cases assigned to me?
+      // If so, return those instead of allocating more.
+      const myCasesQuery = `
+          SELECT * FROM c 
+          WHERE c.organizationId = @orgId 
+          AND (
+              c.workflowTrack = @track
+              OR (
+                  (NOT IS_DEFINED(c.workflowTrack) OR c.workflowTrack = null) 
+                  AND (c.userTag = @track OR LOWER(c.userTag) = LOWER(@track))
+              )
+          )
+          AND c.assignedTo = @userId
+          AND (c.subStatus = 'triage' OR NOT IS_DEFINED(c.subStatus) OR c.subStatus = null)
+          ORDER BY c.createdAt ASC
+      `;
+
+      const myCases = await cosmosService.queryItems("studies", myCasesQuery, [
+        ...parameters,
+        { name: "@userId", value: userId },
+      ]);
+
+      if (myCases && myCases.length > 0) {
+        // Return existing assigned cases
+        return res.json({
+          success: true,
+          message: `Resuming ${myCases.length} assigned case(s)`,
+          cases: myCases,
+        });
+      }
+
       // SIMPLIFIED LOGIC: Use workflowTrack and subStatus
       // Source bucket depends on track type
       const baseQuery = `
           SELECT * FROM c 
           WHERE c.organizationId = @orgId 
-          AND c.workflowTrack = @track
-          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
+          AND (
+              c.workflowTrack = @track
+              OR (
+                  (NOT IS_DEFINED(c.workflowTrack) OR c.workflowTrack = null) 
+                  AND (c.userTag = @track OR LOWER(c.userTag) = LOWER(@track))
+              )
+          )
+          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = "")
       `;
 
       // Corrected: All tracks pull from 'triage' bucket for the initial Triage Phase
       // Whether ICSR, AOI, or NoCase, the manual review items start in 'triage'
+      // Also include cases with no subStatus (legacy)
       query = `
           ${baseQuery}
-          AND c.subStatus = 'triage'
+          AND (c.subStatus = 'triage' OR NOT IS_DEFINED(c.subStatus) OR c.subStatus = null)
           ORDER BY c.createdAt ASC
       `;
 

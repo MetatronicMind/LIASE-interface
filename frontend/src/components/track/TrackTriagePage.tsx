@@ -105,6 +105,11 @@ export default function TrackTriagePage({
   const currentCase =
     allocatedCases.length > 0 ? allocatedCases[currentIndex] : null;
 
+  // Scroll to top when current case changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentCase?.id]);
+
   // Classification state
   const [classifying, setClassifying] = useState<string | null>(null);
   const [selectedClassification, setSelectedClassification] = useState<

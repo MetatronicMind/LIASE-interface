@@ -49,6 +49,7 @@ interface Study {
   attachments?: any[];
   qaApprovalStatus?: "pending" | "approved" | "rejected";
   qaComments?: string;
+  sourceTrack?: string;
 }
 
 // Destination options removed in favor of dynamic AssessmentAction UI
@@ -105,6 +106,11 @@ export default function TrackAssessmentPage({
 
   const currentCase =
     allocatedCases.length > 0 ? allocatedCases[currentIndex] : null;
+
+  // Scroll to top when current case changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentCase?.id]);
 
   // Pre-populate logic removed to show the Summary View (already classified) by default in Assessment
   // instead of opening the edit form immediately.
@@ -212,19 +218,23 @@ export default function TrackAssessmentPage({
   };
 
   const handleAssessmentDecision = async (
-    actionType: "approve" | "reroute",
+    actionType: "approve" | "reroute" | "reject",
     targetTrack?: string, // e.g., 'ICSR', 'AOI', 'NoCase'
     destinationEndpoint?: string, // e.g., 'data_entry', 'aoi_assessment'
   ) => {
     const token = getToken();
     if (!token || !currentCase) return;
 
-    const confirmation = window.confirm(
-      actionType === "approve"
-        ? `Approve this case and route to ${destinationEndpoint?.replace("_", " ")}?`
-        : `Re-classify as ${targetTrack} and route to ${destinationEndpoint?.replace("_", " ")}?`,
-    );
+    let confirmMessage = "";
+    if (actionType === "approve") {
+      confirmMessage = `Approve this case and route to ${destinationEndpoint?.replace("_", " ")}?`;
+    } else if (actionType === "reroute") {
+      confirmMessage = `Re-classify as ${targetTrack} and route to ${destinationEndpoint?.replace("_", " ")}?`;
+    } else if (actionType === "reject") {
+      confirmMessage = `Reject this case and return to ${destinationEndpoint?.replace("_", " ")}?`;
+    }
 
+    const confirmation = window.confirm(confirmMessage);
     if (!confirmation) return;
 
     setRoutingStudyId(currentCase.id);
@@ -249,6 +259,12 @@ export default function TrackAssessmentPage({
       // Using generic route endpoint, assuming it accepts these destinations
       // For cross-track routing, we might need a different logic if the backend is strict,
       // but assuming 'route' handles the move.
+      const body: any = { destination: destinationEndpoint };
+      // Pass previous track when rerouting so backend can store history
+      if (actionType === "reroute") {
+        body.previousTrack = trackType; // Current track becomes previous
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/track/route/${currentCase.id}`,
         {
@@ -257,7 +273,7 @@ export default function TrackAssessmentPage({
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ destination: destinationEndpoint }),
+          body: JSON.stringify(body),
         },
       );
 
@@ -265,11 +281,15 @@ export default function TrackAssessmentPage({
 
       if (data.success || response.ok) {
         // Tolerate if success is true or response is ok
-        toast.success(
-          actionType === "approve"
-            ? "Case approved and routed successfully"
-            : `Case re-classified to ${targetTrack} and routed`,
-        );
+        let successMessage = "";
+        if (actionType === "approve")
+          successMessage = "Case approved and routed successfully";
+        else if (actionType === "reroute")
+          successMessage = `Case re-classified to ${targetTrack} and routed`;
+        else if (actionType === "reject")
+          successMessage = "Case rejected successfully";
+
+        toast.success(successMessage);
 
         // Remove from allocated cases
         const newCases = allocatedCases.filter((c) => c.id !== currentCase.id);
@@ -778,6 +798,53 @@ export default function TrackAssessmentPage({
                           )}
                         </>
                       )}
+                    </div>
+
+                    {/* REJECT / RETURN BUTTON */}
+                    <div className="pt-3 mt-1 border-t border-gray-100">
+                      <button
+                        onClick={() => {
+                          let dest = "icsr_triage";
+                          let target = "ICSR";
+
+                          // HISTORY-BASED ROUTING
+                          // If this case came from another track (sourceTrack), prefer sending it back there.
+                          // Specifically handling "From ICSR Assessment -> AOI Assessment (Reject) -> ICSR Assessment"
+                          if (currentCase.sourceTrack) {
+                            if (currentCase.sourceTrack === "ICSR") {
+                              target = "ICSR";
+                              dest = "icsr_assessment"; // Return to Assessment as requested
+                            } else if (currentCase.sourceTrack === "AOI") {
+                              target = "AOI";
+                              dest = "aoi_assessment";
+                            } else if (currentCase.sourceTrack === "NoCase") {
+                              target = "No Case";
+                              dest = "no_case_assessment";
+                            }
+                          } else {
+                            // Default Fallback: Return to Current Track Triage
+                            if (trackType === "AOI") {
+                              dest = "aoi_triage";
+                              target = "AOI";
+                            } else if (trackType === "NoCase") {
+                              dest = "no_case_triage";
+                              target = "No Case";
+                            } else {
+                              // ICSR
+                              dest = "icsr_triage";
+                              target = "ICSR";
+                            }
+                          }
+
+                          handleAssessmentDecision("reject", target, dest);
+                        }}
+                        disabled={routingStudyId === currentCase.id}
+                        className="w-full flex items-center justify-center p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-all font-medium disabled:opacity-50"
+                      >
+                        {currentCase.sourceTrack
+                          ? `Reject (Return to ${currentCase.sourceTrack} Assessment)`
+                          : `Reject (Return to ${trackType === "NoCase" ? "No Case" : trackType} Triage)`}
+                      </button>
                     </div>
                   </div>
                 </div>

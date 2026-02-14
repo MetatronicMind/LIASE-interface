@@ -817,7 +817,7 @@ class Study {
    * @param {string} userId - User ID making the change
    * @param {string} userName - User name making the change
    */
-  routeFromAssessment(destination, userId, userName) {
+  routeFromAssessment(destination, userId, userName, previousTrack = null) {
     const validDestinations = [
       "data_entry",
       "medical_review",
@@ -825,12 +825,25 @@ class Study {
       "aoi_assessment",
       "no_case_assessment",
       "icsr_triage",
+      "icsr_assessment",
+      "aoi_triage", // Added
+      "no_case_triage", // Added
     ];
 
     if (!validDestinations.includes(destination)) {
       throw new Error(
         `Invalid destination. Must be one of: ${validDestinations.join(", ")}`,
       );
+    }
+
+    // Store previous track if provided
+    if (previousTrack && previousTrack !== this.workflowTrack) {
+      this.sourceTrack = previousTrack;
+      this.sourceTrackTimestamp = new Date().toISOString();
+    } else {
+      // If simply moving forward in same track, keep sourceTrack?
+      // Or clear it? Depends on if we want "original source".
+      // For now, let's keep it if not explicitly overwritten.
     }
 
     if (this.subStatus !== "assessment") {
@@ -867,6 +880,27 @@ class Study {
       case "icsr_triage":
         this.workflowTrack = "ICSR";
         this.workflowStage = "TRIAGE_ICSR";
+        this.subStatus = "triage";
+        this.status = "Under Triage Review";
+        break;
+
+      case "icsr_assessment":
+        this.workflowTrack = "ICSR";
+        this.workflowStage = "ASSESSMENT_ICSR";
+        this.subStatus = "assessment";
+        this.status = "Under Assessment";
+        break;
+
+      case "aoi_triage":
+        this.workflowTrack = "AOI";
+        this.workflowStage = "TRIAGE_AOI";
+        this.subStatus = "triage";
+        this.status = "Under Triage Review";
+        break;
+
+      case "no_case_triage":
+        this.workflowTrack = "NoCase";
+        this.workflowStage = "TRIAGE_NO_CASE";
         this.subStatus = "triage";
         this.status = "Under Triage Review";
         break;

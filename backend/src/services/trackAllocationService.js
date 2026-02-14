@@ -37,17 +37,32 @@ class TrackAllocationService {
       throw new Error(`Invalid track type: ${trackType}`);
     }
 
+    const userTag = trackType === "NoCase" ? "No Case" : trackType;
+
+    let subStatusCondition = "c.subStatus = @subStatus";
+    if (subStatus === "triage") {
+      subStatusCondition =
+        "(c.subStatus = @subStatus OR NOT IS_DEFINED(c.subStatus) OR c.subStatus = null)";
+    }
+
     const query = `
       SELECT * FROM c 
       WHERE c.organizationId = @orgId 
-      AND c.workflowTrack = @track 
-      AND c.subStatus = @subStatus
+      AND (
+          c.workflowTrack = @track 
+          OR (
+            (NOT IS_DEFINED(c.workflowTrack) OR c.workflowTrack = null) 
+            AND (c.userTag = @userTag OR LOWER(c.userTag) = LOWER(@userTag))
+          )
+      )
+      AND ${subStatusCondition}
       ORDER BY c.updatedAt DESC
     `;
 
     const studies = await cosmosService.queryItems("studies", query, [
       { name: "@orgId", value: organizationId },
       { name: "@track", value: trackType },
+      { name: "@userTag", value: userTag },
       { name: "@subStatus", value: subStatus },
     ]);
 
@@ -280,9 +295,16 @@ class TrackAllocationService {
    * @param {string} studyId - Study ID
    * @param {string} destination - 'data_entry', 'medical_review', or 'reporting'
    * @param {object} user - User performing the action
+   * @param {string} previousTrack - Optional. The track this study is coming from (if rerouting).
    * @returns {Promise<object>} Result of the operation
    */
-  async routeStudy(organizationId, studyId, destination, user) {
+  async routeStudy(
+    organizationId,
+    studyId,
+    destination,
+    user,
+    previousTrack = null,
+  ) {
     const studyData = await cosmosService.getItem(
       "studies",
       studyId,
@@ -302,7 +324,7 @@ class TrackAllocationService {
     const userName = user.getFullName
       ? user.getFullName()
       : `${user.firstName} ${user.lastName}`;
-    study.routeFromAssessment(destination, user.id, userName);
+    study.routeFromAssessment(destination, user.id, userName, previousTrack);
 
     await cosmosService.updateItem(
       "studies",
@@ -334,23 +356,45 @@ class TrackAllocationService {
         assessment: 0,
       };
 
-      for (const subStatus of ["triage", "allocation", "assessment"]) {
-        // Modified query to exclude assigned studies
-        const query = `
-          SELECT VALUE COUNT(1) FROM c 
+      const userTag = track === "NoCase" ? "No Case" : track;
+
+      // Group by subStatus to catch all cases including unexpected states
+      // and handle case-insensitivity for track detection
+      const query = `
+          SELECT c.subStatus, COUNT(1) as count 
+          FROM c 
           WHERE c.organizationId = @orgId 
-          AND c.workflowTrack = @track 
-          AND c.subStatus = @subStatus
-          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
+          AND (
+            c.workflowTrack = @track 
+            OR LOWER(c.workflowTrack) = LOWER(@track) 
+            OR (
+                (NOT IS_DEFINED(c.workflowTrack) OR c.workflowTrack = null) 
+                AND (c.userTag = @userTag OR LOWER(c.userTag) = LOWER(@userTag))
+            )
+          )
+          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = "")
+          GROUP BY c.subStatus
         `;
 
-        const result = await cosmosService.queryItems("studies", query, [
+      try {
+        const results = await cosmosService.queryItems("studies", query, [
           { name: "@orgId", value: organizationId },
           { name: "@track", value: track },
-          { name: "@subStatus", value: subStatus },
+          { name: "@userTag", value: userTag },
         ]);
 
-        stats[track][subStatus] = result[0] || 0;
+        for (const row of results) {
+          // Map null/undefined subStatus to 'triage'
+          // Map 'reporting' to 'assessment' for NoCase track if that's where they end up
+          let statusKey = row.subStatus || "triage";
+
+          // Accumulate counts (handling duplicated keys if mapping merges them)
+          stats[track][statusKey] = (stats[track][statusKey] || 0) + row.count;
+        }
+      } catch (error) {
+        console.error(
+          `Error fetching stats for track ${track}: ${error.message}`,
+        );
       }
     }
 
