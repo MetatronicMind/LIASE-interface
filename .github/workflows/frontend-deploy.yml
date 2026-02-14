@@ -1,0 +1,123 @@
+name: Build and deploy Frontend to Azure Web App - LIASE-Frontend
+
+on:
+  push:
+    branches:
+      - sandbox
+      - prod
+      - dev
+    tags:
+      - "v-dev-*"
+      - "v-client-*"
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-deploy.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      slot: ${{ steps.context.outputs.SLOT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set Environment Context
+        id: context
+        run: |
+          # LOGIC: Frontend App Service = "LIASE"
+          if [[ $GITHUB_REF_NAME == prod ]]; then
+            echo "SLOT=production" >> $GITHUB_OUTPUT
+            echo "API_URL=https://liase-backend-fpc8gsbrghgacdgx.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
+          elif [[ $GITHUB_REF_NAME == sandbox ]]; then
+            # Slot is named "sandbox"
+            echo "SLOT=sandbox" >> $GITHUB_OUTPUT
+            echo "API_URL=https://liase-backend-liase-sandbox-akbkcfgyc0bkdhfs.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
+          elif [[ $GITHUB_REF_NAME == dev || $GITHUB_REF_NAME == v-dev-* ]]; then
+            # Slot is named "dev"
+            echo "SLOT=dev" >> $GITHUB_OUTPUT
+            echo "API_URL=https://liase-backend-liase-dev-a3btbhewhmddgjbm.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
+          else
+            # Default/Fallback
+            echo "SLOT=sandbox" >> $GITHUB_OUTPUT
+            echo "API_URL=https://liase-backend-liase-sandbox-akbkcfgyc0bkdhfs.centralindia-01.azurewebsites.net/api" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Build with Semantic Backend URL
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.context.outputs.API_URL }}
+          NEXT_PUBLIC_APP_VERSION: ${{ github.ref_name }}
+          NODE_ENV: production
+
+      # STANDALONE PACKAGE PREPARATION (Trojan Horse Method)
+      - name: Prepare Deployment Package
+        working-directory: ./frontend
+        run: |
+          mkdir -p deploy-package
+
+          # 1. Copy Standalone Engine (server.js, node_modules)
+          cp -r .next/standalone/* deploy-package/ || true
+
+          # 2. THE FIX: Copy .next as a VISIBLE folder
+          # We rename it to 'next_build_visible' so Azure doesn't filter it out and avoids potential '_' ignore rules.
+          cp -r .next deploy-package/next_build_visible
+
+          # Cleanup cache
+          rm -rf deploy-package/next_build_visible/cache
+
+          # 3. Copy public assets
+          cp -r public deploy-package/public
+
+          # 4. Copy startup script (CRITICAL)
+          cp startup.sh deploy-package/
+
+          # 5. Copy web.config
+          cp web.config deploy-package/ 2>/dev/null || true
+
+          # 6. FORCE START SCRIPT
+          # Azure often defaults to 'npm start'. We hijack this to run our startup script.
+          cd deploy-package
+          npm pkg set scripts.start="sh startup.sh"
+          cd ..
+
+          echo "✅ Package Prepared with next_build_visible and hijacked start script."
+          ls -la deploy-package/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-app
+          path: frontend/deploy-package/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-app
+          path: deployment-payload
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: "Deploy to Frontend Slot"
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: "LIASE"
+          slot-name: ${{ needs.build.outputs.slot }}
+          package: deployment-payload
+          startup-command: "sh startup.sh"

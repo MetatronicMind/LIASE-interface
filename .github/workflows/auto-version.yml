@@ -1,0 +1,58 @@
+name: Auto Version Dev
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  auto-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Calculate and Push New Tag
+        run: |
+          echo "Fetching tags..."
+          git fetch --tags
+          
+          # Find latest v-dev-* tag. 
+          # We use git tag --sort=-v:refname to get the highest version number
+          LATEST_TAG=$(git tag --list "v-dev-*" --sort=-v:refname | head -n 1)
+          
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v-dev-0.0.0"
+          fi
+          
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Strip prefix
+          VERSION=${LATEST_TAG#v-dev-}
+          
+          # Parse version (assuming semver X.Y.Z)
+          IFS='.' read -r -a PARTS <<< "$VERSION"
+          MAJOR=${PARTS[0]}
+          MINOR=${PARTS[1]}
+          PATCH=${PARTS[2]}
+          
+          # Default to 0 if parsing fails
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
+          
+          # Increment Patch
+          NEW_PATCH=$((PATCH + 1))
+          
+          NEW_TAG="v-dev-$MAJOR.$MINOR.$NEW_PATCH"
+          echo "New tag will be: $NEW_TAG"
+          
+          # Commit and Push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git tag $NEW_TAG
+          git push origin $NEW_TAG

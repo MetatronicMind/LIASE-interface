@@ -1,0 +1,49 @@
+{
+  "name": "liase-test-app",
+  "version": "1.0.0",
+  "description": "Simple Node.js boilerplate for Azure deployment testing",
+  "main": "test-server.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "start": "node test-server.js",
+    "dev": "nodemon test-server.js",
+    "test": "jest --detectOpenHandles",
+    "test:watch": "jest --watch --detectOpenHandles",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "azure",
+    "deployment",
+    "test",
+    "api"
+  ],
+  "author": "LIASE Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "eslint": "^8.57.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverage": true,
+    "coverageDirectory": "coverage",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/coverage/"
+    ]
+  }
+}
