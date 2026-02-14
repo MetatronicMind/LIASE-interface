@@ -112,8 +112,15 @@ class AdminConfig {
           'Probable AOI',
           'Probable ICSR/AOI',
           'No Case',
-          'Manual Review'
+          'Manual Review',
+          'Article requires manual review'
         ]
+      },
+      allocation: {
+        aoiAllocationPercentage: 10, // Percentage of Probable AOI cases that stay in AOI Allocation
+        aoiBatchSize: 10, // Batch size for AOI Allocation
+        noCaseAllocationPercentage: 10, // Percentage of No Case studies that go to No Case Allocation
+        noCaseBatchSize: 10 // Batch size for No Case Allocation
       },
       workflow: {
         qcDataEntry: true,
@@ -234,7 +241,7 @@ class AdminConfig {
       errors.push('Config type is required');
     }
 
-    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security', 'workflow', 'study_queue', 'triage', 'system_config', 'export'];
+    const validTypes = ['personalization', 'session', 'notification', 'scheduler', 'migration', 'security', 'workflow', 'study_queue', 'triage', 'allocation', 'system_config', 'export'];
     if (!validTypes.includes(this.configType)) {
       errors.push(`Invalid config type. Must be one of: ${validTypes.join(', ')}`);
     }

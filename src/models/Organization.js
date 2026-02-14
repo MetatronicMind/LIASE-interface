@@ -9,6 +9,8 @@ class Organization {
     tenantId, // Added tenantId
     plan = 'basic',
     settings = {},
+    industry = null,
+    primaryContact = {},
     isActive = true,
     createdAt = new Date().toISOString(),
     updatedAt = new Date().toISOString()
@@ -18,6 +20,8 @@ class Organization {
     this.domain = domain ? domain.toLowerCase() : null;
     this.adminEmail = adminEmail ? adminEmail.toLowerCase() : '';
     this.tenantId = tenantId || null; // Store tenantId
+    this.industry = industry;
+    this.primaryContact = primaryContact;
     this.plan = plan; // basic, premium, enterprise
     this.settings = {
       maxUsers: plan === 'basic' ? 10 : plan === 'premium' ? 50 : 1000,
@@ -45,6 +49,8 @@ class Organization {
       domain: this.domain,
       adminEmail: this.adminEmail,
       tenantId: this.tenantId,
+      industry: this.industry,
+      primaryContact: this.primaryContact,
       plan: this.plan,
       settings: this.settings,
       isActive: this.isActive,

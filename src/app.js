@@ -14,6 +14,11 @@ if (process.env.NODE_ENV === "development") {
 }
 
 const cosmosService = require("./services/cosmosService");
+// Attempt to bootstrap the environment with default admin if missing
+const ensureSuperAdmin = require("./utils/bootstrapEnv");
+// Run valid bootstrap in background (non-blocking but essential)
+ensureSuperAdmin().catch((err) => console.error("Bootstrap failed:", err));
+
 const drugSearchScheduler = require("./services/drugSearchScheduler");
 const schedulerService = require("./services/schedulerService");
 const azureSchedulerService = require("./services/azureSchedulerService");
@@ -48,6 +53,8 @@ const legacyDataRoutes = require("./routes/legacyDataRoutes");
 const r3Routes = require("./routes/r3Routes");
 const developerRoutes = require("./routes/developerRoutes");
 const trackRoutes = require("./routes/trackRoutes");
+const environmentRoutes = require("./routes/environmentRoutes");
+const developerController = require("./controllers/developerController");
 
 console.log("drugRoutes loaded:", typeof drugRoutes);
 console.log(
@@ -297,6 +304,12 @@ app.use("/api/drugs/search-configs/run", writeLimiter); // Rate limit intensive 
 app.use("/api/drugs/discover", writeLimiter); // Rate limit drug discovery
 app.use("/api/drugs", authenticateToken, drugRoutes);
 
+// Special unauthenticated route for environment restart (handled internally with custom auth)
+app.post(
+  "/api/developer/environments/restart",
+  developerController.restartEnvironment,
+);
+
 app.use("/api/studies", authenticateToken, studyRoutes);
 app.use("/api/audit", authenticateToken, auditRoutes);
 app.use("/api/organizations", authenticateToken, organizationRoutes);
@@ -309,6 +322,16 @@ app.use("/api/legacy-data", legacyDataRoutes);
 app.use("/api/r3", authenticateToken, r3Routes);
 app.use("/api/developer", authenticateToken, developerRoutes);
 app.use("/api/track", authenticateToken, trackRoutes);
+app.use(
+  "/api/environments",
+  (req, res, next) => {
+    // Allow public access to the public list endpoint
+    if (req.path === "/public") return next();
+    // Require auth for everything else
+    return authenticateToken(req, res, next);
+  },
+  environmentRoutes,
+);
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -469,9 +492,9 @@ app.get("/api/health", (req, res) => {
       errorRate:
         healthMetrics.requestCount > 0
           ? (
-            (healthMetrics.errorCount / healthMetrics.requestCount) *
-            100
-          ).toFixed(2) + "%"
+              (healthMetrics.errorCount / healthMetrics.requestCount) *
+              100
+            ).toFixed(2) + "%"
           : "0%",
       lastError: healthMetrics.lastError,
       memory: {

@@ -37,7 +37,20 @@ router.post(
         });
       }
 
-      const { name, adminEmail, databaseId, adminPassword } = req.body;
+      // Extract all fields from the request, including those from OnboardingWizard
+      const { 
+        name, 
+        adminEmail, 
+        databaseId, 
+        adminPassword,
+        industry,
+        primaryContactName,
+        primaryContactEmail,
+        primaryContactPhone,
+        workflowSettings,
+        triageSettings,
+        daysAvailable
+      } = req.body;
 
       // Check if tenant ID (databaseId) already exists
       const existingOrgs = await cosmosService.queryItems(
@@ -67,12 +80,29 @@ router.post(
       const newOrg = new Organization({
         id: organizationId,
         name,
-        contactEmail: adminEmail,
+        contactEmail: primaryContactEmail || adminEmail, // Prefer primary contact
         tenantId: databaseId, // Store databaseId as tenantId
+        industry,
+        primaryContact: {
+            name: primaryContactName,
+            email: primaryContactEmail,
+            phone: primaryContactPhone
+        },
         settings: {
           maxUsers: 5,
           maxDrugs: 10,
           maxStudies: 100,
+          workflow: workflowSettings || {
+            qcDataEntry: true,
+            medicalReview: true,
+            icsrBypassQc: false,
+            noCaseQcAllocation: 20
+          },
+          triage: triageSettings || {
+            batchAllocationSize: 100,
+            priorityQueue: ["Probable ICSR/AOI", "Manual Review", "Probable ICSR"]
+          },
+          daysAvailable: daysAvailable || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         },
         plan: "Standard",
       });
@@ -172,6 +202,121 @@ router.get("/", authorizeRole("superadmin"), async (req, res) => {
     console.error("Error fetching organizations:", error);
     res.status(500).json({
       error: "Failed to fetch organizations",
+      message: error.message,
+    });
+  }
+});
+
+// Get aggregated summary for CRM Dashboard (Super Admin only)
+router.get("/summary", authorizeRole("superadmin"), async (req, res) => {
+  try {
+    // Get all organizations
+    const query = 'SELECT * FROM c WHERE c.type = "organization"';
+    const organizations = await cosmosService.queryItems(
+      "organizations",
+      query,
+      [],
+    );
+
+    // Gather stats for each organization in parallel
+    const clientsWithStats = await Promise.all(
+      organizations.map(async (org) => {
+        try {
+          const [users, studies, drugs, auditLogs] = await Promise.all([
+            cosmosService.getUsersByOrganization(org.id),
+            cosmosService.getStudiesByOrganization(org.id),
+            cosmosService.getDrugsByOrganization(org.id),
+            cosmosService.getAuditLogsByOrganization(org.id, 10), // Just recent ones
+          ]);
+
+          // Get last activity timestamp
+          const lastActivity = auditLogs.length > 0
+            ? auditLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]?.timestamp
+            : org.createdAt;
+
+          return {
+            id: org.id,
+            name: org.name,
+            plan: org.plan || "Standard",
+            contactEmail: org.contactEmail || org.adminEmail,
+            createdAt: org.createdAt,
+            userCount: users.length,
+            activeUsers: users.filter(u => u.isActive).length,
+            studyCount: studies.length,
+            pendingStudies: studies.filter(s => 
+              ["Pending Review", "Pending", "Under Triage Review"].includes(s.status)
+            ).length,
+            drugCount: drugs.length,
+            activeDrugs: drugs.filter(d => d.status === "Active").length,
+            lastActivity: lastActivity,
+            recentActions: auditLogs.slice(0, 3).map(log => ({
+              action: log.action,
+              resource: log.resource,
+              timestamp: log.timestamp,
+              userName: log.userName || "System"
+            }))
+          };
+        } catch (err) {
+          console.error(`Error fetching stats for org ${org.id}:`, err);
+          return {
+            id: org.id,
+            name: org.name,
+            plan: org.plan || "Standard",
+            contactEmail: org.contactEmail || org.adminEmail,
+            createdAt: org.createdAt,
+            userCount: 0,
+            activeUsers: 0,
+            studyCount: 0,
+            pendingStudies: 0,
+            drugCount: 0,
+            activeDrugs: 0,
+            lastActivity: org.createdAt,
+            recentActions: []
+          };
+        }
+      })
+    );
+
+    // Calculate totals
+    const totals = clientsWithStats.reduce(
+      (acc, client) => ({
+        totalUsers: acc.totalUsers + client.userCount,
+        totalActiveUsers: acc.totalActiveUsers + client.activeUsers,
+        totalStudies: acc.totalStudies + client.studyCount,
+        totalPendingStudies: acc.totalPendingStudies + client.pendingStudies,
+        totalDrugs: acc.totalDrugs + client.drugCount,
+        totalActiveDrugs: acc.totalActiveDrugs + client.activeDrugs,
+      }),
+      { totalUsers: 0, totalActiveUsers: 0, totalStudies: 0, totalPendingStudies: 0, totalDrugs: 0, totalActiveDrugs: 0 }
+    );
+
+    // Get recent activity across all orgs (for activity feed)
+    let recentActivity = [];
+    for (const client of clientsWithStats) {
+      recentActivity.push(
+        ...client.recentActions.map(action => ({
+          ...action,
+          clientId: client.id,
+          clientName: client.name
+        }))
+      );
+    }
+    recentActivity = recentActivity
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, 10);
+
+    res.json({
+      totalClients: organizations.length,
+      ...totals,
+      clients: clientsWithStats.sort((a, b) => 
+        new Date(b.lastActivity) - new Date(a.lastActivity)
+      ),
+      recentActivity
+    });
+  } catch (error) {
+    console.error("Error fetching organizations summary:", error);
+    res.status(500).json({
+      error: "Failed to fetch organizations summary",
       message: error.message,
     });
   }
