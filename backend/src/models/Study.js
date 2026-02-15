@@ -58,6 +58,9 @@ class Study {
     qaRejectedBy = null,
     qaRejectedAt = null,
     qaComments = null,
+    // Source Track for cross-track routing
+    sourceTrack = null,
+    sourceTrackTimestamp = null,
     // R3 Form data fields
     r3FormData = null, // JSON object to store R3 form data
     r3FormStatus = "not_started", // not_started, in_progress, completed
@@ -98,6 +101,7 @@ class Study {
     workflowStage = null, // Granular stage from WorkflowStage enum
     batchId = null, // ID for the batch allocation
     allocatedAt = null, // Timestamp when allocated
+    lastQueueStage = null, // Breadcrumb for reject-back routing
   }) {
     this.id = id;
     this.organizationId = organizationId;
@@ -168,6 +172,8 @@ class Study {
     this.qaRejectedBy = qaRejectedBy;
     this.qaRejectedAt = qaRejectedAt;
     this.qaComments = qaComments;
+    this.sourceTrack = sourceTrack;
+    this.sourceTrackTimestamp = sourceTrackTimestamp;
 
     // R3 Form data
     this.r3FormData = r3FormData;
@@ -206,6 +212,10 @@ class Study {
     this.workflowTrack = workflowTrack;
     this.subStatus = subStatus;
     this.isAutoPassed = isAutoPassed;
+    this.workflowStage = workflowStage;
+    this.batchId = batchId;
+    this.allocatedAt = allocatedAt;
+    this.lastQueueStage = lastQueueStage;
   }
 
   addComment(comment) {
@@ -816,8 +826,16 @@ class Study {
    * @param {string} destination - 'data_entry', 'medical_review', or 'reporting'
    * @param {string} userId - User ID making the change
    * @param {string} userName - User name making the change
+   * @param {string} previousTrack - Optional. Previous track.
+   * @param {string} comments - Optional. Comments if rejection.
    */
-  routeFromAssessment(destination, userId, userName, previousTrack = null) {
+  routeFromAssessment(
+    destination,
+    userId,
+    userName,
+    previousTrack = null,
+    comments = null,
+  ) {
     const validDestinations = [
       "data_entry",
       "medical_review",
@@ -836,8 +854,32 @@ class Study {
       );
     }
 
+    // Handle Rejection / Comments
+    if (comments) {
+      this.qaApprovalStatus = "rejected";
+      this.qaRejectedBy = userId;
+      this.qaRejectedAt = new Date().toISOString();
+      this.qaComments = comments;
+      this.priority = "high"; // Ensure it goes to top of queue
+
+      this.addComment({
+        userId,
+        userName,
+        text: `Rejected from Assessment. Reason: ${comments}`,
+        type: "rejection",
+      });
+    } else {
+      // Clear previous rejection status if moving forward without rejection
+      // But only if we are moving forward (not back to triage without comments)
+      // Actually, if we move to next stage, we should probably clear rejection status
+      if (!destination.includes("triage")) {
+        this.qaApprovalStatus = "pending"; // Reset or 'approved'?
+        // Maybe leave as is, or reset. Usually moving forward clears rejection.
+      }
+    }
+
     // Store previous track if provided
-    if (previousTrack && previousTrack !== this.workflowTrack) {
+    if (previousTrack) {
       this.sourceTrack = previousTrack;
       this.sourceTrackTimestamp = new Date().toISOString();
     } else {
@@ -853,6 +895,10 @@ class Study {
 
     const previousStatus = this.status;
     this.updatedAt = new Date().toISOString();
+
+    // Clear assignment and lock so it can be picked up by the next pool/stage
+    this.assignedTo = null;
+    this.lockedAt = null;
 
     // Mapping Logic
     switch (destination) {
@@ -1079,6 +1125,10 @@ class Study {
       workflowTrack: this.workflowTrack,
       subStatus: this.subStatus,
       isAutoPassed: this.isAutoPassed,
+      workflowStage: this.workflowStage,
+      batchId: this.batchId,
+      allocatedAt: this.allocatedAt,
+      lastQueueStage: this.lastQueueStage,
     };
   }
 

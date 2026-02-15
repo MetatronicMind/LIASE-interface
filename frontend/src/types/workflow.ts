@@ -2,9 +2,9 @@ export type ClassificationTrack = 'ICSR' | 'AOI' | 'NO_CASE';
 
 export enum WorkflowStage {
     // 1. Ingestion / Queues
-    TRIAGE_QUEUE_ICSR = 'TRIAGE_QUEUE_ICSR',
-    TRIAGE_QUEUE_AOI = 'TRIAGE_QUEUE_AOI',
-    TRIAGE_QUEUE_NO_CASE = 'TRIAGE_QUEUE_NO_CASE',
+    TRIAGE_ICSR = 'TRIAGE_ICSR',               // ICSR Triage
+    TRIAGE_QUEUE_AOI = 'TRIAGE_QUEUE_AOI',      // AOI QC
+    TRIAGE_QUEUE_NO_CASE = 'TRIAGE_QUEUE_NO_CASE', // No Case QC
 
     // 2. Active Assessment (Allocated)
     ASSESSMENT_ICSR = 'ASSESSMENT_ICSR',

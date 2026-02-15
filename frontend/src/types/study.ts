@@ -20,6 +20,9 @@ export interface Study {
     batchId?: string | null;    // UUID for the batch
     allocatedAt?: string | null; // ISO Date
 
+    // Breadcrumb: Stores the Queue/QC stage this study came from before Assessment
+    lastQueueStage?: WorkflowStage;
+
     // Other fields present in JSON
     createdAt: string;
     updatedAt: string;
