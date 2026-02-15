@@ -1,0 +1,89 @@
+[
+  {
+    "id": "archival_config_3266e9fb-2030-4222-b283-afebb4256539",
+    "organizationId": "94b7e106-1e86-4805-9725-5bdec4a4375f",
+    "isEnabled": true,
+    "autoArchiveEnabled": true,
+    "archiveAfterDays": 90,
+    "manualArchiveOnly": false,
+    "googleDrive": {
+      "enabled": true,
+      "serviceAccountEmail": "liase-archival-service@liase-480016.iam.gserviceaccount.com",
+      "serviceAccountKey": "********",
+      "folderId": "1lAZqDGXYQZ3OHNIr7e5hSsJ7cQVBLyCA",
+      "folderPath": null,
+      "createSubfolders": true,
+      "subfolderPattern": "YYYY/MM/DD"
+    },
+    "emailNotification": {
+      "enabled": true,
+      "notifyOnArchival": true,
+      "notifyOnFailure": true,
+      "adminEmails": [
+        "arnabnath809@gmail.com"
+      ],
+      "includeAttachments": true,
+      "smtpConfigId": null
+    },
+    "fileGeneration": {
+      "generatePDF": true,
+      "generateCSV": true,
+      "includeAuditTrail": true,
+      "includeAttachments": false,
+      "pdfSettings": {
+        "includeCharts": true,
+        "includeImages": true,
+        "pageSize": "A4",
+        "orientation": "portrait",
+        "includeWatermark": false,
+        "watermarkText": "ARCHIVED"
+      },
+      "csvSettings": {
+        "includeHeaders": true,
+        "delimiter": ",",
+        "encoding": "utf-8",
+        "includeMetadata": true
+      }
+    },
+    "dataRetention": {
+      "deleteFromCosmosDB": true,
+      "createBackupBeforeDelete": true,
+      "retainAuditLogs": true,
+      "retainUserReferences": true
+    },
+    "archiveScope": {
+      "includeStudies": true,
+      "includeReports": true,
+      "includeComments": true,
+      "includeHistory": true,
+      "includeAttachments": true,
+      "studyStatuses": [
+        "Completed",
+        "Final Report Completed",
+        "Archived"
+      ]
+    },
+    "performance": {
+      "batchSize": 10,
+      "maxConcurrent": 3,
+      "retryAttempts": 3,
+      "retryDelayMs": 5000,
+      "timeoutMs": 300000
+    },
+    "lastArchivedAt": "2025-12-15T20:28:55.096Z",
+    "totalArchived": 16,
+    "totalFailed": 7,
+    "lastStatus": "success",
+    "lastError": null,
+    "createdBy": "8ecfefd9-2cbe-4ffd-8040-64bf6c875e84",
+    "createdAt": "2025-12-02T16:40:23.502Z",
+    "updatedAt": "2025-12-15T20:28:55.102Z",
+    "metadata": {},
+    "type_doc": "archival_config",
+    "_rid": "Vf9WAJ+M45cBAAAAAAAAAA==",
+    "_self": "dbs/Vf9WAA==/colls/Vf9WAJ+M45c=/docs/Vf9WAJ+M45cBAAAAAAAAAA==/",
+    "_etag": "\"00000000-0000-0000-6e01-6f07f40501dc\"",
+    "_attachments": "attachments/",
+    "_ts": 1765830535
+  }
+]
