@@ -1186,6 +1186,7 @@ router.put(
 
         // --- NEW WORKFLOW LOGIC START ---
         // Implementation of the "Mixed Batch" & "Three Types" logic
+        // Covers both Queue-level (Triage/QC) and Assessment-level decisions
         if (study.workflowStage) {
           const decision = updates.userTag; // "ICSR", "AOI", "No Case"
           let nextStageId = null;
@@ -1193,51 +1194,168 @@ router.put(
           let nextSubStatus = null;
           let nextClassification = null;
 
-          // Logic for ICSR Assessment
-          if (study.workflowStage === "ASSESSMENT_ICSR") {
+          // ==========================================
+          // QUEUE-LEVEL: ICSR Triage (TRIAGE_ICSR)
+          // ==========================================
+          // From ICSR Triage:
+          //   -> ICSR    : ICSR Assessment
+          //   -> AOI     : AOI Assessment  (cross-lane direct to desk)
+          //   -> No Case : No Case Assessment (cross-lane direct to desk)
+          if (study.workflowStage === "TRIAGE_ICSR") {
+            if (decision === "ICSR") {
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "Under Assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "Probable ICSR";
+            } else if (decision === "AOI") {
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "Under Assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "AOI";
+              study.lastQueueStage = "TRIAGE_ICSR"; // Breadcrumb for reject
+            } else {
+              // No Case
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "Under Assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+              study.lastQueueStage = "TRIAGE_ICSR";
+            }
+          }
+
+          // ==========================================
+          // QUEUE-LEVEL: AOI QC (TRIAGE_QUEUE_AOI)
+          // ==========================================
+          // From AOI QC:
+          //   -> ICSR    : ICSR Triage (escalate)
+          //   -> AOI     : AOI Assessment
+          //   -> No Case : No Case Assessment
+          else if (study.workflowStage === "TRIAGE_QUEUE_AOI") {
+            if (decision === "ICSR") {
+              nextStageId = "TRIAGE_ICSR";
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else if (decision === "AOI") {
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "Under Assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "Probable AOI";
+              study.lastQueueStage = "TRIAGE_QUEUE_AOI";
+            } else {
+              // No Case
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "Under Assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+              study.lastQueueStage = "TRIAGE_QUEUE_AOI";
+            }
+          }
+
+          // ==========================================
+          // QUEUE-LEVEL: No Case QC (TRIAGE_QUEUE_NO_CASE)
+          // ==========================================
+          // From No Case QC:
+          //   -> ICSR    : ICSR Triage (escalate)
+          //   -> AOI     : ICSR Triage (safety net)
+          //   -> No Case : No Case Assessment
+          else if (study.workflowStage === "TRIAGE_QUEUE_NO_CASE") {
+            if (decision === "ICSR") {
+              nextStageId = "TRIAGE_ICSR";
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else if (decision === "AOI") {
+              // Safety net: AOI from No Case QC -> ICSR Triage for review
+              nextStageId = "TRIAGE_ICSR";
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "ICSR";
+            } else {
+              // No Case
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "Under Assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "No Case";
+              study.lastQueueStage = "TRIAGE_QUEUE_NO_CASE";
+            }
+          }
+
+          // ==========================================
+          // ASSESSMENT-LEVEL: ICSR Assessment
+          // ==========================================
+          // From ICSR Assessment:
+          //   Confirm (ICSR) -> Data Entry
+          //   -> AOI         -> AOI Assessment (direct to desk, not queue)
+          //   -> No Case     -> No Case Assessment (direct to desk)
+          else if (study.workflowStage === "ASSESSMENT_ICSR") {
             if (decision === "ICSR") {
               nextStageId = "DATA_ENTRY";
               nextStatus = "data_entry";
               nextSubStatus = "processing";
               nextClassification = "Probable ICSR";
             } else if (decision === "AOI") {
-              nextStageId = "TRIAGE_QUEUE_AOI"; // Re-queue
-              nextStatus = "Under Triage Review";
-              nextSubStatus = "triage";
+              nextStageId = "ASSESSMENT_AOI"; // Direct to AOI desk
+              nextStatus = "Under Assessment";
+              nextSubStatus = "reclassified";
               nextClassification = "Probable AOI";
-              study.workflowTrack = "AOI"; // Switch track
+              study.workflowTrack = "AOI";
+              // Preserve breadcrumb so AOI assessor can reject back to origin
+              study.lastQueueStage = study.lastQueueStage || "TRIAGE_ICSR";
             } else {
               // No Case
-              nextStageId = "TRIAGE_QUEUE_NO_CASE"; // Re-queue
-              nextStatus = "Under Triage Review";
-              nextSubStatus = "triage";
+              nextStageId = "ASSESSMENT_NO_CASE"; // Direct to No Case desk
+              nextStatus = "Under Assessment";
+              nextSubStatus = "reclassified";
               nextClassification = "No Case";
-              study.workflowTrack = "NoCase"; // Switch track
+              study.workflowTrack = "NoCase";
+              study.lastQueueStage = study.lastQueueStage || "TRIAGE_ICSR";
             }
           }
-          // Logic for AOI Assessment
+
+          // ==========================================
+          // ASSESSMENT-LEVEL: AOI Assessment
+          // ==========================================
+          // Cases arrive from: ICSR Triage, AOI QC, or No Case QC
+          // From AOI Assessment:
+          //   Confirm (AOI) -> Reporting
+          //   -> ICSR       -> ICSR Triage (escalate)
+          //   -> No Case    -> No Case QC (No Case Allocation)
           else if (study.workflowStage === "ASSESSMENT_AOI") {
             if (decision === "AOI") {
-              nextStageId = "REPORTING"; // Or COMPLETED
+              nextStageId = "REPORTING";
               nextStatus = "Reporting";
               nextSubStatus = "archived";
               nextClassification = "Probable AOI";
             } else if (decision === "ICSR") {
-              nextStageId = "TRIAGE_QUEUE_ICSR"; // Upgrade
+              nextStageId = "TRIAGE_ICSR"; // Escalate to ICSR Triage
               nextStatus = "Under Triage Review";
               nextSubStatus = "triage";
               nextClassification = "Probable ICSR";
               study.workflowTrack = "ICSR";
             } else {
               // No Case
-              nextStageId = "TRIAGE_QUEUE_NO_CASE"; // Downgrade
+              nextStageId = "TRIAGE_QUEUE_NO_CASE"; // No Case Allocation
               nextStatus = "Under Triage Review";
               nextSubStatus = "triage";
               nextClassification = "No Case";
               study.workflowTrack = "NoCase";
             }
           }
-          // Logic for No Case Assessment
+
+          // ==========================================
+          // ASSESSMENT-LEVEL: No Case Assessment
+          // ==========================================
+          // From No Case Assessment:
+          //   Confirm (No Case) -> Completed
+          //   -> ICSR           -> ICSR Triage (escalate)
+          //   -> AOI            -> ICSR Triage (safety net)
           else if (study.workflowStage === "ASSESSMENT_NO_CASE") {
             if (decision === "No Case") {
               nextStageId = "COMPLETED";
@@ -1245,18 +1363,18 @@ router.put(
               nextSubStatus = "archived";
               nextClassification = "No Case";
             } else if (decision === "ICSR") {
-              nextStageId = "TRIAGE_QUEUE_ICSR"; // Upgrade
+              nextStageId = "TRIAGE_ICSR"; // Escalate to ICSR Triage
               nextStatus = "Under Triage Review";
               nextSubStatus = "triage";
               nextClassification = "Probable ICSR";
               study.workflowTrack = "ICSR";
             } else {
-              // AOI
-              nextStageId = "TRIAGE_QUEUE_AOI"; // Upgrade
+              // AOI -> Safety net: goes to ICSR Triage
+              nextStageId = "TRIAGE_ICSR";
               nextStatus = "Under Triage Review";
               nextSubStatus = "triage";
               nextClassification = "Probable AOI";
-              study.workflowTrack = "AOI";
+              study.workflowTrack = "ICSR";
             }
           }
 

@@ -288,6 +288,7 @@ class ArticleRetryQueueService {
           batchSize: options.batchSize || 16,
           maxConcurrency: options.maxConcurrency || 16,
           enableRetries: true,
+          progressCallback: options.progressCallback,
         },
       );
 

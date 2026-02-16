@@ -1,25 +1,25 @@
 /**
  * Batch AI Inference Service
- * 
+ *
  * Provides high-performance batch processing capabilities for AI inference requests.
  * Supports concurrent processing, intelligent failover, and optimized throughput.
  */
 
-const config = require('../../ai-inference-config');
+const config = require("../../ai-inference-config");
 
 class BatchAiInferenceService {
   constructor() {
     this.config = config;
-    
+
     // Initialize endpoint health tracking
-    this.endpointHealth = this.config.endpoints.map(url => ({
+    this.endpointHealth = this.config.endpoints.map((url) => ({
       url,
       isHealthy: true,
       consecutiveFailures: 0,
       lastSuccessAt: new Date(),
       lastFailureAt: null,
       responseTimeMs: 0,
-      currentRequests: 0
+      currentRequests: 0,
     }));
 
     // Batch processing state
@@ -41,36 +41,45 @@ class BatchAiInferenceService {
   async processBatch(drugData, searchParams = {}, options = {}) {
     const startTime = Date.now();
     const totalItems = drugData.length;
-    
+
     // Configure batch processing options
     const batchOptions = {
       batchSize: options.batchSize || this.config.maxConcurrentRequests,
-      maxConcurrency: options.maxConcurrency || this.config.maxConcurrentRequests,
+      maxConcurrency:
+        options.maxConcurrency || this.config.maxConcurrentRequests,
       enableRetries: options.enableRetries !== false,
       enableDetailedLogging: options.enableDetailedLogging !== false,
       progressCallback: options.progressCallback || null,
-      ...options
+      ...options,
     };
 
     // Update endpoints if provided in options (Dynamic Configuration Support)
-    if (options.endpoints && Array.isArray(options.endpoints) && options.endpoints.length > 0) {
+    if (
+      options.endpoints &&
+      Array.isArray(options.endpoints) &&
+      options.endpoints.length > 0
+    ) {
       // Re-initialize endpoint health to use the dynamically provided endpoints
-      this.endpointHealth = options.endpoints.map(url => ({
+      this.endpointHealth = options.endpoints.map((url) => ({
         url,
         isHealthy: true,
         consecutiveFailures: 0,
         lastSuccessAt: new Date(),
         lastFailureAt: null,
         responseTimeMs: 0,
-        currentRequests: 0
+        currentRequests: 0,
       }));
       if (options.enableDetailedLogging !== false) {
-          console.log(`[BatchAiInferenceService] Updated endpoints dynamically: ${options.endpoints.length} endpoints active`);
+        console.log(
+          `[BatchAiInferenceService] Updated endpoints dynamically: ${options.endpoints.length} endpoints active`,
+        );
       }
     }
 
     if (batchOptions.enableDetailedLogging) {
-      console.log(`[BatchAI] Starting batch processing for ${totalItems} items`);
+      console.log(
+        `[BatchAI] Starting batch processing for ${totalItems} items`,
+      );
       console.log(`[BatchAI] Configuration:`, batchOptions);
     }
 
@@ -82,43 +91,54 @@ class BatchAiInferenceService {
       // Process items in batches for optimal performance
       for (let i = 0; i < drugData.length; i += batchOptions.batchSize) {
         const batch = drugData.slice(i, i + batchOptions.batchSize);
-        
+
         if (batchOptions.enableDetailedLogging) {
-          console.log(`[BatchAI] Processing batch ${Math.floor(i / batchOptions.batchSize) + 1}/${Math.ceil(drugData.length / batchOptions.batchSize)} (${batch.length} items)`);
+          console.log(
+            `[BatchAI] Processing batch ${Math.floor(i / batchOptions.batchSize) + 1}/${Math.ceil(drugData.length / batchOptions.batchSize)} (${batch.length} items)`,
+          );
         }
 
         // Process batch concurrently
-        const batchPromises = batch.map(item => 
+        const batchPromises = batch.map((item) =>
           this.processSingleItem(item, searchParams, batchOptions)
-            .catch(error => ({ error, item }))
-            .then(result => {
+            .catch((error) => ({ error, item }))
+            .then(async (result) => {
               processed++;
-              // Call progress callback immediately upon completion to ensure smooth progress bar
+              // Await progress callback to prevent fire-and-forget DB write races
               if (batchOptions.progressCallback) {
-                batchOptions.progressCallback({
-                  processed,
-                  total: totalItems,
-                  percentage: Math.round((processed / totalItems) * 100),
-                  currentBatch: Math.floor(i / batchOptions.batchSize) + 1,
-                  totalBatches: Math.ceil(drugData.length / batchOptions.batchSize)
-                });
+                try {
+                  await batchOptions.progressCallback({
+                    processed,
+                    total: totalItems,
+                    percentage: Math.round((processed / totalItems) * 100),
+                    currentBatch: Math.floor(i / batchOptions.batchSize) + 1,
+                    totalBatches: Math.ceil(
+                      drugData.length / batchOptions.batchSize,
+                    ),
+                  });
+                } catch (cbErr) {
+                  console.warn(
+                    `[BatchAI] progressCallback error (item ${processed}/${totalItems}):`,
+                    cbErr.message,
+                  );
+                }
               }
               return result;
-            })
+            }),
         );
 
         const batchResults = await this.processConcurrently(
-          batchPromises, 
-          batchOptions.maxConcurrency
+          batchPromises,
+          batchOptions.maxConcurrency,
         );
 
         // Collect results and errors
         for (const result of batchResults) {
           if (result.error) {
             errors.push({
-              pmid: result.item?.pmid || 'unknown',
+              pmid: result.item?.pmid || "unknown",
               error: result.error.message,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
             });
           } else if (result.success) {
             results.push(result.data);
@@ -132,12 +152,17 @@ class BatchAiInferenceService {
       }
 
       const duration = Date.now() - startTime;
-      const avgResponseTime = results.length > 0 ? duration / results.length : 0;
+      const avgResponseTime =
+        results.length > 0 ? duration / results.length : 0;
 
       if (batchOptions.enableDetailedLogging) {
         console.log(`[BatchAI] Batch processing completed in ${duration}ms`);
-        console.log(`[BatchAI] Success rate: ${results.length}/${totalItems} (${Math.round((results.length / totalItems) * 100)}%)`);
-        console.log(`[BatchAI] Average response time: ${Math.round(avgResponseTime)}ms per item`);
+        console.log(
+          `[BatchAI] Success rate: ${results.length}/${totalItems} (${Math.round((results.length / totalItems) * 100)}%)`,
+        );
+        console.log(
+          `[BatchAI] Average response time: ${Math.round(avgResponseTime)}ms per item`,
+        );
       }
 
       return {
@@ -151,13 +176,12 @@ class BatchAiInferenceService {
         performance: {
           totalDurationMs: duration,
           averageResponseTimeMs: Math.round(avgResponseTime),
-          throughputPerSecond: Math.round((results.length / duration) * 1000)
+          throughputPerSecond: Math.round((results.length / duration) * 1000),
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
-      console.error('[BatchAI] Batch processing failed:', error);
+      console.error("[BatchAI] Batch processing failed:", error);
       return {
         success: false,
         error: error.message,
@@ -167,7 +191,7 @@ class BatchAiInferenceService {
         failedItems: errors.length,
         results,
         errors,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -185,35 +209,43 @@ class BatchAiInferenceService {
 
     try {
       const pmid = item.pmid;
-      let drugName = item.drugName || searchParams.query || 'Unknown';
-      
+      let drugName = item.drugName || searchParams.query || "Unknown";
+
       // Format drug name as INN(BrandName) if BrandName is available
       if (item.brandName) {
         drugName = `${drugName}(${item.brandName})`;
       }
 
-      const sponsor = searchParams.sponsor || 'Unknown';
+      const sponsor = searchParams.sponsor || "Unknown";
 
       if (options.enableDetailedLogging) {
-        console.log(`[BatchAI:${requestId}] Processing PMID: ${pmid}, Drug: ${drugName}`);
+        console.log(
+          `[BatchAI:${requestId}] Processing PMID: ${pmid}, Drug: ${drugName}`,
+        );
       }
 
       // Get prioritized list of healthy endpoints
       const prioritizedEndpoints = this.getPrioritizedEndpoints();
-      
+
       if (options.enableDetailedLogging) {
-        console.log(`[BatchAI:${requestId}] Available endpoints: ${prioritizedEndpoints.length}/${this.endpointHealth.length}`);
+        console.log(
+          `[BatchAI:${requestId}] Available endpoints: ${prioritizedEndpoints.length}/${this.endpointHealth.length}`,
+        );
         prioritizedEndpoints.forEach((ep, idx) => {
-          console.log(`[BatchAI:${requestId}] Endpoint ${idx + 1}: ${ep.url} (healthy: ${ep.isHealthy}, failures: ${ep.consecutiveFailures})`);
+          console.log(
+            `[BatchAI:${requestId}] Endpoint ${idx + 1}: ${ep.url} (healthy: ${ep.isHealthy}, failures: ${ep.consecutiveFailures})`,
+          );
         });
       }
-      
+
       if (prioritizedEndpoints.length === 0) {
         console.error(`[BatchAI:${requestId}] No healthy endpoints available!`);
         this.endpointHealth.forEach((ep, idx) => {
-          console.error(`[BatchAI:${requestId}] Endpoint ${idx + 1}: ${ep.url} - healthy: ${ep.isHealthy}, failures: ${ep.consecutiveFailures}`);
+          console.error(
+            `[BatchAI:${requestId}] Endpoint ${idx + 1}: ${ep.url} - healthy: ${ep.isHealthy}, failures: ${ep.consecutiveFailures}`,
+          );
         });
-        throw new Error('No healthy endpoints available');
+        throw new Error("No healthy endpoints available");
       }
 
       let response = null;
@@ -228,30 +260,39 @@ class BatchAiInferenceService {
 
         try {
           endpoint.currentRequests++;
-          
-          const apiUrl = this.buildApiUrl(endpoint.url, pmid, sponsor, drugName);
+
+          const apiUrl = this.buildApiUrl(
+            endpoint.url,
+            pmid,
+            sponsor,
+            drugName,
+          );
           const requestStartTime = Date.now();
-          
+
           if (options.enableDetailedLogging) {
-            console.log(`[BatchAI:${requestId}] Trying ${endpoint.url} with URL: ${apiUrl}`);
+            console.log(
+              `[BatchAI:${requestId}] Trying ${endpoint.url} with URL: ${apiUrl}`,
+            );
           }
 
           // Create request with timeout
           const controller = new AbortController();
           const timeoutId = setTimeout(() => {
-            console.log(`[BatchAI:${requestId}] Request timeout after ${this.config.requestTimeout}ms`);
+            console.log(
+              `[BatchAI:${requestId}] Request timeout after ${this.config.requestTimeout}ms`,
+            );
             controller.abort();
           }, this.config.requestTimeout);
 
           response = await fetch(apiUrl, {
-            method: 'GET',
+            method: "GET",
             headers: {
-              'Accept': 'application/json',
-              'User-Agent': 'LIASE-Batch/1.0',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Cache-Control': 'no-cache'
+              Accept: "application/json",
+              "User-Agent": "LIASE-Batch/1.0",
+              "Accept-Language": "en-US,en;q=0.9",
+              "Cache-Control": "no-cache",
             },
-            signal: controller.signal
+            signal: controller.signal,
           });
 
           clearTimeout(timeoutId);
@@ -269,11 +310,12 @@ class BatchAiInferenceService {
             lastError = errorMsg;
             continue;
           }
-
         } catch (fetchError) {
           endpoint.currentRequests--;
           const errorMsg = `${fetchError.name}: ${fetchError.message}`;
-          console.error(`[BatchAI:${requestId}] Fetch error for ${endpoint.url}: ${errorMsg}`);
+          console.error(
+            `[BatchAI:${requestId}] Fetch error for ${endpoint.url}: ${errorMsg}`,
+          );
           this.markEndpointFailure(endpoint, errorMsg);
           lastError = errorMsg;
           continue;
@@ -297,7 +339,9 @@ class BatchAiInferenceService {
       const duration = Date.now() - startTime;
 
       if (options.enableDetailedLogging) {
-        console.log(`[BatchAI:${requestId}] Success for PMID ${pmid} in ${duration}ms via ${successfulEndpoint.url}`);
+        console.log(
+          `[BatchAI:${requestId}] Success for PMID ${pmid} in ${duration}ms via ${successfulEndpoint.url}`,
+        );
       }
 
       return {
@@ -309,41 +353,63 @@ class BatchAiInferenceService {
           aiInference: aiResult,
           originalDrug: item,
           processingTimeMs: duration,
-          endpoint: successfulEndpoint.url
-        }
+          endpoint: successfulEndpoint.url,
+        },
       };
-
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       if (options.enableDetailedLogging) {
-        console.error(`[BatchAI:${requestId}] Failed for PMID ${item.pmid} after ${duration}ms:`, error.message);
+        console.error(
+          `[BatchAI:${requestId}] Failed for PMID ${item.pmid} after ${duration}ms:`,
+          error.message,
+        );
       }
 
       // Retry logic if enabled - AGGRESSIVE RETRY
       if (options.enableRetries !== false) {
-        console.error(`[BatchAI:${requestId}] ⚠️ First attempt failed for PMID ${item.pmid}. Starting aggressive retry...`);
-        
+        console.error(
+          `[BatchAI:${requestId}] ⚠️ First attempt failed for PMID ${item.pmid}. Starting aggressive retry...`,
+        );
+
         // Try up to 3 more times with exponential backoff
         for (let retryAttempt = 1; retryAttempt <= 3; retryAttempt++) {
-          const retryDelay = Math.min(
-            this.config.baseBackoffMs * Math.pow(this.config.backoffMultiplier, retryAttempt),
-            this.config.maxBackoffMs
-          ) + Math.random() * this.config.jitterMs;
+          const retryDelay =
+            Math.min(
+              this.config.baseBackoffMs *
+                Math.pow(this.config.backoffMultiplier, retryAttempt),
+              this.config.maxBackoffMs,
+            ) +
+            Math.random() * this.config.jitterMs;
 
-          console.log(`[BatchAI:${requestId}] Retry ${retryAttempt}/3 for PMID ${item.pmid} after ${retryDelay}ms delay`);
+          console.log(
+            `[BatchAI:${requestId}] Retry ${retryAttempt}/3 for PMID ${item.pmid} after ${retryDelay}ms delay`,
+          );
           await this.delay(retryDelay);
-          
+
           try {
             // Retry with fresh endpoint selection
-            const retryResult = await this.processSingleItem(item, searchParams, { ...options, enableRetries: false });
-            console.log(`[BatchAI:${requestId}] ✅ Retry ${retryAttempt} SUCCESS for PMID ${item.pmid}`);
+            const retryResult = await this.processSingleItem(
+              item,
+              searchParams,
+              { ...options, enableRetries: false },
+            );
+            console.log(
+              `[BatchAI:${requestId}] ✅ Retry ${retryAttempt} SUCCESS for PMID ${item.pmid}`,
+            );
             return retryResult;
           } catch (retryError) {
-            console.error(`[BatchAI:${requestId}] Retry ${retryAttempt} failed for PMID ${item.pmid}:`, retryError.message);
+            console.error(
+              `[BatchAI:${requestId}] Retry ${retryAttempt} failed for PMID ${item.pmid}:`,
+              retryError.message,
+            );
             if (retryAttempt === 3) {
-              console.error(`[BatchAI:${requestId}] ❌❌❌ FATAL: All 3 retries exhausted for PMID ${item.pmid}`);
-              throw new Error(`Failed to process PMID ${item.pmid} after 3 retry attempts: ${retryError.message}`);
+              console.error(
+                `[BatchAI:${requestId}] ❌❌❌ FATAL: All 3 retries exhausted for PMID ${item.pmid}`,
+              );
+              throw new Error(
+                `Failed to process PMID ${item.pmid} after 3 retry attempts: ${retryError.message}`,
+              );
             }
           }
         }
@@ -364,11 +430,11 @@ class BatchAiInferenceService {
     const executing = [];
 
     for (const promise of promises) {
-      const wrapped = promise.then(result => {
+      const wrapped = promise.then((result) => {
         executing.splice(executing.indexOf(wrapped), 1);
         return result;
       });
-      
+
       results.push(wrapped);
       executing.push(wrapped);
 
@@ -390,14 +456,14 @@ class BatchAiInferenceService {
    */
   buildApiUrl(baseUrl, pmid, sponsor, drugName) {
     const params = new URLSearchParams();
-    params.append('PMID', pmid);
-    
-    if (sponsor && sponsor !== 'Unknown') {
-      params.append('sponsor', sponsor);
+    params.append("PMID", pmid);
+
+    if (sponsor && sponsor !== "Unknown") {
+      params.append("sponsor", sponsor);
     }
-    
-    if (drugName && drugName !== 'Unknown') {
-      params.append('drugname', drugName);
+
+    if (drugName && drugName !== "Unknown") {
+      params.append("drugname", drugName);
     }
 
     return `${baseUrl}?${params.toString()}`;
@@ -409,18 +475,22 @@ class BatchAiInferenceService {
    */
   getPrioritizedEndpoints() {
     return this.endpointHealth
-      .filter(endpoint => endpoint.isHealthy || endpoint.consecutiveFailures < this.config.circuitBreakerThreshold)
+      .filter(
+        (endpoint) =>
+          endpoint.isHealthy ||
+          endpoint.consecutiveFailures < this.config.circuitBreakerThreshold,
+      )
       .sort((a, b) => {
         // Prioritize healthy endpoints
         if (a.isHealthy !== b.isHealthy) {
           return a.isHealthy ? -1 : 1;
         }
-        
+
         // Then by current load
         if (a.currentRequests !== b.currentRequests) {
           return a.currentRequests - b.currentRequests;
         }
-        
+
         // Finally by response time
         return a.responseTimeMs - b.responseTimeMs;
       });
@@ -446,10 +516,12 @@ class BatchAiInferenceService {
   markEndpointFailure(endpoint, error) {
     endpoint.consecutiveFailures++;
     endpoint.lastFailureAt = new Date();
-    
+
     if (endpoint.consecutiveFailures >= this.config.circuitBreakerThreshold) {
       endpoint.isHealthy = false;
-      console.warn(`[BatchAI] Endpoint ${endpoint.url} marked as unhealthy after ${endpoint.consecutiveFailures} failures`);
+      console.warn(
+        `[BatchAI] Endpoint ${endpoint.url} marked as unhealthy after ${endpoint.consecutiveFailures} failures`,
+      );
     }
   }
 
@@ -458,11 +530,15 @@ class BatchAiInferenceService {
    */
   startHealthMonitoring() {
     setInterval(async () => {
-      const unhealthyEndpoints = this.endpointHealth.filter(ep => !ep.isHealthy);
-      
+      const unhealthyEndpoints = this.endpointHealth.filter(
+        (ep) => !ep.isHealthy,
+      );
+
       if (unhealthyEndpoints.length > 0) {
-        console.log(`[BatchAI] Checking health of ${unhealthyEndpoints.length} unhealthy endpoints`);
-        
+        console.log(
+          `[BatchAI] Checking health of ${unhealthyEndpoints.length} unhealthy endpoints`,
+        );
+
         for (const endpoint of unhealthyEndpoints) {
           await this.checkEndpointHealth(endpoint);
         }
@@ -480,20 +556,24 @@ class BatchAiInferenceService {
 
     try {
       const response = await fetch(testUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        timeout: this.config.healthCheckTimeout
+        method: "GET",
+        headers: { Accept: "application/json" },
+        timeout: this.config.healthCheckTimeout,
       });
 
       const responseTimeMs = Date.now() - startTime;
 
       if (response.ok || response.status === 422) {
         this.markEndpointSuccess(endpoint, responseTimeMs);
-        console.log(`[BatchAI] Endpoint ${endpoint.url} back online (${responseTimeMs}ms)`);
+        console.log(
+          `[BatchAI] Endpoint ${endpoint.url} back online (${responseTimeMs}ms)`,
+        );
       }
     } catch (error) {
       // Keep as unhealthy
-      console.log(`[BatchAI] Endpoint ${endpoint.url} still unhealthy: ${error.message}`);
+      console.log(
+        `[BatchAI] Endpoint ${endpoint.url} still unhealthy: ${error.message}`,
+      );
     }
   }
 
@@ -502,25 +582,29 @@ class BatchAiInferenceService {
    * @returns {Object} Health status summary
    */
   getHealthStatus() {
-    const healthyEndpoints = this.endpointHealth.filter(ep => ep.isHealthy);
-    
+    const healthyEndpoints = this.endpointHealth.filter((ep) => ep.isHealthy);
+
     return {
       totalEndpoints: this.endpointHealth.length,
       healthyEndpoints: healthyEndpoints.length,
       unhealthyEndpoints: this.endpointHealth.length - healthyEndpoints.length,
-      averageResponseTime: healthyEndpoints.length > 0 
-        ? Math.round(healthyEndpoints.reduce((sum, ep) => sum + ep.responseTimeMs, 0) / healthyEndpoints.length)
-        : 0,
-      endpoints: this.endpointHealth.map(ep => ({
+      averageResponseTime:
+        healthyEndpoints.length > 0
+          ? Math.round(
+              healthyEndpoints.reduce((sum, ep) => sum + ep.responseTimeMs, 0) /
+                healthyEndpoints.length,
+            )
+          : 0,
+      endpoints: this.endpointHealth.map((ep) => ({
         url: ep.url,
         isHealthy: ep.isHealthy,
         responseTimeMs: ep.responseTimeMs,
         consecutiveFailures: ep.consecutiveFailures,
         currentRequests: ep.currentRequests,
         lastSuccessAt: ep.lastSuccessAt,
-        lastFailureAt: ep.lastFailureAt
+        lastFailureAt: ep.lastFailureAt,
       })),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -529,13 +613,13 @@ class BatchAiInferenceService {
    * @returns {Promise<Object>} Test results
    */
   async testConnection() {
-    console.log('[BatchAI] Testing connection to all endpoints...');
-    
+    console.log("[BatchAI] Testing connection to all endpoints...");
+
     const testResults = [];
-    
+
     for (let i = 0; i < this.endpointHealth.length; i++) {
       const endpoint = this.endpointHealth[i];
-      
+
       try {
         await this.checkEndpointHealth(endpoint);
         testResults.push({
@@ -543,7 +627,7 @@ class BatchAiInferenceService {
           status: endpoint.isHealthy ? 200 : 500,
           connected: endpoint.isHealthy,
           responseTimeMs: endpoint.responseTimeMs,
-          consecutiveFailures: endpoint.consecutiveFailures
+          consecutiveFailures: endpoint.consecutiveFailures,
         });
       } catch (error) {
         testResults.push({
@@ -552,23 +636,29 @@ class BatchAiInferenceService {
           connected: false,
           responseTimeMs: 0,
           consecutiveFailures: endpoint.consecutiveFailures,
-          error: error.message
+          error: error.message,
         });
       }
     }
 
-    const healthyCount = testResults.filter(result => result.connected).length;
+    const healthyCount = testResults.filter(
+      (result) => result.connected,
+    ).length;
     const success = healthyCount > 0;
 
     return {
       success,
       healthyCount,
       totalCount: testResults.length,
-      averageResponseTime: success ? Math.round(testResults
-        .filter(r => r.connected)
-        .reduce((sum, r) => sum + r.responseTimeMs, 0) / healthyCount) : 0,
+      averageResponseTime: success
+        ? Math.round(
+            testResults
+              .filter((r) => r.connected)
+              .reduce((sum, r) => sum + r.responseTimeMs, 0) / healthyCount,
+          )
+        : 0,
       endpoints: testResults,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -578,7 +668,7 @@ class BatchAiInferenceService {
    * @returns {Promise} Promise that resolves after delay
    */
   delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 

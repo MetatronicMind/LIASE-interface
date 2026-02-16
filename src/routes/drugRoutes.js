@@ -54,6 +54,14 @@ router.get(
   "/jobs/:jobId",
   authorizePermission("drugs", "read"),
   async (req, res) => {
+    // Disable caching for job status to ensure real-time updates
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+
     try {
       const job = await jobTrackingService.getJob(req.params.jobId);
 
@@ -2173,52 +2181,92 @@ async function processDiscoveryJob(jobId, searchParams, user, auditAction) {
             },
             // Called after each individual study is saved to DB
             onStudyCreated: async (info) => {
-              // Update track counts
-              if (info.track === "ICSR") trackCounts.ICSR++;
-              else if (info.track === "AOI") trackCounts.AOI++;
-              else if (info.track === "NoCase") trackCounts.NoCase++;
+              try {
+                // Update track counts
+                if (info.track === "ICSR") trackCounts.ICSR++;
+                else if (info.track === "AOI") trackCounts.AOI++;
+                else if (info.track === "NoCase") trackCounts.NoCase++;
 
-              const progressPercent =
-                55 + Math.round((info.created / info.total) * 40);
-              await jobTrackingService.updateJob(jobId, {
-                progress: progressPercent,
-                currentStep: 3,
-                message: `Creating studies: ${info.created}/${info.total} (PMID ${info.pmid})`,
-                metadata: {
-                  phase: "study_creation",
-                  studiesFound: results.totalFound,
-                  totalStudies: results.totalFound,
-                  aiProcessed: info.total,
-                  aiTotal: info.total,
-                  studiesCreated: info.created,
-                  currentStudy: info.created,
-                  duplicatesSkipped: info.duplicates,
-                  trackCounts: { ...trackCounts },
-                  searchParams,
-                },
-              });
+                const progressPercent =
+                  55 + Math.round((info.created / info.total) * 40);
+                await jobTrackingService.updateJob(jobId, {
+                  progress: progressPercent,
+                  currentStep: 3,
+                  message: `Creating studies: ${info.created}/${info.total} (PMID ${info.pmid})`,
+                  metadata: {
+                    phase: "study_creation",
+                    studiesFound: results.totalFound,
+                    totalStudies: results.totalFound,
+                    aiProcessed: info.total,
+                    aiTotal: info.total,
+                    studiesCreated: info.created,
+                    currentStudy: info.created,
+                    duplicatesSkipped: info.duplicates,
+                    trackCounts: { ...trackCounts },
+                    searchParams,
+                  },
+                });
+              } catch (err) {
+                console.warn(
+                  `[DrugDiscovery] onStudyCreated progress update failed:`,
+                  err.message,
+                );
+              }
             },
-            progressCallback: async (progress) => {
-              // Legacy AI-phase progress (if called)
-              const progressPercent =
-                30 + Math.round((progress.processed / progress.total) * 25);
-              await jobTrackingService.updateJob(jobId, {
-                progress: progressPercent,
-                currentStep: 3,
-                message: `AI processing: ${progress.processed}/${progress.total} articles (${Math.round((progress.processed / progress.total) * 100)}%)...`,
-                metadata: {
-                  phase: "ai_inference",
-                  aiProgress: progress,
-                  aiProcessed: progress.processed,
-                  aiTotal: progress.total,
-                  totalStudies: progress.total,
-                  currentStudy: 0,
-                  studiesFound: results.totalFound,
-                  trackCounts: { ...trackCounts },
-                  searchParams,
-                },
-              });
-            },
+            progressCallback: (() => {
+              // Throttle: only persist to DB every 3 articles or every 2 s,
+              // but ALWAYS update in-memory so polls return fresh data.
+              let lastWriteTime = 0;
+              let lastWrittenCount = 0;
+              const INTERVAL_MS = 2000;
+              const ITEM_INTERVAL = 3;
+
+              return async (progress) => {
+                try {
+                  const progressPercent =
+                    30 + Math.round((progress.processed / progress.total) * 25);
+                  const updates = {
+                    progress: progressPercent,
+                    currentStep: 3,
+                    message: `AI processing: ${progress.processed}/${progress.total} articles (${Math.round((progress.processed / progress.total) * 100)}%)...`,
+                    metadata: {
+                      phase: "ai_inference",
+                      aiProgress: progress,
+                      aiProcessed: progress.processed,
+                      aiTotal: progress.total,
+                      totalStudies: progress.total,
+                      currentStudy: 0,
+                      studiesFound: results.totalFound,
+                      trackCounts: { ...trackCounts },
+                      searchParams,
+                    },
+                  };
+
+                  const now = Date.now();
+                  const isFinal = progress.processed >= progress.total;
+                  const elapsed = now - lastWriteTime;
+                  const itemsDelta = progress.processed - lastWrittenCount;
+                  const shouldPersist =
+                    isFinal ||
+                    elapsed >= INTERVAL_MS ||
+                    itemsDelta >= ITEM_INTERVAL;
+
+                  if (shouldPersist) {
+                    lastWriteTime = now;
+                    lastWrittenCount = progress.processed;
+                    await jobTrackingService.updateJob(jobId, updates);
+                  } else {
+                    // In-memory only — polls see fresh data, DB write deferred
+                    jobTrackingService.updateJobInMemory(jobId, updates);
+                  }
+                } catch (err) {
+                  console.warn(
+                    `[DrugDiscovery] progressCallback update failed:`,
+                    err.message,
+                  );
+                }
+              };
+            })(),
           },
         );
 

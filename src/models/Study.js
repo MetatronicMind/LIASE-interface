@@ -101,6 +101,7 @@ class Study {
     workflowStage = null, // Granular stage from WorkflowStage enum
     batchId = null, // ID for the batch allocation
     allocatedAt = null, // Timestamp when allocated
+    lastQueueStage = null, // Breadcrumb for reject-back routing
   }) {
     this.id = id;
     this.organizationId = organizationId;
@@ -211,6 +212,10 @@ class Study {
     this.workflowTrack = workflowTrack;
     this.subStatus = subStatus;
     this.isAutoPassed = isAutoPassed;
+    this.workflowStage = workflowStage;
+    this.batchId = batchId;
+    this.allocatedAt = allocatedAt;
+    this.lastQueueStage = lastQueueStage;
   }
 
   addComment(comment) {
@@ -394,6 +399,18 @@ class Study {
     this.qcR3Comments = comments;
     this.updatedAt = new Date().toISOString();
 
+    // Ensure overall QA approval is set if it wasn't already (fixes legacy/buggy states)
+    if (
+      this.qaApprovalStatus !== "approved" &&
+      this.qaApprovalStatus !== "not_applicable"
+    ) {
+      this.qaApprovalStatus = "approved";
+      if (!this.qaApprovedBy) {
+        this.qaApprovedBy = userId;
+        this.qaApprovedAt = new Date().toISOString();
+      }
+    }
+
     const medicalReviewEnabled = workflowSettings.medicalReview !== false;
 
     if (medicalReviewEnabled) {
@@ -521,6 +538,18 @@ class Study {
     this.revokedAt = new Date().toISOString();
     this.revocationReason = reason;
     this.priority = "high"; // Always high priority on revocation
+
+    // If no target stage provided, default based on current state
+    if (!targetStage) {
+      if (
+        this.workflowStage === "DATA_ENTRY" ||
+        this.status === "data_entry" ||
+        this.subStatus === "data_entry"
+      ) {
+        // Default revamp from Data Entry -> Triage
+        targetStage = "triage";
+      }
+    }
 
     // Update the main status field if a target stage is provided
     if (targetStage) {
@@ -868,8 +897,16 @@ class Study {
       // But only if we are moving forward (not back to triage without comments)
       // Actually, if we move to next stage, we should probably clear rejection status
       if (!destination.includes("triage")) {
-        this.qaApprovalStatus = "pending"; // Reset or 'approved'?
-        // Maybe leave as is, or reset. Usually moving forward clears rejection.
+        // If moving forward to Data Entry or beyond, consider it approved
+        if (
+          ["data_entry", "medical_review", "reporting"].includes(destination)
+        ) {
+          this.qaApprovalStatus = "approved";
+          this.qaApprovedBy = userId;
+          this.qaApprovedAt = new Date().toISOString();
+        } else {
+          this.qaApprovalStatus = "pending";
+        }
       }
     }
 
@@ -1120,6 +1157,10 @@ class Study {
       workflowTrack: this.workflowTrack,
       subStatus: this.subStatus,
       isAutoPassed: this.isAutoPassed,
+      workflowStage: this.workflowStage,
+      batchId: this.batchId,
+      allocatedAt: this.allocatedAt,
+      lastQueueStage: this.lastQueueStage,
     };
   }
 
