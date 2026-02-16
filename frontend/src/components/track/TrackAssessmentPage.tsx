@@ -266,7 +266,7 @@ export default function TrackAssessmentPage({
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/track/route/${currentCase.id}`,
+        `${API_BASE}/track/route/${currentCase.id}`,
         {
           method: "POST",
           headers: {
@@ -662,9 +662,9 @@ export default function TrackAssessmentPage({
                                 )
                               }
                               disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg hover:bg-amber-200 transition-all font-medium disabled:opacity-50"
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
                             >
-                              Route to AOI Assessment
+                              Re-route to AOI Assessment
                             </button>
                           )}
 
@@ -714,13 +714,13 @@ export default function TrackAssessmentPage({
                                 handleAssessmentDecision(
                                   "reroute",
                                   "ICSR",
-                                  "icsr_triage",
+                                  "icsr_assessment",
                                 )
                               }
                               disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-100 text-red-700 border border-red-200 rounded-lg hover:bg-red-200 transition-all font-medium disabled:opacity-50"
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
                             >
-                              Route to ICSR Triage
+                              Re-route to ICSR Assessment
                             </button>
                           )}
 
@@ -770,13 +770,13 @@ export default function TrackAssessmentPage({
                                 handleAssessmentDecision(
                                   "reroute",
                                   "ICSR",
-                                  "icsr_triage",
+                                  "icsr_assessment",
                                 )
                               }
                               disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-100 text-red-700 border border-red-200 rounded-lg hover:bg-red-200 transition-all font-medium disabled:opacity-50"
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
                             >
-                              Route to ICSR Triage
+                              Re-route to ICSR Assessment
                             </button>
                           )}
 
@@ -787,13 +787,13 @@ export default function TrackAssessmentPage({
                                 handleAssessmentDecision(
                                   "reroute",
                                   "AOI",
-                                  "icsr_triage",
+                                  "aoi_assessment",
                                 )
                               }
                               disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg hover:bg-amber-200 transition-all font-medium disabled:opacity-50"
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
                             >
-                              Route to ICSR Triage (AOI)
+                              Re-route to AOI Assessment
                             </button>
                           )}
                         </>

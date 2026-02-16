@@ -1193,6 +1193,55 @@ router.put(
           let nextSubStatus = null;
           let nextClassification = null;
 
+          // Logic for ICSR Triage Cross-Routing
+          if (study.workflowStage === "TRIAGE_QUEUE_ICSR") {
+            if (decision === "AOI") {
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "AOI";
+            } else if (decision === "No Case") {
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+            }
+          }
+          // Logic for AOI Triage (QC) Cross-Routing
+          else if (study.workflowStage === "TRIAGE_QUEUE_AOI") {
+            if (decision === "ICSR") {
+              nextStageId = "TRIAGE_QUEUE_ICSR";
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else if (decision === "No Case") {
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+            }
+          }
+          // Logic for No Case Triage (QC) Cross-Routing
+          else if (study.workflowStage === "TRIAGE_QUEUE_NO_CASE") {
+            if (decision === "ICSR") {
+              nextStageId = "TRIAGE_QUEUE_ICSR";
+              nextStatus = "Under Triage Review";
+              nextSubStatus = "triage";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else if (decision === "AOI") {
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "AOI";
+            }
+          }
+
           // Logic for ICSR Assessment
           if (study.workflowStage === "ASSESSMENT_ICSR") {
             if (decision === "ICSR") {

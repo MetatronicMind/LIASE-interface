@@ -1,4 +1,4 @@
-const cosmosService = require('./cosmosService');
+const cosmosService = require("./cosmosService");
 
 /**
  * Job Tracking Service for monitoring long-running operations
@@ -6,6 +6,18 @@ const cosmosService = require('./cosmosService');
 class JobTrackingService {
   constructor() {
     this.activeJobs = new Map(); // In-memory tracking for active jobs
+    this._writeQueues = new Map(); // Per-job serialization queues
+  }
+
+  /**
+   * Serialize writes per job so concurrent updateJob calls don't race in CosmosDB.
+   * Each call waits for the previous write to finish before starting its own.
+   */
+  _enqueueWrite(jobId, fn) {
+    const prev = this._writeQueues.get(jobId) || Promise.resolve();
+    const next = prev.then(fn, fn); // run even if previous write errored
+    this._writeQueues.set(jobId, next);
+    return next;
   }
 
   /**
@@ -18,42 +30,70 @@ class JobTrackingService {
    */
   async createJob(type, userId, organizationId, metadata = {}) {
     const jobId = this.generateJobId();
-    
+
     const job = {
       id: jobId,
       type,
       userId,
       organizationId,
-      status: 'started',
+      status: "started",
       progress: 0,
       totalSteps: metadata.totalSteps || 100,
       currentStep: 0,
-      message: 'Job started',
+      message: "Job started",
       metadata,
       startedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       completedAt: null,
       error: null,
-      results: null
+      results: null,
     };
 
     try {
       // Store in database
-      const createdJob = await cosmosService.createItem('jobs', job);
-      
+      const createdJob = await cosmosService.createItem("jobs", job);
+
       // Update job object with the actual ID from Cosmos DB (if different)
       const actualJobId = createdJob.id;
       job.id = actualJobId;
-      
+
       // Store in memory for quick access using the actual ID
       this.activeJobs.set(actualJobId, job);
-      
-      console.log(`Created job ${actualJobId} of type ${type} for user ${userId}`);
+
+      console.log(
+        `Created job ${actualJobId} of type ${type} for user ${userId}`,
+      );
       return createdJob;
     } catch (error) {
       console.error(`Error creating job ${jobId}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Update the in-memory job state only (no DB write).
+   * Use this for high-frequency updates where DB persistence is deferred.
+   * @param {string} jobId - Job ID
+   * @param {Object} updates - Updates to apply
+   * @returns {Object} The updated in-memory job object
+   */
+  updateJobInMemory(jobId, updates) {
+    const job = this.activeJobs.get(jobId);
+    if (!job) {
+      throw new Error(`Job ${jobId} not found in active jobs`);
+    }
+
+    // Deep-merge metadata so fields from previous updates aren't lost
+    if (updates.metadata && job.metadata) {
+      updates.metadata = { ...job.metadata, ...updates.metadata };
+    }
+
+    Object.assign(job, {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return job;
   }
 
   /**
@@ -63,35 +103,39 @@ class JobTrackingService {
    * @returns {Promise<Object>} Updated job record
    */
   async updateJob(jobId, updates) {
-    try {
-      const job = this.activeJobs.get(jobId);
-      if (!job) {
-        throw new Error(`Job ${jobId} not found in active jobs`);
-      }
+    // Immediately update in-memory state (synchronous, no race)
+    const job = this.updateJobInMemory(jobId, updates);
 
-      // Update the job object
-      Object.assign(job, {
-        ...updates,
-        updatedAt: new Date().toISOString()
-      });
-
-      // If job is completed or failed, set completion time
-      if (updates.status === 'completed' || updates.status === 'failed') {
-        job.completedAt = new Date().toISOString();
-      }
-
-      // Update in database - use organizationId as partition key
-      const updatedJob = await cosmosService.updateItem('jobs', jobId, job.organizationId, job);
-      
-      // Update in memory
-      this.activeJobs.set(jobId, job);
-      
-      console.log(`Updated job ${jobId}: ${updates.message || updates.status}`);
-      return updatedJob;
-    } catch (error) {
-      console.error(`Error updating job ${jobId}:`, error);
-      throw error;
+    if (updates.status === "completed" || updates.status === "failed") {
+      job.completedAt = new Date().toISOString();
     }
+
+    // Serialize the DB write so concurrent calls don't conflict
+    return this._enqueueWrite(jobId, async () => {
+      try {
+        const updatedJob = await cosmosService.updateItem(
+          "jobs",
+          jobId,
+          job.organizationId,
+          job,
+        );
+        this.activeJobs.set(jobId, job);
+        console.log(
+          `Updated job ${jobId}: ${updates.message || updates.status}`,
+        );
+        return updatedJob;
+      } catch (error) {
+        // Always keep the in-memory state current even if DB write fails
+        console.error(`Error persisting job ${jobId} to DB:`, error.message);
+        // Re-throw only for status changes (completed/failed) so they surface correctly
+        if (updates.status === "completed" || updates.status === "failed") {
+          throw error;
+        }
+        // For progress-only updates, swallow the error — the in-memory state is already correct
+        // and the GET endpoint reads from memory first
+        return job;
+      }
+    });
   }
 
   /**
@@ -101,12 +145,16 @@ class JobTrackingService {
    * @param {string} message - Completion message
    * @returns {Promise<Object>} Completed job record
    */
-  async completeJob(jobId, results = {}, message = 'Job completed successfully') {
+  async completeJob(
+    jobId,
+    results = {},
+    message = "Job completed successfully",
+  ) {
     return await this.updateJob(jobId, {
-      status: 'completed',
+      status: "completed",
       progress: 100,
       message,
-      results
+      results,
     });
   }
 
@@ -119,10 +167,10 @@ class JobTrackingService {
    */
   async failJob(jobId, error, partialResults = {}) {
     return await this.updateJob(jobId, {
-      status: 'failed',
+      status: "failed",
       error,
       message: `Job failed: ${error}`,
-      results: partialResults
+      results: partialResults,
     });
   }
 
@@ -142,23 +190,25 @@ class JobTrackingService {
 
       // Fallback to database
       let dbJob = null;
-      
+
       if (organizationId) {
         // Use the partition key if provided
-        dbJob = await cosmosService.getItem('jobs', jobId, organizationId);
+        dbJob = await cosmosService.getItem("jobs", jobId, organizationId);
       } else {
         // Query for the job if we don't have the partition key
         const query = "SELECT * FROM c WHERE c.id = @jobId";
-        const parameters = [
-          { name: "@jobId", value: jobId }
-        ];
-        const results = await cosmosService.queryItems('jobs', query, parameters);
+        const parameters = [{ name: "@jobId", value: jobId }];
+        const results = await cosmosService.queryItems(
+          "jobs",
+          query,
+          parameters,
+        );
         dbJob = results.length > 0 ? results[0] : null;
       }
-      
+
       if (dbJob) {
         // Add to memory if it's still active
-        if (dbJob.status === 'started' || dbJob.status === 'running') {
+        if (dbJob.status === "started" || dbJob.status === "running") {
           this.activeJobs.set(jobId, dbJob);
         }
         return dbJob;
@@ -179,12 +229,11 @@ class JobTrackingService {
    */
   async getUserJobs(userId, limit = 50) {
     try {
-      const query = "SELECT * FROM c WHERE c.userId = @userId ORDER BY c.startedAt DESC";
-      const parameters = [
-        { name: "@userId", value: userId }
-      ];
+      const query =
+        "SELECT * FROM c WHERE c.userId = @userId ORDER BY c.startedAt DESC";
+      const parameters = [{ name: "@userId", value: userId }];
 
-      const results = await cosmosService.queryItems('jobs', query, parameters);
+      const results = await cosmosService.queryItems("jobs", query, parameters);
       return results.slice(0, limit);
     } catch (error) {
       console.error(`Error getting jobs for user ${userId}:`, error);
@@ -198,18 +247,18 @@ class JobTrackingService {
   cleanupMemory() {
     const completedJobs = [];
     for (const [jobId, job] of this.activeJobs) {
-      if (job.status === 'completed' || job.status === 'failed') {
+      if (job.status === "completed" || job.status === "failed") {
         // Keep completed jobs in memory for 5 minutes for quick access
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
         const completedAt = new Date(job.completedAt || job.updatedAt);
-        
+
         if (completedAt < fiveMinutesAgo) {
           completedJobs.push(jobId);
         }
       }
     }
 
-    completedJobs.forEach(jobId => {
+    completedJobs.forEach((jobId) => {
       this.activeJobs.delete(jobId);
       console.log(`Cleaned up completed job ${jobId} from memory`);
     });
@@ -230,9 +279,12 @@ class JobTrackingService {
    */
   startCleanupScheduler() {
     // Clean up every 5 minutes
-    setInterval(() => {
-      this.cleanupMemory();
-    }, 5 * 60 * 1000);
+    setInterval(
+      () => {
+        this.cleanupMemory();
+      },
+      5 * 60 * 1000,
+    );
   }
 }
 
