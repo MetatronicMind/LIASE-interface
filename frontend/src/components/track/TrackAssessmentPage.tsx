@@ -49,10 +49,7 @@ interface Study {
   attachments?: any[];
   qaApprovalStatus?: "pending" | "approved" | "rejected";
   qaComments?: string;
-  qcR3Status?: "not_applicable" | "pending" | "approved" | "rejected";
-  qcR3Comments?: string;
   sourceTrack?: string;
-  lastQueueStage?: string; // Breadcrumb: which queue this case came from
 }
 
 // Destination options removed in favor of dynamic AssessmentAction UI
@@ -229,8 +226,6 @@ export default function TrackAssessmentPage({
     if (!token || !currentCase) return;
 
     let confirmMessage = "";
-    let rejectionReason = "";
-
     if (actionType === "approve") {
       confirmMessage = `Approve this case and route to ${destinationEndpoint?.replace("_", " ")}?`;
     } else if (actionType === "reroute") {
@@ -239,18 +234,8 @@ export default function TrackAssessmentPage({
       confirmMessage = `Reject this case and return to ${destinationEndpoint?.replace("_", " ")}?`;
     }
 
-    if (actionType === "reject") {
-      const reason = window.prompt("Please enter rejection reason:", "");
-      if (reason === null) return; // Cancelled
-      if (!reason.trim()) {
-        toast.error("Rejection reason is required");
-        return;
-      }
-      rejectionReason = reason;
-    } else {
-      const confirmation = window.confirm(confirmMessage);
-      if (!confirmation) return;
-    }
+    const confirmation = window.confirm(confirmMessage);
+    if (!confirmation) return;
 
     setRoutingStudyId(currentCase.id);
 
@@ -279,13 +264,9 @@ export default function TrackAssessmentPage({
       if (actionType === "reroute") {
         body.previousTrack = trackType; // Current track becomes previous
       }
-      // Pass comments if rejection
-      if (actionType === "reject" && rejectionReason) {
-        body.comments = rejectionReason;
-      }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/track/route/${currentCase.id}`,
+        `${API_BASE}/track/route/${currentCase.id}`,
         {
           method: "POST",
           headers: {
@@ -672,22 +653,36 @@ export default function TrackAssessmentPage({
 
                           {/* If Classified as AOI */}
                           {selectedClassification === "AOI" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to AOI is handled at the Triage
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "AOI",
+                                  "aoi_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to AOI Assessment
+                            </button>
                           )}
 
                           {/* If Classified as No Case */}
                           {selectedClassification === "No Case" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to No Case is handled at the
-                                Triage level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "NoCase",
+                                  "no_case_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-100 text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-200 transition-all font-medium disabled:opacity-50"
+                            >
+                              Route to No Case Assessment
+                            </button>
                           )}
                         </>
                       )}
@@ -714,22 +709,36 @@ export default function TrackAssessmentPage({
 
                           {/* If Classified as ICSR */}
                           {selectedClassification === "ICSR" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to ICSR is handled at the QC
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "ICSR",
+                                  "icsr_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to ICSR Assessment
+                            </button>
                           )}
 
                           {/* If Classified as No Case */}
                           {selectedClassification === "No Case" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to No Case is handled at the QC
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "NoCase",
+                                  "no_case_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-100 text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-200 transition-all font-medium disabled:opacity-50"
+                            >
+                              Route to No Case Assessment
+                            </button>
                           )}
                         </>
                       )}
@@ -756,22 +765,36 @@ export default function TrackAssessmentPage({
 
                           {/* If Classified as ICSR */}
                           {selectedClassification === "ICSR" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to ICSR is handled at the QC
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "ICSR",
+                                  "icsr_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to ICSR Assessment
+                            </button>
                           )}
 
                           {/* If Classified as AOI */}
                           {selectedClassification === "AOI" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to AOI is handled at the QC
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "AOI",
+                                  "aoi_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to AOI Assessment
+                            </button>
                           )}
                         </>
                       )}
@@ -784,16 +807,33 @@ export default function TrackAssessmentPage({
                           let dest = "icsr_triage";
                           let target = "ICSR";
 
-                          // Force return to track's own QC/Triage queue
-                          if (trackType === "AOI") {
-                            dest = "aoi_triage";
-                            target = "AOI";
-                          } else if (trackType === "NoCase") {
-                            dest = "no_case_triage";
-                            target = "No Case";
+                          // HISTORY-BASED ROUTING
+                          // If this case came from another track (sourceTrack), prefer sending it back there.
+                          // Specifically handling "From ICSR Assessment -> AOI Assessment (Reject) -> ICSR Assessment"
+                          if (currentCase.sourceTrack) {
+                            if (currentCase.sourceTrack === "ICSR") {
+                              target = "ICSR";
+                              dest = "icsr_assessment"; // Return to Assessment as requested
+                            } else if (currentCase.sourceTrack === "AOI") {
+                              target = "AOI";
+                              dest = "aoi_assessment";
+                            } else if (currentCase.sourceTrack === "NoCase") {
+                              target = "No Case";
+                              dest = "no_case_assessment";
+                            }
                           } else {
-                            dest = "icsr_triage";
-                            target = "ICSR";
+                            // Default Fallback: Return to Current Track Triage
+                            if (trackType === "AOI") {
+                              dest = "aoi_triage";
+                              target = "AOI";
+                            } else if (trackType === "NoCase") {
+                              dest = "no_case_triage";
+                              target = "No Case";
+                            } else {
+                              // ICSR
+                              dest = "icsr_triage";
+                              target = "ICSR";
+                            }
                           }
 
                           handleAssessmentDecision("reject", target, dest);
@@ -801,13 +841,9 @@ export default function TrackAssessmentPage({
                         disabled={routingStudyId === currentCase.id}
                         className="w-full flex items-center justify-center p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-all font-medium disabled:opacity-50"
                       >
-                        {(() => {
-                          if (trackType === "AOI")
-                            return "Reject (Return to AOI QC)";
-                          if (trackType === "NoCase")
-                            return "Reject (Return to No Case QC)";
-                          return "Reject (Return to ICSR Triage)";
-                        })()}
+                        {currentCase.sourceTrack
+                          ? `Reject (Return to ${currentCase.sourceTrack} Assessment)`
+                          : `Reject (Return to ${trackType === "NoCase" ? "No Case" : trackType} Triage)`}
                       </button>
                     </div>
                   </div>

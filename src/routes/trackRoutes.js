@@ -495,26 +495,48 @@ router.post(
         comments,
       );
 
-      await auditAction(
-        req.user,
-        "track_route",
-        "study",
-        studyId,
-        `Routed study from ${result.previousTrack} assessment to ${destination}`,
-        { ...result },
-      );
+      try {
+        await auditAction(
+          req.user,
+          "track_route",
+          "study",
+          studyId,
+          `Routed study from ${result.previousTrack} assessment to ${destination}`,
+          { ...result },
+        );
+      } catch (auditError) {
+        console.error("Audit logging failed:", auditError);
+      }
 
-      res.json({
-        success: true,
-        message: `Study routed to ${destination}`,
-        result,
-      });
+      try {
+        await res.json({
+          success: true,
+          message: `Study routed to ${destination}`,
+          result,
+        });
+      } catch (jsonError) {
+        console.error("Error sending JSON response:", jsonError);
+        // If headers are already sent, we can't send another response
+        if (!res.headersSent) {
+          res
+            .status(500)
+            .json({
+              error: "Failed to send response",
+              details: jsonError.message,
+            });
+        }
+      }
     } catch (error) {
       console.error(`Error routing study:`, error);
-      res.status(500).json({
-        error: "Failed to route study",
-        message: error.message,
-      });
+      // Don't mask the error content, return it fully so frontend can see what went wrong
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: "Failed to route study",
+          message: error.message,
+          stack:
+            process.env.NODE_ENV === "development" ? error.stack : undefined,
+        });
+      }
     }
   },
 );
