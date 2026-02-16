@@ -92,6 +92,31 @@ export default function StudyProgressTracker({
     return () => clearInterval(timer);
   }, [jobId, startTs]);
 
+  // Proactively refresh the auth token to prevent session expiry during long jobs
+  useEffect(() => {
+    if (!jobId) return;
+    const REFRESH_INTERVAL = 3 * 60 * 1000; // every 3 minutes
+    const refreshToken = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        if (!token) return;
+        const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) localStorage.setItem("auth_token", data.token);
+        }
+      } catch {
+        // Silent fail – polling will still use the current token
+      }
+    };
+    const interval = setInterval(refreshToken, REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [jobId]);
+
   // Polling
   useEffect(() => {
     if (!jobId) return;
@@ -108,6 +133,7 @@ export default function StudyProgressTracker({
         const res = await fetch(`${getApiBaseUrl()}/drugs/jobs/${jobId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           signal: ctrl.signal,
+          cache: "no-store",
         });
         clearTimeout(tid);
 
@@ -196,8 +222,15 @@ export default function StudyProgressTracker({
   const studiesCreated =
     job.metadata?.studiesCreated || job.results?.studiesCreated || 0;
   const currentStudy = job.metadata?.currentStudy || 0;
-  const aiProcessed = job.metadata?.aiProcessed || 0;
   const aiTotal = job.metadata?.aiTotal || totalStudies;
+  // Derive aiProcessed from metadata first; fall back to reverse-engineering
+  // from job.progress (AI phase maps progress 30-55 → 0-total).
+  const aiProcessed =
+    job.metadata?.aiProcessed ||
+    job.metadata?.aiProgress?.processed ||
+    (currentStage === 1 && job.progress > 30 && aiTotal > 0
+      ? Math.round(((job.progress - 30) / 25) * aiTotal)
+      : 0);
   const icsrCount = job.metadata?.trackCounts?.ICSR || 0;
   const aoiCount = job.metadata?.trackCounts?.AOI || 0;
   const noCaseCount = job.metadata?.trackCounts?.NoCase || 0;
@@ -210,10 +243,14 @@ export default function StudyProgressTracker({
     ? job.results?.studiesCreated || studiesCreated
     : Math.max(studiesCreated, currentStudy);
 
-  // Overall progress (0-100)
+  // Use the server-reported progress directly — it already has granular
+  // per-article updates (30-55 % during AI, 55-95 % during study creation).
+  // Fall back to stage-based estimate only when the server value is absent.
   let overallProgress = 0;
   if (isComplete) {
     overallProgress = 100;
+  } else if (job.progress && job.progress > 0) {
+    overallProgress = Math.min(job.progress, 99);
   } else if (currentStage === 0) {
     overallProgress = 8;
   } else if (currentStage === 1) {
@@ -225,6 +262,9 @@ export default function StudyProgressTracker({
     const crPct = totalStudies > 0 ? effectiveCreated / totalStudies : 0;
     overallProgress = 55 + Math.round(crPct * 40);
   }
+
+  // Live status message from the backend (e.g. "AI processing: 5/27 articles")
+  const liveMessage = job.message || "";
 
   // ── Stage detail text ─────────────────────────────────────────
   function stageDetail(idx: number): string {
@@ -368,6 +408,11 @@ export default function StudyProgressTracker({
             );
           })}
         </div>
+
+        {/* ── Live status message ──────────────────────────── */}
+        {liveMessage && !isComplete && !isFailed && (
+          <p className="text-xs text-gray-500 italic truncate">{liveMessage}</p>
+        )}
 
         {/* ── Live stats row (visible once we have numbers) ───── */}
         {(totalStudies > 0 || isComplete) && (

@@ -114,6 +114,16 @@ router.get(
         parameters,
       );
 
+      // Sort by priority (high first) then by updatedAt
+      allStudies.sort((a, b) => {
+        // High priority first
+        if (a.priority === "high" && b.priority !== "high") return -1;
+        if (a.priority !== "high" && b.priority === "high") return 1;
+
+        // Then by date (newest first)
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+      });
+
       // Apply pagination
       const offset = (page - 1) * parseInt(limit);
       const studies = allStudies.slice(offset, offset + parseInt(limit));
@@ -189,6 +199,16 @@ router.get(
         query,
         parameters,
       );
+
+      // Sort by priority (high first) then by updatedAt
+      allStudies.sort((a, b) => {
+        // High priority first
+        if (a.priority === "high" && b.priority !== "high") return -1;
+        if (a.priority !== "high" && b.priority === "high") return 1;
+
+        // Then by date (newest first)
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+      });
 
       const offset = (page - 1) * parseInt(limit);
       const studies = allStudies.slice(offset, offset + parseInt(limit));
@@ -276,6 +296,16 @@ router.get(
         query,
         parameters,
       );
+
+      // Sort by priority (high first) then by updatedAt
+      allStudies.sort((a, b) => {
+        // High priority first
+        if (a.priority === "high" && b.priority !== "high") return -1;
+        if (a.priority !== "high" && b.priority === "high") return 1;
+
+        // Then by date (newest first)
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+      });
 
       const offset = (page - 1) * parseInt(limit);
       const studies = allStudies.slice(offset, offset + parseInt(limit));
@@ -436,7 +466,7 @@ router.post(
   async (req, res) => {
     try {
       const { studyId } = req.params;
-      const { destination, previousTrack } = req.body;
+      const { destination, previousTrack, comments } = req.body;
 
       const validDestinations = [
         "data_entry",
@@ -462,6 +492,7 @@ router.post(
         destination,
         req.user,
         previousTrack,
+        comments,
       );
 
       await auditAction(
@@ -706,15 +737,15 @@ router.post(
             studyData.subStatus = "triage";
             studyData.status = "Under Triage Review";
           } else if (trackType === "AOI") {
-            // AOI moves to Assessment (SubStatus: assessment)
-            studyData.workflowStage = "ASSESSMENT_AOI";
-            studyData.subStatus = "assessment";
-            studyData.status = "Under Assessment";
+            // AOI QC stays in Triage (SubStatus: triage)
+            studyData.workflowStage = "TRIAGE_QUEUE_AOI";
+            studyData.subStatus = "triage";
+            studyData.status = "Under QC Review";
           } else {
-            // No Case moves to Assessment (SubStatus: assessment)
-            studyData.workflowStage = "ASSESSMENT_NO_CASE";
-            studyData.subStatus = "assessment";
-            studyData.status = "Under Assessment";
+            // No Case QC stays in Triage (SubStatus: triage)
+            studyData.workflowStage = "TRIAGE_QUEUE_NO_CASE";
+            studyData.subStatus = "triage";
+            studyData.status = "Under QC Review";
           }
 
           // Legacy field support
@@ -873,6 +904,11 @@ router.post(
       }
 
       const targetOrgId = req.user.organizationId;
+      const userId = req.user.id;
+
+      console.log(
+        `[AllocateAssessment] Request for ${trackType} by ${userId} (Org: ${targetOrgId})`,
+      );
 
       // Fetch batch size from config if not provided
       if (!batchSize) {
@@ -899,15 +935,53 @@ router.post(
         }
       }
 
-      const userId = req.user.id;
+      // 1. Check if user already has assigned cases
+      const existingQuery = `
+          SELECT * FROM c 
+          WHERE c.organizationId = @orgId 
+          AND c.workflowTrack = @track
+          AND c.subStatus = 'assessment'
+          AND c.assignedTo = @userId
+          ORDER BY c.createdAt ASC
+      `;
 
-      // Query for unassigned assessment cases
+      const existingParams = [
+        { name: "@orgId", value: targetOrgId },
+        { name: "@track", value: trackType },
+        { name: "@userId", value: userId },
+      ];
+
+      console.log(
+        `[AllocateAssessment] Checking existing assignments for ${userId} in ${trackType}...`,
+      );
+
+      const existingCases = await cosmosService.queryItems(
+        "studies",
+        existingQuery,
+        existingParams,
+      );
+
+      console.log(
+        `[AllocateAssessment] Found ${existingCases.length} existing cases assigned to ${userId}`,
+      );
+
+      if (existingCases.length > 0) {
+        // Return existing allocation
+        return res.json({
+          success: true,
+          message: `Retrieved ${existingCases.length} existing allocated cases`,
+          cases: existingCases,
+          count: existingCases.length,
+        });
+      }
+
+      // 2. Query for unassigned assessment cases
       const query = `
           SELECT * FROM c 
           WHERE c.organizationId = @orgId 
           AND c.workflowTrack = @track
           AND c.subStatus = 'assessment'
-          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null)
+          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = "")
           ORDER BY c.createdAt ASC
       `;
 

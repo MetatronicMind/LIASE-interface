@@ -737,15 +737,15 @@ router.post(
             studyData.subStatus = "triage";
             studyData.status = "Under Triage Review";
           } else if (trackType === "AOI") {
-            // AOI moves to Assessment (SubStatus: assessment)
-            studyData.workflowStage = "ASSESSMENT_AOI";
-            studyData.subStatus = "assessment";
-            studyData.status = "Under Assessment";
+            // AOI QC stays in Triage (SubStatus: triage)
+            studyData.workflowStage = "TRIAGE_QUEUE_AOI";
+            studyData.subStatus = "triage";
+            studyData.status = "Under QC Review";
           } else {
-            // No Case moves to Assessment (SubStatus: assessment)
-            studyData.workflowStage = "ASSESSMENT_NO_CASE";
-            studyData.subStatus = "assessment";
-            studyData.status = "Under Assessment";
+            // No Case QC stays in Triage (SubStatus: triage)
+            studyData.workflowStage = "TRIAGE_QUEUE_NO_CASE";
+            studyData.subStatus = "triage";
+            studyData.status = "Under QC Review";
           }
 
           // Legacy field support

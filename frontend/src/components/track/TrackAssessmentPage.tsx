@@ -784,34 +784,16 @@ export default function TrackAssessmentPage({
                           let dest = "icsr_triage";
                           let target = "ICSR";
 
-                          // BREADCRUMB-BASED ROUTING
-                          // Use lastQueueStage to determine where to return this case.
-                          // This is set when the case was allocated or reclassified.
-                          const breadcrumb = currentCase.lastQueueStage;
-
-                          if (breadcrumb) {
-                            if (breadcrumb === "TRIAGE_ICSR") {
-                              dest = "icsr_triage";
-                              target = "ICSR";
-                            } else if (breadcrumb === "TRIAGE_QUEUE_AOI") {
-                              dest = "aoi_triage";
-                              target = "AOI";
-                            } else if (breadcrumb === "TRIAGE_QUEUE_NO_CASE") {
-                              dest = "no_case_triage";
-                              target = "No Case";
-                            }
+                          // Force return to track's own QC/Triage queue
+                          if (trackType === "AOI") {
+                            dest = "aoi_triage";
+                            target = "AOI";
+                          } else if (trackType === "NoCase") {
+                            dest = "no_case_triage";
+                            target = "No Case";
                           } else {
-                            // Fallback: Return to Current Track's home queue
-                            if (trackType === "AOI") {
-                              dest = "aoi_triage";
-                              target = "AOI";
-                            } else if (trackType === "NoCase") {
-                              dest = "no_case_triage";
-                              target = "No Case";
-                            } else {
-                              dest = "icsr_triage";
-                              target = "ICSR";
-                            }
+                            dest = "icsr_triage";
+                            target = "ICSR";
                           }
 
                           handleAssessmentDecision("reject", target, dest);
@@ -820,17 +802,11 @@ export default function TrackAssessmentPage({
                         className="w-full flex items-center justify-center p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-all font-medium disabled:opacity-50"
                       >
                         {(() => {
-                          const breadcrumb = currentCase.lastQueueStage;
-                          if (breadcrumb === "TRIAGE_ICSR")
-                            return "Reject (Return to ICSR Triage)";
-                          if (breadcrumb === "TRIAGE_QUEUE_AOI")
+                          if (trackType === "AOI")
                             return "Reject (Return to AOI QC)";
-                          if (breadcrumb === "TRIAGE_QUEUE_NO_CASE")
+                          if (trackType === "NoCase")
                             return "Reject (Return to No Case QC)";
-                          // Fallback based on current track
-                          const label =
-                            trackType === "NoCase" ? "No Case" : trackType;
-                          return `Reject (Return to ${label} Triage)`;
+                          return "Reject (Return to ICSR Triage)";
                         })()}
                       </button>
                     </div>

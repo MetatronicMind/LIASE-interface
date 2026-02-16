@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { PmidLink } from './PmidLink';
-import { formatDateTime } from '../utils/dateTimeFormatter';
+import React, { useState, useEffect } from "react";
+import { PmidLink } from "./PmidLink";
+import { formatDateTime } from "../utils/dateTimeFormatter";
 
 interface Study {
   id: string;
@@ -14,7 +14,7 @@ interface Study {
   drugName: string;
   adverseEvent: string;
   status: string;
-  
+
   // AI Inference Data
   aiInferenceData?: any;
   doi?: string;
@@ -44,38 +44,53 @@ interface Study {
   justification?: string;
   clientName?: string;
   sponsor?: string;
-  userTag?: 'ICSR' | 'AOI' | 'No Case' | null;
+  userTag?: "ICSR" | "AOI" | "No Case" | null;
   effectiveClassification?: string;
   listedness?: string;
   seriousness?: string;
   fullTextAvailability?: string;
-  
+
   createdAt: string;
   updatedAt: string;
   comments?: any[];
+  qaApprovalStatus?: "pending" | "approved" | "rejected";
+  qaComments?: string;
+  qcR3Status?: "not_applicable" | "pending" | "approved" | "rejected";
+  qcR3Comments?: string;
+  revokedBy?: string;
+  revocationReason?: string;
 }
 
 interface StudyDetailViewProps {
   study: Study;
-  onUpdateTag?: (studyId: string, tag: 'ICSR' | 'AOI' | 'No Case') => void;
+  onUpdateTag?: (studyId: string, tag: "ICSR" | "AOI" | "No Case") => void;
   onClose?: () => void;
   readonly?: boolean;
 }
 
-export default function StudyDetailView({ study, onUpdateTag, onClose, readonly = false }: StudyDetailViewProps) {
-  const [selectedTag, setSelectedTag] = useState<'ICSR' | 'AOI' | 'No Case' | null>(study.userTag || null);
+export default function StudyDetailView({
+  study,
+  onUpdateTag,
+  onClose,
+  readonly = false,
+}: StudyDetailViewProps) {
+  const [selectedTag, setSelectedTag] = useState<
+    "ICSR" | "AOI" | "No Case" | null
+  >(study.userTag || null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'ai-analysis' | 'classification' | 'metadata'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "ai-analysis" | "classification" | "metadata"
+  >("overview");
 
-  const handleTagUpdate = async (tag: 'ICSR' | 'AOI' | 'No Case') => {
+  const handleTagUpdate = async (tag: "ICSR" | "AOI" | "No Case") => {
     if (readonly || !onUpdateTag) return;
-    
+
     setLoading(true);
     try {
       await onUpdateTag(study.id, tag);
       setSelectedTag(tag);
     } catch (error) {
-      console.error('Failed to update tag:', error);
+      console.error("Failed to update tag:", error);
     } finally {
       setLoading(false);
     }
@@ -83,26 +98,31 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
 
   const getClassificationColor = (classification?: string) => {
     switch (classification) {
-      case 'ICSR': return 'bg-red-100 text-red-800 border-red-200';
-      case 'AOI': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'No Case': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-600 border-gray-200';
+      case "ICSR":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "AOI":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "No Case":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-gray-100 text-gray-600 border-gray-200";
     }
   };
 
   const formatValue = (value: any): string => {
-    if (value === null || value === undefined) return 'Not specified';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (Array.isArray(value)) return value.length > 0 ? value.join(', ') : 'None';
-    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    if (value === null || value === undefined) return "Not specified";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (Array.isArray(value))
+      return value.length > 0 ? value.join(", ") : "None";
+    if (typeof value === "object") return JSON.stringify(value, null, 2);
     return String(value);
   };
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: '📄' },
-    { id: 'ai-analysis', label: 'AI Analysis', icon: '🤖' },
-    { id: 'classification', label: 'Classification', icon: '🏷️' },
-    { id: 'metadata', label: 'Metadata', icon: '📊' }
+    { id: "overview", label: "Overview", icon: "📄" },
+    { id: "ai-analysis", label: "AI Analysis", icon: "🤖" },
+    { id: "classification", label: "Classification", icon: "🏷️" },
+    { id: "metadata", label: "Metadata", icon: "📊" },
   ] as const;
 
   return (
@@ -111,30 +131,127 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b bg-gray-50 rounded-t-lg">
           <div className="flex-1">
-            <h2 className="text-xl font-semibold text-gray-900 mb-1">Article Details</h2>
-            <p className="text-sm text-gray-600">PMID: <PmidLink pmid={study.pmid} showIcon={true} /></p>
+            <h2 className="text-xl font-semibold text-gray-900 mb-1">
+              Article Details
+            </h2>
+            <p className="text-sm text-gray-600">
+              PMID: <PmidLink pmid={study.pmid} showIcon={true} />
+            </p>
           </div>
-          
+
           {/* Current Classification Badge */}
           <div className="flex items-center space-x-3">
-            <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getClassificationColor(study.effectiveClassification)}`}>
-              {study.effectiveClassification || 'Unclassified'}
+            <div
+              className={`px-3 py-1 rounded-full text-sm font-medium border ${getClassificationColor(study.effectiveClassification)}`}
+            >
+              {study.effectiveClassification || "Unclassified"}
               {study.userTag && (
                 <span className="ml-1 text-xs opacity-75">(Manual)</span>
               )}
             </div>
-            
+
             {onClose && (
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             )}
           </div>
+        </div>
+
+        {/* Rejection Banners */}
+        <div className="px-6 pt-4 space-y-2 bg-white">
+          {study.qaApprovalStatus === "rejected" && study.qaComments && (
+            <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-orange-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-orange-700">
+                    <span className="font-bold">Classification Rejected: </span>
+                    {study.qaComments}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {study.qcR3Status === "rejected" && study.qcR3Comments && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-red-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">
+                    <span className="font-bold">R3 Rejected: </span>
+                    {study.qcR3Comments}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {study.revokedBy && study.revocationReason && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-red-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">
+                    <span className="font-bold">Revoked: </span>
+                    {study.revocationReason}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Tab Navigation */}
@@ -145,8 +262,8 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600 bg-white'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? "border-blue-500 text-blue-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               <span className="mr-2">{tab.icon}</span>
@@ -158,30 +275,46 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {/* Overview Tab */}
-          {activeTab === 'overview' && (
+          {activeTab === "overview" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Publication Information</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Publication Information
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Title</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Title
+                    </label>
                     <p className="text-gray-900">{study.title}</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Authors</label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Authors
+                      </label>
                       <p className="text-gray-900">{study.authors}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Journal</label>
+                      <label className="text-sm font-medium text-gray-700">
+                        Journal
+                      </label>
                       <p className="text-gray-900">{study.journal}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Publication Date</label>
-                      <p className="text-gray-900">{require('@/hooks/useDateTime').useDateTime().formatDate(study.publicationDate)}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        Publication Date
+                      </label>
+                      <p className="text-gray-900">
+                        {require("@/hooks/useDateTime")
+                          .useDateTime()
+                          .formatDate(study.publicationDate)}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">DOI</label>
+                      <label className="text-sm font-medium text-gray-700">
+                        DOI
+                      </label>
                       <p className="text-gray-900">{formatValue(study.doi)}</p>
                     </div>
                   </div>
@@ -189,33 +322,45 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
               </div>
 
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Drug & Adverse Event</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Drug & Adverse Event
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Drug Name</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Drug Name
+                    </label>
                     <p className="text-gray-900">{study.drugName}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Adverse Event</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Adverse Event
+                    </label>
                     <p className="text-gray-900">{study.adverseEvent}</p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Abstract</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Abstract
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-900 leading-relaxed">{study.abstract}</p>
+                  <p className="text-gray-900 leading-relaxed">
+                    {study.abstract}
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
           {/* AI Analysis Tab */}
-          {activeTab === 'ai-analysis' && (
+          {activeTab === "ai-analysis" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">AI-Generated Summary</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  AI-Generated Summary
+                </h3>
                 <div className="bg-blue-50 rounded-lg p-4">
                   <p className="text-gray-900">{formatValue(study.summary)}</p>
                 </div>
@@ -223,74 +368,130 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-3">Patient Information</h4>
+                  <h4 className="text-md font-medium text-gray-900 mb-3">
+                    Patient Information
+                  </h4>
                   <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Patient Details</label>
-                      <p className="text-gray-900">{formatValue(study.patientDetails)}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        Patient Details
+                      </label>
+                      <p className="text-gray-900">
+                        {formatValue(study.patientDetails)}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Test Subject</label>
-                      <p className="text-gray-900">{formatValue(study.testSubject)}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        Test Subject
+                      </label>
+                      <p className="text-gray-900">
+                        {formatValue(study.testSubject)}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Identifiable Human Subject</label>
-                      <p className="text-gray-900">{formatValue(study.identifiableHumanSubject)}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        Identifiable Human Subject
+                      </label>
+                      <p className="text-gray-900">
+                        {formatValue(study.identifiableHumanSubject)}
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-3">Drug Information</h4>
+                  <h4 className="text-md font-medium text-gray-900 mb-3">
+                    Drug Information
+                  </h4>
                   <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Administered Drugs</label>
-                      <p className="text-gray-900">{formatValue(study.administeredDrugs)}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        Administered Drugs
+                      </label>
+                      <p className="text-gray-900">
+                        {formatValue(study.administeredDrugs)}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Substance Group</label>
-                      <p className="text-gray-900">{formatValue(study.substanceGroup)}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        Substance Group
+                      </label>
+                      <p className="text-gray-900">
+                        {formatValue(study.substanceGroup)}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Approved Indication</label>
-                      <p className="text-gray-900">{formatValue(study.approvedIndication)}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        Approved Indication
+                      </label>
+                      <p className="text-gray-900">
+                        {formatValue(study.approvedIndication)}
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">Key Events & Timeline</h4>
+                <h4 className="text-md font-medium text-gray-900 mb-3">
+                  Key Events & Timeline
+                </h4>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Key Events</label>
-                    <p className="text-gray-900">{formatValue(study.keyEvents)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Key Events
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.keyEvents)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Relevant Dates</label>
-                    <p className="text-gray-900">{formatValue(study.relevantDates)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Relevant Dates
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.relevantDates)}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">Analysis Results</h4>
+                <h4 className="text-md font-medium text-gray-900 mb-3">
+                  Analysis Results
+                </h4>
                 <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Attributability</label>
-                    <p className="text-gray-900">{formatValue(study.attributability)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Attributability
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.attributability)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Drug Effect</label>
-                    <p className="text-gray-900">{formatValue(study.drugEffect)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Drug Effect
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.drugEffect)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Serious</label>
-                    <p className="text-gray-900">{formatValue(study.serious)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Serious
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.serious)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Article of Interest Drug Effect</label>
-                    <p className="text-gray-900">{formatValue(study.aoiDrugEffect)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Article of Interest Drug Effect
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.aoiDrugEffect)}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -298,26 +499,40 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
           )}
 
           {/* Classification Tab */}
-          {activeTab === 'classification' && (
+          {activeTab === "classification" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">AI Classifications</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  AI Classifications
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Article of Interest Classification</label>
-                      <p className="text-gray-900">{formatValue(study.aoiClassification)}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        Article of Interest Classification
+                      </label>
+                      <p className="text-gray-900">
+                        {formatValue(study.aoiClassification)}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Text Type</label>
-                      <p className="text-gray-900">{formatValue(study.textType)}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        Text Type
+                      </label>
+                      <p className="text-gray-900">
+                        {formatValue(study.textType)}
+                      </p>
                     </div>
                   </div>
-                  
+
                   {study.justification && (
                     <div>
-                      <label className="text-sm font-medium text-gray-700">AI Justification</label>
-                      <p className="text-gray-900 bg-white p-3 rounded border">{study.justification}</p>
+                      <label className="text-sm font-medium text-gray-700">
+                        AI Justification
+                      </label>
+                      <p className="text-gray-900 bg-white p-3 rounded border">
+                        {study.justification}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -325,29 +540,43 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
 
               {study.userTag && (
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">Current Classification Details</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">
+                    Current Classification Details
+                  </h3>
                   <div className="bg-blue-50 rounded-lg p-4 space-y-4 border border-blue-100">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-700">Classification</label>
-                        <p className="text-gray-900 font-medium">{study.userTag}</p>
+                        <label className="text-sm font-medium text-gray-700">
+                          Classification
+                        </label>
+                        <p className="text-gray-900 font-medium">
+                          {study.userTag}
+                        </p>
                       </div>
                       {study.listedness && (
                         <div>
-                          <label className="text-sm font-medium text-gray-700">Listedness</label>
+                          <label className="text-sm font-medium text-gray-700">
+                            Listedness
+                          </label>
                           <p className="text-gray-900">{study.listedness}</p>
                         </div>
                       )}
                       {study.seriousness && (
                         <div>
-                          <label className="text-sm font-medium text-gray-700">Seriousness</label>
+                          <label className="text-sm font-medium text-gray-700">
+                            Seriousness
+                          </label>
                           <p className="text-gray-900">{study.seriousness}</p>
                         </div>
                       )}
                       {study.fullTextAvailability && (
                         <div>
-                          <label className="text-sm font-medium text-gray-700">Full Text Availability</label>
-                          <p className="text-gray-900">{study.fullTextAvailability}</p>
+                          <label className="text-sm font-medium text-gray-700">
+                            Full Text Availability
+                          </label>
+                          <p className="text-gray-900">
+                            {study.fullTextAvailability}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -358,23 +587,29 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
               {/* Manual Classification Override */}
               {!readonly && (
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">Manual Classification Override</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">
+                    Manual Classification Override
+                  </h3>
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p className="text-sm text-yellow-800 mb-4">
-                      Override the AI classification with your own assessment. This will take precedence over AI recommendations.
+                      Override the AI classification with your own assessment.
+                      This will take precedence over AI recommendations.
                     </p>
-                    
+
                     <div className="flex flex-wrap gap-3">
-                      {(['ICSR', 'AOI', 'No Case'] as const).map((tag) => (
+                      {(["ICSR", "AOI", "No Case"] as const).map((tag) => (
                         <button
                           key={tag}
                           onClick={() => handleTagUpdate(tag)}
                           disabled={loading}
                           className={`px-4 py-2 rounded-lg border transition-all ${
                             selectedTag === tag
-                              ? getClassificationColor(tag).replace('bg-', 'bg-opacity-20 border-').replace('text-', 'text-').replace('border-', 'border-')
-                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                          } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                              ? getClassificationColor(tag)
+                                  .replace("bg-", "bg-opacity-20 border-")
+                                  .replace("text-", "text-")
+                                  .replace("border-", "border-")
+                              : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                          } ${loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                           {loading && selectedTag === tag ? (
                             <div className="flex items-center">
@@ -387,10 +622,11 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
                         </button>
                       ))}
                     </div>
-                    
+
                     {study.userTag && (
                       <p className="text-sm text-gray-600 mt-3">
-                        Current manual classification: <span className="font-medium">{study.userTag}</span>
+                        Current manual classification:{" "}
+                        <span className="font-medium">{study.userTag}</span>
                       </p>
                     )}
                   </div>
@@ -400,63 +636,108 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
           )}
 
           {/* Metadata Tab */}
-          {activeTab === 'metadata' && (
+          {activeTab === "metadata" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Geographic Information</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Geographic Information
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Country of First Author</label>
-                    <p className="text-gray-900">{formatValue(study.countryOfFirstAuthor)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Country of First Author
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.countryOfFirstAuthor)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Country of Occurrence</label>
-                    <p className="text-gray-900">{formatValue(study.countryOfOccurrence)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Country of Occurrence
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.countryOfOccurrence)}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Author Information</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Author Information
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Lead Author</label>
-                    <p className="text-gray-900">{formatValue(study.leadAuthor)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Lead Author
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.leadAuthor)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Author Perspective</label>
-                    <p className="text-gray-900">{formatValue(study.authorPerspective)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Author Perspective
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.authorPerspective)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Vancouver Citation</label>
-                    <p className="text-gray-900 font-mono text-sm bg-white p-2 rounded border">{formatValue(study.vancouverCitation)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Vancouver Citation
+                    </label>
+                    <p className="text-gray-900 font-mono text-sm bg-white p-2 rounded border">
+                      {formatValue(study.vancouverCitation)}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Administrative Information</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Administrative Information
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Client Name</label>
-                    <p className="text-gray-900">{formatValue(study.clientName)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Client Name
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.clientName)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Sponsor</label>
-                    <p className="text-gray-900">{formatValue(study.sponsor)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Sponsor
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.sponsor)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Special Case</label>
-                    <p className="text-gray-900">{formatValue(study.specialCase)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Special Case
+                    </label>
+                    <p className="text-gray-900">
+                      {formatValue(study.specialCase)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Status</label>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      study.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                      study.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                      study.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <label className="text-sm font-medium text-gray-700">
+                      Status
+                    </label>
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        study.status === "Approved"
+                          ? "bg-green-100 text-green-800"
+                          : study.status === "Rejected"
+                            ? "bg-red-100 text-red-800"
+                            : study.status === "Under Review"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
                       {study.status}
                     </span>
                   </div>
@@ -464,15 +745,25 @@ export default function StudyDetailView({ study, onUpdateTag, onClose, readonly 
               </div>
 
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Timestamps</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Timestamps
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Created At</label>
-                    <p className="text-gray-900">{formatDateTime(study.createdAt)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Created At
+                    </label>
+                    <p className="text-gray-900">
+                      {formatDateTime(study.createdAt)}
+                    </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Last Updated</label>
-                    <p className="text-gray-900">{formatDateTime(study.updatedAt)}</p>
+                    <label className="text-sm font-medium text-gray-700">
+                      Last Updated
+                    </label>
+                    <p className="text-gray-900">
+                      {formatDateTime(study.updatedAt)}
+                    </p>
                   </div>
                 </div>
               </div>

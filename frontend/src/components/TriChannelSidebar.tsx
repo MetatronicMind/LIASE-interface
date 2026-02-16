@@ -51,7 +51,7 @@ const trackNavGroups: NavGroup[] = [
   {
     name: "ICSR Track",
     icon: <DocumentCheckIcon className="w-5 h-5" />,
-    permission: { resource: "triage", action: "read" },
+    permission: { resource: "icsr_track", action: "read" },
     children: [
       {
         name: "ICSR Triage",
@@ -70,7 +70,7 @@ const trackNavGroups: NavGroup[] = [
   {
     name: "AOI Track",
     icon: <BeakerIcon className="w-5 h-5" />,
-    permission: { resource: "aoiAssessment", action: "read" },
+    permission: { resource: "aoi_track", action: "read" },
     children: [
       {
         name: "AOI QC",
@@ -89,7 +89,7 @@ const trackNavGroups: NavGroup[] = [
   {
     name: "No Case Track",
     icon: <XCircleIcon className="w-5 h-5" />,
-    permission: { resource: "QA", action: "read" },
+    permission: { resource: "no_case_track", action: "read" },
     children: [
       {
         name: "No Case QC",

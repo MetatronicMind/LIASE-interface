@@ -296,6 +296,7 @@ class TrackAllocationService {
    * @param {string} destination - 'data_entry', 'medical_review', or 'reporting'
    * @param {object} user - User performing the action
    * @param {string} previousTrack - Optional. The track this study is coming from (if rerouting).
+   * @param {string} comments - Optional. Comments if the action is a rejection.
    * @returns {Promise<object>} Result of the operation
    */
   async routeStudy(
@@ -304,6 +305,7 @@ class TrackAllocationService {
     destination,
     user,
     previousTrack = null,
+    comments = null,
   ) {
     const studyData = await cosmosService.getItem(
       "studies",
@@ -324,7 +326,13 @@ class TrackAllocationService {
     const userName = user.getFullName
       ? user.getFullName()
       : `${user.firstName} ${user.lastName}`;
-    study.routeFromAssessment(destination, user.id, userName, previousTrack);
+    study.routeFromAssessment(
+      destination,
+      user.id,
+      userName,
+      previousTrack,
+      comments,
+    );
 
     await cosmosService.updateItem(
       "studies",
