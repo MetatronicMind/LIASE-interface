@@ -394,6 +394,18 @@ class Study {
     this.qcR3Comments = comments;
     this.updatedAt = new Date().toISOString();
 
+    // Ensure overall QA approval is set if it wasn't already (fixes legacy/buggy states)
+    if (
+      this.qaApprovalStatus !== "approved" &&
+      this.qaApprovalStatus !== "not_applicable"
+    ) {
+      this.qaApprovalStatus = "approved";
+      if (!this.qaApprovedBy) {
+        this.qaApprovedBy = userId;
+        this.qaApprovedAt = new Date().toISOString();
+      }
+    }
+
     const medicalReviewEnabled = workflowSettings.medicalReview !== false;
 
     if (medicalReviewEnabled) {
@@ -868,8 +880,16 @@ class Study {
       // But only if we are moving forward (not back to triage without comments)
       // Actually, if we move to next stage, we should probably clear rejection status
       if (!destination.includes("triage")) {
-        this.qaApprovalStatus = "pending"; // Reset or 'approved'?
-        // Maybe leave as is, or reset. Usually moving forward clears rejection.
+        // If moving forward to Data Entry or beyond, consider it approved
+        if (
+          ["data_entry", "medical_review", "reporting"].includes(destination)
+        ) {
+          this.qaApprovalStatus = "approved";
+          this.qaApprovedBy = userId;
+          this.qaApprovedAt = new Date().toISOString();
+        } else {
+          this.qaApprovalStatus = "pending";
+        }
       }
     }
 

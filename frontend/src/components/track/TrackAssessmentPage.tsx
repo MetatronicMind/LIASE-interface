@@ -285,7 +285,7 @@ export default function TrackAssessmentPage({
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/track/route/${currentCase.id}`,
+        `${API_BASE}/track/route/${currentCase.id}`,
         {
           method: "POST",
           headers: {
@@ -672,22 +672,36 @@ export default function TrackAssessmentPage({
 
                           {/* If Classified as AOI */}
                           {selectedClassification === "AOI" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to AOI is handled at the Triage
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "AOI",
+                                  "aoi_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to AOI Assessment
+                            </button>
                           )}
 
                           {/* If Classified as No Case */}
                           {selectedClassification === "No Case" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to No Case is handled at the
-                                Triage level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "No Case",
+                                  "no_case_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to No Case Assessment
+                            </button>
                           )}
                         </>
                       )}
@@ -714,22 +728,36 @@ export default function TrackAssessmentPage({
 
                           {/* If Classified as ICSR */}
                           {selectedClassification === "ICSR" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to ICSR is handled at the QC
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "ICSR",
+                                  "icsr_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to ICSR Assessment
+                            </button>
                           )}
 
                           {/* If Classified as No Case */}
                           {selectedClassification === "No Case" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to No Case is handled at the QC
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "No Case",
+                                  "no_case_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to No Case Assessment
+                            </button>
                           )}
                         </>
                       )}
@@ -756,22 +784,36 @@ export default function TrackAssessmentPage({
 
                           {/* If Classified as ICSR */}
                           {selectedClassification === "ICSR" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to ICSR is handled at the QC
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "ICSR",
+                                  "icsr_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to ICSR Assessment
+                            </button>
                           )}
 
                           {/* If Classified as AOI */}
                           {selectedClassification === "AOI" && (
-                            <div className="col-span-1 sm:col-span-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                              <p className="text-sm text-gray-600">
-                                Cross-allocation to AOI is handled at the QC
-                                level.
-                              </p>
-                            </div>
+                            <button
+                              onClick={() =>
+                                handleAssessmentDecision(
+                                  "reroute",
+                                  "AOI",
+                                  "aoi_assessment",
+                                )
+                              }
+                              disabled={routingStudyId === currentCase.id}
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
+                            >
+                              Re-route to AOI Assessment
+                            </button>
                           )}
                         </>
                       )}

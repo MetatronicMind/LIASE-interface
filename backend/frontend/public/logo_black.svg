@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1062 762">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #003d82;
+        stroke-miterlimit: 10;
+        stroke-width: 10px;
+      }
+      .cls-2 {
+        fill: #003d82;
+        font-family: Poppins-Regular, Poppins;
+        font-size: 120px;
+      }
+      .cls-3 {
+        fill: #003d82;
+        stroke-width: 0px;
+      }
+      .cls-4 {
+        fill: none;
+        stroke: #00a1e0;
+        stroke-miterlimit: 10;
+        stroke-width: 3px;
+      }
+    </style>
+  </defs>
+  <g id="Layer_2" data-name="Layer 2">
+    <g>
+      <polygon class="cls-1" points="530.91 105.12 650.04 165.75 650.04 287 530.91 347.63 411.77 287 411.77 165.75 530.91 105.12"/>
+      <polygon class="cls-1" points="411.77 165.75 292.64 226.38 292.64 347.63 411.77 408.25 411.77 287 411.77 165.75"/>
+      <polygon class="cls-1" points="530.91 347.63 411.77 408.25 411.77 529.5 530.91 590.13 650.04 529.5 650.04 408.25 530.91 347.63"/>
+      <polygon class="cls-1" points="650.04 165.75 769.18 226.38 769.18 347.63 650.04 408.25 650.04 287 650.04 165.75"/>
+      <polygon class="cls-1" points="292.64 226.38 173.5 287 173.5 408.25 292.64 468.88 292.64 347.63 292.64 226.38"/>
+      <polygon class="cls-1" points="769.18 226.38 888.32 287 888.32 408.25 769.18 468.88 769.18 347.63 769.18 226.38"/>
+      <polygon class="cls-1" points="411.77 408.25 292.64 468.88 292.64 590.13 411.77 650.75 411.77 529.5 411.77 408.25"/>
+      <polygon class="cls-1" points="650.04 408.25 769.18 468.88 769.18 590.13 650.04 650.75 650.04 529.5 650.04 408.25"/>
+      <line class="cls-4" x1="530.91" y1="105.12" x2="530.91" y2="590.13"/>
+      <line class="cls-4" x1="411.77" y1="165.75" x2="650.04" y2="165.75"/>
+      <line class="cls-4" x1="292.64" y1="226.38" x2="769.18" y2="226.38"/>
+      <line class="cls-4" x1="173.5" y1="287" x2="888.32" y2="287"/>
+      <line class="cls-4" x1="173.5" y1="408.25" x2="888.32" y2="408.25"/>
+      <line class="cls-4" x1="292.64" y1="468.88" x2="769.18" y2="468.88"/>
+      <line class="cls-4" x1="411.77" y1="529.5" x2="650.04" y2="529.5"/>
+      <polygon class="cls-3" points="530.91 226.38 583.48 256.19 583.48 315.81 530.91 345.63 478.34 315.81 478.34 256.19 530.91 226.38"/>
+    </g>
+  </g>
+  <g id="Layer_1" data-name="Layer 1">
+    <text class="cls-2" transform="translate(147.91 551.17)"><tspan x="0" y="0">Metatronic</tspan><tspan class="cls-3" x="0" y="144">Mind </tspan></text>
+    <text class="cls-2" transform="translate(212.06 695.17)"><tspan x="0" y="0">Technologies</tspan></text>
+  </g>
+</svg>

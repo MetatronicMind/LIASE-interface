@@ -1,0 +1,1032 @@
+"use client";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useDateTime } from "@/hooks/useDateTime";
+import { getApiBaseUrl } from "@/config/api";
+import { PermissionGate } from "@/components/PermissionProvider";
+import { PmidLink } from "@/components/PmidLink";
+import PDFAttachmentUpload from "@/components/PDFAttachmentUpload";
+import { CommentThread } from "@/components/CommentThread";
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+
+interface Study {
+  id: string;
+  pmid: string;
+  title: string;
+  authors: string;
+  journal: string;
+  publicationDate?: string;
+  drugName: string;
+  adverseEvent: string;
+  userTag: 'ICSR' | 'AOI' | 'No Case';
+  qaApprovalStatus: 'pending' | 'approved' | 'rejected';
+  qaComments?: string;
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    fileSize: number;
+    uploadedAt: string;
+    uploadedByName?: string;
+  }>;
+  r3FormStatus?: string;
+  qcR3Status?: string;
+  r3FormData?: any;
+  createdAt: string;
+  updatedAt: string;
+  r3FormCompletedAt?: string;
+  abstract?: string;
+  
+  // AI Inference Data - All fields from Triage
+  aiInferenceData?: any;
+  doi?: string;
+  specialCase?: string;
+  countryOfFirstAuthor?: string;
+  countryOfOccurrence?: string;
+  patientDetails?: any;
+  keyEvents?: string[];
+  relevantDates?: any;
+  administeredDrugs?: string[];
+  attributability?: string;
+  drugEffect?: string;
+  summary?: string;
+  identifiableHumanSubject?: boolean;
+  textType?: string;
+  leadAuthor?: string;
+  vancouverCitation?: string;
+  serious?: boolean;
+  confirmedPotentialICSR?: boolean;
+  icsrClassification?: string;
+  aoiClassification?: string;
+  substanceGroup?: string;
+  authorPerspective?: string;
+  testSubject?: string;
+  aoiDrugEffect?: string;
+  approvedIndication?: string;
+  justification?: string;
+  listedness?: string;
+  seriousness?: string;
+  fullTextAvailability?: string;
+  fullTextSource?: string;
+  clientName?: string;
+  sponsor?: string;
+  effectiveClassification?: string;
+  
+  // Legacy fields for backward compatibility
+  Drugname?: string;
+  Serious?: string;
+  special_case?: string;
+  ICSR_classification?: string;
+  Text_type?: string;
+}
+
+export default function QCTriagePage() {
+  const { user } = useAuth();
+  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
+  const { formatDateTime } = useDateTime();
+  const [studies, setStudies] = useState<Study[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedStudy, setSelectedStudy] = useState<Study | null>(null);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [comments, setComments] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [revokeToStage, setRevokeToStage] = useState("");
+
+  // Filter state
+  const [search, setSearch] = useState("");
+  const [studyIdFilter, setStudyIdFilter] = useState("");
+  const [clientNameFilter, setClientNameFilter] = useState("");
+  const [classificationType, setClassificationType] = useState("");
+  const [journalNameFilter, setJournalNameFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Helper function to normalize classification values from backend
+  const normalizeClassification = (value?: string): string | undefined => {
+    if (!value) return value;
+    let normalized = value.replace(/^Classification:\s*/i, '').trim();
+    normalized = normalized.replace(/^\d+\.\s*/, '').trim();
+    return normalized;
+  };
+
+  // Function to calculate final classification based on AI inference data
+  const getFinalClassification = (study: Study): string | null => {
+    const rawIcsrClassification = study.aiInferenceData?.ICSR_classification || study.ICSR_classification || study.icsrClassification;
+    const rawAoiClassification = study.aiInferenceData?.AOI_classification || study.aoiClassification;
+    
+    const icsrClassification = normalizeClassification(rawIcsrClassification);
+    const aoiClassification = normalizeClassification(rawAoiClassification);
+
+    if (!icsrClassification) return null;
+
+    if (icsrClassification === "Article requires manual review") {
+      return "Manual Review";
+    }
+
+    if (icsrClassification === "Probable ICSR/AOI") {
+      return "Probable ICSR/AOI";
+    }
+
+    if (icsrClassification === "Probable ICSR") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (ICSR)") {
+        return "Probable ICSR/AOI";
+      } else {
+        return "Probable ICSR";
+      }
+    }
+
+    if (icsrClassification === "No Case") {
+      if (aoiClassification === "Yes" || aoiClassification === "Yes (AOI)") {
+        return "Probable AOI";
+      } else {
+        return "No Case";
+      }
+    }
+
+    return null;
+  };
+
+  useEffect(() => {
+    fetchPendingStudies();
+    fetchWorkflowConfig();
+  }, [selectedOrganizationId]);
+
+  const fetchWorkflowConfig = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`${getApiBaseUrl()}/admin-config/workflow`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const config = data.configData;
+        // Find transition from qc_triage
+        // We look for any transition starting from qc_triage that allows revoke
+        const transition = config.transitions.find((t: any) => t.from === 'qc_triage');
+        if (transition && transition.canRevoke) {
+          setRevokeToStage(transition.revokeTo);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching workflow config:', error);
+    }
+  };
+
+  const fetchPendingStudies = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("auth_token");
+      const queryParams = selectedOrganizationId ? `&organizationId=${selectedOrganizationId}` : '';
+      const response = await fetch(`${getApiBaseUrl()}/studies/QA-pending?status=manual_qc${queryParams}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStudies(data.data || []);
+      } else {
+        throw new Error("Failed to fetch pending QC studies");
+      }
+    } catch (error) {
+      console.error("Error fetching QC studies:", error);
+      setError("Failed to load studies for QC review");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Extract unique client names for filter dropdown
+  const uniqueClientNames = Array.from(new Set(studies.map(s => s.clientName).filter(Boolean))).sort();
+  
+  // Extract unique journal names for filter dropdown
+  const uniqueJournalNames = Array.from(new Set(studies.map(s => s.journal).filter(Boolean))).sort();
+
+  // Filter studies
+  const filteredStudies = studies.filter(study => {
+    // Search filter (Drug Name, Title, PMID)
+    const searchLower = search.toLowerCase();
+    const matchesSearch = !search || 
+      (study.drugName && study.drugName.toLowerCase().includes(searchLower)) ||
+      (study.title && study.title.toLowerCase().includes(searchLower)) ||
+      (study.pmid && study.pmid.includes(searchLower));
+      
+    // Study ID filter
+    const matchesStudyId = !studyIdFilter || study.id.toLowerCase().includes(studyIdFilter.toLowerCase());
+
+    // Client Name filter
+    const matchesClient = !clientNameFilter || study.clientName === clientNameFilter;
+    
+    // Classification filter
+    const finalClassification = getFinalClassification(study);
+    const matchesClassification = !classificationType || finalClassification === classificationType;
+    
+    // Journal filter
+    const matchesJournal = !journalNameFilter || study.journal === journalNameFilter;
+    
+    // Date filter
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      const studyDate = new Date(study.publicationDate || study.createdAt);
+      if (dateFrom) {
+        matchesDate = matchesDate && studyDate >= new Date(dateFrom);
+      }
+      if (dateTo) {
+        matchesDate = matchesDate && studyDate <= new Date(dateTo);
+      }
+    }
+    
+    return matchesSearch && matchesStudyId && matchesClient && matchesClassification && matchesJournal && matchesDate;
+  });
+
+  const approveClassification = async (studyId: string) => {
+    setActionInProgress(studyId);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`${getApiBaseUrl()}/studies/${studyId}/QA/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ comments }),
+      });
+
+      if (response.ok) {
+        setStudies(prev => prev.filter(study => study.id !== studyId));
+        setSelectedStudy(null);
+        setComments("");
+        alert("Classification approved successfully! Article will proceed to Data Entry.");
+        fetchPendingStudies();
+      } else {
+        throw new Error("Failed to approve classification");
+      }
+    } catch (error) {
+      console.error("Error approving classification:", error);
+      alert("Failed to approve classification. Please try again.");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const rejectClassification = async (studyId: string) => {
+    if (!rejectionReason.trim()) {
+      alert("Please provide a reason for rejection");
+      return;
+    }
+
+    setActionInProgress(studyId);
+    try {
+      const token = localStorage.getItem("auth_token");
+      
+      // Use the standard QA reject endpoint, which now supports targetStage
+      const endpoint = `${getApiBaseUrl()}/studies/${studyId}/QA/reject`;
+        
+      const body = revokeToStage 
+        ? { reason: rejectionReason, targetStage: revokeToStage }
+        : { reason: rejectionReason };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        setStudies(prev => prev.filter(study => study.id !== studyId));
+        setSelectedStudy(null);
+        setRejectionReason("");
+        setShowRejectModal(false);
+        alert(`Classification rejected successfully! Article has been returned to ${revokeToStage || 'Triage'}.`);
+        fetchPendingStudies();
+      } else {
+        throw new Error("Failed to reject classification");
+      }
+    } catch (error) {
+      console.error("Error rejecting classification:", error);
+      alert("Failed to reject classification. Please try again.");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const getClassificationColor = (classification: string) => {
+    switch (classification) {
+      case 'ICSR': return 'bg-red-100 text-red-800 border-red-200';
+      case 'AOI': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'No Case': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-600 border-gray-200';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="text-center mt-2 text-gray-600">Loading QC queue...</p>
+      </div>
+    );
+  }
+
+  return (
+    <PermissionGate resource="studies" action="read">
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+          <div className="max-w-7xl mx-auto flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">QC Triage</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Review and approve triage classifications
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+              <p className="text-red-800">{error}</p>
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+              </svg>
+              Filter Articles
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Drug Name, Title, or PMID</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search by drug name, title, or PMID..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Article ID</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search by Article ID..."
+                    value={studyIdFilter}
+                    onChange={e => setStudyIdFilter(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Client Name </label>
+                <select
+                  value={clientNameFilter}
+                  onChange={e => setClientNameFilter(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="">All Clients</option>
+                  {uniqueClientNames.map((client, index) => (
+                    <option key={index} value={client as string}>{client}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">AI Classification </label>
+                <select
+                  value={classificationType}
+                  onChange={e => setClassificationType(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="">All Classifications</option>
+                  <option value="Probable ICSR/AOI">Probable ICSR/AOI</option>
+                  <option value="Probable ICSR">Probable ICSR</option>
+                  <option value="Probable AOI">Probable AOI</option>
+                  <option value="No Case">No Case</option>
+                  <option value="Manual Review">Manual Review</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Journal Name </label>
+                <select
+                  value={journalNameFilter}
+                  onChange={e => setJournalNameFilter(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                >
+                  <option value="">All Journals</option>
+                  {uniqueJournalNames.map((journal, index) => (
+                    <option key={index} value={journal as string}>{journal}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">From Date</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">To Date</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-400 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-gray-900"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <button
+                type="button"
+                className="flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 text-sm font-medium transition-colors"
+                onClick={() => {
+                  setSearch("");
+                  setStudyIdFilter("");
+                  setClientNameFilter("");
+                  setClassificationType("");
+                  setJournalNameFilter("");
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear All Filters
+              </button>
+              <div className="text-sm text-gray-500">
+                {filteredStudies.length} Articles found
+              </div>
+            </div>
+          </div>
+
+          {/* Studies List */}
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Pending Triage Classifications ({filteredStudies.length})
+              </h2>
+            </div>
+
+            {filteredStudies.length === 0 ? (
+              <div className="text-center py-12">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No pending classifications</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  All triage classifications have been reviewed.
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-gray-200">
+                {filteredStudies.map((study) => (
+                  <li
+                    key={study.id}
+                    className={`px-4 sm:px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                      selectedStudy?.id === study.id ? 'bg-blue-50' : ''
+                    }`}
+                    onClick={() => setSelectedStudy(study)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">ID: {study.id}</span>
+                          <PmidLink pmid={study.pmid} />
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getClassificationColor(study.userTag)}`}>
+                            {study.userTag}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Classified: {formatDateTime(study.r3FormCompletedAt || study.updatedAt)}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 truncate">{study.title}</p>
+                        <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4">
+                          <p className="text-xs text-gray-500">
+                            <span className="font-medium">Drug:</span> {study.drugName}
+                          </p>
+                          {/* <p className="text-xs text-gray-500">
+                            <span className="font-medium">Adverse Event:</span> {study.adverseEvent}
+                          </p> */}
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Study Details Modal */}
+          {selectedStudy && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40 flex justify-center pt-10 pb-10">
+              <div className="relative bg-white rounded-lg shadow-xl max-w-[95vw] w-full mx-4 flex flex-col max-h-[90vh]">
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-lg sticky top-0 z-10">
+                  <h3 className="text-lg font-semibold text-gray-900">Classification Review</h3>
+                  <button
+                    onClick={() => {
+                      setSelectedStudy(null);
+                      setComments("");
+                      setRejectionReason("");
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="px-4 sm:px-6 py-6 overflow-y-auto">
+                  {/* Study Information */}
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">Article Details</h4>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-500">Article ID</p>
+                        <p className="text-sm text-gray-900 font-mono">{selectedStudy.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">PMID</p>
+                        <PmidLink pmid={selectedStudy.pmid} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Classification</p>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getClassificationColor(selectedStudy.userTag)}`}>
+                          {selectedStudy.userTag}
+                        </span>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <p className="text-xs text-gray-500">Title</p>
+                        <p className="text-sm text-gray-900 mt-1">{selectedStudy.title}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Drug Name</p>
+                        <p className="text-sm text-gray-900 mt-1">{selectedStudy.drugName}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Adverse Event</p>
+                        <p className="text-sm text-gray-900 mt-1">{selectedStudy.adverseEvent}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Abstract */}
+                  {(selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract) && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500 mb-2">Abstract</h4>
+                      <div className="bg-gray-50 rounded-md p-3 text-sm">
+                        <p className="text-gray-900 leading-relaxed">{selectedStudy.aiInferenceData?.Abstract || selectedStudy.abstract}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Study Metadata */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-2">Article Metadata</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                      {selectedStudy.authors && (
+                        <div>
+                          <span className="font-medium text-gray-700">Authors:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.authors}</p>
+                        </div>
+                      )}
+                      {selectedStudy.journal && (
+                        <div>
+                          <span className="font-medium text-gray-700">Journal:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.journal}</p>
+                        </div>
+                      )}
+                      {selectedStudy.doi && (
+                        <div>
+                          <span className="font-medium text-gray-700">DOI:</span>
+                          <p className="mt-1 text-gray-900 break-all">
+                            <a 
+                              href={selectedStudy.doi.startsWith('http') ? selectedStudy.doi : `https://doi.org/${selectedStudy.doi}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {selectedStudy.doi}
+                            </a>
+                          </p>
+                        </div>
+                      )}
+                      {selectedStudy.vancouverCitation && (
+                        <div className="sm:col-span-2">
+                          <span className="font-medium text-gray-700">Vancouver Citation:</span>
+                          <p className="mt-1 text-gray-900 text-xs">{selectedStudy.vancouverCitation}</p>
+                        </div>
+                      )}
+                      {selectedStudy.leadAuthor && (
+                        <div>
+                          <span className="font-medium text-gray-700">Lead Author:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.leadAuthor}</p>
+                        </div>
+                      )}
+                      {selectedStudy.countryOfFirstAuthor && (
+                        <div>
+                          <span className="font-medium text-gray-700">Country (First Author):</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.countryOfFirstAuthor}</p>
+                        </div>
+                      )}
+                      {selectedStudy.countryOfOccurrence && (
+                        <div>
+                          <span className="font-medium text-gray-700">Country of Occurrence:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.countryOfOccurrence}</p>
+                        </div>
+                      )}
+                      {selectedStudy.substanceGroup && (
+                        <div>
+                          <span className="font-medium text-gray-700">Substance Group:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.substanceGroup}</p>
+                        </div>
+                      )}
+                      {selectedStudy.authorPerspective && (
+                        <div>
+                          <span className="font-medium text-gray-700">Author Perspective:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.authorPerspective}</p>
+                        </div>
+                      )}
+                      {selectedStudy.clientName && (
+                        <div>
+                          <span className="font-medium text-gray-700">Client:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.clientName}</p>
+                        </div>
+                      )}
+                      {selectedStudy.sponsor && (
+                        <div>
+                          <span className="font-medium text-gray-700">Sponsor:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.sponsor}</p>
+                        </div>
+                      )}
+                      {selectedStudy.testSubject && (
+                        <div>
+                          <span className="font-medium text-gray-700">Test Subject:</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.testSubject}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* AI Analysis & Clinical Data */}
+                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      <div className="font-bold flex justify-center items-center">
+                          <p>AI Literature Analysis</p>
+                      </div>
+                    </h4>
+                    <div className="space-y-4">
+                      {/* Grid Layout for Analysis Fields */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium text-gray-700">AI Identified Adverse Event(s):</span>
+                          <p className="mt-1 text-gray-900">{selectedStudy.adverseEvent}</p>
+                        </div>
+                        {(selectedStudy.special_case || selectedStudy.specialCase) && (
+                          <div>
+                            <span className="font-medium text-gray-700">AI Identified Special Situation(s):</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.special_case || selectedStudy.specialCase}</p>
+                          </div>
+                        )}
+                        {(selectedStudy.Serious || selectedStudy.serious !== undefined) && (
+                          <div>
+                            <span className="font-medium text-gray-700">Serious Event:</span>
+                            <p className="mt-1 text-gray-900">
+                              {typeof selectedStudy.serious === 'boolean' 
+                                ? (selectedStudy.serious ? 'Yes' : 'No')
+                                : selectedStudy.Serious || 'Unknown'
+                              }
+                            </p>
+                          </div>
+                        )}
+                        {(selectedStudy.Text_type || selectedStudy.textType) && (
+                          <div>
+                            <span className="font-medium text-gray-700">Article Type:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.Text_type || selectedStudy.textType}</p>
+                          </div>
+                        )}
+                        {selectedStudy.identifiableHumanSubject !== undefined && (
+                          <div>
+                            <span className="font-medium text-gray-700">Human Subject:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.identifiableHumanSubject ? 'Yes' : 'No'}</p>
+                          </div>
+                        )}
+                        {selectedStudy.aoiClassification && (
+                          <div>
+                            <span className="font-medium text-gray-700">AOI Classification:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.aoiClassification}</p>
+                          </div>
+                        )}
+                        {selectedStudy.approvedIndication && (
+                          <div>
+                            <span className="font-medium text-gray-700">AI Assessment of Indication:</span>
+                            <p className="mt-1 text-gray-900">{selectedStudy.approvedIndication}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Text-based Fields */}
+                      {selectedStudy.attributability && (
+                        <div>
+                          <span className="font-medium text-gray-700">AI Assessment of Attributability:</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.attributability}</p>
+                        </div>
+                      )}
+                      {selectedStudy.drugEffect && (
+                        <div>
+                          <span className="font-medium text-gray-700">AI Identified Drug Effect (Beneficial/Adverse) :</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.drugEffect}</p>
+                        </div>
+                      )}
+                      {selectedStudy.aoiDrugEffect && (
+                        <div>
+                          <span className="font-medium text-gray-700">AOI Drug Effect:</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.aoiDrugEffect}</p>
+                        </div>
+                      )}
+                      {selectedStudy.summary && (
+                        <div>
+                          <span className="font-medium text-gray-700">Summary:</span>
+                          <p className="mt-1 text-gray-900 text-sm">{selectedStudy.summary}</p>
+                        </div>
+                      )}
+
+                      {/* Clinical Data */}
+                      {selectedStudy.administeredDrugs && Array.isArray(selectedStudy.administeredDrugs) && selectedStudy.administeredDrugs.length > 0 && (
+                        <div>
+                          <span className="font-medium text-gray-700">Administered Drugs:</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {selectedStudy.administeredDrugs.map((drug, index) => (
+                              <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                                {drug}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {selectedStudy.keyEvents && Array.isArray(selectedStudy.keyEvents) && selectedStudy.keyEvents.length > 0 && (
+                        <div>
+                          <span className="font-medium text-gray-700">Key Events:</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {selectedStudy.keyEvents.map((event, index) => (
+                              <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                {event}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {selectedStudy.patientDetails && (
+                        <div>
+                          <span className="font-medium text-gray-700">Patient Details:</span>
+                          <div className="mt-1 bg-white rounded p-3 border">
+                            {typeof selectedStudy.patientDetails === 'object' ? (
+                              <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                                {JSON.stringify(selectedStudy.patientDetails, null, 2)}
+                              </pre>
+                            ) : (
+                              <p className="text-gray-900 text-sm">{selectedStudy.patientDetails}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {selectedStudy.relevantDates && (
+                        <div>
+                          <span className="font-medium text-gray-700">Relevant Dates:</span>
+                          <div className="mt-1 bg-white rounded p-3 border">
+                            {typeof selectedStudy.relevantDates === 'object' ? (
+                              <pre className="text-xs text-gray-900 whitespace-pre-wrap">
+                                {JSON.stringify(selectedStudy.relevantDates, null, 2)}
+                              </pre>
+                            ) : (
+                              <p className="text-gray-900 text-sm">{selectedStudy.relevantDates}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Triage Classification */}
+                  <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Triage Classification
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-sm font-medium text-gray-500">Classification</span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getClassificationColor(selectedStudy.userTag || '')}`}>
+                            {selectedStudy.userTag}
+                          </span>
+                          
+                          {selectedStudy.listedness && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                              {selectedStudy.listedness}
+                            </span>
+                          )}
+
+                          {selectedStudy.seriousness && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                              {selectedStudy.seriousness}
+                            </span>
+                          )}
+
+                          {selectedStudy.fullTextAvailability && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                              Full Text: {selectedStudy.fullTextAvailability}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedStudy.fullTextAvailability === 'Yes' && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">Full Text Source</span>
+                          <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                            {selectedStudy.fullTextSource || "Not specified"}
+                          </p>
+                        </div>
+                      )}
+
+                      {selectedStudy.justification && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">Triage Justification</span>
+                          <p className="mt-1 text-sm text-gray-900 font-medium bg-gray-50 p-2 rounded border border-gray-200">
+                            {selectedStudy.justification}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* PDF Attachments */}
+                  <PDFAttachmentUpload
+                    studyId={selectedStudy.id}
+                    attachments={selectedStudy.attachments || []}
+                    onUploadComplete={async () => {
+                      // Fetch the updated study with new attachments
+                      try {
+                        const token = localStorage.getItem('auth_token');
+                        const response = await fetch(`${getApiBaseUrl()}/studies/${selectedStudy.id}`, {
+                          headers: {
+                            'Authorization': `Bearer ${token}`
+                          }
+                        });
+                        
+                        if (response.ok) {
+                          const updatedStudy = await response.json();
+                          setSelectedStudy(updatedStudy);
+                          fetchPendingStudies();
+                        }
+                      } catch (error) {
+                        console.error('Failed to refresh study:', error);
+                        fetchPendingStudies();
+                      }
+                    }}
+                  />
+
+                  {/* Comment Thread */}
+                  <CommentThread study={selectedStudy} />
+
+                  {/* Comments */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Comments (Optional)
+                    </label>
+                    <textarea
+                      value={comments}
+                      onChange={(e) => setComments(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="Add any comments"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex space-x-3">
+                    <PermissionGate resource="studies" action="write">
+                      <button
+                        onClick={() => approveClassification(selectedStudy.id)}
+                        disabled={actionInProgress === selectedStudy.id}
+                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center"
+                      >
+                        {actionInProgress === selectedStudy.id ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Approving...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Approve Classification
+                          </>
+                        )}
+                      </button>
+                    </PermissionGate>
+
+                    <PermissionGate resource="studies" action="write">
+                      <button
+                        onClick={() => setShowRejectModal(true)}
+                        disabled={actionInProgress === selectedStudy.id}
+                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Revoke Classification
+                      </button>
+                    </PermissionGate>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          )}
+        </div>
+
+        {/* Reject Modal */}
+        {showRejectModal && selectedStudy && (
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-[95vw] w-full p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Revoke Classification</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Please provide a reason for revoking this classification. The study will be returned to Triage for re-classification.
+              </p>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-sm"
+                placeholder="Enter revocation reason..."
+              />
+              <div className="mt-4 flex space-x-3">
+                <button
+                  onClick={() => rejectClassification(selectedStudy.id)}
+                  disabled={!rejectionReason.trim() || actionInProgress === selectedStudy.id}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  Confirm Revocation
+                </button>
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setRejectionReason("");
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </PermissionGate>
+  );
+}
