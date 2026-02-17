@@ -101,6 +101,7 @@ class Study {
     workflowStage = null, // Granular stage from WorkflowStage enum
     batchId = null, // ID for the batch allocation
     allocatedAt = null, // Timestamp when allocated
+    lastQueueStage = null, // Breadcrumb for reject-back routing
   }) {
     this.id = id;
     this.organizationId = organizationId;
@@ -211,6 +212,10 @@ class Study {
     this.workflowTrack = workflowTrack;
     this.subStatus = subStatus;
     this.isAutoPassed = isAutoPassed;
+    this.workflowStage = workflowStage;
+    this.batchId = batchId;
+    this.allocatedAt = allocatedAt;
+    this.lastQueueStage = lastQueueStage;
   }
 
   addComment(comment) {
@@ -533,6 +538,18 @@ class Study {
     this.revokedAt = new Date().toISOString();
     this.revocationReason = reason;
     this.priority = "high"; // Always high priority on revocation
+
+    // If no target stage provided, default based on current state
+    if (!targetStage) {
+      if (
+        this.workflowStage === "DATA_ENTRY" ||
+        this.status === "data_entry" ||
+        this.subStatus === "data_entry"
+      ) {
+        // Default revamp from Data Entry -> Triage
+        targetStage = "triage";
+      }
+    }
 
     // Update the main status field if a target stage is provided
     if (targetStage) {
@@ -1140,6 +1157,10 @@ class Study {
       workflowTrack: this.workflowTrack,
       subStatus: this.subStatus,
       isAutoPassed: this.isAutoPassed,
+      workflowStage: this.workflowStage,
+      batchId: this.batchId,
+      allocatedAt: this.allocatedAt,
+      lastQueueStage: this.lastQueueStage,
     };
   }
 
