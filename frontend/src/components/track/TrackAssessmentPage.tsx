@@ -674,14 +674,14 @@ export default function TrackAssessmentPage({
                               onClick={() =>
                                 handleAssessmentDecision(
                                   "reroute",
-                                  "NoCase",
+                                  "No Case",
                                   "no_case_assessment",
                                 )
                               }
                               disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-100 text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-200 transition-all font-medium disabled:opacity-50"
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
                             >
-                              Route to No Case Assessment
+                              Re-route to No Case Assessment
                             </button>
                           )}
                         </>
@@ -730,14 +730,14 @@ export default function TrackAssessmentPage({
                               onClick={() =>
                                 handleAssessmentDecision(
                                   "reroute",
-                                  "NoCase",
+                                  "No Case",
                                   "no_case_assessment",
                                 )
                               }
                               disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-100 text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-200 transition-all font-medium disabled:opacity-50"
+                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
                             >
-                              Route to No Case Assessment
+                              Re-route to No Case Assessment
                             </button>
                           )}
                         </>
