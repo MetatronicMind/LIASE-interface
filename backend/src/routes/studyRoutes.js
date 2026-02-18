@@ -1294,6 +1294,8 @@ router.put(
               );
           }
 
+          }
+
           if (nextStageId) {
             console.log(
               `[Workflow Debug] Transitioning to: ${nextStageId} (${nextStatus})`,
