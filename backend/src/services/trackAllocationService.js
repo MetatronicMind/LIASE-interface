@@ -380,7 +380,6 @@ class TrackAllocationService {
                 AND (c.userTag = @userTag OR LOWER(c.userTag) = LOWER(@userTag))
             )
           )
-          AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = "")
           GROUP BY c.subStatus
         `;
 
@@ -393,8 +392,15 @@ class TrackAllocationService {
 
         for (const row of results) {
           // Map null/undefined subStatus to 'triage'
-          // Map 'reporting' to 'assessment' for NoCase track if that's where they end up
-          let statusKey = row.subStatus || "triage";
+          let statusKey = row.subStatus
+            ? row.subStatus.toLowerCase()
+            : "triage";
+
+          // Merge 'reclassified' and 'correction' into 'assessment' for broader pool visibility
+          // This ensures re-routed cases are counted in the main "Case Pool" badge
+          if (statusKey === "reclassified" || statusKey === "correction") {
+            statusKey = "assessment";
+          }
 
           // Accumulate counts (handling duplicated keys if mapping merges them)
           stats[track][statusKey] = (stats[track][statusKey] || 0) + row.count;

@@ -1151,423 +1151,294 @@ router.put(
       const { studyId } = req.params;
       const updates = req.body;
 
-      // Remove sensitive fields
-      delete updates.id;
-      delete updates.organizationId;
-      delete updates.createdAt;
-      delete updates.createdBy;
-      delete updates.comments; // Comments should be updated via separate endpoint
+      console.log(
+        `[DEBUG] PUT /studies/${studyId} hit on ROOT src/routes. Body keys: ${Object.keys(updates).join(", ")}`,
+      );
 
-      // Check if study exists
+      // 1. Protection: Prevent manual overwriting of system metadata
+      const restrictedFields = [
+        "id",
+        "organizationId",
+        "createdAt",
+        "createdBy",
+        "comments",
+      ];
+      restrictedFields.forEach((field) => delete updates[field]);
+
+      // 2. Retrieval
       const existingStudy = await cosmosService.getItem(
         "studies",
         studyId,
         req.user.organizationId,
       );
+
       if (!existingStudy) {
-        return res.status(404).json({
-          error: "Study not found",
-        });
+        return res.status(404).json({ error: "Study not found" });
       }
 
-      // If userTag is being updated, use the Study model to handle it properly
+      // 3. Model Initialization
+      const study = new Study(existingStudy);
+      const beforeValue = { ...existingStudy };
+
+      // --- NEW WORKFLOW LOGIC START ---
+      // Implementation of the "Mixed Batch" logic using a switch statement
       if (updates.userTag) {
-        const beforeValue = {
-          userTag: existingStudy.userTag,
-          justification: existingStudy.justification,
-          listedness: existingStudy.listedness,
-          seriousness: existingStudy.seriousness,
-          fullTextAvailability: existingStudy.fullTextAvailability,
-        };
+        const decision = updates.userTag; // "ICSR", "AOI", "No Case"
 
-        const study = new Study(existingStudy);
+        // ensure workflowStage exists or derive from status if legacy
+        if (!study.workflowStage) {
+          if (
+            study.status === "Pending" ||
+            study.status === "Pending Review" ||
+            study.status === "Under Triage Review"
+          ) {
+            // Infer stage based on track
+            if (study.workflowTrack === "ICSR")
+              study.workflowStage = "TRIAGE_ICSR";
+            else if (study.workflowTrack === "AOI")
+              study.workflowStage = "QC_AOI";
+            else study.workflowStage = "TRIAGE_ICSR"; // Default fallback
+          }
+        }
 
-        let workflowHandled = false;
+        console.log(`[Workflow Debug] Processing update for study ${studyId}`);
 
-        // --- NEW WORKFLOW LOGIC START ---
-        // Implementation of the "Mixed Batch" & "Three Types" logic
-        // Covers both Queue-level (Triage/QC) and Assessment-level decisions
-        if (study.workflowStage) {
-          const decision = updates.userTag; // "ICSR", "AOI", "No Case"
-          let nextStageId = null;
-          let nextStatus = null;
-          let nextSubStatus = null;
-          let nextClassification = null;
+        // Sanitize stage
+        const currentStage = study.workflowStage
+          ? study.workflowStage.trim()
+          : "";
+        console.log(
+          `[Workflow Debug] Current Stage (Raw): '${study.workflowStage}'`,
+        );
+        console.log(
+          `[Workflow Debug] Current Stage (Trimmed): '${currentStage}'`,
+        );
+        console.log(`[Workflow Debug] User Decision: ${updates.userTag}`);
 
-          // ==========================================
-          // QUEUE-LEVEL: ICSR Triage (TRIAGE_ICSR)
-          // ==========================================
-          // From ICSR Triage:
-          //   -> ICSR    : ICSR Assessment
-          //   -> AOI     : AOI Assessment  (cross-lane direct to desk)
-          //   -> No Case : No Case Assessment (cross-lane direct to desk)
-          if (study.workflowStage === "TRIAGE_ICSR") {
+        let nextStageId = null;
+        let nextStatus = null;
+        let nextSubStatus = null;
+        let nextClassification = null;
+
+        switch (currentStage) {
+          // ---------------------------
+          // 1. TRIAGE / QC STAGES
+          // ---------------------------
+          case "TRIAGE_QUEUE_ICSR": // New Style
+          case "TRIAGE_ICSR": // Legacy Style Support
             if (decision === "ICSR") {
               nextStageId = "ASSESSMENT_ICSR";
-              nextStatus = "Under Assessment";
+              nextStatus = "icsr_assessment";
               nextSubStatus = "assessment";
               nextClassification = "Probable ICSR";
             } else if (decision === "AOI") {
+              // Cross-track: Move to AOI Assessment
               nextStageId = "ASSESSMENT_AOI";
-              nextStatus = "Under Assessment";
-              nextSubStatus = "assessment";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "reclassified"; // Mark as reclassified
               nextClassification = "Probable AOI";
               study.workflowTrack = "AOI";
-              study.lastQueueStage = "TRIAGE_ICSR"; // Breadcrumb for reject
-            } else {
-              // No Case
+            } else if (decision === "No Case") {
+              // Cross-track: Move to No Case Assessment
               nextStageId = "ASSESSMENT_NO_CASE";
-              nextStatus = "Under Assessment";
-              nextSubStatus = "assessment";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "reclassified";
               nextClassification = "No Case";
               study.workflowTrack = "NoCase";
-              study.lastQueueStage = "TRIAGE_ICSR";
             }
-          }
+            break;
 
-          // ==========================================
-          // QUEUE-LEVEL: AOI QC (TRIAGE_QUEUE_AOI)
-          // ==========================================
-          // From AOI QC:
-          //   -> ICSR    : ICSR Triage (escalate)
-          //   -> AOI     : AOI Assessment
-          //   -> No Case : No Case Assessment
-          else if (study.workflowStage === "TRIAGE_QUEUE_AOI") {
-            if (decision === "ICSR") {
-              nextStageId = "TRIAGE_ICSR";
-              nextStatus = "Under Triage Review";
-              nextSubStatus = "triage";
+          case "QC_AOI": // AOI Track Start
+          case "TRIAGE_QUEUE_AOI": // Legacy
+            if (decision === "AOI") {
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "Probable AOI";
+            } else if (decision === "ICSR") {
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "icsr_assessment";
+              nextSubStatus = "reclassified";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else if (decision === "No Case") {
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "reclassified";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+            }
+            break;
+
+          case "QC_NOCASE": // No Case Track Start
+          case "TRIAGE_QUEUE_NO_CASE": // Legacy
+            if (decision === "No Case") {
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "No Case";
+            } else if (decision === "ICSR") {
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "icsr_assessment";
+              nextSubStatus = "reclassified";
               nextClassification = "Probable ICSR";
               study.workflowTrack = "ICSR";
             } else if (decision === "AOI") {
               nextStageId = "ASSESSMENT_AOI";
-              nextStatus = "Under Assessment";
-              nextSubStatus = "assessment";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "reclassified";
               nextClassification = "Probable AOI";
-              study.lastQueueStage = "TRIAGE_QUEUE_AOI";
-            } else {
-              // No Case
-              nextStageId = "ASSESSMENT_NO_CASE";
-              nextStatus = "Under Assessment";
-              nextSubStatus = "assessment";
-              nextClassification = "No Case";
-              study.workflowTrack = "NoCase";
-              study.lastQueueStage = "TRIAGE_QUEUE_AOI";
+              study.workflowTrack = "AOI";
             }
-          }
+            break;
 
-          // ==========================================
-          // QUEUE-LEVEL: No Case QC (TRIAGE_QUEUE_NO_CASE)
-          // ==========================================
-          // From No Case QC:
-          //   -> ICSR    : ICSR Triage (escalate)
-          //   -> AOI     : ICSR Triage (safety net)
-          //   -> No Case : No Case Assessment
-          else if (study.workflowStage === "TRIAGE_QUEUE_NO_CASE") {
-            if (decision === "ICSR") {
-              nextStageId = "TRIAGE_ICSR";
-              nextStatus = "Under Triage Review";
-              nextSubStatus = "triage";
-              nextClassification = "Probable ICSR";
-              study.workflowTrack = "ICSR";
-            } else if (decision === "AOI") {
-              // Safety net: AOI from No Case QC -> ICSR Triage for review
-              nextStageId = "TRIAGE_ICSR";
-              nextStatus = "Under Triage Review";
-              nextSubStatus = "triage";
-              nextClassification = "Probable AOI";
-              study.workflowTrack = "ICSR";
-            } else {
-              // No Case
-              nextStageId = "ASSESSMENT_NO_CASE";
-              nextStatus = "Under Assessment";
-              nextSubStatus = "assessment";
-              nextClassification = "No Case";
-              study.lastQueueStage = "TRIAGE_QUEUE_NO_CASE";
-            }
-          }
-
-          // ==========================================
-          // ASSESSMENT-LEVEL: ICSR Assessment
-          // ==========================================
-          // From ICSR Assessment:
-          //   Confirm (ICSR) -> Data Entry
-          //   -> AOI         -> AOI Assessment (direct to desk, not queue)
-          //   -> No Case     -> No Case Assessment (direct to desk)
-          else if (study.workflowStage === "ASSESSMENT_ICSR") {
+          // ---------------------------
+          // 2. ASSESSMENT STAGES
+          // ---------------------------
+          case "ASSESSMENT_ICSR":
+          case "ASSESSMENT_A": // Legacy?
             if (decision === "ICSR") {
               nextStageId = "DATA_ENTRY";
               nextStatus = "data_entry";
               nextSubStatus = "processing";
               nextClassification = "Probable ICSR";
             } else if (decision === "AOI") {
-              nextStageId = "ASSESSMENT_AOI"; // Direct to AOI desk
-              nextStatus = "Under Assessment";
-              nextSubStatus = "reclassified";
+              // Correction: Move to AOI Assessment
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "correction";
               nextClassification = "Probable AOI";
               study.workflowTrack = "AOI";
-              // Preserve breadcrumb so AOI assessor can reject back to origin
-              study.lastQueueStage = study.lastQueueStage || "TRIAGE_ICSR";
-            } else {
-              // No Case
-              nextStageId = "ASSESSMENT_NO_CASE"; // Direct to No Case desk
-              nextStatus = "Under Assessment";
-              nextSubStatus = "reclassified";
+            } else if (decision === "No Case") {
+              // Correction
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "correction";
               nextClassification = "No Case";
               study.workflowTrack = "NoCase";
-              study.lastQueueStage = study.lastQueueStage || "TRIAGE_ICSR";
             }
-          }
+            break;
 
-          // ==========================================
-          // ASSESSMENT-LEVEL: AOI Assessment
-          // ==========================================
-          // Cases arrive from: ICSR Triage, AOI QC, or No Case QC
-          // From AOI Assessment:
-          //   Confirm (AOI) -> Reporting
-          //   -> ICSR       -> ICSR Triage (escalate)
-          //   -> No Case    -> No Case QC (No Case Allocation)
-          else if (study.workflowStage === "ASSESSMENT_AOI") {
+          case "ASSESSMENT_AOI":
             if (decision === "AOI") {
-              nextStageId = "REPORTING";
+              nextStageId = "REPORTING"; // or completed
               nextStatus = "Reporting";
               nextSubStatus = "archived";
               nextClassification = "Probable AOI";
             } else if (decision === "ICSR") {
-              nextStageId = "TRIAGE_ICSR"; // Escalate to ICSR Triage
-              nextStatus = "Under Triage Review";
-              nextSubStatus = "triage";
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "icsr_assessment";
+              nextSubStatus = "correction";
               nextClassification = "Probable ICSR";
               study.workflowTrack = "ICSR";
-            } else {
-              // No Case
-              nextStageId = "TRIAGE_QUEUE_NO_CASE"; // No Case Allocation
-              nextStatus = "Under Triage Review";
-              nextSubStatus = "triage";
+            } else if (decision === "No Case") {
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "correction";
               nextClassification = "No Case";
               study.workflowTrack = "NoCase";
             }
-          }
+            break;
 
-          // ==========================================
-          // ASSESSMENT-LEVEL: No Case Assessment
-          // ==========================================
-          // From No Case Assessment:
-          //   Confirm (No Case) -> Completed
-          //   -> ICSR           -> ICSR Triage (escalate)
-          //   -> AOI            -> ICSR Triage (safety net)
-          else if (study.workflowStage === "ASSESSMENT_NO_CASE") {
+          case "ASSESSMENT_NO_CASE":
             if (decision === "No Case") {
               nextStageId = "COMPLETED";
               nextStatus = "Completed";
               nextSubStatus = "archived";
               nextClassification = "No Case";
             } else if (decision === "ICSR") {
-              nextStageId = "TRIAGE_ICSR"; // Escalate to ICSR Triage
-              nextStatus = "Under Triage Review";
-              nextSubStatus = "triage";
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "icsr_assessment";
+              nextSubStatus = "correction";
               nextClassification = "Probable ICSR";
               study.workflowTrack = "ICSR";
-            } else {
-              // AOI -> Safety net: goes to ICSR Triage
-              nextStageId = "TRIAGE_ICSR";
-              nextStatus = "Under Triage Review";
-              nextSubStatus = "triage";
+            } else if (decision === "AOI") {
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "correction";
               nextClassification = "Probable AOI";
-              study.workflowTrack = "ICSR";
+              study.workflowTrack = "AOI";
             }
-          }
+            break;
 
-          if (nextStageId) {
-            study.workflowStage = nextStageId;
-            study.status = nextStatus;
-            study.subStatus = nextSubStatus;
-            study.icsrClassification = nextClassification;
-
-            // Release Assignment
-            study.assignedTo = null;
-            study.batchId = null;
-            study.allocatedAt = null;
-            study.lockedAt = null;
-
-            // Manual update of classification fields
-            study.userTag = updates.userTag;
-            study.classifiedBy = req.user.id;
-            study.updatedAt = new Date().toISOString();
-
-            // Log comment
-            study.addComment({
-              userId: req.user.id,
-              userName: req.user.name,
-              text: `Assessment completed: ${decision}. Moved to ${nextStatus}.`,
-              type: "system",
-            });
-
-            workflowHandled = true;
-          }
-        }
-        // --- NEW WORKFLOW LOGIC END ---
-
-        let debugInfo = {};
-        if (!workflowHandled) {
-          let nextStage = null;
-          try {
-            const workflowConfig = await adminConfigService.getConfig(
-              req.user.organizationId,
-              "workflow",
-            );
-
-            debugInfo.hasConfig = !!workflowConfig;
-            debugInfo.orgId = req.user.organizationId;
-
-            if (
-              workflowConfig &&
-              workflowConfig.configData &&
-              workflowConfig.configData.transitions
-            ) {
-              // Determine current status ID
-              let currentStatus = study.status;
-
-              // Handle legacy statuses - map them to the initial workflow stage
-              const legacyStatuses = [
-                "Pending Review",
-                "Pending",
-                "Under Triage Review",
-              ];
-              if (legacyStatuses.includes(currentStatus)) {
-                currentStatus = "triage"; // Default fallback
-                const initialStage = workflowConfig.configData.stages.find(
-                  (s) => s.type === "initial",
-                );
-                if (initialStage) {
-                  currentStatus = initialStage.id;
-                }
-              }
-
-              debugInfo.currentStatus = currentStatus;
-              debugInfo.originalStatus = study.status;
-              debugInfo.availableTransitions =
-                workflowConfig.configData.transitions.map(
-                  (t) => `${t.from} -> ${t.to}`,
-                );
-
-              // Find transition from current status
-              // We search in reverse order to prioritize the most recently added transition
-              const transition = [...workflowConfig.configData.transitions]
-                .reverse()
-                .find((t) => t.from === currentStatus);
-
-              debugInfo.transition = transition;
-
-              // Check for ICSR Bypass - REMOVED per requirements (ICSRs don't bypass)
-              // Original logic for checking bypassQcForIcsr has been removed.
-
-              if (!nextStage && transition) {
-                // Standard transition logic - always follow the configured transition
-                // The QC Sampling logic is now handled in the bulk process endpoint
-                nextStage = workflowConfig.configData.stages.find(
-                  (s) => s.id === transition.to,
-                );
-                debugInfo.nextStage = nextStage;
-              }
-            }
-          } catch (err) {
+          default:
             console.warn(
-              "Failed to fetch workflow config during classification:",
-              err,
+              `[Workflow Debug] Unknown or Unhandled Stage: ${study.workflowStage}`,
             );
-            debugInfo.error = err.message;
-          }
+        }
 
-          study.updateUserTag(
-            updates.userTag,
-            req.user.id,
-            req.user.name,
-            nextStage,
+        if (nextStageId) {
+          console.log(
+            `[Workflow Debug] Transitioning to: ${nextStageId} (${nextStatus})`,
+          );
+          study.workflowStage = nextStageId;
+          study.status = nextStatus;
+          // Only update subStatus if we set an explicit one
+          if (nextSubStatus) study.subStatus = nextSubStatus;
+          // IMPORTANT: Use icsrClassification as the single source of truth for classification
+          if (nextClassification) {
+            study.classification = nextClassification;
+            study.icsrClassification = nextClassification;
+          }
+          study.userTag = decision;
+
+          // Release Assignment
+          study.assignedTo = null;
+          study.batchId = null;
+          study.allocatedAt = null;
+          study.lockedAt = null;
+          study.classifiedBy = req.user.id;
+          study.updatedAt = new Date().toISOString();
+
+          // Add comment logging the transition
+          study.addComment({
+            userId: req.user.id,
+            userName: req.user.name,
+            text: `Assessment completed: ${decision}. Moved to ${nextStatus}.`,
+            type: "system",
+          });
+        } else {
+          console.log(
+            `[Workflow Debug] No transition occurred for ${study.workflowStage} -> ${decision}`,
           );
         }
-
-        // Update additional classification fields if provided
-        if (updates.justification !== undefined)
-          study.justification = updates.justification;
-        if (updates.listedness !== undefined)
-          study.listedness = updates.listedness;
-        if (updates.seriousness !== undefined)
-          study.seriousness = updates.seriousness;
-        if (updates.fullTextAvailability !== undefined)
-          study.fullTextAvailability = updates.fullTextAvailability;
-        if (updates.fullTextSource !== undefined)
-          study.fullTextSource = updates.fullTextSource;
-
-        const afterValue = {
-          userTag: study.userTag,
-          justification: study.justification,
-          listedness: study.listedness,
-          seriousness: study.seriousness,
-          fullTextAvailability: study.fullTextAvailability,
-          fullTextSource: study.fullTextSource,
-        };
-
-        // Save updated study with qaApprovalStatus set to pending
-        const updatedStudy = await cosmosService.updateItem(
-          "studies",
-          studyId,
-          req.user.organizationId,
-          study.toJSON(),
-        );
-
-        await auditAction(
-          req.user,
-          "update",
-          "study",
-          studyId,
-          `Updated study classification to ${updates.userTag}`,
-          { pmid: study.pmid },
-          beforeValue,
-          afterValue,
-        );
-
-        return res.json({
-          success: true,
-          message: "Study classification updated successfully",
-          study: updatedStudy,
-          debug: debugInfo,
-        });
       }
+      // --- NEW WORKFLOW LOGIC END ---
 
-      // Capture before values for regular updates
-      const beforeValue = {};
-      Object.keys(updates).forEach((key) => {
-        beforeValue[key] = existingStudy[key];
+      // 5. Case B: Regular Field Updates (Justification, Seriousness, etc.)
+      const updateableFields = [
+        "justification",
+        "listedness",
+        "seriousness",
+        "fullTextAvailability",
+        "fullTextSource",
+      ];
+
+      updateableFields.forEach((field) => {
+        if (updates[field] !== undefined) study[field] = updates[field];
       });
 
-      // Regular update for other fields
+      // 6. Persistence & Audit
       const updatedStudy = await cosmosService.updateItem(
         "studies",
         studyId,
         req.user.organizationId,
-        updates,
+        study.toJSON(),
       );
 
-      // Capture after values
-      const afterValue = {};
-      Object.keys(updates).forEach((key) => {
-        afterValue[key] = updatedStudy[key];
-      });
-
-      // Create audit log
       await auditAction(
         req.user,
         "update",
         "study",
         studyId,
-        `Updated study: PMID ${updatedStudy.pmid}`,
-        { updates: Object.keys(updates), pmid: updatedStudy.pmid },
+        `Updated study: ${updates.userTag ? "Classification" : "General fields"}`,
+        { pmid: study.pmid },
         beforeValue,
-        afterValue,
+        updatedStudy,
       );
 
-      res.json({
+      return res.json({
+        success: true,
         message: "Study updated successfully",
         study: updatedStudy,
       });

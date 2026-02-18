@@ -63,6 +63,7 @@ export default function TrackAssessmentPage({
   const [allocatedCases, setAllocatedCases] = useState<Study[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAllocating, setIsAllocating] = useState(false);
+  const [assessmentStarted, setAssessmentStarted] = useState(false);
   const [routingStudyId, setRoutingStudyId] = useState<string | null>(null);
   const [poolCount, setPoolCount] = useState<number | null>(null);
 
@@ -80,7 +81,43 @@ export default function TrackAssessmentPage({
   const getToken = () => authService.getToken();
   const API_BASE = getApiBaseUrl();
 
-  // Fetch pool stats
+  // Fetch currently allocated cases on mount and focus
+  const fetchAllocatedCases = useCallback(async () => {
+    try {
+      const token = authService.getToken();
+      if (!token) return;
+
+      const response = await fetch(
+        `${getApiBaseUrl()}/track/${trackType}/my-allocated`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          setAllocatedCases(data.data);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching allocated cases:", err);
+    }
+  }, [trackType]);
+
+  useEffect(() => {
+    fetchAllocatedCases();
+
+    // Add focus listener to refetch when tab becomes active
+    const handleFocus = () => {
+      fetchAllocatedCases();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [fetchAllocatedCases]);
+
+  // Fetch pool stats with polling
   useEffect(() => {
     const fetchPoolStats = async () => {
       try {
@@ -101,7 +138,19 @@ export default function TrackAssessmentPage({
         console.error("Failed to fetch pool stats", err);
       }
     };
-    fetchPoolStats();
+
+    fetchPoolStats(); // Initial fetch
+    // Add focus listener to refetch stats when tab becomes active
+    const handleFocus = () => {
+      fetchPoolStats();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    const interval = setInterval(fetchPoolStats, 10000); // Poll every 10s (increased frequency)
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [trackType]);
 
   const currentCase =
@@ -122,14 +171,14 @@ export default function TrackAssessmentPage({
     };
   }, [dispatch]);
 
-  // Ensure sidebar is unlocked when there are no allocated cases
+  // Ensure sidebar is unlocked when there are no allocated cases or assessment not started
   useEffect(() => {
-    if (allocatedCases.length === 0) {
+    if (allocatedCases.length === 0 || !assessmentStarted) {
       dispatch(setSidebarLocked(false));
     } else {
       dispatch(setSidebarLocked(true));
     }
-  }, [allocatedCases.length, dispatch]);
+  }, [allocatedCases.length, assessmentStarted, dispatch]);
 
   const handleStartAssessment = async () => {
     setIsAllocating(true);
@@ -160,6 +209,7 @@ export default function TrackAssessmentPage({
         } else {
           setAllocatedCases(cases);
           setCurrentIndex(0);
+          setAssessmentStarted(true); // Start assessment view
           toast.success(`Allocated ${cases.length} case(s) for assessment`);
         }
       } else {
@@ -199,6 +249,7 @@ export default function TrackAssessmentPage({
 
       setAllocatedCases([]);
       setCurrentIndex(0);
+      setAssessmentStarted(false);
     } catch (error) {
       console.error("Error releasing cases:", error);
       toast.error("Error releasing cases");
@@ -430,19 +481,19 @@ export default function TrackAssessmentPage({
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
             {trackDisplayName} Assessment
           </h1>
-          {allocatedCases.length > 0 && (
+          {allocatedCases.length > 0 && assessmentStarted && (
             <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
               Case {currentIndex + 1} of {allocatedCases.length}
             </span>
           )}
-          {allocatedCases.length === 0 && poolCount !== null && (
+          {!assessmentStarted && poolCount !== null && (
             <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-100">
               Case Pool: {poolCount}
             </span>
           )}
         </div>
 
-        {allocatedCases.length > 0 && (
+        {allocatedCases.length > 0 && assessmentStarted && (
           <div className="flex items-center space-x-3">
             <button
               onClick={handlePrevCase}
@@ -470,7 +521,7 @@ export default function TrackAssessmentPage({
       </div>
 
       <div className="flex-1 p-6 overflow-hidden">
-        {allocatedCases.length === 0 ? (
+        {!assessmentStarted || allocatedCases.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center">
             <div className="text-center max-w-2xl mx-auto p-8 bg-white rounded-2xl shadow-sm border border-gray-200">
               <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -480,50 +531,57 @@ export default function TrackAssessmentPage({
                 {trackDisplayName} Assessment
               </h2>
 
-              <p className="text-gray-500 mb-8">
-                Ready to begin assessment? Click below to allocate a batch of
-                cases assigned to you.
-              </p>
+              {/* The "Continue Assessment" specific screen is removed per request. 
+                  We now show the Allocate button screen ALWAYS, but if cases exist, 
+                  we add a small link or button to resume. */}
 
-              <button
-                onClick={handleStartAssessment}
-                disabled={isAllocating}
-                className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
-              >
-                {isAllocating ? (
-                  <>
-                    <svg
-                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Allocating Cases...
-                  </>
-                ) : (
-                  <>
-                    <MagnifyingGlassIcon className="w-6 h-6 mr-2" />
-                    Allocate Cases
-                  </>
-                )}
-              </button>
+              <div className="flex flex-col items-center">
+                <p className="text-gray-500 mb-8">
+                  Ready to begin assessment? Click below to allocate a batch of
+                  cases.
+                </p>
 
-              <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400">
-                Allocating cases will lock them to your account for assessment.
+                <button
+                  onClick={handleStartAssessment}
+                  disabled={isAllocating}
+                  className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+                >
+                  {isAllocating ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Allocating Cases...
+                    </>
+                  ) : (
+                    <>
+                      <MagnifyingGlassIcon className="w-6 h-6 mr-2" />
+                      Allocate Cases
+                    </>
+                  )}
+                </button>
+
+                <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400">
+                  Allocating cases will lock them to your account for
+                  assessment.
+                </div>
               </div>
             </div>
           </div>

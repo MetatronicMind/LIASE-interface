@@ -244,6 +244,68 @@ router.get(
 );
 
 /**
+ * GET /track/:trackType/my-allocated
+ * Get studies allocated to the current user in a specific track for assessment
+ */
+router.get(
+  "/:trackType/my-allocated",
+  authorizePermission("QC", "read"),
+  async (req, res) => {
+    try {
+      const { trackType } = req.params;
+      const userId = req.user.id;
+      const targetOrgId = req.user.organizationId;
+
+      const validTracks = ["ICSR", "AOI", "NoCase"];
+      if (!validTracks.includes(trackType)) {
+        return res.status(400).json({
+          error: "Invalid track type",
+          validTracks,
+        });
+      }
+
+      // Query similar to allocate-assessment-batch existing check
+      // Modified to include 'reclassified' and 'correction' subStatuses
+      const query = `
+          SELECT * FROM c 
+          WHERE c.organizationId = @orgId 
+          AND c.workflowTrack = @track
+          AND (c.subStatus = 'assessment' OR c.subStatus = 'reclassified' OR c.subStatus = 'correction')
+          AND c.assignedTo = @userId
+          ORDER BY c.createdAt ASC
+      `;
+
+      const parameters = [
+        { name: "@orgId", value: targetOrgId },
+        { name: "@track", value: trackType },
+        { name: "@userId", value: userId },
+      ];
+
+      const studies = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+
+      res.json({
+        success: true,
+        data: studies,
+        count: studies.length,
+      });
+    } catch (error) {
+      console.error(
+        `Error fetching allocated studies for ${req.params.trackType}:`,
+        error,
+      );
+      res.status(500).json({
+        error: "Failed to fetch allocated studies",
+        message: error.message,
+      });
+    }
+  },
+);
+
+/**
  * GET /track/:trackType/assessment
  * Get studies in a specific track's assessment phase (retained for manual review)
  */
@@ -495,6 +557,27 @@ router.post(
         comments,
       );
 
+      // Explicitly unassign study when moving tracks/stages so it becomes available to others
+      const studyData = await cosmosService.getItem(
+        "studies",
+        studyId,
+        req.user.organizationId,
+      );
+
+      if (studyData) {
+        const study = new Study(studyData);
+        study.assignedTo = null;
+        study.allocatedAt = null;
+        study.batchId = null;
+
+        await cosmosService.updateItem(
+          "studies",
+          study.id,
+          req.user.organizationId,
+          study.toJSON(),
+        );
+      }
+
       try {
         await auditAction(
           req.user,
@@ -518,12 +601,10 @@ router.post(
         console.error("Error sending JSON response:", jsonError);
         // If headers are already sent, we can't send another response
         if (!res.headersSent) {
-          res
-            .status(500)
-            .json({
-              error: "Failed to send response",
-              details: jsonError.message,
-            });
+          res.status(500).json({
+            error: "Failed to send response",
+            details: jsonError.message,
+          });
         }
       }
     } catch (error) {
@@ -962,7 +1043,7 @@ router.post(
           SELECT * FROM c 
           WHERE c.organizationId = @orgId 
           AND c.workflowTrack = @track
-          AND c.subStatus = 'assessment'
+          AND (c.subStatus = 'assessment' OR c.subStatus = 'reclassified' OR c.subStatus = 'correction')
           AND c.assignedTo = @userId
           ORDER BY c.createdAt ASC
       `;
@@ -997,12 +1078,12 @@ router.post(
         });
       }
 
-      // 2. Query for unassigned assessment cases
+      // 2. Query for unassigned assessment cases (including reclassified/correction)
       const query = `
           SELECT * FROM c 
           WHERE c.organizationId = @orgId 
           AND c.workflowTrack = @track
-          AND c.subStatus = 'assessment'
+          AND (c.subStatus = 'assessment' OR c.subStatus = 'reclassified' OR c.subStatus = 'correction')
           AND (NOT IS_DEFINED(c.assignedTo) OR c.assignedTo = null OR c.assignedTo = "")
           ORDER BY c.createdAt ASC
       `;

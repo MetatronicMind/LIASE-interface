@@ -432,29 +432,67 @@ class StudyCreationService {
 
     // 2. AOI Allocation/Assessment: Probable AOI
     if (isProbableAOI) {
-      // Route directly to AOI Assessment (100% flow)
-      studyData.status = "aoi_assessment";
-      studyData.routingTarget = "aoi_assessment";
-      studyData.workflowTrack = "AOI";
-      studyData.subStatus = "assessment";
-      studyData.userTag = "AOI"; // Auto-tag as AOI
-      studyData.qaApprovalStatus = "not_applicable"; // Bypass QC
-      studyData.isAutoPassed = true;
-      console.log(`Study automatically routed to AOI Assessment`);
+      // Determine routing based on random chance vs allocation percentage
+      const randomValue = Math.random() * 100;
+      const shouldGoToQC = randomValue < aoiAllocationPercentage;
+
+      if (shouldGoToQC) {
+        // Route to AOI QC
+        studyData.status = "qc_aoi";
+        studyData.routingTarget = "qc_aoi";
+        studyData.workflowTrack = "AOI";
+        studyData.subStatus = "qc";
+        studyData.userTag = "AOI"; // Auto-tag as AOI
+        studyData.qaApprovalStatus = "pending"; // Needs QC
+        console.log(
+          `Study routed to AOI QC based on allocation percentage (${aoiAllocationPercentage}%)`,
+        );
+      } else {
+        // Route to AOI Assessment
+        studyData.status = "aoi_assessment";
+        studyData.routingTarget = "aoi_assessment";
+        studyData.workflowTrack = "AOI";
+        studyData.subStatus = "assessment";
+        studyData.userTag = "AOI"; // Auto-tag as AOI
+        studyData.qaApprovalStatus = "not_applicable"; // Bypass QC
+        studyData.isAutoPassed = true;
+        console.log(
+          `Study routed to AOI Assessment based on allocation percentage (>${aoiAllocationPercentage}%)`,
+        );
+      }
       return;
     }
 
     // 3. No Case Allocation/Assessment: No Case
     if (isNoCase) {
-      // Route directly to No Case Assessment (100% flow)
-      studyData.status = "no_case_assessment";
-      studyData.routingTarget = "no_case_assessment";
-      studyData.workflowTrack = "NoCase";
-      studyData.subStatus = "assessment";
-      studyData.userTag = "No Case"; // Auto-tag as No Case
-      studyData.qaApprovalStatus = "not_applicable"; // Bypass QC
-      studyData.isAutoPassed = true;
-      console.log(`Study automatically routed to No Case Assessment`);
+      // Determine routing based on random chance vs allocation percentage
+      const randomValue = Math.random() * 100;
+      const shouldGoToQC = randomValue < noCaseAllocationPercentage;
+
+      if (shouldGoToQC) {
+        // Route to No Case QC
+        studyData.status = "qc_no_case";
+        studyData.routingTarget = "qc_no_case";
+        studyData.workflowTrack = "NoCase";
+        studyData.subStatus = "qc";
+        studyData.userTag = "No Case"; // Auto-tag as No Case
+        studyData.qaApprovalStatus = "pending"; // Needs QC
+        console.log(
+          `Study routed to No Case QC based on allocation percentage (${noCaseAllocationPercentage}%)`,
+        );
+      } else {
+        // Route to No Case Assessment
+        studyData.status = "no_case_assessment";
+        studyData.routingTarget = "no_case_assessment";
+        studyData.workflowTrack = "NoCase";
+        studyData.subStatus = "assessment";
+        studyData.userTag = "No Case"; // Auto-tag as No Case
+        studyData.qaApprovalStatus = "not_applicable"; // Bypass QC
+        studyData.isAutoPassed = true;
+        console.log(
+          `Study routed to No Case Assessment based on allocation percentage (>${noCaseAllocationPercentage}%)`,
+        );
+      }
       return;
     }
 

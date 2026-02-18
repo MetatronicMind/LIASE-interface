@@ -57,6 +57,9 @@ export default function TrackTriagePage({
 }: TrackTriagePageProps) {
   const dispatch = useDispatch();
   const { formatDate } = useDateTime();
+  const API_BASE = getApiBaseUrl();
+  const getToken = () => authService.getToken();
+
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
   const permissions = user?.permissions?.triage || user?.permissions?.QA;
 
@@ -71,11 +74,7 @@ export default function TrackTriagePage({
   const [poolCount, setPoolCount] = useState<number | null>(null);
 
   // Fetch pool stats
-  useEffect(() => {
-    fetchPoolStats();
-  }, [trackType]);
-
-  const fetchPoolStats = async () => {
+  const fetchPoolStats = useCallback(async () => {
     try {
       const token = getToken();
       const response = await fetch(`${API_BASE}/track/statistics`, {
@@ -92,7 +91,23 @@ export default function TrackTriagePage({
     } catch (err) {
       console.error("Failed to fetch pool stats", err);
     }
-  };
+  }, [trackType, API_BASE]);
+
+  useEffect(() => {
+    fetchPoolStats(); // Initial fetch
+
+    // Add focus listener
+    const handleFocus = () => {
+      fetchPoolStats();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    const interval = setInterval(fetchPoolStats, 10000); // Poll every 10s
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [fetchPoolStats]);
 
   // Ensure currentIndex is valid when allocatedCases changes
   useEffect(() => {
@@ -134,9 +149,6 @@ export default function TrackTriagePage({
       dispatch(setSidebarLocked(false));
     }
   }, [allocatedCases.length, dispatch]);
-
-  const API_BASE = getApiBaseUrl();
-  const getToken = () => authService.getToken();
 
   // Normalize API studies to ensure proper data types
   const normalizeApiStudies = (apiStudies: any[]): Study[] => {
