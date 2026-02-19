@@ -202,7 +202,7 @@ router.get(
       console.log("Target Org ID:", targetOrgId);
 
       let query =
-        "SELECT * FROM c WHERE c.organizationId = @orgId AND (c.status = 'qc_triage' OR c.status = 'qc_aoi' OR c.status = 'qc_no_case')";
+        "SELECT * FROM c WHERE c.organizationId = @orgId AND c.status = 'qc_triage'";
       const parameters = [{ name: "@orgId", value: targetOrgId }];
 
       // Filter by qaApprovalStatus based on status query param
@@ -293,16 +293,47 @@ router.post(
         parameters,
       );
 
-      // Simplify Bulk Process: Just approve all selected items.
-      // The random selection for QC happens at study creation time now.
-      // If items are in this list, they are pending QC approval.
-      // Bulk processing here means "Approve and Move Forward".
+      // Fetch workflow config to get the QC percentage
+      let targetPercentage = 100; // Default to 100% if not found
+      try {
+        const workflowConfig = await adminConfigService.getConfig(
+          req.user.organizationId,
+          "workflow",
+        );
+        if (
+          workflowConfig &&
+          workflowConfig.configData &&
+          workflowConfig.configData.transitions
+        ) {
+          // Find the transition that feeds into QC (Triage -> QC Triage)
+          // We use this same percentage to determine how many to RELEASE from QC
+          const transition = workflowConfig.configData.transitions.find(
+            (t) => t.to === "qc_triage",
+          );
+          if (transition && transition.qcPercentage) {
+            targetPercentage = parseFloat(transition.qcPercentage);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch workflow config for bulk process:", err);
+      }
 
-      const studiesToProcess = studies;
-      const studiesToKeep = [];
+      // Calculate how many items to process (MOVE OUT) based on the percentage
+      // The QC Percentage (e.g. 25%) is the amount to KEEP in QC.
+      // So we want to process (100 - 25) = 75% of the items.
+      const percentageToMove = Math.max(0, 100 - targetPercentage);
+      const countToProcess = Math.ceil(
+        studies.length * (percentageToMove / 100),
+      );
+
+      // Randomly select the items to process (move out of QC)
+      // We shuffle the array and take the first N items
+      const shuffledStudies = studies.sort(() => 0.5 - Math.random());
+      const studiesToProcess = shuffledStudies.slice(0, countToProcess);
+      const studiesToKeep = shuffledStudies.slice(countToProcess);
 
       console.log(
-        `Bulk Process: Found ${studies.length} pending items. Approving all as per new workflow.`,
+        `Bulk Process: Found ${studies.length} pending items. QC % (Keep): ${targetPercentage}%. Moving: ${percentageToMove}%. Processing ${studiesToProcess.length} items. Keeping ${studiesToKeep.length} items for manual QC.`,
       );
 
       const results = {
@@ -467,7 +498,7 @@ router.post(
     try {
       // Find all No Case studies pending QA approval
       const query =
-        "SELECT * FROM c WHERE c.organizationId = @orgId AND (c.status = 'qc_triage' OR c.status = 'qc_no_case') AND c.userTag = 'No Case' AND (c.qaApprovalStatus = 'pending' OR NOT IS_DEFINED(c.qaApprovalStatus))";
+        "SELECT * FROM c WHERE c.organizationId = @orgId AND c.status = 'qc_triage' AND c.userTag = 'No Case' AND (c.qaApprovalStatus = 'pending' OR NOT IS_DEFINED(c.qaApprovalStatus))";
       const parameters = [{ name: "@orgId", value: req.user.organizationId }];
 
       const studies = await cosmosService.queryItems(
@@ -476,23 +507,49 @@ router.post(
         parameters,
       );
 
-      // Simplify Process No Case: Just approve all selected items.
-      // The random selection for QC happens at study creation time now.
-      // If items are in this list, they are pending QC approval.
-      // Bulk processing here means "Approve and Move Forward to Reporting".
+      // Default sampling percentage (default 10%)
+      let targetPercentage = 10;
+      try {
+        const workflowConfig = await adminConfigService.getConfig(
+          req.user.organizationId,
+          "workflow",
+        );
+        if (workflowConfig && workflowConfig.configData) {
+          // Check for specific No Case setting
+          if (
+            typeof workflowConfig.configData.noCaseQcPercentage !== "undefined"
+          ) {
+            targetPercentage = parseFloat(
+              workflowConfig.configData.noCaseQcPercentage,
+            );
+          } else if (workflowConfig.configData.transitions) {
+            // Fallback to general Triage -> QC Triage transition
+            const transition = workflowConfig.configData.transitions.find(
+              (t) => t.to === "qc_triage",
+            );
+            if (transition && transition.qcPercentage) {
+              targetPercentage = parseFloat(transition.qcPercentage);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch workflow config for bulk process:", err);
+      }
 
-      const studiesToReclassify = [];
-      const studiesToApprove = studies;
+      // Calculate sample size for Reclassification (Send back to Triage)
+      const countToReclassify = Math.ceil(
+        studies.length * (targetPercentage / 100),
+      );
+      // Shuffle
+      const shuffledStudies = studies.sort(() => 0.5 - Math.random());
+      const studiesToReclassify = shuffledStudies.slice(0, countToReclassify);
+      const studiesToApprove = shuffledStudies.slice(countToReclassify);
 
       const results = {
         reclassified: 0,
         approved: 0,
         errors: 0,
       };
-
-      console.log(
-        `Process No Case: Found ${studies.length} pending items. Approving all as per new workflow.`,
-      );
 
       // Process Reclassification (Sample -> Triage)
       for (const studyData of studiesToReclassify) {
@@ -1095,38 +1152,38 @@ router.put(
       const updates = req.body;
 
       console.log(
-        `[DEBUG] PUT /studies/${studyId} hit. Body keys: ${Object.keys(updates).join(", ")}`,
+        `[DEBUG] PUT /studies/${studyId} hit on ROOT src/routes. Body keys: ${Object.keys(updates).join(", ")}`,
       );
 
-      // Remove sensitive fields
-      delete updates.id;
-      delete updates.organizationId;
-      delete updates.createdAt;
-      delete updates.createdBy;
-      delete updates.comments; // Comments should be updated via separate endpoint
+      // 1. Protection: Prevent manual overwriting of system metadata
+      const restrictedFields = [
+        "id",
+        "organizationId",
+        "createdAt",
+        "createdBy",
+        "comments",
+      ];
+      restrictedFields.forEach((field) => delete updates[field]);
 
-      // Check if study exists
+      // 2. Retrieval
       const existingStudy = await cosmosService.getItem(
         "studies",
         studyId,
         req.user.organizationId,
       );
+
       if (!existingStudy) {
-        return res.status(404).json({
-          error: "Study not found",
-        });
+        return res.status(404).json({ error: "Study not found" });
       }
 
-      // If userTag is being updated, use the Study model to handle it properly
-      if (updates.userTag) {
-        const beforeValue = {
-          userTag: existingStudy.userTag,
-          justification: existingStudy.justification,
-          listedness: existingStudy.listedness,
-          seriousness: existingStudy.seriousness,
-          fullTextAvailability: existingStudy.fullTextAvailability,
-        };
+      // 3. Model Initialization
+      const study = new Study(existingStudy);
+      const beforeValue = { ...existingStudy };
 
+      // --- NEW WORKFLOW LOGIC START ---
+      // Implementation of the "Mixed Batch" logic using a switch statement
+      if (updates.userTag) {
+        const decision = updates.userTag; // "ICSR", "AOI", "No Case"
         const study = new Study(existingStudy);
 
         let workflowHandled = false;
@@ -1139,8 +1196,6 @@ router.put(
           );
           console.log(`[Workflow Debug] Current Stage: ${study.workflowStage}`);
           console.log(`[Workflow Debug] User Decision: ${updates.userTag}`);
-
-          const decision = updates.userTag; // "ICSR", "AOI", "No Case"
 
           let nextStageId = null;
           let nextStatus = null;
@@ -1313,168 +1368,261 @@ router.put(
             );
           }
         }
-        // --- NEW WORKFLOW LOGIC END ---
-
-        let debugInfo = {};
-        if (!workflowHandled) {
-          let nextStage = null;
-          try {
-            const workflowConfig = await adminConfigService.getConfig(
-              req.user.organizationId,
-              "workflow",
-            );
-
-            debugInfo.hasConfig = !!workflowConfig;
-            debugInfo.orgId = req.user.organizationId;
-
-            if (
-              workflowConfig &&
-              workflowConfig.configData &&
-              workflowConfig.configData.transitions
-            ) {
-              // Determine current status ID
-              let currentStatus = study.status;
-
-              // Handle legacy statuses - map them to the initial workflow stage
-              const legacyStatuses = [
-                "Pending Review",
-                "Pending",
-                "Under Triage Review",
-              ];
-              if (legacyStatuses.includes(currentStatus)) {
-                currentStatus = "triage"; // Default fallback
-                const initialStage = workflowConfig.configData.stages.find(
-                  (s) => s.type === "initial",
-                );
-                if (initialStage) {
-                  currentStatus = initialStage.id;
-                }
-              }
-
-              debugInfo.currentStatus = currentStatus;
-              debugInfo.originalStatus = study.status;
-              debugInfo.availableTransitions =
-                workflowConfig.configData.transitions.map(
-                  (t) => `${t.from} -> ${t.to}`,
-                );
-
-              // Find transition from current status
-              // We search in reverse order to prioritize the most recently added transition
-              const transition = [...workflowConfig.configData.transitions]
-                .reverse()
-                .find((t) => t.from === currentStatus);
-
-              debugInfo.transition = transition;
-
-              // Check for ICSR Bypass - REMOVED per requirements (ICSRs don't bypass)
-              // Original logic for checking bypassQcForIcsr has been removed.
-
-              if (!nextStage && transition) {
-                // Standard transition logic - always follow the configured transition
-                // The QC Sampling logic is now handled in the bulk process endpoint
-                nextStage = workflowConfig.configData.stages.find(
-                  (s) => s.id === transition.to,
-                );
-                debugInfo.nextStage = nextStage;
-              }
-            }
-          } catch (err) {
-            console.warn(
-              "Failed to fetch workflow config during classification:",
-              err,
-            );
-            debugInfo.error = err.message;
+        
+        // ensure workflowStage exists or derive from status if legacy
+        if (!study.workflowStage) {
+          if (
+            study.status === "Pending" ||
+            study.status === "Pending Review" ||
+            study.status === "Under Triage Review"
+          ) {
+            // Infer stage based on track
+            if (study.workflowTrack === "ICSR")
+              study.workflowStage = "TRIAGE_ICSR";
+            else if (study.workflowTrack === "AOI")
+              study.workflowStage = "QC_AOI";
+            else study.workflowStage = "TRIAGE_ICSR"; // Default fallback
           }
-
-          study.updateUserTag(
-            updates.userTag,
-            req.user.id,
-            req.user.name,
-            nextStage,
-          );
         }
 
-        // Update additional classification fields if provided
-        if (updates.justification !== undefined)
-          study.justification = updates.justification;
-        if (updates.listedness !== undefined)
-          study.listedness = updates.listedness;
-        if (updates.seriousness !== undefined)
-          study.seriousness = updates.seriousness;
-        if (updates.fullTextAvailability !== undefined)
-          study.fullTextAvailability = updates.fullTextAvailability;
-        if (updates.fullTextSource !== undefined)
-          study.fullTextSource = updates.fullTextSource;
+        console.log(`[Workflow Debug] Processing update for study ${studyId}`);
 
-        const afterValue = {
-          userTag: study.userTag,
-          justification: study.justification,
-          listedness: study.listedness,
-          seriousness: study.seriousness,
-          fullTextAvailability: study.fullTextAvailability,
-          fullTextSource: study.fullTextSource,
-        };
-
-        // Save updated study with qaApprovalStatus set to pending
-        const updatedStudy = await cosmosService.updateItem(
-          "studies",
-          studyId,
-          req.user.organizationId,
-          study.toJSON(),
+        // Sanitize stage
+        const currentStage = study.workflowStage
+          ? study.workflowStage.trim()
+          : "";
+        console.log(
+          `[Workflow Debug] Current Stage (Raw): '${study.workflowStage}'`,
         );
-
-        await auditAction(
-          req.user,
-          "update",
-          "study",
-          studyId,
-          `Updated study classification to ${updates.userTag}`,
-          { pmid: study.pmid },
-          beforeValue,
-          afterValue,
+        console.log(
+          `[Workflow Debug] Current Stage (Trimmed): '${currentStage}'`,
         );
+        console.log(`[Workflow Debug] User Decision: ${updates.userTag}`);
 
-        return res.json({
-          success: true,
-          message: "Study classification updated successfully",
-          study: updatedStudy,
-          debug: debugInfo,
-        });
+        let nextStageId = null;
+        let nextStatus = null;
+        let nextSubStatus = null;
+        let nextClassification = null;
+
+        switch (currentStage) {
+          // ---------------------------
+          // 1. TRIAGE / QC STAGES
+          // ---------------------------
+          case "TRIAGE_QUEUE_ICSR": // New Style
+          case "TRIAGE_ICSR": // Legacy Style Support
+            if (decision === "ICSR") {
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "icsr_assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "Probable ICSR";
+            } else if (decision === "AOI") {
+              // Cross-track: Move to AOI Assessment
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "reclassified"; // Mark as reclassified
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "AOI";
+            } else if (decision === "No Case") {
+              // Cross-track: Move to No Case Assessment
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "reclassified";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+            }
+            break;
+
+          case "QC_AOI": // AOI Track Start
+          case "TRIAGE_QUEUE_AOI": // Legacy
+            if (decision === "AOI") {
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "Probable AOI";
+            } else if (decision === "ICSR") {
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "icsr_assessment";
+              nextSubStatus = "reclassified";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else if (decision === "No Case") {
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "reclassified";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+            }
+            break;
+
+          case "QC_NOCASE": // No Case Track Start
+          case "TRIAGE_QUEUE_NO_CASE": // Legacy
+            if (decision === "No Case") {
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "assessment";
+              nextClassification = "No Case";
+            } else if (decision === "ICSR") {
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "icsr_assessment";
+              nextSubStatus = "reclassified";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else if (decision === "AOI") {
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "reclassified";
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "AOI";
+            }
+            break;
+
+          // ---------------------------
+          // 2. ASSESSMENT STAGES
+          // ---------------------------
+          case "ASSESSMENT_ICSR":
+          case "ASSESSMENT_A": // Legacy?
+            if (decision === "ICSR") {
+              nextStageId = "DATA_ENTRY";
+              nextStatus = "data_entry";
+              nextSubStatus = "processing";
+              nextClassification = "Probable ICSR";
+            } else if (decision === "AOI") {
+              // Correction: Move to AOI Assessment
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "correction";
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "AOI";
+            } else if (decision === "No Case") {
+              // Correction
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "correction";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+            }
+            break;
+
+          case "ASSESSMENT_AOI":
+            if (decision === "AOI") {
+              nextStageId = "REPORTING"; // or completed
+              nextStatus = "Reporting";
+              nextSubStatus = "archived";
+              nextClassification = "Probable AOI";
+            } else if (decision === "ICSR") {
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "icsr_assessment";
+              nextSubStatus = "correction";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else if (decision === "No Case") {
+              nextStageId = "ASSESSMENT_NO_CASE";
+              nextStatus = "no_case_assessment";
+              nextSubStatus = "correction";
+              nextClassification = "No Case";
+              study.workflowTrack = "NoCase";
+            }
+            break;
+
+          case "ASSESSMENT_NO_CASE":
+            if (decision === "No Case") {
+              nextStageId = "COMPLETED";
+              nextStatus = "Completed";
+              nextSubStatus = "archived";
+              nextClassification = "No Case";
+            } else if (decision === "ICSR") {
+              nextStageId = "ASSESSMENT_ICSR";
+              nextStatus = "icsr_assessment";
+              nextSubStatus = "correction";
+              nextClassification = "Probable ICSR";
+              study.workflowTrack = "ICSR";
+            } else if (decision === "AOI") {
+              nextStageId = "ASSESSMENT_AOI";
+              nextStatus = "aoi_assessment";
+              nextSubStatus = "correction";
+              nextClassification = "Probable AOI";
+              study.workflowTrack = "AOI";
+            }
+            break;
+
+          default:
+            console.warn(
+              `[Workflow Debug] Unknown or Unhandled Stage: ${study.workflowStage}`,
+            );
+        }
+
+        if (nextStageId) {
+          console.log(
+            `[Workflow Debug] Transitioning to: ${nextStageId} (${nextStatus})`,
+          );
+          study.workflowStage = nextStageId;
+          study.status = nextStatus;
+          // Only update subStatus if we set an explicit one
+          if (nextSubStatus) study.subStatus = nextSubStatus;
+          // IMPORTANT: Use icsrClassification as the single source of truth for classification
+          if (nextClassification) {
+            study.classification = nextClassification;
+            study.icsrClassification = nextClassification;
+          }
+          study.userTag = decision;
+
+          // Release Assignment
+          study.assignedTo = null;
+          study.batchId = null;
+          study.allocatedAt = null;
+          study.lockedAt = null;
+          study.classifiedBy = req.user.id;
+          study.updatedAt = new Date().toISOString();
+
+          // Add comment logging the transition
+          study.addComment({
+            userId: req.user.id,
+            userName: req.user.name,
+            text: `Assessment completed: ${decision}. Moved to ${nextStatus}.`,
+            type: "system",
+          });
+        } else {
+          console.log(
+            `[Workflow Debug] No transition occurred for ${study.workflowStage} -> ${decision}`,
+          );
+        }
       }
+      // --- NEW WORKFLOW LOGIC END ---
 
-      // Capture before values for regular updates
-      const beforeValue = {};
-      Object.keys(updates).forEach((key) => {
-        beforeValue[key] = existingStudy[key];
+      // 5. Case B: Regular Field Updates (Justification, Seriousness, etc.)
+      const updateableFields = [
+        "justification",
+        "listedness",
+        "seriousness",
+        "fullTextAvailability",
+        "fullTextSource",
+      ];
+
+      updateableFields.forEach((field) => {
+        if (updates[field] !== undefined) study[field] = updates[field];
       });
 
-      // Regular update for other fields
+      // 6. Persistence & Audit
       const updatedStudy = await cosmosService.updateItem(
         "studies",
         studyId,
         req.user.organizationId,
-        updates,
+        study.toJSON(),
       );
 
-      // Capture after values
-      const afterValue = {};
-      Object.keys(updates).forEach((key) => {
-        afterValue[key] = updatedStudy[key];
-      });
-
-      // Create audit log
       await auditAction(
         req.user,
         "update",
         "study",
         studyId,
-        `Updated study: PMID ${updatedStudy.pmid}`,
-        { updates: Object.keys(updates), pmid: updatedStudy.pmid },
+        `Updated study: ${updates.userTag ? "Classification" : "General fields"}`,
+        { pmid: study.pmid },
         beforeValue,
-        afterValue,
+        updatedStudy,
       );
 
-      res.json({
+      return res.json({
+        success: true,
         message: "Study updated successfully",
         study: updatedStudy,
       });
