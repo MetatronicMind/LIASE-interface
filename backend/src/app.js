@@ -26,6 +26,7 @@ const cacheService = require("./services/cacheService");
 const archivalScheduler = require("./schedulers/archivalScheduler");
 const passwordExpirationScheduler = require("./schedulers/passwordExpirationScheduler");
 // Initialize Redis connection
+// Force restart trigger 2
 if (cacheService && typeof cacheService.connect === "function") {
   console.log("Initializing Redis connection...");
   try {

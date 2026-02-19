@@ -266,58 +266,48 @@ class Study {
       throw new Error(`Invalid tag. Must be one of: ${validTags.join(", ")}`);
     }
 
-    const previousTag = this.icsrClassification;
-    this.icsrClassification = tag;
-    this.userTag = tag; // Keep userTag in sync for now as legacy support, but primary is icsrClassification
-    this.classification = tag; // Sync classification field
-
+    const previousTag = this.userTag;
+    this.userTag = tag;
     this.classifiedBy = userId;
 
     // Clear assignment/lock when classification is submitted
+    // This allows the user to pick up a new case immediately
     this.assignedTo = null;
     this.lockedAt = null;
-    this.allocatedAt = null; // Ensure unassigned so it can be picked up by others
 
     if (nextStage) {
-      this.workflowStage = nextStage.id;
-      // Map stages to subStatuses
-      if (nextStage.id.includes("ASSESSMENT")) {
-        this.subStatus = "assessment";
-      } else if (
-        nextStage.id.includes("QC") ||
-        nextStage.id.includes("TRIAGE")
+      this.status = nextStage.id;
+      this.subStatus = "assessment"; // Move to assessment phase
+
+      // If moving to a QC stage, set approval status to pending
+      if (
+        nextStage.id.includes("qc") ||
+        nextStage.label.toLowerCase().includes("qc")
       ) {
-        this.subStatus = "triage";
-      } else if (nextStage.id.includes("DATA_ENTRY")) {
-        this.subStatus = "data_entry";
+        this.qaApprovalStatus = "pending";
+        this.addComment({
+          userId,
+          userName,
+          text: `Manual classification updated to "${tag}". Moving to ${nextStage.label}.`,
+          type: "system",
+        });
+      } else {
+        // If skipping QC, ensure we don't get stuck in pending
+        this.qaApprovalStatus = "not_applicable";
+        this.addComment({
+          userId,
+          userName,
+          text: `Manual classification updated to "${tag}". Moving to ${nextStage.label}.`,
+          type: "system",
+        });
       }
-
-      this.addComment({
-        userId,
-        userName,
-        text: `Classification updated to "${tag}". Moving to ${nextStage.label || nextStage.id}.`,
-        type: "system",
-      });
     } else {
-      // Default transitions if no explicit stage provided
-      if (tag === "ICSR") {
-        this.workflowTrack = "ICSR";
-        this.workflowStage = "ASSESSMENT_ICSR";
-        this.subStatus = "assessment";
-      } else if (tag === "AOI") {
-        this.workflowTrack = "AOI";
-        this.workflowStage = "ASSESSMENT_AOI";
-        this.subStatus = "assessment";
-      } else if (tag === "No Case") {
-        this.workflowTrack = "NoCase";
-        this.workflowStage = "ASSESSMENT_NO_CASE";
-        this.subStatus = "assessment";
-      }
-
+      // Legacy behavior
+      this.qaApprovalStatus = "pending"; // Reset QC approval when tag changes
       this.addComment({
         userId,
         userName,
-        text: `Classification updated to "${tag}". Auto-transitioned based on track rules.`,
+        text: `Manual classification updated from "${previousTag || "None"}" to "${tag}". Awaiting QC approval.`,
         type: "system",
       });
     }
@@ -878,8 +868,8 @@ class Study {
       "no_case_assessment",
       "icsr_triage",
       "icsr_assessment",
-      "aoi_triage",
-      "no_case_triage",
+      "aoi_triage", // Added
+      "no_case_triage", // Added
     ];
 
     if (!validDestinations.includes(destination)) {
@@ -902,12 +892,37 @@ class Study {
         text: `Rejected from Assessment. Reason: ${comments}`,
         type: "rejection",
       });
+    } else {
+      // Clear previous rejection status if moving forward without rejection
+      // But only if we are moving forward (not back to triage without comments)
+      // Actually, if we move to next stage, we should probably clear rejection status
+      if (!destination.includes("triage")) {
+        // If moving forward to Data Entry or beyond, consider it approved
+        if (
+          ["data_entry", "medical_review", "reporting"].includes(destination)
+        ) {
+          this.qaApprovalStatus = "approved";
+          this.qaApprovedBy = userId;
+          this.qaApprovedAt = new Date().toISOString();
+        } else {
+          this.qaApprovalStatus = "pending";
+        }
+      }
     }
 
     // Store previous track if provided
     if (previousTrack) {
       this.sourceTrack = previousTrack;
       this.sourceTrackTimestamp = new Date().toISOString();
+    } else {
+      // If simply moving forward in same track, keep sourceTrack?
+      // Or clear it? Depends on if we want "original source".
+      // For now, let's keep it if not explicitly overwritten.
+    }
+
+    if (this.subStatus !== "assessment") {
+      // Allow if strictly re-routing, but warning: subStatus must catch logic issues
+      // throw new Error("Study must be in assessment phase to route");
     }
 
     const previousStatus = this.status;
@@ -915,10 +930,9 @@ class Study {
 
     // Clear assignment and lock so it can be picked up by the next pool/stage
     this.assignedTo = null;
-    this.allocatedAt = null; // Also clear allocation timestamp so it can be re-allocated
     this.lockedAt = null;
 
-    // Mapping Logic based on the New Workflow Structure
+    // Mapping Logic
     switch (destination) {
       case "data_entry":
         this.workflowTrack = "ICSR";
@@ -943,7 +957,7 @@ class Study {
 
       case "icsr_triage":
         this.workflowTrack = "ICSR";
-        this.workflowStage = "TRIAGE_ICSR"; // Updated to new standard
+        this.workflowStage = "TRIAGE_ICSR";
         this.subStatus = "triage";
         this.status = "Under Triage Review";
         break;
@@ -957,27 +971,27 @@ class Study {
 
       case "aoi_triage":
         this.workflowTrack = "AOI";
-        this.workflowStage = "QC_AOI"; // Updated to new standard
+        this.workflowStage = "TRIAGE_AOI";
         this.subStatus = "triage";
         this.status = "Under Triage Review";
         break;
 
       case "no_case_triage":
         this.workflowTrack = "NoCase";
-        this.workflowStage = "QC_NOCASE"; // Updated to new standard
+        this.workflowStage = "TRIAGE_NO_CASE";
         this.subStatus = "triage";
         this.status = "Under Triage Review";
         break;
 
       case "reporting":
         // Logic for reporting state
-        if (this.icsrClassification === "AOI" || this.workflowTrack === "AOI") {
+        if (this.userTag === "AOI" || this.workflowTrack === "AOI") {
           this.workflowTrack = "AOI";
           this.workflowStage = "REPORTING";
           this.subStatus = "reporting";
           this.status = "Ready for Report";
         } else if (
-          this.icsrClassification === "No Case" ||
+          this.userTag === "No Case" ||
           this.workflowTrack === "NoCase"
         ) {
           this.workflowTrack = "NoCase";
@@ -1000,6 +1014,10 @@ class Study {
       default:
         this.status = destination; // Fallback
     }
+
+    // Clear assignment for next phase
+    this.assignedTo = null;
+    this.lockedAt = null;
 
     this.addComment({
       userId,
