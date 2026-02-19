@@ -1434,7 +1434,7 @@ router.put(
         `Updated study: ${updates.userTag ? "Classification" : "General fields"}`,
         { pmid: study.pmid },
         beforeValue,
-        updatedStudy
+        updatedStudy,
       );
 
       return res.json({
