@@ -324,11 +324,15 @@ class TrackAllocationService {
     // workflow machine already transitioned it to REPORTING), treat the route call
     // as a no-op success so the frontend doesn't show a spurious "Failed to route study"
     // error while the case is in fact moved correctly.
+    // 'correction' covers cross-track reroutes (PUT advances to new track with correction subStatus)
+    // 'processing' covers approve flow where PUT may have advanced ASSESSMENT_ICSR -> DATA_ENTRY
     const postAssessmentStatuses = [
       "archived",
       "reporting",
       "data_entry",
       "medical_review",
+      "correction",
+      "processing",
     ];
     if (study.subStatus !== "assessment") {
       if (postAssessmentStatuses.includes(study.subStatus)) {

@@ -64,10 +64,8 @@ class Role {
       },
       organizations: { read: false, write: false, delete: false },
       reports: { read: false, write: false, delete: false, export: false },
-      // Workflow track visibility
-      icsr_track: { read: false, triage: false, assessment: false },
-      aoi_track: { read: false, triage: false, assessment: false },
-      no_case_track: { read: false, triage: false, assessment: false },
+      // Workflow track visibility — NOT in defaults; only added when explicitly granted
+      // icsr_track, aoi_track, no_case_track are opt-in and must be set per-role
       // New workflow-specific permissions
       triage: {
         read: false,

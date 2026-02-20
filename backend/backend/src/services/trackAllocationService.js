@@ -317,7 +317,27 @@ class TrackAllocationService {
 
     const study = new Study(studyData);
 
+    // If the study was already advanced out of assessment (e.g. the PUT /studies/:id
+    // workflow machine already transitioned it), treat the route call as a no-op success.
+    // 'correction' covers cross-track reroutes; 'processing' covers approve flow.
+    const postAssessmentStatuses = [
+      "archived",
+      "reporting",
+      "data_entry",
+      "medical_review",
+      "correction",
+      "processing",
+    ];
     if (study.subStatus !== "assessment") {
+      if (postAssessmentStatuses.includes(study.subStatus)) {
+        return {
+          success: true,
+          studyId: study.id,
+          destination: destination,
+          previousTrack: study.workflowTrack,
+          alreadyRouted: true,
+        };
+      }
       throw new Error("Study must be in assessment phase to route");
     }
 
