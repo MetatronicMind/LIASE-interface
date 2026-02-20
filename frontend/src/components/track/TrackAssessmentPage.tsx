@@ -117,41 +117,41 @@ export default function TrackAssessmentPage({
     return () => window.removeEventListener("focus", handleFocus);
   }, [fetchAllocatedCases]);
 
-  // Fetch pool stats with polling
-  useEffect(() => {
-    const fetchPoolStats = async () => {
-      try {
-        const token = getToken();
-        if (!token) return;
-        const response = await fetch(`${API_BASE}/track/statistics`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          const stats = data.data?.[trackType];
-          if (stats) {
-            // Use 'assessment' count for Assessment Page
-            setPoolCount(stats.assessment || 0);
-          }
+  // Fetch pool stats - extracted as useCallback so action handlers can call it
+  const fetchPoolStats = useCallback(async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+      const response = await fetch(`${API_BASE}/track/statistics`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const stats = data.data?.[trackType];
+        if (stats) {
+          // Use 'assessment' count for Assessment Page
+          setPoolCount(stats.assessment || 0);
         }
-      } catch (err) {
-        console.error("Failed to fetch pool stats", err);
       }
-    };
+    } catch (err) {
+      console.error("Failed to fetch pool stats", err);
+    }
+  }, [trackType, API_BASE]);
 
+  // Poll pool stats and refetch on focus
+  useEffect(() => {
     fetchPoolStats(); // Initial fetch
-    // Add focus listener to refetch stats when tab becomes active
     const handleFocus = () => {
       fetchPoolStats();
     };
     window.addEventListener("focus", handleFocus);
 
-    const interval = setInterval(fetchPoolStats, 10000); // Poll every 10s (increased frequency)
+    const interval = setInterval(fetchPoolStats, 10000); // Poll every 10s
     return () => {
       clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
     };
-  }, [trackType]);
+  }, [fetchPoolStats]);
 
   const currentCase =
     allocatedCases.length > 0 ? allocatedCases[currentIndex] : null;
@@ -210,7 +210,13 @@ export default function TrackAssessmentPage({
           setAllocatedCases(cases);
           setCurrentIndex(0);
           setAssessmentStarted(true); // Start assessment view
+          // Optimistic: decrement pool count by allocated amount
+          setPoolCount((prev) =>
+            prev !== null ? Math.max(0, prev - cases.length) : prev,
+          );
           toast.success(`Allocated ${cases.length} case(s) for assessment`);
+          // Re-fetch accurate count from server
+          fetchPoolStats();
         }
       } else {
         toast.error(data.message || data.error || "Failed to allocate cases");
@@ -247,9 +253,16 @@ export default function TrackAssessmentPage({
         },
       );
 
+      // Optimistic: increment pool count by released amount
+      const releasedCount = allocatedCases.length;
       setAllocatedCases([]);
       setCurrentIndex(0);
       setAssessmentStarted(false);
+      setPoolCount((prev) =>
+        prev !== null ? prev + releasedCount : releasedCount,
+      );
+      // Re-fetch accurate count from server
+      fetchPoolStats();
     } catch (error) {
       console.error("Error releasing cases:", error);
       toast.error("Error releasing cases");
@@ -350,6 +363,9 @@ export default function TrackAssessmentPage({
         if (currentIndex >= newCases.length) {
           setCurrentIndex(Math.max(0, newCases.length - 1));
         }
+
+        // Re-fetch pool count (routing changes pool composition)
+        fetchPoolStats();
       } else {
         toast.error(data.error || "Failed to process decision");
       }
@@ -461,6 +477,8 @@ export default function TrackAssessmentPage({
         toast.success(
           `Classification updated to ${classification}. Please confirm routing decision.`,
         );
+        // Re-fetch pool count (classification changes pool composition)
+        fetchPoolStats();
       } else {
         throw new Error("Failed to update classification");
       }
