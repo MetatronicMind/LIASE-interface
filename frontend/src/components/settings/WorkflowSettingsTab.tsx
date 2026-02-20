@@ -25,6 +25,7 @@ interface WorkflowConfig {
   qcDataEntry?: boolean;
   medicalReview?: boolean;
   noCaseQcPercentage?: number;
+  noCaseSecondaryQcPercentage?: number;
   // Tri-Channel Track Allocation Percentages
   icsrAllocationPercentage?: number;
   aoiAllocationPercentage?: number;
@@ -168,6 +169,22 @@ export default function WorkflowSettingsTab() {
     }
   };
 
+  const handleNoCaseSecondaryQcPercentageChange = (value: string) => {
+    if (!config) return;
+
+    if (value === "") {
+      setConfig({ ...config, noCaseSecondaryQcPercentage: undefined });
+      return;
+    }
+
+    if (!/^\d*$/.test(value)) return;
+
+    const percentage = parseInt(value);
+    if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
+      setConfig({ ...config, noCaseSecondaryQcPercentage: percentage });
+    }
+  };
+
   const handleTrackAllocationChange = (
     track: "icsr" | "aoi" | "noCase",
     value: string,
@@ -206,7 +223,7 @@ export default function WorkflowSettingsTab() {
               </h3>
               <p className="text-sm text-gray-500">
                 Percentage of "No Case" studies sent back to Triage for
-                re-evaluation.
+                re-evaluation. The remaining cases advance to Secondary QC.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -215,6 +232,42 @@ export default function WorkflowSettingsTab() {
                 inputMode="numeric"
                 value={config.noCaseQcPercentage?.toString() ?? "10"}
                 onChange={(e) => handleNoCaseQcPercentageChange(e.target.value)}
+                className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
+                placeholder="0-100"
+              />
+              <span className="text-sm text-gray-500">%</span>
+              <button
+                onClick={() => saveConfig(config)}
+                disabled={saving}
+                className="ml-2 bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+              >
+                {saving ? "..." : "Save"}
+              </button>
+            </div>
+          </div>
+
+          {/* Secondary QC percentage */}
+          <div className="flex items-center justify-between border-t pt-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">
+                No Case Secondary QC — Clear to Reports
+              </h3>
+              <p className="text-sm text-gray-500">
+                Of the cases that pass the primary QC,{" "}
+                {config.noCaseSecondaryQcPercentage ?? 10}% are cleared directly
+                to Reports. The remaining{" "}
+                {100 - (config.noCaseSecondaryQcPercentage ?? 10)}% are sent to
+                No Case Triage for manual review.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={config.noCaseSecondaryQcPercentage?.toString() ?? "10"}
+                onChange={(e) =>
+                  handleNoCaseSecondaryQcPercentageChange(e.target.value)
+                }
                 className="w-16 border border-gray-300 rounded-md shadow-sm p-1 text-sm text-center"
                 placeholder="0-100"
               />

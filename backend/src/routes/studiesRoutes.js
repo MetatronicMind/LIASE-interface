@@ -356,7 +356,7 @@ router.post(
           } else if (study.userTag === "AOI") {
             nextStageId = "aoi_assessment";
           } else if (study.userTag === "No Case") {
-            nextStageId = "reporting";
+            nextStageId = "no_case_secondary_qc";
           }
 
           if (nextStageId) {
@@ -366,10 +366,17 @@ router.post(
             };
 
             study.status = nextStageId;
-            study.qaApprovalStatus = "approved"; // Mark as approved since we are moving it out of QC
-            study.qaApprovedBy = req.user.id;
-            study.qaApprovedAt = new Date().toISOString();
-            study.qaComments = "Auto approved QC";
+            // No Case routes to Secondary QC (still pending); others are approved
+            study.qaApprovalStatus =
+              study.userTag === "No Case" ? "pending" : "approved";
+            if (study.userTag !== "No Case") {
+              study.qaApprovedBy = req.user.id;
+              study.qaApprovedAt = new Date().toISOString();
+            }
+            study.qaComments =
+              study.userTag === "No Case"
+                ? "Bulk QC - Routed to No Case Secondary QC"
+                : "Auto approved QC";
 
             const afterValue = {
               status: study.status,
@@ -547,7 +554,7 @@ router.post(
 
       const results = {
         reclassified: 0,
-        approved: 0,
+        routedToSecondaryQc: 0,
         errors: 0,
       };
 
@@ -596,8 +603,219 @@ router.post(
         }
       }
 
-      // Process Approval (Rest -> Reporting)
+      // Route Remaining to Secondary QC (no_case_secondary_qc)
       for (const studyData of studiesToApprove) {
+        try {
+          const study = new Study(studyData);
+          const beforeValue = {
+            status: study.status,
+            qaApprovalStatus: study.qaApprovalStatus,
+          };
+
+          study.status = "no_case_secondary_qc";
+          study.qaApprovalStatus = "pending";
+          study.qaComments =
+            "Passed Primary No Case QC - Awaiting Secondary QC";
+
+          const afterValue = {
+            status: study.status,
+            qaApprovalStatus: study.qaApprovalStatus,
+          };
+
+          await cosmosService.updateItem(
+            "studies",
+            study.id,
+            req.user.organizationId,
+            study.toJSON(),
+          );
+
+          await auditAction(
+            req.user,
+            "update",
+            "study",
+            study.id,
+            `No Case Primary QC - Routed to Secondary QC`,
+            {
+              studyId: study.id,
+              from: "qc_triage",
+              to: "no_case_secondary_qc",
+            },
+            beforeValue,
+            afterValue,
+          );
+          results.routedToSecondaryQc++;
+        } catch (err) {
+          console.error(
+            `Error routing study to secondary QC ${studyData.id}:`,
+            err,
+          );
+          results.errors++;
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Processed ${studies.length} items. ${results.reclassified} sent to Triage for reclassification, ${results.routedToSecondaryQc} routed to Secondary QC.`,
+        results,
+      });
+    } catch (error) {
+      console.error("Error processing No Case studies:", error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+// Get count/list of studies in No Case Secondary QC queue
+router.get(
+  "/QA/no-case-secondary-pending",
+  authorizePermission("studies", "read"),
+  async (req, res) => {
+    try {
+      const { page = 1, limit = 50 } = req.query;
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
+      const query =
+        "SELECT * FROM c WHERE c.organizationId = @orgId AND c.status = 'no_case_secondary_qc' AND c.userTag = 'No Case'";
+      const parameters = [{ name: "@orgId", value: targetOrgId }];
+
+      const allStudies = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+      allStudies.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+      const offset = (page - 1) * parseInt(limit);
+      const studies = allStudies.slice(offset, offset + parseInt(limit));
+
+      res.json({
+        success: true,
+        data: studies,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: allStudies.length,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching no-case secondary pending:", error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+// Process No Case Secondary QC: clear X% to Reports, remainder to No Case Triage
+router.post(
+  "/QA/process-no-case-secondary",
+  authorizePermission("studies", "write"),
+  async (req, res) => {
+    try {
+      const query =
+        "SELECT * FROM c WHERE c.organizationId = @orgId AND c.status = 'no_case_secondary_qc' AND c.userTag = 'No Case'";
+      const parameters = [{ name: "@orgId", value: req.user.organizationId }];
+
+      const studies = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+
+      if (studies.length === 0) {
+        return res.json({
+          success: true,
+          message: "No studies in Secondary QC queue.",
+          results: { clearedToReports: 0, routedToTriage: 0, errors: 0 },
+        });
+      }
+
+      // Read secondary QC percentage from config (default 10%)
+      let secondaryPercentage = 10;
+      try {
+        const workflowConfig = await adminConfigService.getConfig(
+          req.user.organizationId,
+          "workflow",
+        );
+        if (
+          workflowConfig &&
+          workflowConfig.configData &&
+          typeof workflowConfig.configData.noCaseSecondaryQcPercentage !==
+            "undefined"
+        ) {
+          secondaryPercentage = parseFloat(
+            workflowConfig.configData.noCaseSecondaryQcPercentage,
+          );
+        }
+      } catch (err) {
+        console.warn(
+          "Failed to fetch workflow config for secondary no-case process:",
+          err,
+        );
+      }
+
+      // Shuffle and split: X% → back to No Case QC, rest → Reports
+      const shuffled = studies.sort(() => 0.5 - Math.random());
+      const countToNoCaseQc = Math.ceil(
+        studies.length * (secondaryPercentage / 100),
+      );
+      const studiesToNoCaseQc = shuffled.slice(0, countToNoCaseQc);
+      const studiesToReports = shuffled.slice(countToNoCaseQc);
+
+      const results = { sentToNoCaseQc: 0, clearedToReports: 0, errors: 0 };
+
+      // Send X% back to No Case QC (qc_triage)
+      for (const studyData of studiesToNoCaseQc) {
+        try {
+          const study = new Study(studyData);
+          const beforeValue = {
+            status: study.status,
+            qaApprovalStatus: study.qaApprovalStatus,
+          };
+
+          study.status = "qc_triage";
+          study.qaApprovalStatus = "pending";
+          study.qaComments = "No Case Secondary QC - Returned to No Case QC";
+
+          const afterValue = {
+            status: study.status,
+            qaApprovalStatus: study.qaApprovalStatus,
+          };
+
+          await cosmosService.updateItem(
+            "studies",
+            study.id,
+            req.user.organizationId,
+            study.toJSON(),
+          );
+
+          await auditAction(
+            req.user,
+            "update",
+            "study",
+            study.id,
+            `No Case Secondary QC - Returned to No Case QC`,
+            {
+              studyId: study.id,
+              from: "no_case_secondary_qc",
+              to: "qc_triage",
+            },
+            beforeValue,
+            afterValue,
+          );
+          results.sentToNoCaseQc++;
+        } catch (err) {
+          console.error(
+            `Error returning study to No Case QC ${studyData.id}:`,
+            err,
+          );
+          results.errors++;
+        }
+      }
+
+      // Clear remainder directly to Reports
+      for (const studyData of studiesToReports) {
         try {
           const study = new Study(studyData);
           const beforeValue = {
@@ -609,7 +827,7 @@ router.post(
           study.qaApprovalStatus = "approved";
           study.qaApprovedBy = req.user.id;
           study.qaApprovedAt = new Date().toISOString();
-          study.qaComments = "Auto approved No Case";
+          study.qaComments = "No Case Secondary QC - Cleared to Reports";
 
           const afterValue = {
             status: study.status,
@@ -628,25 +846,216 @@ router.post(
             "bulk_approve",
             "study",
             study.id,
-            `Auto approved No Case`,
-            { studyId: study.id },
+            `No Case Secondary QC - Cleared to Reports`,
+            {
+              studyId: study.id,
+              from: "no_case_secondary_qc",
+              to: "reporting",
+            },
             beforeValue,
             afterValue,
           );
-          results.approved++;
+          results.clearedToReports++;
         } catch (err) {
-          console.error(`Error approving study ${studyData.id}:`, err);
+          console.error(
+            `Error clearing study to reports ${studyData.id}:`,
+            err,
+          );
           results.errors++;
         }
       }
 
       res.json({
         success: true,
-        message: `Processed ${studies.length} items. ${results.reclassified} sent to Triage, ${results.approved} approved.`,
+        message: `Secondary QC processed ${studies.length} items. ${results.sentToNoCaseQc} returned to No Case QC, ${results.clearedToReports} cleared to Reports.`,
         results,
       });
     } catch (error) {
-      console.error("Error processing No Case studies:", error);
+      console.error("Error processing No Case Secondary QC:", error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+// Get studies in No Case Triage (manual review queue)
+router.get(
+  "/QA/no-case-triage-studies",
+  authorizePermission("studies", "read"),
+  async (req, res) => {
+    try {
+      const { page = 1, limit = 50, search } = req.query;
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
+      let query =
+        "SELECT * FROM c WHERE c.organizationId = @orgId AND c.status = 'no_case_triage' AND c.userTag = 'No Case'";
+      const parameters = [{ name: "@orgId", value: targetOrgId }];
+
+      if (search) {
+        query +=
+          " AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))";
+        parameters.push({ name: "@search", value: search });
+      }
+
+      const allStudies = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+      allStudies.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+      const offset = (page - 1) * parseInt(limit);
+      const studies = allStudies.slice(offset, offset + parseInt(limit));
+
+      res.json({
+        success: true,
+        data: studies,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: allStudies.length,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching no-case triage studies:", error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+// Individually approve a study from No Case Triage → Reporting
+router.post(
+  "/:id/QA/no-case-triage/approve",
+  authorizePermission("studies", "write"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { comments } = req.body;
+
+      const studyData = await cosmosService.getItem(
+        "studies",
+        id,
+        req.user.organizationId,
+      );
+      if (!studyData) {
+        return res.status(404).json({ error: "Study not found" });
+      }
+
+      const study = new Study(studyData);
+      const beforeValue = {
+        status: study.status,
+        qaApprovalStatus: study.qaApprovalStatus,
+      };
+
+      study.status = "reporting";
+      study.qaApprovalStatus = "approved";
+      study.qaApprovedBy = req.user.id;
+      study.qaApprovedAt = new Date().toISOString();
+      study.qaComments =
+        comments || "Approved at No Case Triage - Cleared to Reports";
+
+      const afterValue = {
+        status: study.status,
+        qaApprovalStatus: study.qaApprovalStatus,
+      };
+
+      await cosmosService.updateItem(
+        "studies",
+        study.id,
+        req.user.organizationId,
+        study.toJSON(),
+      );
+
+      await auditAction(
+        req.user,
+        "approve",
+        "study",
+        study.id,
+        `No Case Triage - Approved and cleared to Reports`,
+        { studyId: study.id, from: "no_case_triage", to: "reporting" },
+        beforeValue,
+        afterValue,
+      );
+
+      res.json({
+        success: true,
+        message: "Study approved and cleared to Reports.",
+        study: study.toJSON(),
+      });
+    } catch (error) {
+      console.error("Error approving no-case triage study:", error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+// Individually reject a study from No Case Triage → Triage (reclassify)
+router.post(
+  "/:id/QA/no-case-triage/reject",
+  authorizePermission("studies", "write"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      if (!reason || !reason.trim()) {
+        return res.status(400).json({ error: "Rejection reason is required" });
+      }
+
+      const studyData = await cosmosService.getItem(
+        "studies",
+        id,
+        req.user.organizationId,
+      );
+      if (!studyData) {
+        return res.status(404).json({ error: "Study not found" });
+      }
+
+      const study = new Study(studyData);
+      const beforeValue = {
+        status: study.status,
+        qaApprovalStatus: study.qaApprovalStatus,
+        userTag: study.userTag,
+      };
+
+      study.status = "triage";
+      study.userTag = null;
+      study.qaApprovalStatus = "rejected";
+      study.qaComments = reason;
+
+      const afterValue = {
+        status: study.status,
+        qaApprovalStatus: study.qaApprovalStatus,
+        userTag: study.userTag,
+      };
+
+      await cosmosService.updateItem(
+        "studies",
+        study.id,
+        req.user.organizationId,
+        study.toJSON(),
+      );
+
+      await auditAction(
+        req.user,
+        "reject",
+        "study",
+        study.id,
+        `No Case Triage - Rejected and sent back to Triage for Reclassification`,
+        { studyId: study.id, from: "no_case_triage", to: "triage", reason },
+        beforeValue,
+        afterValue,
+      );
+
+      res.json({
+        success: true,
+        message: "Study rejected and returned to Triage for reclassification.",
+        study: study.toJSON(),
+      });
+    } catch (error) {
+      console.error("Error rejecting no-case triage study:", error);
       res.status(500).json({ error: error.message });
     }
   },

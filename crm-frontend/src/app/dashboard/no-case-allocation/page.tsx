@@ -3,9 +3,13 @@ import { useState, useEffect } from "react";
 import { useDateTime } from "@/hooks/useDateTime";
 import { getApiBaseUrl } from "@/config/api";
 import { PmidLink } from "@/components/PmidLink";
-import { ExclamationTriangleIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
-import { useSelector } from 'react-redux';
-import { RootState } from '@/redux/store';
+import {
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+} from "@heroicons/react/24/outline";
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
 
 interface Study {
   id: string;
@@ -17,8 +21,8 @@ interface Study {
   drugName: string;
   adverseEvent: string;
   status?: string;
-  userTag: 'ICSR' | 'AOI' | 'No Case' | null;
-  qaApprovalStatus: 'pending' | 'approved' | 'rejected' | 'manual_qc';
+  userTag: "ICSR" | "AOI" | "No Case" | null;
+  qaApprovalStatus: "pending" | "approved" | "rejected" | "manual_qc";
   createdAt: string;
   updatedAt: string;
   textType?: string;
@@ -27,14 +31,16 @@ interface Study {
 
 export default function NoCaseAllocationPage() {
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
-  const selectedOrganizationId = useSelector((state: RootState) => state.filter.selectedOrganizationId);
+  const selectedOrganizationId = useSelector(
+    (state: RootState) => state.filter.selectedOrganizationId,
+  );
   const { formatDate } = useDateTime();
-  
+
   // Use QC/QA permissions
   const permissions = user?.permissions?.QA || user?.permissions?.QC;
   const canView = permissions?.read;
   const canWrite = permissions?.write;
-  
+
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +56,7 @@ export default function NoCaseAllocationPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("auth_token");
-      
+
       const url = new URL(`${getApiBaseUrl()}/studies/QA-pending`);
       if (selectedOrganizationId) {
         url.searchParams.append("organizationId", selectedOrganizationId);
@@ -79,20 +85,27 @@ export default function NoCaseAllocationPage() {
   };
 
   const handleProcessQC = async () => {
-    if (!confirm("Are you sure you want to process QC for No Case items? This will send a sample to Triage using random selection and approve the rest.")) {
+    if (
+      !confirm(
+        "Are you sure you want to process Primary QC for No Case items?\n\nA configured percentage will be sent back to Triage for reclassification. The remainder will advance to Secondary QC.",
+      )
+    ) {
       return;
     }
 
     setLoading(true);
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(`${getApiBaseUrl()}/studies/QA/process-no-case`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `${getApiBaseUrl()}/studies/QA/process-no-case`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
 
       if (response.ok) {
         const result = await response.json();
@@ -109,12 +122,14 @@ export default function NoCaseAllocationPage() {
     }
   };
 
-  const filteredStudies = studies.filter(study => {
+  const filteredStudies = studies.filter((study) => {
     const searchLower = search.toLowerCase();
-    return !search || 
+    return (
+      !search ||
       (study.drugName && study.drugName.toLowerCase().includes(searchLower)) ||
       (study.title && study.title.toLowerCase().includes(searchLower)) ||
-      (study.pmid && study.pmid.includes(searchLower));
+      (study.pmid && study.pmid.includes(searchLower))
+    );
   });
 
   if (isLoading) return <div className="p-6">Loading...</div>;
@@ -123,9 +138,13 @@ export default function NoCaseAllocationPage() {
     return (
       <div className="flex h-full items-center justify-center bg-gray-50 min-h-screen">
         <div className="text-center p-8 bg-white rounded-lg shadow-md border border-gray-200 max-w-md">
-           <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
-           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
-           <p className="text-gray-600">You do not have permission to view the No Case Allocation section.</p>
+          <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Access Restricted
+          </h2>
+          <p className="text-gray-600">
+            You do not have permission to view the No Case Allocation section.
+          </p>
         </div>
       </div>
     );
@@ -135,8 +154,12 @@ export default function NoCaseAllocationPage() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">No Case Allocation</h1>
-          <p className="text-sm text-gray-500">Review studies marked as "No Case" pending QC.</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            No Case Allocation
+          </h1>
+          <p className="text-sm text-gray-500">
+            Review studies marked as "No Case" pending QC.
+          </p>
         </div>
         {canWrite && (
           <button
@@ -152,29 +175,43 @@ export default function NoCaseAllocationPage() {
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-4 border-b border-gray-200">
-           <input 
-              type="text" 
-              placeholder="Search..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full md:w-1/3 px-3 py-2 border rounded-md"
-           />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full md:w-1/3 px-3 py-2 border rounded-md"
+          />
         </div>
-        
+
         {loading ? (
-             <div className="p-8 text-center text-gray-500">Loading studies...</div>
+          <div className="p-8 text-center text-gray-500">
+            Loading studies...
+          </div>
         ) : filteredStudies.length === 0 ? (
-             <div className="p-8 text-center text-gray-500">No pending "No Case" studies found.</div>
+          <div className="p-8 text-center text-gray-500">
+            No pending "No Case" studies found.
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PMID / Title</th>
-                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Publication Date</th>
-                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drug</th>
-                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sub-Type</th>
-                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    PMID / Title
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Publication Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Drug
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Sub-Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -184,8 +221,12 @@ export default function NoCaseAllocationPage() {
                       <div className="text-sm font-medium text-blue-600">
                         <PmidLink pmid={study.pmid} />
                       </div>
-                      <div className="text-sm text-gray-900 line-clamp-2">{study.title}</div>
-                      <div className="text-xs text-gray-500">{study.journal}</div>
+                      <div className="text-sm text-gray-900 line-clamp-2">
+                        {study.title}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {study.journal}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(study.publicationDate)}
@@ -194,7 +235,7 @@ export default function NoCaseAllocationPage() {
                       {study.drugName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                       {study.Text_type || study.textType || 'N/A'}
+                      {study.Text_type || study.textType || "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">

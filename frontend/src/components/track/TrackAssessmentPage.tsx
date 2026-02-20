@@ -66,6 +66,8 @@ export default function TrackAssessmentPage({
   const [assessmentStarted, setAssessmentStarted] = useState(false);
   const [routingStudyId, setRoutingStudyId] = useState<string | null>(null);
   const [poolCount, setPoolCount] = useState<number | null>(null);
+  const [secondaryQcCount, setSecondaryQcCount] = useState<number | null>(null);
+  const [processingQC, setProcessingQC] = useState(false);
 
   // Classification state (needed for TriageStudyDetails compatibility)
   const [classifying, setClassifying] = useState<string | null>(null);
@@ -117,6 +119,59 @@ export default function TrackAssessmentPage({
     return () => window.removeEventListener("focus", handleFocus);
   }, [fetchAllocatedCases]);
 
+  // Fetch Secondary QC count for No Case track
+  const fetchSecondaryQcCount = useCallback(async () => {
+    if (trackType !== "NoCase") return;
+    try {
+      const token = getToken();
+      if (!token) return;
+      const response = await fetch(
+        `${API_BASE}/studies/QA/no-case-secondary-pending?limit=1`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSecondaryQcCount(data.pagination?.total ?? 0);
+      }
+    } catch (err) {
+      console.error("Failed to fetch secondary QC count", err);
+    }
+  }, [trackType, API_BASE]);
+
+  const handleProcessQC = async () => {
+    if (
+      !confirm(
+        `Process Secondary QC?\n\nA configured percentage will be returned to No Case QC for further review. The remainder will be cleared directly to Reports.`,
+      )
+    )
+      return;
+    setProcessingQC(true);
+    try {
+      const token = getToken();
+      const response = await fetch(
+        `${API_BASE}/studies/QA/process-no-case-secondary`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message || "Secondary QC processed successfully.");
+        fetchSecondaryQcCount();
+      } else {
+        toast.error(data.error || "Failed to process Secondary QC.");
+      }
+    } catch (err) {
+      toast.error("Error processing Secondary QC.");
+    } finally {
+      setProcessingQC(false);
+    }
+  };
+
   // Fetch pool stats - extracted as useCallback so action handlers can call it
   const fetchPoolStats = useCallback(async () => {
     try {
@@ -141,17 +196,22 @@ export default function TrackAssessmentPage({
   // Poll pool stats and refetch on focus
   useEffect(() => {
     fetchPoolStats(); // Initial fetch
+    fetchSecondaryQcCount();
     const handleFocus = () => {
       fetchPoolStats();
+      fetchSecondaryQcCount();
     };
     window.addEventListener("focus", handleFocus);
 
-    const interval = setInterval(fetchPoolStats, 10000); // Poll every 10s
+    const interval = setInterval(() => {
+      fetchPoolStats();
+      fetchSecondaryQcCount();
+    }, 10000); // Poll every 10s
     return () => {
       clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
     };
-  }, [fetchPoolStats]);
+  }, [fetchPoolStats, fetchSecondaryQcCount]);
 
   const currentCase =
     allocatedCases.length > 0 ? allocatedCases[currentIndex] : null;
@@ -600,6 +660,61 @@ export default function TrackAssessmentPage({
                   Allocating cases will lock them to your account for
                   assessment.
                 </div>
+
+                {/* Process QC — No Case only */}
+                {trackType === "NoCase" && (
+                  <div className="mt-6 pt-6 border-t border-gray-200 w-full">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700">
+                          Secondary QC Queue
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {secondaryQcCount !== null
+                            ? `${secondaryQcCount} case${secondaryQcCount !== 1 ? "s" : ""} pending`
+                            : "Loading…"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleProcessQC}
+                        disabled={processingQC || secondaryQcCount === 0}
+                        className="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {processingQC ? (
+                          <>
+                            <svg
+                              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              />
+                            </svg>
+                            Processing…
+                          </>
+                        ) : (
+                          "Process QC"
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      A configured percentage will be returned to No Case QC.
+                      The remainder will be cleared directly to Reports.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
