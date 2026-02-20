@@ -2,7 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   HomeIcon,
   TableCellsIcon,
@@ -206,6 +206,19 @@ export default function TriChannelSidebar({
     (state: RootState) => state.ui.isSidebarLocked,
   );
 
+  // Detect environment at runtime from hostname
+  const [envBadge, setEnvBadge] = useState<{ label: string; style: string } | null>(null);
+  useEffect(() => {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      setEnvBadge({ label: "dev", style: "bg-blue-500/30 text-blue-100 border border-blue-400/40" });
+    } else if (host.includes("sandbox")) {
+      setEnvBadge({ label: "sandbox", style: "bg-amber-500/30 text-amber-100 border border-amber-400/40" });
+    } else {
+      setEnvBadge({ label: "prod", style: "bg-green-500/30 text-green-100 border border-green-400/40" });
+    }
+  }, []);
+
   // Track which groups are expanded
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     {
@@ -404,9 +417,9 @@ export default function TriChannelSidebar({
       {/* Footer */}
       <div className="mt-6 text-center text-xs text-blue-100">
         © {new Date().getFullYear()} LIASE
-        {process.env.NEXT_PUBLIC_APP_VERSION && (
-          <div className="mt-1 font-mono opacity-70">
-            {process.env.NEXT_PUBLIC_APP_VERSION}
+        {envBadge && (
+          <div className={`mt-2 inline-block px-2 py-0.5 rounded font-mono text-xs font-semibold tracking-wide ${envBadge.style}`}>
+            {envBadge.label}
           </div>
         )}
       </div>
