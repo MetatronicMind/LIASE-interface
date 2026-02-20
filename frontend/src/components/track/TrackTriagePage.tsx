@@ -74,7 +74,8 @@ export default function TrackTriagePage({
 
   const canView = permissions?.triage ?? permissions?.read;
   const canAllocate = permissions?.triage ?? permissions?.write;
-  const canClassify = permissions?.triage ?? permissions?.classify ?? permissions?.write;
+  const canClassify =
+    permissions?.triage ?? permissions?.classify ?? permissions?.write;
 
   // Allocation state
   const [allocatedCases, setAllocatedCases] = useState<Study[]>([]);
