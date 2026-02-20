@@ -1203,7 +1203,9 @@ router.put(
           switch (study.workflowStage) {
             // ---------------------------
             // 1. TRIAGE STAGES
+            // Match both naming conventions (TRIAGE_ICSR from trackRoutes allocation, TRIAGE_QUEUE_ICSR legacy)
             // ---------------------------
+            case "TRIAGE_ICSR":
             case "TRIAGE_QUEUE_ICSR": // Starting point for most
               if (decision === "ICSR") {
                 nextStageId = "ASSESSMENT_ICSR";
@@ -1211,22 +1213,31 @@ router.put(
                 nextSubStatus = "assessment";
                 nextClassification = "Probable ICSR";
               } else if (decision === "AOI") {
-                // Cross-track: Move to AOI Assessment
+                // Cross-track: Triage decision made, send to AOI Assessment pool
                 nextStageId = "ASSESSMENT_AOI";
                 nextStatus = "aoi_assessment";
-                nextSubStatus = "reclassified"; // Mark as reclassified
+                nextSubStatus = "assessment";
                 nextClassification = "Probable AOI";
                 study.workflowTrack = "AOI";
+                // Clear assignment so study appears in AOI assessment pool
+                study.assignedTo = null;
+                study.lockedAt = null;
+                study.batchId = null;
               } else if (decision === "No Case") {
-                // Cross-track: Move to No Case Assessment
+                // Cross-track: Triage decision made, send to No Case Assessment pool
                 nextStageId = "ASSESSMENT_NO_CASE";
                 nextStatus = "no_case_assessment";
-                nextSubStatus = "reclassified";
+                nextSubStatus = "assessment";
                 nextClassification = "No Case";
                 study.workflowTrack = "NoCase";
+                // Clear assignment so study appears in No Case assessment pool
+                study.assignedTo = null;
+                study.lockedAt = null;
+                study.batchId = null;
               }
               break;
 
+            case "TRIAGE_AOI":
             case "TRIAGE_QUEUE_AOI":
               if (decision === "AOI") {
                 nextStageId = "ASSESSMENT_AOI";
@@ -1234,20 +1245,31 @@ router.put(
                 nextSubStatus = "assessment";
                 nextClassification = "Probable AOI";
               } else if (decision === "ICSR") {
+                // Cross-track: Triage decision made, send to ICSR Assessment pool
                 nextStageId = "ASSESSMENT_ICSR";
                 nextStatus = "icsr_assessment";
-                nextSubStatus = "reclassified";
+                nextSubStatus = "assessment";
                 nextClassification = "Probable ICSR";
                 study.workflowTrack = "ICSR";
+                // Clear assignment so study appears in ICSR assessment pool
+                study.assignedTo = null;
+                study.lockedAt = null;
+                study.batchId = null;
               } else if (decision === "No Case") {
+                // Cross-track: Triage decision made, send to No Case Assessment pool
                 nextStageId = "ASSESSMENT_NO_CASE";
                 nextStatus = "no_case_assessment";
-                nextSubStatus = "reclassified";
+                nextSubStatus = "assessment";
                 nextClassification = "No Case";
                 study.workflowTrack = "NoCase";
+                // Clear assignment so study appears in No Case assessment pool
+                study.assignedTo = null;
+                study.lockedAt = null;
+                study.batchId = null;
               }
               break;
 
+            case "TRIAGE_NO_CASE":
             case "TRIAGE_QUEUE_NO_CASE":
               if (decision === "No Case") {
                 nextStageId = "ASSESSMENT_NO_CASE";
@@ -1255,17 +1277,27 @@ router.put(
                 nextSubStatus = "assessment";
                 nextClassification = "No Case";
               } else if (decision === "ICSR") {
+                // Cross-track: Triage decision made, send to ICSR Assessment pool
                 nextStageId = "ASSESSMENT_ICSR";
                 nextStatus = "icsr_assessment";
-                nextSubStatus = "reclassified";
+                nextSubStatus = "assessment";
                 nextClassification = "Probable ICSR";
                 study.workflowTrack = "ICSR";
+                // Clear assignment so study appears in ICSR assessment pool
+                study.assignedTo = null;
+                study.lockedAt = null;
+                study.batchId = null;
               } else if (decision === "AOI") {
+                // Cross-track: Triage decision made, send to AOI Assessment pool
                 nextStageId = "ASSESSMENT_AOI";
                 nextStatus = "aoi_assessment";
-                nextSubStatus = "reclassified";
+                nextSubStatus = "assessment";
                 nextClassification = "Probable AOI";
                 study.workflowTrack = "AOI";
+                // Clear assignment so study appears in AOI assessment pool
+                study.assignedTo = null;
+                study.lockedAt = null;
+                study.batchId = null;
               }
               break;
 
@@ -1352,6 +1384,11 @@ router.put(
             // Only update subStatus if we set an explicit one
             if (nextSubStatus) study.subStatus = nextSubStatus;
             if (nextClassification) study.classification = nextClassification;
+
+            // Also set userTag and classifiedBy (since updateUserTag won't run)
+            study.userTag = decision;
+            study.classifiedBy = req.user.id;
+            study.updatedAt = new Date().toISOString();
 
             workflowHandled = true;
           } else {
@@ -1571,6 +1608,7 @@ router.post(
       }
 
       // Create study instance and add comment
+      // Force update of file for deployment sync
       const studyInstance = new Study(study);
       const newComment = studyInstance.addComment({
         userId: req.user.id,

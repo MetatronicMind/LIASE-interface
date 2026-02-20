@@ -197,12 +197,18 @@ export default function TrackTriagePage({
           setAllocatedCases(cases);
           setCurrentIndex(0);
           dispatch(setSidebarLocked(true));
+          // Optimistic: decrement pool count by allocated amount
+          setPoolCount((prev) =>
+            prev !== null ? Math.max(0, prev - cases.length) : prev,
+          );
           toast.success(
             `Allocated ${cases.length} case(s) for ${trackDisplayName} triage`,
             {
               duration: 3000,
             },
           );
+          // Re-fetch accurate count from server
+          fetchPoolStats();
         }
       } else {
         toast.error(data.message || data.error || "Failed to allocate cases");
@@ -236,10 +242,17 @@ export default function TrackTriagePage({
         },
       });
 
+      // Optimistic: increment pool count by released amount
+      const releasedCount = allocatedCases.length;
       setAllocatedCases([]);
       setCurrentIndex(0);
       dispatch(setSidebarLocked(false));
       resetClassificationState();
+      setPoolCount((prev) =>
+        prev !== null ? prev + releasedCount : releasedCount,
+      );
+      // Re-fetch accurate count from server
+      fetchPoolStats();
     } catch (error) {
       console.error("Error releasing cases:", error);
     }
@@ -313,6 +326,8 @@ export default function TrackTriagePage({
           prev.filter((study) => study.id !== studyId),
         );
         resetClassificationState();
+        // Re-fetch pool count (classification changes pool composition)
+        fetchPoolStats();
       } else {
         throw new Error("Failed to classify article");
       }
