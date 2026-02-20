@@ -222,7 +222,7 @@ export default function TriChannelSidebar({
   const [envBadge, setEnvBadge] = useState<{ label: string; style: string } | null>(null);
   useEffect(() => {
     const host = window.location.hostname;
-    if (host === "localhost" || host === "127.0.0.1") {
+    if (host === "localhost" || host === "127.0.0.1" || host.includes("dev")) {
       setEnvBadge({ label: "dev", style: "bg-blue-500/30 text-blue-100 border border-blue-400/40" });
     } else if (host.includes("sandbox")) {
       setEnvBadge({ label: "sandbox", style: "bg-amber-500/30 text-amber-100 border border-amber-400/40" });
