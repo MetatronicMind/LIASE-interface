@@ -64,6 +64,10 @@ class Role {
       },
       organizations: { read: false, write: false, delete: false },
       reports: { read: false, write: false, delete: false, export: false },
+      // Workflow track visibility
+      icsr_track: { read: false },
+      aoi_track: { read: false },
+      no_case_track: { read: false },
       // New workflow-specific permissions
       triage: {
         read: false,
@@ -114,6 +118,9 @@ class Role {
           ...validatedPermissions[resource],
           ...permissions[resource]
         };
+      } else {
+        // Preserve any resource not in the default structure (future-proof)
+        validatedPermissions[resource] = permissions[resource];
       }
     });
 
