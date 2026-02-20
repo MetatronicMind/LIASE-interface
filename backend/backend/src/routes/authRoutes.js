@@ -466,6 +466,24 @@ router.post("/logout", authenticateToken, async (req, res) => {
   }
 });
 
+// Get current user with fresh permissions
+router.get("/me", authenticateToken, async (req, res) => {
+  try {
+    const organization = await cosmosService.getOrganizationById(
+      req.user.organizationId
+    );
+    res.json({
+      user: req.user.toSafeJSON(),
+      organization: organization
+        ? { id: organization.id, name: organization.name, plan: organization.plan, settings: organization.settings }
+        : null,
+    });
+  } catch (error) {
+    console.error("Error fetching current user:", error);
+    res.status(500).json({ error: "Failed to fetch current user" });
+  }
+});
+
 // Forgot Password endpoint
 router.post(
   "/forgot-password",
