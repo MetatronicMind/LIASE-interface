@@ -1186,6 +1186,15 @@ class Study {
       batchId: this.batchId,
       allocatedAt: this.allocatedAt,
       lastQueueStage: this.lastQueueStage,
+      allocationType: this.allocationType,
+
+      // Cross-allocation fields
+      crossAllocationComment: this.crossAllocationComment,
+      crossAllocatedBy: this.crossAllocatedBy,
+      crossAllocatedAt: this.crossAllocatedAt,
+      crossAllocatedFrom: this.crossAllocatedFrom,
+      sourceTrack: this.sourceTrack,
+      sourceTrackTimestamp: this.sourceTrackTimestamp,
     };
   }
 

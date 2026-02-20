@@ -68,8 +68,8 @@ export default function TrackAssessmentPage({
     trackType === "ICSR"
       ? "icsr_track"
       : trackType === "AOI"
-      ? "aoi_track"
-      : "no_case_track";
+        ? "aoi_track"
+        : "no_case_track";
   // Guard: use === true to avoid a truthy-but-all-false track perm object blocking access.
   // Also ?? does not bypass false, only null/undefined, so we use || with explicit true checks.
   const rawTrackPerm = user?.permissions?.[trackPermissionKey];
@@ -770,322 +770,355 @@ export default function TrackAssessmentPage({
           </div>
         ) : (
           currentCase && (
-            <div className="flex flex-col lg:flex-row gap-6 h-full">
-              {/* LEFT PANE: Abstract & Details */}
-              <div className="w-full lg:w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-                <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                  <h3 className="font-bold text-gray-900">Article Details</h3>
-                  <PmidLink pmid={currentCase.pmid} />
-                </div>
-                <div className="p-6 overflow-y-auto flex-1">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">
-                    {currentCase.title}
-                  </h2>
-                  <div className="text-sm text-gray-600 mb-4">
-                    <span className="font-medium">
-                      {Array.isArray(currentCase.authors)
-                        ? currentCase.authors.join(", ")
-                        : currentCase.authors}
-                    </span>
-                    <span className="mx-2">•</span>
-                    <span>{currentCase.journal}</span>
-                    <span className="mx-2">•</span>
-                    <span>{currentCase.publicationDate}</span>
+            <div className="flex flex-col gap-3 h-full">
+              {/* Cross-Allocation Banner */}
+              {currentCase.crossAllocationComment &&
+                currentCase.crossAllocatedFrom && (
+                  <div className="shrink-0 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg
+                          className="h-5 w-5 text-blue-400"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-bold text-blue-800">
+                          Cross-Allocated from {currentCase.crossAllocatedFrom}{" "}
+                          Track
+                        </p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          <span className="font-semibold">Reason: </span>
+                          {currentCase.crossAllocationComment}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="prose max-w-none">
-                    <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
-                      Abstract
-                    </h4>
-                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base">
-                      {currentCase.abstract}
-                    </p>
+                )}
+              <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+                {/* LEFT PANE: Abstract & Details */}
+                <div className="w-full lg:w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <h3 className="font-bold text-gray-900">Article Details</h3>
+                    <PmidLink pmid={currentCase.pmid} />
                   </div>
-                </div>
-              </div>
-
-              {/* RIGHT PANE: Details & Routing */}
-              <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-hidden">
-                {/* Classification & AI Info (Scrollable) */}
-                <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-                  <TriageStudyDetails
-                    study={currentCase as any}
-                    onUpdate={(updated: any) =>
-                      setAllocatedCases((prev) =>
-                        prev.map((s) =>
-                          s.id === updated.id ? { ...s, ...updated } : s,
-                        ),
-                      )
-                    }
-                    classifyStudy={classifyStudy}
-                    selectedClassification={selectedClassification}
-                    setSelectedClassification={setSelectedClassification}
-                    justification={justification}
-                    setJustification={setJustification}
-                    listedness={listedness}
-                    setListedness={setListedness}
-                    seriousness={seriousness}
-                    setSeriousness={setSeriousness}
-                    fullTextAvailability={fullTextAvailability}
-                    setFullTextAvailability={setFullTextAvailability}
-                    fullTextSource={fullTextSource}
-                    setFullTextSource={setFullTextSource}
-                    classifying={classifying}
-                    getClassificationLabel={getClassificationLabel}
-                    getClassificationColor={getClassificationColor}
-                    getFinalClassification={getFinalClassification}
-                    formatDate={formatDate}
-                    API_BASE={API_BASE}
-                    fetchStudies={() => {}}
-                    canClassify={true}
-                  />
-                </div>
-
-                {/* Routing Controls (Fixed at bottom right) */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 shrink-0">
-                  <h3 className="font-bold text-gray-900 mb-3 flex items-center">
-                    <ChartBarIcon className="w-5 h-5 mr-2 text-blue-600" />
-                    Route Decision
-                  </h3>
-
-                  <div className="flex flex-col gap-3">
-                    {/* Status Indicator */}
-                    <div className="text-sm bg-gray-50 p-2 rounded border border-gray-100 mb-2">
-                      <span className="text-gray-600">
-                        Current Classification:{" "}
+                  <div className="p-6 overflow-y-auto flex-1">
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                      {currentCase.title}
+                    </h2>
+                    <div className="text-sm text-gray-600 mb-4">
+                      <span className="font-medium">
+                        {Array.isArray(currentCase.authors)
+                          ? currentCase.authors.join(", ")
+                          : currentCase.authors}
                       </span>
-                      <span
-                        className={`font-bold ${
-                          selectedClassification === "ICSR"
-                            ? "text-red-600"
-                            : selectedClassification === "AOI"
-                              ? "text-amber-600"
-                              : selectedClassification === "No Case"
-                                ? "text-gray-600"
-                                : "text-gray-600"
-                        }`}
-                      >
-                        {selectedClassification || "Unclassified"}
-                      </span>
+                      <span className="mx-2">•</span>
+                      <span>{currentCase.journal}</span>
+                      <span className="mx-2">•</span>
+                      <span>{currentCase.publicationDate}</span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* ICSR TRACK ACTIONS */}
-                      {trackType === "ICSR" && (
-                        <>
-                          {/* If Classified as ICSR: Approve (Data Entry) */}
-                          {selectedClassification === "ICSR" && (
-                            <button
-                              onClick={() =>
-                                handleAssessmentDecision(
-                                  "approve",
-                                  undefined,
-                                  "data_entry",
-                                )
-                              }
-                              disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium disabled:opacity-50"
-                            >
-                              {routingStudyId === currentCase.id
-                                ? "Processing..."
-                                : "Approve (Data Entry)"}
-                            </button>
-                          )}
-
-                          {/* If Classified as AOI */}
-                          {selectedClassification === "AOI" && (
-                            <button
-                              onClick={() => {
-                                setRerouteComment("");
-                                setRerouteModal({
-                                  targetTrack: "AOI",
-                                  destination: "aoi_assessment",
-                                });
-                              }}
-                              disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
-                            >
-                              Re-route to AOI Assessment
-                            </button>
-                          )}
-
-                          {/* If Classified as No Case */}
-                          {selectedClassification === "No Case" && (
-                            <button
-                              onClick={() => {
-                                setRerouteComment("");
-                                setRerouteModal({
-                                  targetTrack: "No Case",
-                                  destination: "no_case_assessment",
-                                });
-                              }}
-                              disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
-                            >
-                              Re-route to No Case Assessment
-                            </button>
-                          )}
-                        </>
-                      )}
-
-                      {/* AOI TRACK ACTIONS */}
-                      {trackType === "AOI" && (
-                        <>
-                          {/* If Classified as AOI: Approve (Reports) */}
-                          {selectedClassification === "AOI" && (
-                            <button
-                              onClick={() =>
-                                handleAssessmentDecision(
-                                  "approve",
-                                  undefined,
-                                  "reporting",
-                                )
-                              }
-                              disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium disabled:opacity-50"
-                            >
-                              Approve (Reports)
-                            </button>
-                          )}
-
-                          {/* If Classified as ICSR */}
-                          {selectedClassification === "ICSR" && (
-                            <button
-                              onClick={() => {
-                                setRerouteComment("");
-                                setRerouteModal({
-                                  targetTrack: "ICSR",
-                                  destination: "icsr_assessment",
-                                });
-                              }}
-                              disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
-                            >
-                              Re-route to ICSR Assessment
-                            </button>
-                          )}
-
-                          {/* If Classified as No Case */}
-                          {selectedClassification === "No Case" && (
-                            <button
-                              onClick={() => {
-                                setRerouteComment("");
-                                setRerouteModal({
-                                  targetTrack: "No Case",
-                                  destination: "no_case_assessment",
-                                });
-                              }}
-                              disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
-                            >
-                              Re-route to No Case Assessment
-                            </button>
-                          )}
-                        </>
-                      )}
-
-                      {/* NO CASE TRACK ACTIONS */}
-                      {trackType === "NoCase" && (
-                        <>
-                          {/* If Classified as No Case: Approve (Reports) */}
-                          {selectedClassification === "No Case" && (
-                            <button
-                              onClick={() =>
-                                handleAssessmentDecision(
-                                  "approve",
-                                  undefined,
-                                  "reporting",
-                                )
-                              }
-                              disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium disabled:opacity-50"
-                            >
-                              Confirm No Case (Reports)
-                            </button>
-                          )}
-
-                          {/* If Classified as ICSR */}
-                          {selectedClassification === "ICSR" && (
-                            <button
-                              onClick={() => {
-                                setRerouteComment("");
-                                setRerouteModal({
-                                  targetTrack: "ICSR",
-                                  destination: "icsr_assessment",
-                                });
-                              }}
-                              disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
-                            >
-                              Re-route to ICSR Assessment
-                            </button>
-                          )}
-
-                          {/* If Classified as AOI */}
-                          {selectedClassification === "AOI" && (
-                            <button
-                              onClick={() => {
-                                setRerouteComment("");
-                                setRerouteModal({
-                                  targetTrack: "AOI",
-                                  destination: "aoi_assessment",
-                                });
-                              }}
-                              disabled={routingStudyId === currentCase.id}
-                              className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
-                            >
-                              Re-route to AOI Assessment
-                            </button>
-                          )}
-                        </>
-                      )}
+                    <div className="prose max-w-none">
+                      <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
+                        Abstract
+                      </h4>
+                      <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base">
+                        {currentCase.abstract}
+                      </p>
                     </div>
+                  </div>
+                </div>
 
-                    {/* REJECT / RETURN BUTTON */}
-                    <div className="pt-3 mt-1 border-t border-gray-100">
-                      <button
-                        onClick={() => {
-                          let dest = "icsr_triage";
-                          let target = "ICSR";
+                {/* RIGHT PANE: Details & Routing */}
+                <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-hidden">
+                  {/* Classification & AI Info (Scrollable) */}
+                  <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+                    <TriageStudyDetails
+                      study={currentCase as any}
+                      onUpdate={(updated: any) =>
+                        setAllocatedCases((prev) =>
+                          prev.map((s) =>
+                            s.id === updated.id ? { ...s, ...updated } : s,
+                          ),
+                        )
+                      }
+                      classifyStudy={classifyStudy}
+                      selectedClassification={selectedClassification}
+                      setSelectedClassification={setSelectedClassification}
+                      justification={justification}
+                      setJustification={setJustification}
+                      listedness={listedness}
+                      setListedness={setListedness}
+                      seriousness={seriousness}
+                      setSeriousness={setSeriousness}
+                      fullTextAvailability={fullTextAvailability}
+                      setFullTextAvailability={setFullTextAvailability}
+                      fullTextSource={fullTextSource}
+                      setFullTextSource={setFullTextSource}
+                      classifying={classifying}
+                      getClassificationLabel={getClassificationLabel}
+                      getClassificationColor={getClassificationColor}
+                      getFinalClassification={getFinalClassification}
+                      formatDate={formatDate}
+                      API_BASE={API_BASE}
+                      fetchStudies={() => {}}
+                      canClassify={true}
+                    />
+                  </div>
 
-                          // HISTORY-BASED ROUTING
-                          // If this case came from another track (sourceTrack), prefer sending it back there.
-                          // Specifically handling "From ICSR Assessment -> AOI Assessment (Reject) -> ICSR Assessment"
-                          if (currentCase.sourceTrack) {
-                            if (currentCase.sourceTrack === "ICSR") {
-                              target = "ICSR";
-                              dest = "icsr_assessment"; // Return to Assessment as requested
-                            } else if (currentCase.sourceTrack === "AOI") {
-                              target = "AOI";
-                              dest = "aoi_assessment";
-                            } else if (currentCase.sourceTrack === "NoCase") {
-                              target = "No Case";
-                              dest = "no_case_assessment";
-                            }
-                          } else {
-                            // Default Fallback: Return to Current Track Triage
-                            if (trackType === "AOI") {
-                              dest = "aoi_triage";
-                              target = "AOI";
-                            } else if (trackType === "NoCase") {
-                              dest = "no_case_triage";
-                              target = "No Case";
+                  {/* Routing Controls (Fixed at bottom right) */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 shrink-0">
+                    <h3 className="font-bold text-gray-900 mb-3 flex items-center">
+                      <ChartBarIcon className="w-5 h-5 mr-2 text-blue-600" />
+                      Route Decision
+                    </h3>
+
+                    <div className="flex flex-col gap-3">
+                      {/* Status Indicator */}
+                      <div className="text-sm bg-gray-50 p-2 rounded border border-gray-100 mb-2">
+                        <span className="text-gray-600">
+                          Current Classification:{" "}
+                        </span>
+                        <span
+                          className={`font-bold ${
+                            selectedClassification === "ICSR"
+                              ? "text-red-600"
+                              : selectedClassification === "AOI"
+                                ? "text-amber-600"
+                                : selectedClassification === "No Case"
+                                  ? "text-gray-600"
+                                  : "text-gray-600"
+                          }`}
+                        >
+                          {selectedClassification || "Unclassified"}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* ICSR TRACK ACTIONS */}
+                        {trackType === "ICSR" && (
+                          <>
+                            {/* If Classified as ICSR: Approve (Data Entry) */}
+                            {selectedClassification === "ICSR" && (
+                              <button
+                                onClick={() =>
+                                  handleAssessmentDecision(
+                                    "approve",
+                                    undefined,
+                                    "data_entry",
+                                  )
+                                }
+                                disabled={routingStudyId === currentCase.id}
+                                className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium disabled:opacity-50"
+                              >
+                                {routingStudyId === currentCase.id
+                                  ? "Processing..."
+                                  : "Approve (Data Entry)"}
+                              </button>
+                            )}
+
+                            {/* If Classified as AOI */}
+                            {selectedClassification === "AOI" && (
+                              <button
+                                onClick={() => {
+                                  setRerouteComment("");
+                                  setRerouteModal({
+                                    targetTrack: "AOI",
+                                    destination: "aoi_assessment",
+                                  });
+                                }}
+                                disabled={routingStudyId === currentCase.id}
+                                className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
+                              >
+                                Re-route to AOI Assessment
+                              </button>
+                            )}
+
+                            {/* If Classified as No Case */}
+                            {selectedClassification === "No Case" && (
+                              <button
+                                onClick={() => {
+                                  setRerouteComment("");
+                                  setRerouteModal({
+                                    targetTrack: "No Case",
+                                    destination: "no_case_assessment",
+                                  });
+                                }}
+                                disabled={routingStudyId === currentCase.id}
+                                className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
+                              >
+                                Re-route to No Case Assessment
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        {/* AOI TRACK ACTIONS */}
+                        {trackType === "AOI" && (
+                          <>
+                            {/* If Classified as AOI: Approve (Reports) */}
+                            {selectedClassification === "AOI" && (
+                              <button
+                                onClick={() =>
+                                  handleAssessmentDecision(
+                                    "approve",
+                                    undefined,
+                                    "reporting",
+                                  )
+                                }
+                                disabled={routingStudyId === currentCase.id}
+                                className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium disabled:opacity-50"
+                              >
+                                Approve (Reports)
+                              </button>
+                            )}
+
+                            {/* If Classified as ICSR */}
+                            {selectedClassification === "ICSR" && (
+                              <button
+                                onClick={() => {
+                                  setRerouteComment("");
+                                  setRerouteModal({
+                                    targetTrack: "ICSR",
+                                    destination: "icsr_assessment",
+                                  });
+                                }}
+                                disabled={routingStudyId === currentCase.id}
+                                className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
+                              >
+                                Re-route to ICSR Assessment
+                              </button>
+                            )}
+
+                            {/* If Classified as No Case */}
+                            {selectedClassification === "No Case" && (
+                              <button
+                                onClick={() => {
+                                  setRerouteComment("");
+                                  setRerouteModal({
+                                    targetTrack: "No Case",
+                                    destination: "no_case_assessment",
+                                  });
+                                }}
+                                disabled={routingStudyId === currentCase.id}
+                                className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
+                              >
+                                Re-route to No Case Assessment
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        {/* NO CASE TRACK ACTIONS */}
+                        {trackType === "NoCase" && (
+                          <>
+                            {/* If Classified as No Case: Approve (Reports) */}
+                            {selectedClassification === "No Case" && (
+                              <button
+                                onClick={() =>
+                                  handleAssessmentDecision(
+                                    "approve",
+                                    undefined,
+                                    "reporting",
+                                  )
+                                }
+                                disabled={routingStudyId === currentCase.id}
+                                className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium disabled:opacity-50"
+                              >
+                                Confirm No Case (Reports)
+                              </button>
+                            )}
+
+                            {/* If Classified as ICSR */}
+                            {selectedClassification === "ICSR" && (
+                              <button
+                                onClick={() => {
+                                  setRerouteComment("");
+                                  setRerouteModal({
+                                    targetTrack: "ICSR",
+                                    destination: "icsr_assessment",
+                                  });
+                                }}
+                                disabled={routingStudyId === currentCase.id}
+                                className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
+                              >
+                                Re-route to ICSR Assessment
+                              </button>
+                            )}
+
+                            {/* If Classified as AOI */}
+                            {selectedClassification === "AOI" && (
+                              <button
+                                onClick={() => {
+                                  setRerouteComment("");
+                                  setRerouteModal({
+                                    targetTrack: "AOI",
+                                    destination: "aoi_assessment",
+                                  });
+                                }}
+                                disabled={routingStudyId === currentCase.id}
+                                className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
+                              >
+                                Re-route to AOI Assessment
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {/* REJECT / RETURN BUTTON */}
+                      <div className="pt-3 mt-1 border-t border-gray-100">
+                        <button
+                          onClick={() => {
+                            let dest = "icsr_triage";
+                            let target = "ICSR";
+
+                            // HISTORY-BASED ROUTING
+                            // If this case came from another track (sourceTrack), prefer sending it back there.
+                            // Specifically handling "From ICSR Assessment -> AOI Assessment (Reject) -> ICSR Assessment"
+                            if (currentCase.sourceTrack) {
+                              if (currentCase.sourceTrack === "ICSR") {
+                                target = "ICSR";
+                                dest = "icsr_assessment"; // Return to Assessment as requested
+                              } else if (currentCase.sourceTrack === "AOI") {
+                                target = "AOI";
+                                dest = "aoi_assessment";
+                              } else if (currentCase.sourceTrack === "NoCase") {
+                                target = "No Case";
+                                dest = "no_case_assessment";
+                              }
                             } else {
-                              // ICSR
-                              dest = "icsr_triage";
-                              target = "ICSR";
+                              // Default Fallback: Return to Current Track Triage
+                              if (trackType === "AOI") {
+                                dest = "aoi_triage";
+                                target = "AOI";
+                              } else if (trackType === "NoCase") {
+                                dest = "no_case_triage";
+                                target = "No Case";
+                              } else {
+                                // ICSR
+                                dest = "icsr_triage";
+                                target = "ICSR";
+                              }
                             }
-                          }
 
-                          handleAssessmentDecision("reject", target, dest);
-                        }}
-                        disabled={routingStudyId === currentCase.id}
-                        className="w-full flex items-center justify-center p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-all font-medium disabled:opacity-50"
-                      >
-                        {currentCase.sourceTrack
-                          ? `Reject (Return to ${currentCase.sourceTrack} Assessment)`
-                          : `Reject (Return to ${trackType === "NoCase" ? "No Case" : trackType} Triage)`}
-                      </button>
+                            handleAssessmentDecision("reject", target, dest);
+                          }}
+                          disabled={routingStudyId === currentCase.id}
+                          className="w-full flex items-center justify-center p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-all font-medium disabled:opacity-50"
+                        >
+                          {currentCase.sourceTrack
+                            ? `Reject (Return to ${currentCase.sourceTrack} Assessment)`
+                            : `Reject (Return to ${trackType === "NoCase" ? "No Case" : trackType} Triage)`}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -48,6 +48,8 @@ interface Study {
   attachments?: any[];
   qaApprovalStatus?: "pending" | "approved" | "rejected";
   qaComments?: string;
+  crossAllocationComment?: string | null;
+  crossAllocatedFrom?: string | null;
 }
 
 export default function TrackTriagePage({
@@ -79,7 +81,8 @@ export default function TrackTriagePage({
     : user?.permissions?.triage || user?.permissions?.QA;
 
   const canView = permissions?.triage === true || permissions?.read === true;
-  const canAllocate = permissions?.triage === true || permissions?.write === true;
+  const canAllocate =
+    permissions?.triage === true || permissions?.write === true;
   const canClassify =
     permissions?.triage === true ||
     permissions?.classify === true ||
@@ -153,6 +156,14 @@ export default function TrackTriagePage({
   const [seriousness, setSeriousness] = useState<string>("");
   const [fullTextAvailability, setFullTextAvailability] = useState<string>("");
   const [fullTextSource, setFullTextSource] = useState<string>("");
+
+  // Cross-allocation comment modal (triage)
+  const [rerouteModal, setRerouteModal] = useState<{
+    studyId: string;
+    targetClassification: string;
+    details: any;
+  } | null>(null);
+  const [rerouteComment, setRerouteComment] = useState("");
 
   // Unlock sidebar on unmount
   useEffect(() => {
@@ -299,8 +310,16 @@ export default function TrackTriagePage({
     }
   };
 
-  // Classification function
-  const classifyStudy = async (
+  // Determines whether the chosen classification stays in the current track
+  const isSameTrackClassification = (classification: string) => {
+    if (trackType === "ICSR") return classification === "ICSR";
+    if (trackType === "AOI") return classification === "AOI";
+    if (trackType === "NoCase") return classification === "No Case";
+    return false;
+  };
+
+  // Executes the actual PUT /studies/:id call (used directly or after modal confirm)
+  const executeClassification = async (
     studyId: string,
     classification: string,
     details?: {
@@ -310,14 +329,13 @@ export default function TrackTriagePage({
       fullTextAvailability?: string;
       fullTextSource?: string;
     },
+    crossAllocationComment?: string,
   ) => {
     try {
       setClassifying(studyId);
       const token = getToken();
 
-      const body: any = {
-        userTag: classification,
-      };
+      const body: any = { userTag: classification };
 
       if (details) {
         if (details.justification) body.justification = details.justification;
@@ -327,6 +345,11 @@ export default function TrackTriagePage({
           body.fullTextAvailability = details.fullTextAvailability;
         if (details.fullTextSource !== undefined)
           body.fullTextSource = details.fullTextSource;
+      }
+
+      if (crossAllocationComment) {
+        body.crossAllocationComment = crossAllocationComment;
+        body.previousTrack = trackType;
       }
 
       const response = await fetch(`${API_BASE}/studies/${studyId}`, {
@@ -339,12 +362,10 @@ export default function TrackTriagePage({
       });
 
       if (response.ok) {
-        // Remove the classified study from the list
         setAllocatedCases((prev) =>
           prev.filter((study) => study.id !== studyId),
         );
         resetClassificationState();
-        // Re-fetch pool count (classification changes pool composition)
         fetchPoolStats();
       } else {
         throw new Error("Failed to classify article");
@@ -355,6 +376,31 @@ export default function TrackTriagePage({
     } finally {
       setClassifying(null);
     }
+  };
+
+  // Classification function — intercepts cross-track classifications to capture a comment
+  const classifyStudy = async (
+    studyId: string,
+    classification: string,
+    details?: {
+      justification?: string;
+      listedness?: string;
+      seriousness?: string;
+      fullTextAvailability?: string;
+      fullTextSource?: string;
+    },
+  ) => {
+    if (!isSameTrackClassification(classification)) {
+      // Cross-track: show comment modal first
+      setRerouteComment("");
+      setRerouteModal({
+        studyId,
+        targetClassification: classification,
+        details,
+      });
+      return;
+    }
+    await executeClassification(studyId, classification, details);
   };
 
   // Helper functions for classification display
@@ -545,79 +591,169 @@ export default function TrackTriagePage({
         ) : (
           /* ALLOCATED CASE VIEW - SPLIT PANE */
           currentCase && (
-            <div className="flex flex-col lg:flex-row gap-6 h-full">
-              {/* LEFT PANE: Abstract & Details */}
-              <div className="w-full lg:w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-                <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                  <h3 className="font-bold text-gray-900">Article Details</h3>
-                  <PmidLink pmid={currentCase.pmid} />
-                </div>
-                <div className="p-6 overflow-y-auto flex-1">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">
-                    {currentCase.title}
-                  </h2>
-                  <div className="text-sm text-gray-600 mb-4">
-                    <span className="font-medium">
-                      {Array.isArray(currentCase.authors)
-                        ? currentCase.authors.join(", ")
-                        : currentCase.authors}
-                    </span>
-                    <span className="mx-2">•</span>
-                    <span>{currentCase.journal}</span>
-                    <span className="mx-2">•</span>
-                    <span>{currentCase.publicationDate}</span>
+            <div className="flex flex-col gap-3 h-full">
+              {/* Cross-Allocation Banner */}
+              {currentCase.crossAllocationComment &&
+                currentCase.crossAllocatedFrom && (
+                  <div className="shrink-0 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg
+                          className="h-5 w-5 text-blue-400"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-bold text-blue-800">
+                          Cross-Allocated from {currentCase.crossAllocatedFrom}{" "}
+                          Track
+                        </p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          <span className="font-semibold">Reason: </span>
+                          {currentCase.crossAllocationComment}
+                        </p>
+                      </div>
+                    </div>
                   </div>
+                )}
+              <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+                {/* LEFT PANE: Abstract & Details */}
+                <div className="w-full lg:w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <h3 className="font-bold text-gray-900">Article Details</h3>
+                    <PmidLink pmid={currentCase.pmid} />
+                  </div>
+                  <div className="p-6 overflow-y-auto flex-1">
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                      {currentCase.title}
+                    </h2>
+                    <div className="text-sm text-gray-600 mb-4">
+                      <span className="font-medium">
+                        {Array.isArray(currentCase.authors)
+                          ? currentCase.authors.join(", ")
+                          : currentCase.authors}
+                      </span>
+                      <span className="mx-2">•</span>
+                      <span>{currentCase.journal}</span>
+                      <span className="mx-2">•</span>
+                      <span>{currentCase.publicationDate}</span>
+                    </div>
 
-                  <div className="prose max-w-none">
-                    <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
-                      Abstract
-                    </h4>
-                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base">
-                      {currentCase.abstract}
-                    </p>
+                    <div className="prose max-w-none">
+                      <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">
+                        Abstract
+                      </h4>
+                      <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base">
+                        {currentCase.abstract}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* RIGHT PANE: Full Details & Classification */}
-              <div className="w-full lg:w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-                <TriageStudyDetails
-                  study={currentCase as any}
-                  onUpdate={(updated: any) =>
-                    setAllocatedCases((prev) =>
-                      prev.map((s) =>
-                        s.id === updated.id ? { ...s, ...updated } : s,
-                      ),
-                    )
-                  }
-                  classifyStudy={classifyStudy}
-                  selectedClassification={selectedClassification}
-                  setSelectedClassification={setSelectedClassification}
-                  justification={justification}
-                  setJustification={setJustification}
-                  listedness={listedness}
-                  setListedness={setListedness}
-                  seriousness={seriousness}
-                  setSeriousness={setSeriousness}
-                  fullTextAvailability={fullTextAvailability}
-                  setFullTextAvailability={setFullTextAvailability}
-                  fullTextSource={fullTextSource}
-                  setFullTextSource={setFullTextSource}
-                  classifying={classifying}
-                  getClassificationLabel={getClassificationLabel}
-                  getClassificationColor={getClassificationColor}
-                  getFinalClassification={getFinalClassification}
-                  formatDate={formatDate}
-                  API_BASE={API_BASE}
-                  fetchStudies={() => {}} // No-op since we don't fetch list anymore
-                  canClassify={canClassify}
-                  ignorePreExistingClassification={true}
-                />
+                {/* RIGHT PANE: Full Details & Classification */}
+                <div className="w-full lg:w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+                  <TriageStudyDetails
+                    study={currentCase as any}
+                    onUpdate={(updated: any) =>
+                      setAllocatedCases((prev) =>
+                        prev.map((s) =>
+                          s.id === updated.id ? { ...s, ...updated } : s,
+                        ),
+                      )
+                    }
+                    classifyStudy={classifyStudy}
+                    selectedClassification={selectedClassification}
+                    setSelectedClassification={setSelectedClassification}
+                    justification={justification}
+                    setJustification={setJustification}
+                    listedness={listedness}
+                    setListedness={setListedness}
+                    seriousness={seriousness}
+                    setSeriousness={setSeriousness}
+                    fullTextAvailability={fullTextAvailability}
+                    setFullTextAvailability={setFullTextAvailability}
+                    fullTextSource={fullTextSource}
+                    setFullTextSource={setFullTextSource}
+                    classifying={classifying}
+                    getClassificationLabel={getClassificationLabel}
+                    getClassificationColor={getClassificationColor}
+                    getFinalClassification={getFinalClassification}
+                    formatDate={formatDate}
+                    API_BASE={API_BASE}
+                    fetchStudies={() => {}} // No-op since we don't fetch list anymore
+                    canClassify={canClassify}
+                    ignorePreExistingClassification={true}
+                  />
+                </div>
               </div>
             </div>
           )
         )}
       </div>
+
+      {/* Cross-Allocation Comment Modal (Triage) */}
+      {rerouteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">
+              Cross-Allocate to {rerouteModal.targetClassification}
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              This case is being classified into a different track. Please
+              provide a reason — it will be displayed as a banner for the next
+              reviewer.
+            </p>
+            <textarea
+              className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows={4}
+              placeholder="Enter reason for cross-allocation..."
+              value={rerouteComment}
+              onChange={(e) => setRerouteComment(e.target.value)}
+              autoFocus
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setRerouteModal(null);
+                  setRerouteComment("");
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!rerouteComment.trim()) {
+                    toast.error("Please enter a reason for cross-allocation.");
+                    return;
+                  }
+                  const { studyId, targetClassification, details } =
+                    rerouteModal;
+                  setRerouteModal(null);
+                  executeClassification(
+                    studyId,
+                    targetClassification,
+                    details,
+                    rerouteComment.trim(),
+                  );
+                  setRerouteComment("");
+                }}
+                disabled={classifying !== null}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                Confirm Classification
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

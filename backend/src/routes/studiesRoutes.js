@@ -1598,12 +1598,10 @@ router.get(
       });
     } catch (error) {
       console.error("No Case Reports fetch error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to fetch No Case Reports",
-          message: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to fetch No Case Reports",
+        message: error.message,
+      });
     }
   },
 );
@@ -3297,6 +3295,8 @@ router.put(
         seriousness,
         fullTextAvailability,
         fullTextSource,
+        crossAllocationComment,
+        previousTrack,
       } = req.body;
 
       console.log("Update Study Request Body:", {
@@ -3413,6 +3413,16 @@ router.put(
         }
 
         study.updateUserTag(userTag, req.user.id, req.user.name, nextStage);
+
+        // Store cross-allocation comment when reclassifying to a different track
+        if (crossAllocationComment && previousTrack) {
+          study.crossAllocationComment = crossAllocationComment;
+          study.crossAllocatedBy = req.user.id;
+          study.crossAllocatedAt = new Date().toISOString();
+          study.crossAllocatedFrom = previousTrack;
+          study.sourceTrack = previousTrack;
+          study.sourceTrackTimestamp = new Date().toISOString();
+        }
       }
 
       const afterValue = {
