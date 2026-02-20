@@ -214,6 +214,25 @@ class AuthService {
     }
   }
 
+  async fetchCurrentUser(): Promise<{ user: any; organization: any } | null> {
+    const token = this.getToken();
+    if (!token) return null;
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        headers: this.getAuthHeaders(),
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (data.user) {
+        this.setUser(data.user);
+        if (data.organization) this.setOrganization(data.organization);
+      }
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
   isAuthenticated(): boolean {
     return !!this.getToken();
   }

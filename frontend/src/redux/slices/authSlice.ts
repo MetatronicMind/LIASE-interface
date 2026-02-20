@@ -96,8 +96,10 @@ export const checkAuthStatus = createAsyncThunk(
         throw new Error('Invalid token');
       }
 
-      const user = authService.getUser();
-      const organization = authService.getOrganization();
+      // Fetch fresh user data (including latest role permissions) from backend
+      const freshData = await authService.fetchCurrentUser();
+      const user = freshData?.user ?? authService.getUser();
+      const organization = freshData?.organization ?? authService.getOrganization();
 
       return {
         user,
