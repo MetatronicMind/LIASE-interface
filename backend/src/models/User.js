@@ -232,18 +232,6 @@ class User {
     return `${this.firstName} ${this.lastName}`.trim();
   }
 
-  hasPermission(resource, action) {
-    if (!this.permissions) return false;
-    if (this.permissions[resource]?.[action] === true) return true;
-    // Track-role fallback
-    const p = this.permissions;
-    const hasTrackTriage = p.icsr_track?.triage === true || p.aoi_track?.triage === true || p.no_case_track?.triage === true;
-    const hasTrackAssessment = p.icsr_track?.assessment === true || p.aoi_track?.assessment === true || p.no_case_track?.assessment === true;
-    if (resource === 'triage' && (action === 'read' || action === 'write') && hasTrackTriage) return true;
-    if ((resource === 'QA' || resource === 'QC') && (action === 'read' || action === 'write') && hasTrackAssessment) return true;
-    return false;
-  }
-
   updateLastLogin() {
     this.lastLogin = new Date().toISOString();
     this.updatedAt = new Date().toISOString();

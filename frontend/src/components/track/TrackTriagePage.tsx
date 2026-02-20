@@ -67,15 +67,23 @@ export default function TrackTriagePage({
       : trackType === "AOI"
         ? "aoi_track"
         : "no_case_track";
-  const permissions =
-    user?.permissions?.[trackPermissionKey] ||
-    user?.permissions?.triage ||
-    user?.permissions?.QA;
+  // Guard: a track perm object with all-false values ({read:false,triage:false,assessment:false})
+  // is truthy but grants no access. Only use it if at least one value is explicitly true.
+  const rawTrackPerm = user?.permissions?.[trackPermissionKey];
+  const hasExplicitTrackAccess =
+    rawTrackPerm?.read === true ||
+    rawTrackPerm?.triage === true ||
+    rawTrackPerm?.assessment === true;
+  const permissions = hasExplicitTrackAccess
+    ? rawTrackPerm
+    : user?.permissions?.triage || user?.permissions?.QA;
 
-  const canView = permissions?.triage ?? permissions?.read;
-  const canAllocate = permissions?.triage ?? permissions?.write;
+  const canView = permissions?.triage === true || permissions?.read === true;
+  const canAllocate = permissions?.triage === true || permissions?.write === true;
   const canClassify =
-    permissions?.triage ?? permissions?.classify ?? permissions?.write;
+    permissions?.triage === true ||
+    permissions?.classify === true ||
+    permissions?.write === true;
 
   // Allocation state
   const [allocatedCases, setAllocatedCases] = useState<Study[]>([]);

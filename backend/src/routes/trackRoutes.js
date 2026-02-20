@@ -906,6 +906,48 @@ router.post(
 );
 
 /**
+ * GET /track/:trackType/my-allocated
+ * Return assessment cases currently assigned/locked to the requesting user
+ */
+router.get(
+  "/:trackType/my-allocated",
+  authorizePermission("QC", "write"),
+  async (req, res) => {
+    try {
+      const { trackType } = req.params;
+
+      const validTracks = ["ICSR", "AOI", "NoCase"];
+      if (!validTracks.includes(trackType)) {
+        return res.status(400).json({ error: "Invalid track type", validTracks });
+      }
+
+      const targetOrgId = req.user.organizationId;
+      const userId = req.user.id;
+
+      const query = `
+        SELECT * FROM c
+        WHERE c.organizationId = @orgId
+        AND c.workflowTrack = @track
+        AND c.subStatus = 'assessment'
+        AND c.assignedTo = @userId
+        ORDER BY c.createdAt ASC
+      `;
+
+      const cases = await cosmosService.queryItems("studies", query, [
+        { name: "@orgId", value: targetOrgId },
+        { name: "@track", value: trackType },
+        { name: "@userId", value: userId },
+      ]);
+
+      res.json({ success: true, data: cases, count: cases.length });
+    } catch (error) {
+      console.error(`Error fetching my-allocated for ${req.params.trackType}:`, error);
+      res.status(500).json({ error: "Failed to fetch allocated cases", message: error.message });
+    }
+  },
+);
+
+/**
  * POST /track/:trackType/allocate-assessment-batch
  * Allocate a batch of cases for assessment review
  */

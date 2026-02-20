@@ -70,10 +70,13 @@ export default function TrackAssessmentPage({
       : trackType === "AOI"
       ? "aoi_track"
       : "no_case_track";
+  // Guard: use === true to avoid a truthy-but-all-false track perm object blocking access.
+  // Also ?? does not bypass false, only null/undefined, so we use || with explicit true checks.
+  const rawTrackPerm = user?.permissions?.[trackPermissionKey];
   const canViewAssessment =
-    user?.permissions?.[trackPermissionKey]?.assessment ??
-    user?.permissions?.QC?.read ??
-    user?.permissions?.QA?.read;
+    rawTrackPerm?.assessment === true ||
+    user?.permissions?.QC?.read === true ||
+    user?.permissions?.QA?.read === true;
   const [allocatedCases, setAllocatedCases] = useState<Study[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAllocating, setIsAllocating] = useState(false);
@@ -526,9 +529,11 @@ export default function TrackAssessmentPage({
       setClassifying(studyId);
       const token = getToken();
 
-      const body: any = {
-        userTag: classification,
-      };
+      // DO NOT send userTag here — that would advance the workflow machine
+      // (PUT /studies/:id with userTag triggers ASSESSMENT_ICSR → DATA_ENTRY transition).
+      // Classification is stored in local state only until the Route Decision button is pressed.
+      // Only persist supplementary detail fields that don't trigger workflow advancement.
+      const body: any = {};
 
       if (details) {
         if (details.justification) body.justification = details.justification;
@@ -540,33 +545,36 @@ export default function TrackAssessmentPage({
           body.fullTextSource = details.fullTextSource;
       }
 
-      const response = await fetch(`${API_BASE}/studies/${studyId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
+      // Only call backend if there are detail fields to save
+      if (Object.keys(body).length > 0) {
+        const response = await fetch(`${API_BASE}/studies/${studyId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        });
 
-      if (response.ok) {
-        // Update local state to reflect change immediately without removing from list
-        setAllocatedCases((prev) =>
-          prev.map((s) =>
-            s.id === studyId
-              ? { ...s, userTag: classification as any, ...body }
-              : s,
-          ),
-        );
-        setSelectedClassification(classification);
-        toast.success(
-          `Classification updated to ${classification}. Please confirm routing decision.`,
-        );
-        // Re-fetch pool count (classification changes pool composition)
-        fetchPoolStats();
-      } else {
-        throw new Error("Failed to update classification");
+        if (!response.ok) {
+          throw new Error("Failed to update study details");
+        }
       }
+
+      // Update local state to reflect classification change immediately
+      setAllocatedCases((prev) =>
+        prev.map((s) =>
+          s.id === studyId
+            ? { ...s, userTag: classification as any, ...body }
+            : s,
+        ),
+      );
+      setSelectedClassification(classification);
+      toast.success(
+        `Classification updated to ${classification}. Please confirm routing decision.`,
+      );
+      // Re-fetch pool count (classification changes pool composition)
+      fetchPoolStats();
     } catch (error) {
       console.error("Error classifying:", error);
       toast.error("Failed to update classification");
