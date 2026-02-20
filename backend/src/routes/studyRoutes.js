@@ -1565,6 +1565,7 @@ router.post(
       }
 
       // Create study instance and add field comment
+      // Force update of file for deployment sync
       const studyInstance = new Study(study);
       const newFieldComment = studyInstance.addFieldComment(
         fieldKey,

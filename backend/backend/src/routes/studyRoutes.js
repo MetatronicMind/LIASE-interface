@@ -1571,6 +1571,7 @@ router.post(
       }
 
       // Create study instance and add comment
+      // Force update of file for deployment sync
       const studyInstance = new Study(study);
       const newComment = studyInstance.addComment({
         userId: req.user.id,
