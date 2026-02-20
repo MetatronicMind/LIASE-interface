@@ -2375,15 +2375,10 @@ router.get(
       };
 
       // Fetch all required data in parallel
-      const [studies, users, drugs, reports] = await Promise.all([
+      const [studies, users, drugs] = await Promise.all([
         cosmosService.getStudiesByOrganization(targetOrgId),
         cosmosService.getUsersByOrganization(targetOrgId),
         cosmosService.getDrugsByOrganization(targetOrgId),
-        cosmosService.queryItems(
-          "Reports",
-          "SELECT * FROM c WHERE c.organizationId = @orgId",
-          [{ name: "@orgId", value: targetOrgId }],
-        ),
       ]);
 
       stats.total = studies.length;
@@ -2503,14 +2498,7 @@ router.get(
             const track = study.workflowTrack;
             const sub = study.subStatus;
 
-            // Check for reporting status first
-            if (
-              sub === "reporting" ||
-              study.status === "Ready for Report" ||
-              study.status === "No Case Confirmed"
-            ) {
-              stats.workflowStats.reportsCreated++;
-            } else if (track === "ICSR") {
+            if (track === "ICSR") {
               if (sub === "triage") stats.workflowStats.icsrTriage++;
               else if (sub === "assessment")
                 stats.workflowStats.icsrAssessment++;
@@ -2523,6 +2511,11 @@ router.get(
               else if (sub === "assessment")
                 stats.workflowStats.noCaseAssessment++;
             }
+          }
+
+          // Reports Created: articles created that day whose R3 report is completed
+          if (study.r3FormStatus === "completed") {
+            stats.workflowStats.reportsCreated++;
           }
         }
 
@@ -2690,30 +2683,10 @@ router.get(
         }
       });
 
-      // Reports Stats - Count reports created on selected date
-      if (reports && reports.length > 0) {
-        reports.forEach((report) => {
-          let includeInWorkflow = true;
-          if (filterDateStr && report.createdAt) {
-            const createdDate = new Date(report.createdAt);
-            const createdYMD = createdDate.toISOString().split("T")[0];
-            if (createdYMD === filterDateStr) {
-              stats.dateStats.totalReportsCreated++;
-            } else {
-              includeInWorkflow = false;
-            }
-          }
-
-          /* 
-           * Removing this as "Reports Created" in workflow stats should reflect 
-           * studies in the "Reporting" stage, not the total count of Report documents.
-           *
-          if (includeInWorkflow) {
-            stats.workflowStats.reportsCreated++;
-          }
-          */
-        });
-      }
+      // Reports Stats: totalReportsCreated mirrors workflowStats.reportsCreated
+      // Both count articles created on the selected date whose R3 form is completed,
+      // ensuring the top "Reports Created" card and the bottom workflow box always match.
+      stats.dateStats.totalReportsCreated = stats.workflowStats.reportsCreated;
 
       // Fallback for drugs count: if no configured drugs, use unique drugs found in studies
       if (stats.counts.drugs === 0 && Object.keys(stats.byDrug).length > 0) {
