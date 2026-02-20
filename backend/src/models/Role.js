@@ -65,9 +65,9 @@ class Role {
       organizations: { read: false, write: false, delete: false },
       reports: { read: false, write: false, delete: false, export: false },
       // Workflow track visibility
-      icsr_track: { read: false },
-      aoi_track: { read: false },
-      no_case_track: { read: false },
+      icsr_track: { read: false, triage: false, assessment: false },
+      aoi_track: { read: false, triage: false, assessment: false },
+      no_case_track: { read: false, triage: false, assessment: false },
       // New workflow-specific permissions
       triage: {
         read: false,

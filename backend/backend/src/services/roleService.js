@@ -569,6 +569,33 @@ class RoleService {
           read: "Can view dashboard",
         },
       },
+      icsr_track: {
+        displayName: "ICSR Track",
+        description: "Access to ICSR Track",
+        actions: {
+          read: "Visible",
+          triage: "Can access ICSR Triage",
+          assessment: "Can access Assessment",
+        },
+      },
+      aoi_track: {
+        displayName: "AOI Track",
+        description: "Access to AOI Track",
+        actions: {
+          read: "Visible",
+          triage: "Can access AOI QC",
+          assessment: "Can access AOI Assessment",
+        },
+      },
+      no_case_track: {
+        displayName: "No Case Track",
+        description: "Access to No Case Track",
+        actions: {
+          read: "Visible",
+          triage: "Can access No Case QC",
+          assessment: "Can access No Case Assessment",
+        },
+      },
       drugs: {
         displayName: "Literature Search Configuration",
         description: "Manage literature search configurations",

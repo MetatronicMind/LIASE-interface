@@ -62,14 +62,14 @@ export default function TrackTriagePage({
     trackType === "ICSR"
       ? "icsr_track"
       : trackType === "AOI"
-      ? "aoi_track"
-      : "no_case_track";
+        ? "aoi_track"
+        : "no_case_track";
   const permissions =
     user?.permissions?.[trackPermissionKey] ||
     user?.permissions?.triage ||
     user?.permissions?.QA;
 
-  const canView = permissions?.read;
+  const canView = permissions?.triage ?? permissions?.read;
   const canAllocate = permissions?.write;
   const canClassify = permissions?.classify || permissions?.write;
 
