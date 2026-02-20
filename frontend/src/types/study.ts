@@ -70,6 +70,11 @@ export interface Study {
     revocationReason?: string | null;
     lockedAt?: string | null;
     isAutoPassed?: boolean;
+    // Cross-allocation comment fields
+    crossAllocationComment?: string | null;
+    crossAllocatedBy?: string | null;
+    crossAllocatedAt?: string | null;
+    crossAllocatedFrom?: string | null;
     _rid?: string;
     _self?: string;
     _etag?: string;

@@ -150,6 +150,18 @@ const downstreamNavItems: NavItem[] = [
     permission: { resource: "reports", action: "read" },
   },
   {
+    name: "AOI Reports",
+    href: "/dashboard/aoi-reports",
+    icon: <DocumentCheckIcon className="w-5 h-5" />,
+    permission: { resource: "reports", action: "read" },
+  },
+  {
+    name: "No Case Reports",
+    href: "/dashboard/no-case-reports",
+    icon: <DocumentCheckIcon className="w-5 h-5" />,
+    permission: { resource: "reports", action: "read" },
+  },
+  {
     name: "Reports",
     href: "/dashboard/reports",
     icon: <ChartBarIcon className="w-5 h-5" />,

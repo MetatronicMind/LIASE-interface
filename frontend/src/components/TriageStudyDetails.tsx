@@ -34,6 +34,8 @@ interface Study {
   revokedBy?: string;
   revokedAt?: string;
   revocationReason?: string;
+  crossAllocationComment?: string | null;
+  crossAllocatedFrom?: string | null;
 
   aiInferenceData?: any;
 
@@ -133,6 +135,40 @@ export default function TriageStudyDetails({
 }: TriageStudyDetailsProps) {
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+      {/* Cross-Allocation Notice */}
+      {study.crossAllocationComment && study.crossAllocatedFrom && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg
+                className="h-5 w-5 text-blue-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-sm font-medium text-blue-800">
+                Cross-Allocated from {study.crossAllocatedFrom} Track
+              </h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p className="font-semibold">Reason:</p>
+                <p className="mt-1">{study.crossAllocationComment}</p>
+              </div>
+              <p className="mt-3 text-xs text-blue-600">
+                This case was re-routed from the {study.crossAllocatedFrom}{" "}
+                track for your assessment.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* QC Rejection Notice */}
       {study.qcR3Status === "rejected" && study.qcR3Comments && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">

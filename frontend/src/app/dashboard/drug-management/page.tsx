@@ -135,8 +135,8 @@ export default function DrugManagementPage() {
       localStorage.removeItem("showProgressTracker");
       localStorage.removeItem("runningConfigName");
 
-      // Keep progress tracker visible so the UI renders 100%.
-      // After a short delay, show a non-blocking toast and soft-refresh data.
+      // Keep progress tracker visible long enough to render the 100% state,
+      // then show a toast and refresh the config list.
       setTimeout(() => {
         const resultCount = data?.results?.totalFound || 0;
         const studiesCreated = data?.results?.studiesCreated || 0;
@@ -149,10 +149,12 @@ export default function DrugManagementPage() {
         setActiveJobId(null);
         setShowProgressTracker(false);
         setRunningConfigName("");
-        fetchSearchConfigs();
-      }, 800);
+        // Use the ref so we always call the latest fetchSearchConfigs without
+        // making handleJobComplete depend on it (which would restart polling).
+        fetchSearchConfigsRef.current();
+      }, 2000); // 2 s gives the user a clear view of the completed bar
     },
-    [showToast],
+    [showToast], // intentionally excludes fetchSearchConfigsRef — it's a stable ref
   );
 
   const fetchAllowedDays = async () => {
@@ -214,7 +216,7 @@ export default function DrugManagementPage() {
     }
   };
 
-  const fetchSearchConfigs = async () => {
+  const fetchSearchConfigs = useCallback(async () => {
     try {
       const token = localStorage.getItem("auth_token");
       const queryParams = selectedOrganizationId
@@ -234,7 +236,13 @@ export default function DrugManagementPage() {
     } catch (error) {
       console.error("Error fetching search configs:", error);
     }
-  };
+  }, [API_BASE, selectedOrganizationId]);
+
+  // Stable ref so handleJobComplete never captures a stale version and never
+  // needs fetchSearchConfigs in its own useCallback deps (which would otherwise
+  // change onComplete and restart the progress-tracker polling on every render).
+  const fetchSearchConfigsRef = React.useRef(fetchSearchConfigs);
+  fetchSearchConfigsRef.current = fetchSearchConfigs;
 
   const runSearchConfig = async (configId: string, configName: string) => {
     setRunningConfigs((prev) => new Set(prev).add(configId));

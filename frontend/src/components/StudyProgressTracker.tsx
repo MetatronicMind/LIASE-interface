@@ -107,12 +107,23 @@ export default function StudyProgressTracker({
     let alive = true;
     let failures = 0;
 
+    // Timing strategy:
+    //  - Per-request abort: 8 s — fail fast so a hung request doesn't block the
+    //    retry for long (old value was 15 s; 3 × 15 s + backoff ≈ 1 min of silence).
+    //  - Retry interval while healthy: 3 s.
+    //  - Retry interval while failing: fixed 4 s — no exponential growth.
+    //    The status endpoint is a cheap DB read; rapid retries are fine and mean
+    //    the bar stays responsive even during a 3-5 min study-creation run.
+    const REQUEST_TIMEOUT_MS = 8000;
+    const HEALTHY_INTERVAL_MS = 3000;
+    const FAILING_INTERVAL_MS = 4000;
+
     const poll = async () => {
       if (!alive) return;
       try {
         const token = localStorage.getItem("auth_token");
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 10000);
+        const tid = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
         const res = await fetch(`${getApiBaseUrl()}/drugs/jobs/${jobId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           signal: ctrl.signal,
@@ -123,8 +134,11 @@ export default function StudyProgressTracker({
         if (res.ok) {
           const data: StudyCreationJob = await res.json();
           setJob(data);
-          setError("");
-          failures = 0;
+          // Clear any transient error banner on first good response
+          if (failures > 0) {
+            setError("");
+            failures = 0;
+          }
 
           if (data.status === "completed" || data.status === "failed") {
             if (localStorage.getItem("activeJobId") === jobId) {
@@ -137,7 +151,7 @@ export default function StudyProgressTracker({
             if (data.status === "failed") {
               setError(data.error || "Job failed");
             }
-            return;
+            return; // terminal state — stop polling
           }
         } else if (res.status === 404) {
           setError("Job not found — it may have expired.");
@@ -145,22 +159,21 @@ export default function StudyProgressTracker({
             localStorage.removeItem("activeJobId");
             localStorage.removeItem("showProgressTracker");
           }
-          return;
+          return; // job is gone — stop polling
         } else {
           failures++;
-          if (failures >= 5) {
-            setError("Lost connection to the server.");
-            return;
-          }
+          setError(`Connection issue (attempt ${failures}) — retrying…`);
         }
       } catch {
         failures++;
-        if (failures >= 5) {
-          setError("Network error — please check your connection.");
-          return;
-        }
+        setError(`Network error (attempt ${failures}) — retrying…`);
       }
-      if (alive) timeout = setTimeout(poll, 1500);
+      // Always reschedule — never give up while the component is mounted
+      if (alive)
+        timeout = setTimeout(
+          poll,
+          failures > 0 ? FAILING_INTERVAL_MS : HEALTHY_INTERVAL_MS,
+        );
     };
 
     poll();
@@ -171,6 +184,10 @@ export default function StudyProgressTracker({
   }, [jobId, onComplete]);
 
   if (!jobId) return null;
+
+  // A "retrying" error is transient — don't show a full error block, show it inline
+  const isTransientError = error.includes("retrying");
+  const isFatalError = !!error && !isTransientError;
 
   // ── Loading / Error ───────────────────────────────────────────
   if (!job && !error) {
@@ -185,7 +202,8 @@ export default function StudyProgressTracker({
       </div>
     );
   }
-  if (error && !job) {
+  // Fatal (404 / permanent): show full error block only when we have no prior job data
+  if (isFatalError && !job) {
     return (
       <div className="bg-white border border-red-200 rounded-xl shadow-sm p-6">
         <p className="text-red-600 text-sm font-medium">{error}</p>
@@ -379,8 +397,16 @@ export default function StudyProgressTracker({
         </div>
 
         {/* Live status message */}
-        {liveMessage && !isComplete && !isFailed && (
+        {liveMessage && !isComplete && !isFailed && !isTransientError && (
           <p className="text-xs text-gray-500 italic truncate">{liveMessage}</p>
+        )}
+
+        {/* Transient connection / retry banner — keeps the progress UI visible */}
+        {isTransientError && !isComplete && !isFailed && (
+          <div className="flex items-center gap-2 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+            <span className="animate-spin inline-block h-3 w-3 border border-yellow-400 border-t-yellow-700 rounded-full flex-shrink-0" />
+            <span>{error}</span>
+          </div>
         )}
 
         {/* Live stats cards */}
@@ -412,6 +438,13 @@ export default function StudyProgressTracker({
         {isFailed && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
             {job.error || "An unknown error occurred."}
+          </div>
+        )}
+
+        {/* Fatal tracking error shown inline when we already have partial job data */}
+        {isFatalError && !isFailed && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            {error}
           </div>
         )}
 
