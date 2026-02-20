@@ -60,10 +60,31 @@ class User {
     if (this.isAdmin()) {
       return true;
     }
-    if (!this.permissions || !this.permissions[resource]) {
+    if (!this.permissions) {
       return false;
     }
-    return this.permissions[resource][action] === true;
+    // Direct permission check
+    if (this.permissions[resource]?.[action] === true) {
+      return true;
+    }
+    // Track-role fallback: *.triage satisfies triage.read/write;
+    // *.assessment satisfies QA/QC read/write
+    const p = this.permissions;
+    const hasTrackTriage =
+      p.icsr_track?.triage === true ||
+      p.aoi_track?.triage === true ||
+      p.no_case_track?.triage === true;
+    const hasTrackAssessment =
+      p.icsr_track?.assessment === true ||
+      p.aoi_track?.assessment === true ||
+      p.no_case_track?.assessment === true;
+    if (resource === 'triage' && (action === 'read' || action === 'write') && hasTrackTriage) {
+      return true;
+    }
+    if ((resource === 'QA' || resource === 'QC') && (action === 'read' || action === 'write') && hasTrackAssessment) {
+      return true;
+    }
+    return false;
   }
 
   // Check if user has any of the specified roles
@@ -212,7 +233,15 @@ class User {
   }
 
   hasPermission(resource, action) {
-    return this.permissions[resource] && this.permissions[resource][action];
+    if (!this.permissions) return false;
+    if (this.permissions[resource]?.[action] === true) return true;
+    // Track-role fallback
+    const p = this.permissions;
+    const hasTrackTriage = p.icsr_track?.triage === true || p.aoi_track?.triage === true || p.no_case_track?.triage === true;
+    const hasTrackAssessment = p.icsr_track?.assessment === true || p.aoi_track?.assessment === true || p.no_case_track?.assessment === true;
+    if (resource === 'triage' && (action === 'read' || action === 'write') && hasTrackTriage) return true;
+    if ((resource === 'QA' || resource === 'QC') && (action === 'read' || action === 'write') && hasTrackAssessment) return true;
+    return false;
   }
 
   updateLastLogin() {

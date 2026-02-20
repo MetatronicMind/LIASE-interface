@@ -90,6 +90,28 @@ const authorizePermission = (resource, action) => {
       hasPermission = true;
     }
 
+    // Track-role fallback: icsr_track.triage / aoi_track.triage / no_case_track.triage
+    // satisfies triage.read and triage.write checks.
+    // Similarly *.assessment satisfies QA/QC read+write.
+    if (!hasPermission && req.user.permissions) {
+      const perms = req.user.permissions;
+      const hasTrackTriage =
+        perms.icsr_track?.triage === true ||
+        perms.aoi_track?.triage === true ||
+        perms.no_case_track?.triage === true;
+      const hasTrackAssessment =
+        perms.icsr_track?.assessment === true ||
+        perms.aoi_track?.assessment === true ||
+        perms.no_case_track?.assessment === true;
+
+      if (resource === 'triage' && (action === 'read' || action === 'write') && hasTrackTriage) {
+        hasPermission = true;
+      }
+      if ((resource === 'QA' || resource === 'QC') && (action === 'read' || action === 'write') && hasTrackAssessment) {
+        hasPermission = true;
+      }
+    }
+
     // Explicit override for SuperAdmin Org admins - they get full permissions
     if (!hasPermission && isSuperAdminOrgUser && req.user.role) {
       const normalizedRole = req.user.role.toLowerCase().replace(/[\s_]/g, '');
