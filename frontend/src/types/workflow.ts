@@ -15,7 +15,11 @@ export enum WorkflowStage {
     DATA_ENTRY = 'DATA_ENTRY',
     MEDICAL_REVIEW = 'MEDICAL_REVIEW',
 
-    // 4. Finalization
+    // 4. No Case Secondary QC & Manual Triage
+    NO_CASE_SECONDARY_QC = 'no_case_secondary_qc',
+    NO_CASE_TRIAGE = 'no_case_triage',
+
+    // 5. Finalization
     REPORTING = 'REPORTING',
     COMPLETED = 'COMPLETED'
 }
@@ -26,4 +30,5 @@ export interface WorkflowConfig {
     batchSizeNoCase: number;
     samplingRateAoi: number;    // 0-100
     samplingRateNoCase: number; // 0-100
+    noCaseSecondaryQcPercentage?: number; // 0-100
 }
