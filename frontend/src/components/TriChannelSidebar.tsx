@@ -289,7 +289,12 @@ export default function TriChannelSidebar({
   const renderNavGroup = (group: NavGroup) => {
     const isExpanded = expandedGroups[group.name];
     const isActive = isGroupActive(group);
-    const visibleChildren = group.children.filter(checkPermission);
+    // If the group has its own permission gate (e.g. icsr_track.read),
+    // show all children — the group permission is the access gate.
+    // Otherwise filter children individually.
+    const visibleChildren = group.permission
+      ? group.children
+      : group.children.filter(checkPermission);
 
     if (visibleChildren.length === 0) return null;
 
