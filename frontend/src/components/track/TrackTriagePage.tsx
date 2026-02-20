@@ -61,7 +61,16 @@ export default function TrackTriagePage({
   const getToken = () => authService.getToken();
 
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
-  const permissions = user?.permissions?.triage || user?.permissions?.QA;
+  const trackPermissionKey =
+    trackType === "ICSR"
+      ? "icsr_track"
+      : trackType === "AOI"
+      ? "aoi_track"
+      : "no_case_track";
+  const permissions =
+    user?.permissions?.[trackPermissionKey] ||
+    user?.permissions?.triage ||
+    user?.permissions?.QA;
 
   const canView = permissions?.read;
   const canAllocate = permissions?.write;

@@ -51,57 +51,57 @@ const trackNavGroups: NavGroup[] = [
   {
     name: "ICSR Track",
     icon: <DocumentCheckIcon className="w-5 h-5" />,
-    permission: { resource: "triage", action: "read" },
+    permission: { resource: "icsr_track", action: "read" },
     children: [
       {
         name: "ICSR Triage",
         href: "/dashboard/icsr/triage",
         icon: <DocumentMagnifyingGlassIcon className="w-4 h-4" />,
-        permission: { resource: "triage", action: "read" },
+        permission: { resource: "icsr_track", action: "read" },
       },
       {
         name: "Assessment",
         href: "/dashboard/icsr/assessment",
         icon: <ClipboardDocumentListIcon className="w-4 h-4" />,
-        permission: { resource: "QC", action: "read" },
+        permission: { resource: "icsr_track", action: "read" },
       },
     ],
   },
   {
     name: "AOI Track",
     icon: <BeakerIcon className="w-5 h-5" />,
-    permission: { resource: "aoiAssessment", action: "read" },
+    permission: { resource: "aoi_track", action: "read" },
     children: [
       {
         name: "AOI QC",
         href: "/dashboard/aoi/triage",
         icon: <DocumentMagnifyingGlassIcon className="w-4 h-4" />,
-        permission: { resource: "triage", action: "read" },
+        permission: { resource: "aoi_track", action: "read" },
       },
       {
         name: "AOI Assessment",
         href: "/dashboard/aoi/assessment",
         icon: <ClipboardDocumentListIcon className="w-4 h-4" />,
-        permission: { resource: "aoiAssessment", action: "read" },
+        permission: { resource: "aoi_track", action: "read" },
       },
     ],
   },
   {
     name: "No Case Track",
     icon: <XCircleIcon className="w-5 h-5" />,
-    permission: { resource: "QA", action: "read" },
+    permission: { resource: "no_case_track", action: "read" },
     children: [
       {
         name: "No Case QC",
         href: "/dashboard/no-case/triage",
         icon: <DocumentMagnifyingGlassIcon className="w-4 h-4" />,
-        permission: { resource: "triage", action: "read" },
+        permission: { resource: "no_case_track", action: "read" },
       },
       {
         name: "No Case Assessment",
         href: "/dashboard/no-case/assessment",
         icon: <ClipboardDocumentListIcon className="w-4 h-4" />,
-        permission: { resource: "QC", action: "read" },
+        permission: { resource: "no_case_track", action: "read" },
       },
     ],
   },
