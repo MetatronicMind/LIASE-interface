@@ -574,6 +574,8 @@ class RoleService {
         description: "Access to ICSR Track",
         actions: {
           read: "Visible",
+          triage: "Can access ICSR Triage",
+          assessment: "Can access Assessment",
         },
       },
       aoi_track: {
@@ -581,6 +583,8 @@ class RoleService {
         description: "Access to AOI Track",
         actions: {
           read: "Visible",
+          triage: "Can access AOI QC",
+          assessment: "Can access AOI Assessment",
         },
       },
       no_case_track: {
@@ -588,6 +592,8 @@ class RoleService {
         description: "Access to No Case Track",
         actions: {
           read: "Visible",
+          triage: "Can access No Case QC",
+          assessment: "Can access No Case Assessment",
         },
       },
       drugs: {

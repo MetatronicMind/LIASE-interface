@@ -10,6 +10,7 @@ import {
   UserIcon,
   ChartBarIcon,
   MagnifyingGlassIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { PmidLink } from "@/components/PmidLink";
 import TriageStudyDetails from "@/components/TriageStudyDetails";
@@ -62,6 +63,17 @@ export default function TrackAssessmentPage({
 }: TrackAssessmentPageProps) {
   const dispatch = useDispatch();
   const { formatDate } = useDateTime();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const trackPermissionKey =
+    trackType === "ICSR"
+      ? "icsr_track"
+      : trackType === "AOI"
+      ? "aoi_track"
+      : "no_case_track";
+  const canViewAssessment =
+    user?.permissions?.[trackPermissionKey]?.assessment ??
+    user?.permissions?.QC?.read ??
+    user?.permissions?.QA?.read;
   const [allocatedCases, setAllocatedCases] = useState<Study[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAllocating, setIsAllocating] = useState(false);
@@ -564,6 +576,23 @@ export default function TrackAssessmentPage({
   };
 
   // View: Assessment Workspace (Triage Style)
+  if (user && canViewAssessment === false) {
+    return (
+      <div className="flex h-full items-center justify-center bg-gray-50 min-h-screen">
+        <div className="text-center p-8 bg-white rounded-lg shadow-md border border-gray-200 max-w-md">
+          <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Access Restricted
+          </h2>
+          <p className="text-gray-600">
+            You do not have permission to view the {trackDisplayName} Assessment
+            section.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-gray-50 min-h-screen">
       {/* Header */}

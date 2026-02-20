@@ -57,13 +57,13 @@ const trackNavGroups: NavGroup[] = [
         name: "ICSR Triage",
         href: "/dashboard/icsr/triage",
         icon: <DocumentMagnifyingGlassIcon className="w-4 h-4" />,
-        permission: { resource: "triage", action: "read" },
+        permission: { resource: "icsr_track", action: "triage" },
       },
       {
         name: "Assessment",
         href: "/dashboard/icsr/assessment",
         icon: <ClipboardDocumentListIcon className="w-4 h-4" />,
-        permission: { resource: "QC", action: "read" },
+        permission: { resource: "icsr_track", action: "assessment" },
       },
     ],
   },
@@ -76,13 +76,13 @@ const trackNavGroups: NavGroup[] = [
         name: "AOI QC",
         href: "/dashboard/aoi/triage",
         icon: <DocumentMagnifyingGlassIcon className="w-4 h-4" />,
-        permission: { resource: "triage", action: "read" },
+        permission: { resource: "aoi_track", action: "triage" },
       },
       {
         name: "AOI Assessment",
         href: "/dashboard/aoi/assessment",
         icon: <ClipboardDocumentListIcon className="w-4 h-4" />,
-        permission: { resource: "aoiAssessment", action: "read" },
+        permission: { resource: "aoi_track", action: "assessment" },
       },
     ],
   },
@@ -95,13 +95,13 @@ const trackNavGroups: NavGroup[] = [
         name: "No Case QC",
         href: "/dashboard/no-case/triage",
         icon: <DocumentMagnifyingGlassIcon className="w-4 h-4" />,
-        permission: { resource: "triage", action: "read" },
+        permission: { resource: "no_case_track", action: "triage" },
       },
       {
         name: "No Case Assessment",
         href: "/dashboard/no-case/assessment",
         icon: <ClipboardDocumentListIcon className="w-4 h-4" />,
-        permission: { resource: "QC", action: "read" },
+        permission: { resource: "no_case_track", action: "assessment" },
       },
     ],
   },
@@ -289,12 +289,8 @@ export default function TriChannelSidebar({
   const renderNavGroup = (group: NavGroup) => {
     const isExpanded = expandedGroups[group.name];
     const isActive = isGroupActive(group);
-    // If the group has its own permission gate (e.g. icsr_track.read),
-    // show all children — the group permission is the access gate.
-    // Otherwise filter children individually.
-    const visibleChildren = group.permission
-      ? group.children
-      : group.children.filter(checkPermission);
+    // Filter children individually by their own permissions.
+    const visibleChildren = group.children.filter(checkPermission);
 
     if (visibleChildren.length === 0) return null;
 
