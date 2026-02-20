@@ -1419,6 +1419,195 @@ router.get(
   },
 );
 
+// GET /studies/aoi-reports – studies in AOI Reporting stage
+router.get(
+  "/aoi-reports",
+  authorizePermission("studies", "read"),
+  async (req, res) => {
+    try {
+      const {
+        page = 1,
+        limit = 10,
+        search,
+        studyId,
+        qaApprovalStatus,
+        serious,
+        listedness,
+        dateFrom,
+        dateTo,
+      } = req.query;
+
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
+      let query =
+        "SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND (c.subStatus = @subStatus OR c.workflowStage = @stage)";
+      const parameters = [
+        { name: "@orgId", value: targetOrgId },
+        { name: "@userTag", value: "AOI" },
+        { name: "@subStatus", value: "reporting" },
+        { name: "@stage", value: "REPORTING" },
+      ];
+
+      if (studyId) {
+        query += " AND CONTAINS(c.id, @studyId)";
+        parameters.push({ name: "@studyId", value: studyId });
+      }
+      if (qaApprovalStatus) {
+        query += " AND c.qaApprovalStatus = @qaStatus";
+        parameters.push({ name: "@qaStatus", value: qaApprovalStatus });
+      }
+      if (serious === "true") {
+        query += " AND (c.serious = true OR c.seriousness = @seriousYes)";
+        parameters.push({ name: "@seriousYes", value: "Yes" });
+      } else if (serious === "false") {
+        query += " AND (c.serious = false OR c.seriousness != @seriousYes2)";
+        parameters.push({ name: "@seriousYes2", value: "Yes" });
+      }
+      if (listedness) {
+        query += " AND c.listedness = @listedness";
+        parameters.push({ name: "@listedness", value: listedness });
+      }
+      if (dateFrom) {
+        query += " AND c.createdAt >= @dateFrom";
+        parameters.push({ name: "@dateFrom", value: dateFrom });
+      }
+      if (dateTo) {
+        query += " AND c.createdAt <= @dateTo";
+        parameters.push({ name: "@dateTo", value: dateTo + "T23:59:59Z" });
+      }
+      if (search) {
+        query +=
+          " AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))";
+        parameters.push({ name: "@search", value: search });
+      }
+
+      query += " ORDER BY c.updatedAt DESC";
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      query += ` OFFSET ${offset} LIMIT ${limit}`;
+
+      const result = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+
+      res.json({
+        success: true,
+        data: result || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          hasMore: (result?.length || 0) === parseInt(limit),
+        },
+      });
+    } catch (error) {
+      console.error("AOI Reports fetch error:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch AOI Reports", message: error.message });
+    }
+  },
+);
+
+// GET /studies/no-case-reports – studies in No Case Reporting stage
+router.get(
+  "/no-case-reports",
+  authorizePermission("studies", "read"),
+  async (req, res) => {
+    try {
+      const {
+        page = 1,
+        limit = 10,
+        search,
+        studyId,
+        qaApprovalStatus,
+        serious,
+        listedness,
+        dateFrom,
+        dateTo,
+      } = req.query;
+
+      let targetOrgId = req.user.organizationId;
+      if (req.user.isSuperAdmin() && req.query.organizationId) {
+        targetOrgId = req.query.organizationId;
+      }
+
+      let query =
+        "SELECT * FROM c WHERE c.organizationId = @orgId AND c.userTag = @userTag AND (c.subStatus = @subStatus OR c.workflowStage = @stage)";
+      const parameters = [
+        { name: "@orgId", value: targetOrgId },
+        { name: "@userTag", value: "No Case" },
+        { name: "@subStatus", value: "reporting" },
+        { name: "@stage", value: "REPORTING" },
+      ];
+
+      if (studyId) {
+        query += " AND CONTAINS(c.id, @studyId)";
+        parameters.push({ name: "@studyId", value: studyId });
+      }
+      if (qaApprovalStatus) {
+        query += " AND c.qaApprovalStatus = @qaStatus";
+        parameters.push({ name: "@qaStatus", value: qaApprovalStatus });
+      }
+      if (serious === "true") {
+        query += " AND (c.serious = true OR c.seriousness = @seriousYes)";
+        parameters.push({ name: "@seriousYes", value: "Yes" });
+      } else if (serious === "false") {
+        query += " AND (c.serious = false OR c.seriousness != @seriousYes2)";
+        parameters.push({ name: "@seriousYes2", value: "Yes" });
+      }
+      if (listedness) {
+        query += " AND c.listedness = @listedness";
+        parameters.push({ name: "@listedness", value: listedness });
+      }
+      if (dateFrom) {
+        query += " AND c.createdAt >= @dateFrom";
+        parameters.push({ name: "@dateFrom", value: dateFrom });
+      }
+      if (dateTo) {
+        query += " AND c.createdAt <= @dateTo";
+        parameters.push({ name: "@dateTo", value: dateTo + "T23:59:59Z" });
+      }
+      if (search) {
+        query +=
+          " AND (CONTAINS(UPPER(c.title), UPPER(@search)) OR CONTAINS(UPPER(c.pmid), UPPER(@search)))";
+        parameters.push({ name: "@search", value: search });
+      }
+
+      query += " ORDER BY c.updatedAt DESC";
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      query += ` OFFSET ${offset} LIMIT ${limit}`;
+
+      const result = await cosmosService.queryItems(
+        "studies",
+        query,
+        parameters,
+      );
+
+      res.json({
+        success: true,
+        data: result || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          hasMore: (result?.length || 0) === parseInt(limit),
+        },
+      });
+    } catch (error) {
+      console.error("No Case Reports fetch error:", error);
+      res
+        .status(500)
+        .json({
+          error: "Failed to fetch No Case Reports",
+          message: error.message,
+        });
+    }
+  },
+);
+
 // Get specific study
 router.get(
   "/:studyId",

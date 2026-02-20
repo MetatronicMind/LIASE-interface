@@ -50,6 +50,8 @@ interface Study {
   qaApprovalStatus?: "pending" | "approved" | "rejected";
   qaComments?: string;
   sourceTrack?: string;
+  crossAllocationComment?: string | null;
+  crossAllocatedFrom?: string | null;
 }
 
 // Destination options removed in favor of dynamic AssessmentAction UI
@@ -68,6 +70,13 @@ export default function TrackAssessmentPage({
   const [poolCount, setPoolCount] = useState<number | null>(null);
   const [secondaryQcCount, setSecondaryQcCount] = useState<number | null>(null);
   const [processingQC, setProcessingQC] = useState(false);
+
+  // Reroute modal state
+  const [rerouteModal, setRerouteModal] = useState<{
+    targetTrack: string;
+    destination: string;
+  } | null>(null);
+  const [rerouteComment, setRerouteComment] = useState("");
 
   // Classification state (needed for TriageStudyDetails compatibility)
   const [classifying, setClassifying] = useState<string | null>(null);
@@ -343,8 +352,9 @@ export default function TrackAssessmentPage({
 
   const handleAssessmentDecision = async (
     actionType: "approve" | "reroute" | "reject",
-    targetTrack?: string, // e.g., 'ICSR', 'AOI', 'NoCase'
-    destinationEndpoint?: string, // e.g., 'data_entry', 'aoi_assessment'
+    targetTrack?: string,
+    destinationEndpoint?: string,
+    crossAllocationComment?: string,
   ) => {
     const token = getToken();
     if (!token || !currentCase) return;
@@ -387,6 +397,9 @@ export default function TrackAssessmentPage({
       // Pass previous track when rerouting so backend can store history
       if (actionType === "reroute") {
         body.previousTrack = trackType; // Current track becomes previous
+        if (crossAllocationComment) {
+          body.crossAllocationComment = crossAllocationComment;
+        }
       }
 
       const response = await fetch(
@@ -845,13 +858,13 @@ export default function TrackAssessmentPage({
                           {/* If Classified as AOI */}
                           {selectedClassification === "AOI" && (
                             <button
-                              onClick={() =>
-                                handleAssessmentDecision(
-                                  "reroute",
-                                  "AOI",
-                                  "aoi_assessment",
-                                )
-                              }
+                              onClick={() => {
+                                setRerouteComment("");
+                                setRerouteModal({
+                                  targetTrack: "AOI",
+                                  destination: "aoi_assessment",
+                                });
+                              }}
                               disabled={routingStudyId === currentCase.id}
                               className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
                             >
@@ -862,13 +875,13 @@ export default function TrackAssessmentPage({
                           {/* If Classified as No Case */}
                           {selectedClassification === "No Case" && (
                             <button
-                              onClick={() =>
-                                handleAssessmentDecision(
-                                  "reroute",
-                                  "No Case",
-                                  "no_case_assessment",
-                                )
-                              }
+                              onClick={() => {
+                                setRerouteComment("");
+                                setRerouteModal({
+                                  targetTrack: "No Case",
+                                  destination: "no_case_assessment",
+                                });
+                              }}
                               disabled={routingStudyId === currentCase.id}
                               className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
                             >
@@ -901,13 +914,13 @@ export default function TrackAssessmentPage({
                           {/* If Classified as ICSR */}
                           {selectedClassification === "ICSR" && (
                             <button
-                              onClick={() =>
-                                handleAssessmentDecision(
-                                  "reroute",
-                                  "ICSR",
-                                  "icsr_assessment",
-                                )
-                              }
+                              onClick={() => {
+                                setRerouteComment("");
+                                setRerouteModal({
+                                  targetTrack: "ICSR",
+                                  destination: "icsr_assessment",
+                                });
+                              }}
                               disabled={routingStudyId === currentCase.id}
                               className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
                             >
@@ -918,13 +931,13 @@ export default function TrackAssessmentPage({
                           {/* If Classified as No Case */}
                           {selectedClassification === "No Case" && (
                             <button
-                              onClick={() =>
-                                handleAssessmentDecision(
-                                  "reroute",
-                                  "No Case",
-                                  "no_case_assessment",
-                                )
-                              }
+                              onClick={() => {
+                                setRerouteComment("");
+                                setRerouteModal({
+                                  targetTrack: "No Case",
+                                  destination: "no_case_assessment",
+                                });
+                              }}
                               disabled={routingStudyId === currentCase.id}
                               className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
                             >
@@ -957,13 +970,13 @@ export default function TrackAssessmentPage({
                           {/* If Classified as ICSR */}
                           {selectedClassification === "ICSR" && (
                             <button
-                              onClick={() =>
-                                handleAssessmentDecision(
-                                  "reroute",
-                                  "ICSR",
-                                  "icsr_assessment",
-                                )
-                              }
+                              onClick={() => {
+                                setRerouteComment("");
+                                setRerouteModal({
+                                  targetTrack: "ICSR",
+                                  destination: "icsr_assessment",
+                                });
+                              }}
                               disabled={routingStudyId === currentCase.id}
                               className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium disabled:opacity-50"
                             >
@@ -974,13 +987,13 @@ export default function TrackAssessmentPage({
                           {/* If Classified as AOI */}
                           {selectedClassification === "AOI" && (
                             <button
-                              onClick={() =>
-                                handleAssessmentDecision(
-                                  "reroute",
-                                  "AOI",
-                                  "aoi_assessment",
-                                )
-                              }
+                              onClick={() => {
+                                setRerouteComment("");
+                                setRerouteModal({
+                                  targetTrack: "AOI",
+                                  destination: "aoi_assessment",
+                                });
+                              }}
                               disabled={routingStudyId === currentCase.id}
                               className="col-span-1 sm:col-span-2 flex items-center justify-center p-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all font-medium disabled:opacity-50"
                             >
@@ -1044,6 +1057,61 @@ export default function TrackAssessmentPage({
           )
         )}
       </div>
+
+      {/* Reroute / Cross-Allocation Comment Modal */}
+      {rerouteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">
+              Cross-Allocate to {rerouteModal.targetTrack}
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Please provide a reason for re-routing this case. This comment
+              will be displayed at the top of the case for the next reviewer.
+            </p>
+            <textarea
+              className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows={4}
+              placeholder="Enter reason for cross-allocation..."
+              value={rerouteComment}
+              onChange={(e) => setRerouteComment(e.target.value)}
+              autoFocus
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setRerouteModal(null);
+                  setRerouteComment("");
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!rerouteComment.trim()) {
+                    toast.error("Please enter a reason for cross-allocation.");
+                    return;
+                  }
+                  const { targetTrack, destination } = rerouteModal;
+                  setRerouteModal(null);
+                  handleAssessmentDecision(
+                    "reroute",
+                    targetTrack,
+                    destination,
+                    rerouteComment.trim(),
+                  );
+                  setRerouteComment("");
+                }}
+                disabled={routingStudyId === currentCase?.id}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                Confirm Re-route
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

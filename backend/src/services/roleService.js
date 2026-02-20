@@ -608,26 +608,7 @@ class RoleService {
           classify: "Can Classify Studies",
         },
       },
-      QA: {
-        displayName: "QC Allocation (QA)",
-        description: "Manage QC allocation",
-        actions: {
-          read: "Can View Section",
-          write: "Can Allocate",
-          approve: "Can Approve Allocation",
-          reject: "Can Reject Allocation",
-        },
-      },
-      QC: {
-        displayName: "QC Triage & Data Entry",
-        description: "Quality control for triage and data entry",
-        actions: {
-          read: "Can View Section",
-          write: "Can Edit QC Data",
-          approve: "Can Approve QC",
-          reject: "Can Reject QC",
-        },
-      },
+
       data_entry: {
         displayName: "Data Entry",
         description: "Data entry operations",
@@ -713,24 +694,7 @@ class RoleService {
           archive: "Can Archive studies",
         },
       },
-      settings: {
-        displayName: "Settings",
-        description: "System settings",
-        actions: {
-          read: "Can View Section",
-          write: "Can Edit Settings",
-          viewDateTime: "Can view Date/Time Settings",
-          viewRoleManagement: "Can view Role Management Settings",
-          viewOrganization: "Can view Organization Settings",
-          viewWorkflow: "Can view Workflow Settings",
-          viewNotifications: "Can view Notifications Settings",
-          viewEmail: "Can view Email Settings",
-          viewArchival: "Can view Archival Settings",
-          viewAdminConfig: "Can view Admin Configuration",
-          viewStudyQueue: "Can view Study Queue Configuration",
-          viewSystemConfig: "Can view System Configuration",
-        },
-      },
+
       drugs: {
         displayName: "Drugs Configuration",
         description: "Manage drug configurations",
@@ -738,42 +702,6 @@ class RoleService {
           read: "Can View",
           write: "Can Edit",
           delete: "Can Delete",
-        },
-      },
-      organizations: {
-        displayName: "Organizations",
-        description: "Manage organizations",
-        actions: {
-          read: "Can View",
-          write: "Can Edit",
-          delete: "Can Delete",
-        },
-      },
-      notifications: {
-        displayName: "Notifications",
-        description: "Manage notifications",
-        actions: {
-          read: "Can View",
-          write: "Can Edit",
-          delete: "Can Delete",
-        },
-      },
-      email: {
-        displayName: "Email",
-        description: "Manage email",
-        actions: {
-          read: "Can View",
-          write: "Can Edit",
-          delete: "Can Delete",
-        },
-      },
-      admin_config: {
-        displayName: "Admin Config",
-        description: "Administrative configuration",
-        actions: {
-          read: "Can View",
-          write: "Can Edit",
-          manage_jobs: "Can Manage Jobs",
         },
       },
     };

@@ -102,6 +102,11 @@ class Study {
     batchId = null, // ID for the batch allocation
     allocatedAt = null, // Timestamp when allocated
     lastQueueStage = null, // Breadcrumb for reject-back routing
+    // Cross-allocation comment fields
+    crossAllocationComment = null,
+    crossAllocatedBy = null,
+    crossAllocatedAt = null,
+    crossAllocatedFrom = null,
   }) {
     this.id = id;
     this.organizationId = organizationId;
@@ -216,6 +221,11 @@ class Study {
     this.batchId = batchId;
     this.allocatedAt = allocatedAt;
     this.lastQueueStage = lastQueueStage;
+    // Cross-allocation comment fields
+    this.crossAllocationComment = crossAllocationComment;
+    this.crossAllocatedBy = crossAllocatedBy;
+    this.crossAllocatedAt = crossAllocatedAt;
+    this.crossAllocatedFrom = crossAllocatedFrom;
   }
 
   addComment(comment) {
@@ -859,6 +869,7 @@ class Study {
     userName,
     previousTrack = null,
     comments = null,
+    crossAllocationComment = null,
   ) {
     const validDestinations = [
       "data_entry",
@@ -914,7 +925,21 @@ class Study {
     if (previousTrack) {
       this.sourceTrack = previousTrack;
       this.sourceTrackTimestamp = new Date().toISOString();
-    } else {
+    }
+
+    // Store cross-allocation comment when rerouting to another track
+    if (crossAllocationComment && previousTrack) {
+      this.crossAllocationComment = crossAllocationComment;
+      this.crossAllocatedBy = userId;
+      this.crossAllocatedAt = new Date().toISOString();
+      this.crossAllocatedFrom = previousTrack;
+      this.addComment({
+        userId,
+        userName,
+        text: `Cross-allocated from ${previousTrack} track. Reason: ${crossAllocationComment}`,
+        type: "cross_allocation",
+      });
+    } else if (!previousTrack) {
       // If simply moving forward in same track, keep sourceTrack?
       // Or clear it? Depends on if we want "original source".
       // For now, let's keep it if not explicitly overwritten.

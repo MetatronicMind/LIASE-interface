@@ -306,6 +306,7 @@ class TrackAllocationService {
     user,
     previousTrack = null,
     comments = null,
+    crossAllocationComment = null,
   ) {
     const studyData = await cosmosService.getItem(
       "studies",
@@ -319,7 +320,26 @@ class TrackAllocationService {
 
     const study = new Study(studyData);
 
+    // If the study was already advanced out of assessment (e.g. the PUT /studies/:id
+    // workflow machine already transitioned it to REPORTING), treat the route call
+    // as a no-op success so the frontend doesn't show a spurious "Failed to route study"
+    // error while the case is in fact moved correctly.
+    const postAssessmentStatuses = [
+      "archived",
+      "reporting",
+      "data_entry",
+      "medical_review",
+    ];
     if (study.subStatus !== "assessment") {
+      if (postAssessmentStatuses.includes(study.subStatus)) {
+        return {
+          success: true,
+          studyId: study.id,
+          destination: destination,
+          previousTrack: study.workflowTrack,
+          alreadyRouted: true,
+        };
+      }
       throw new Error("Study must be in assessment phase to route");
     }
 
@@ -332,6 +352,7 @@ class TrackAllocationService {
       userName,
       previousTrack,
       comments,
+      crossAllocationComment,
     );
 
     await cosmosService.updateItem(

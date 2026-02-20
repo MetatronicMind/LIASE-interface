@@ -59,6 +59,8 @@ interface Study {
   qcR3Comments?: string;
   revokedBy?: string;
   revocationReason?: string;
+  crossAllocationComment?: string | null;
+  crossAllocatedFrom?: string | null;
 }
 
 interface StudyDetailViewProps {
@@ -175,6 +177,33 @@ export default function StudyDetailView({
 
         {/* Rejection Banners */}
         <div className="px-6 pt-4 space-y-2 bg-white">
+          {study.crossAllocationComment && study.crossAllocatedFrom && (
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-blue-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-700">
+                    <span className="font-bold">
+                      Cross-Allocated from {study.crossAllocatedFrom}:{" "}
+                    </span>
+                    {study.crossAllocationComment}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           {study.qaApprovalStatus === "rejected" && study.qaComments && (
             <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-lg">
               <div className="flex">

@@ -466,7 +466,8 @@ router.post(
   async (req, res) => {
     try {
       const { studyId } = req.params;
-      const { destination, previousTrack, comments } = req.body;
+      const { destination, previousTrack, comments, crossAllocationComment } =
+        req.body;
 
       const validDestinations = [
         "data_entry",
@@ -493,6 +494,7 @@ router.post(
         req.user,
         previousTrack,
         comments,
+        crossAllocationComment,
       );
 
       try {
@@ -518,12 +520,10 @@ router.post(
         console.error("Error sending JSON response:", jsonError);
         // If headers are already sent, we can't send another response
         if (!res.headersSent) {
-          res
-            .status(500)
-            .json({
-              error: "Failed to send response",
-              details: jsonError.message,
-            });
+          res.status(500).json({
+            error: "Failed to send response",
+            details: jsonError.message,
+          });
         }
       }
     } catch (error) {
